@@ -19,7 +19,9 @@ export default function App() {
   const [files, setFiles] = useState({});
   const [loading, setLoading] = useState(false);
   const [outputUrls, setOutputUrls] = useState(null);
-  const [inventoryData, setInventoryData] = useState(null);
+  const [chartData, setChartData] = useState(null);
+  const [selectedSku, setSelectedSku] = useState('');
+  const [selectedOutputType, setSelectedOutputType] = useState('inventory');
 
   const handleFileChange = (e) => {
     setFiles({ ...files, [e.target.name]: e.target.files[0] });
@@ -39,7 +41,7 @@ export default function App() {
       setLoading(true);
       const res = await axios.post("https://forc-backend.onrender.com/api/run", formData);
       setOutputUrls(res.data);
-      loadInventoryChart(res.data.inventory_output_file_url);
+      await loadFilteredChart('inventory', ''); // Default load
     } catch (err) {
       alert("Error: " + (err.response?.data?.message || err.message));
     } finally {
@@ -47,26 +49,34 @@ export default function App() {
     }
   };
 
-  const loadInventoryChart = async (url) => {
+  const loadFilteredChart = async (type, sku) => {
+    const url = outputUrls?.[`${type}_output_file_url`];
+    if (!url) return;
+
     const response = await fetch(url);
     const text = await response.text();
     const parsed = Papa.parse(text, { header: true });
-    const rows = parsed.data.filter(row => row.Date && !isNaN(Date.parse(row.Date)));
-    const labels = rows.map(row => row.Date);
-    const values = rows.map(row => Number(row['Inventory Snapshot']) || 0);
+    let rows = parsed.data.filter(row => row.Date && !isNaN(Date.parse(row.Date)));
 
-    setInventoryData({
+    if (sku) {
+      rows = rows.filter(row => row.SKU === sku);
+    }
+
+    const labels = rows.map(row => row.Date);
+    const values = rows.map(row =>
+      Number(row['Inventory Snapshot'] || row['Flow Quantity'] || row['Production Output'] || row['Occurrence Count']) || 0
+    );
+
+    setChartData({
       labels,
-      datasets: [
-        {
-          label: 'Inventory Snapshot',
-          data: values,
-          borderColor: 'rgb(34, 197, 94)',
-          backgroundColor: 'rgba(34, 197, 94, 0.3)',
-          fill: true,
-          tension: 0.3
-        }
-      ]
+      datasets: [{
+        label: `${type.charAt(0).toUpperCase() + type.slice(1)} Snapshot`,
+        data: values,
+        borderColor: 'rgb(34, 197, 94)',
+        backgroundColor: 'rgba(34, 197, 94, 0.3)',
+        fill: true,
+        tension: 0.3
+      }]
     });
   };
 
@@ -87,7 +97,9 @@ export default function App() {
         >
           {loading ? 'Running...' : 'Run Simulation'}
         </button>
-        <button className="w-full mt-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded">Reset Simulation</button>
+        <button className="w-full mt-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded">
+          Reset Simulation
+        </button>
       </aside>
 
       {/* Main Content */}
@@ -120,12 +132,46 @@ export default function App() {
           </section>
         )}
 
-        {/* Inventory Chart */}
-        {inventoryData && (
+        {/* Chart Filters */}
+        {outputUrls && (
+          <div className="flex gap-4 mb-6">
+            <select
+              value={selectedSku}
+              onChange={(e) => setSelectedSku(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1"
+            >
+              <option value="">All SKUs</option>
+              <option value="SKU-001">SKU-001</option>
+              <option value="SKU-002">SKU-002</option>
+              {/* You can add dynamic population later */}
+            </select>
+
+            <select
+              value={selectedOutputType}
+              onChange={(e) => setSelectedOutputType(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1"
+            >
+              <option value="inventory">Inventory</option>
+              <option value="flow">Flow</option>
+              <option value="production">Production</option>
+              <option value="occurrence">Occurrence</option>
+            </select>
+
+            <button
+              onClick={() => loadFilteredChart(selectedOutputType, selectedSku)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded"
+            >
+              Apply Filter
+            </button>
+          </div>
+        )}
+
+        {/* Chart Display */}
+        {chartData && (
           <section>
             <h2 className="text-xl font-semibold text-gray-800 mb-4">📊 Inventory Trend</h2>
             <div className="bg-white shadow rounded p-4">
-              <Line data={inventoryData} />
+              <Line data={chartData} />
             </div>
           </section>
         )}
