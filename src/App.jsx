@@ -1,5 +1,5 @@
 import { downloadCSV } from './utils/downloadCSV';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Line } from 'react-chartjs-2';
 import Papa from 'papaparse';
@@ -41,9 +41,11 @@ export default function App() {
 
     try {
       setLoading(true);
-      const res = await axios.post("https://forc-backend.onrender.com/api/run", formData);
+      const res = await axios.post("http://127.0.0.1:5000/api/run", formData);
       setOutputUrls(res.data);
-      await loadFilteredChart('inventory', ''); // Default load
+      setSelectedOutputType('inventory');
+      setSelectedSku('');
+      await loadFilteredChart('inventory', '');
     } catch (err) {
       alert("Error: " + (err.response?.data?.message || err.message));
     } finally {
@@ -85,6 +87,12 @@ export default function App() {
       ]
     });
   };
+
+  useEffect(() => {
+    if (outputUrls) {
+      loadFilteredChart(selectedOutputType, selectedSku);
+    }
+  }, [selectedOutputType, selectedSku]);
 
   const getSummaryStats = () => {
     if (!filteredRows.length) return null;
@@ -180,13 +188,6 @@ export default function App() {
               <option value="production">Production</option>
               <option value="occurrence">Occurrence</option>
             </select>
-
-            <button
-              onClick={() => loadFilteredChart(selectedOutputType, selectedSku)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded"
-            >
-              Apply Filter
-            </button>
           </div>
         )}
 
