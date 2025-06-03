@@ -1,3 +1,4 @@
+import { downloadCSV } from './utils/downloadCSV';
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Line } from 'react-chartjs-2';
@@ -143,7 +144,7 @@ export default function App() {
               <option value="">All SKUs</option>
               <option value="SKU-001">SKU-001</option>
               <option value="SKU-002">SKU-002</option>
-              {/* You can add dynamic population later */}
+              {/* Extend this list dynamically later */}
             </select>
 
             <select
@@ -166,12 +167,28 @@ export default function App() {
           </div>
         )}
 
-        {/* Chart Display */}
+        {/* Chart and Export */}
         {chartData && (
           <section>
             <h2 className="text-xl font-semibold text-gray-800 mb-4">📊 Inventory Trend</h2>
             <div className="bg-white shadow rounded p-4">
               <Line data={chartData} />
+              <div className="flex justify-end mt-4">
+                <button
+                  onClick={() =>
+                    downloadCSV(
+                      chartData?.datasets?.[0]?.data.map((y, i) => ({
+                        Date: chartData.labels[i],
+                        Value: y
+                      })),
+                      `FORC_${selectedOutputType}_${selectedSku || 'All'}.csv`
+                    )
+                  }
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
+                >
+                  Download CSV
+                </button>
+              </div>
             </div>
           </section>
         )}
