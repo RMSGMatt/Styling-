@@ -37,7 +37,7 @@ export default function App() {
 
     try {
       setLoading(true);
-      const res = await axios.post("https://forc-backend.onrender.com/api/run", formData)
+      const res = await axios.post("https://forc-backend.onrender.com/api/run", formData);
       setOutputUrls(res.data);
       loadInventoryChart(res.data.inventory_output_file_url);
     } catch (err) {
@@ -57,59 +57,79 @@ export default function App() {
 
     setInventoryData({
       labels,
-      datasets: [{
-        label: 'Inventory Snapshot',
-        data: values,
-        borderColor: 'rgb(37, 99, 235)',
-        backgroundColor: 'rgba(37, 99, 235, 0.3)',
-        fill: true,
-        tension: 0.3
-      }]
+      datasets: [
+        {
+          label: 'Inventory Snapshot',
+          data: values,
+          borderColor: 'rgb(34, 197, 94)',
+          backgroundColor: 'rgba(34, 197, 94, 0.3)',
+          fill: true,
+          tension: 0.3
+        }
+      ]
     });
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-blue-700">FOR-C Simulation Dashboard</h1>
-
-      <div className="grid grid-cols-2 gap-4">
-        {['demand', 'disruptions', 'locations', 'bom', 'processes', 'location_materials'].map((key) => (
-          <div key={key}>
-            <label className="block font-semibold mb-1">{key}.csv</label>
-            <input type="file" name={key} onChange={handleFileChange} className="border p-2 w-full" />
-          </div>
+    <div className="min-h-screen flex font-sans">
+      {/* Sidebar */}
+      <aside className="w-64 bg-emerald-900 text-white p-6 space-y-4">
+        <div className="text-2xl font-bold mb-6">FOR-C</div>
+        {['Disruption', 'Demand', 'Location Path', 'Location Materials', 'Information Process', 'BOM'].map(label => (
+          <button key={label} className="w-full text-left px-4 py-2 bg-emerald-800 hover:bg-emerald-700 rounded">
+            {label}
+          </button>
         ))}
-      </div>
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full mt-6 px-4 py-2 bg-lime-600 hover:bg-lime-500 text-white rounded"
+        >
+          {loading ? 'Running...' : 'Run Simulation'}
+        </button>
+        <button className="w-full mt-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded">Reset Simulation</button>
+      </aside>
 
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="mt-6 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-      >
-        {loading ? 'Running Simulation...' : 'Run Simulation'}
-      </button>
+      {/* Main Content */}
+      <main className="flex-1 bg-gray-50 p-8 overflow-auto">
+        <h1 className="text-3xl font-semibold mb-6 text-emerald-900">FOR-C Simulation Dashboard</h1>
 
-      {outputUrls && (
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-2">📄 Output Downloads</h2>
-          <ul className="list-disc list-inside text-blue-700">
-            {['flow', 'inventory', 'production', 'occurrence'].map((type) => (
-              <li key={type}>
-                <a href={outputUrls[`${type}_output_file_url`]} target="_blank" rel="noreferrer" className="underline">
-                  Download {type}.csv
-                </a>
-              </li>
-            ))}
-          </ul>
+        {/* File Uploads */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          {['demand', 'disruptions', 'locations', 'bom', 'processes', 'location_materials'].map(key => (
+            <div key={key}>
+              <label className="block font-medium text-gray-700 mb-1 capitalize">{key}.csv</label>
+              <input type="file" name={key} onChange={handleFileChange} className="block w-full border border-gray-300 rounded px-2 py-1" />
+            </div>
+          ))}
         </div>
-      )}
 
-      {inventoryData && (
-        <div className="mt-10">
-          <h2 className="text-xl font-semibold mb-2">📊 Inventory Trend</h2>
-          <Line data={inventoryData} />
-        </div>
-      )}
+        {/* Output Downloads */}
+        {outputUrls && (
+          <section className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">📄 Output Downloads</h2>
+            <ul className="space-y-1 text-blue-700">
+              {['flow', 'inventory', 'production', 'occurrence'].map(type => (
+                <li key={type}>
+                  <a href={outputUrls[`${type}_output_file_url`]} target="_blank" rel="noreferrer" className="underline">
+                    Download {type}.csv
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Inventory Chart */}
+        {inventoryData && (
+          <section>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">📊 Inventory Trend</h2>
+            <div className="bg-white shadow rounded p-4">
+              <Line data={inventoryData} />
+            </div>
+          </section>
+        )}
+      </main>
     </div>
   );
 }
