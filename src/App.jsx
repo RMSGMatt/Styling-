@@ -69,9 +69,14 @@ export default function App() {
     setFilteredRows(rows);
 
     const labels = rows.map(row => row.Date);
-    const values = rows.map(row =>
-      Number(row['Inventory Snapshot'] || row['Flow Quantity'] || row['Production Output'] || row['Occurrence Count']) || 0
-    );
+    const valueColumn =
+      type === 'inventory' ? 'Initial Inventory' :
+      type === 'flow' ? 'Flow Quantity' :
+      type === 'production' ? 'Production Output' :
+      type === 'occurrence' ? 'Occurrence Count' :
+      null;
+
+    const values = rows.map(row => Number(row?.[valueColumn]) || 0);
 
     setChartData({
       labels,
@@ -98,9 +103,14 @@ export default function App() {
     if (!filteredRows.length) return null;
 
     const dates = filteredRows.map(row => row.Date);
-    const values = filteredRows.map(row =>
-      Number(row['Inventory Snapshot'] || row['Flow Quantity'] || row['Production Output'] || row['Occurrence Count']) || 0
-    );
+    const valueColumn =
+      selectedOutputType === 'inventory' ? 'Initial Inventory' :
+      selectedOutputType === 'flow' ? 'Flow Quantity' :
+      selectedOutputType === 'production' ? 'Production Output' :
+      selectedOutputType === 'occurrence' ? 'Occurrence Count' :
+      null;
+
+    const values = filteredRows.map(row => Number(row?.[valueColumn]) || 0);
     const total = values.reduce((a, b) => a + b, 0);
     const avg = total / values.length;
     const uniqueFacilities = new Set(filteredRows.map(row => row.Facility)).size;
@@ -194,7 +204,7 @@ export default function App() {
         {/* Chart Display */}
         {chartData && (
           <section>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">📊 Inventory Trend</h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">📊 {selectedOutputType.charAt(0).toUpperCase() + selectedOutputType.slice(1)} Trend</h2>
             <div className="bg-white shadow rounded p-4">
               <Line data={chartData} />
             </div>
