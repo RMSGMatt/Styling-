@@ -1,8 +1,8 @@
-import { downloadCSV } from './utils/downloadCSV';
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Line } from 'react-chartjs-2';
 import Papa from 'papaparse';
+import { downloadCSV } from './utils/downloadCSV';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -21,7 +21,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [outputUrls, setOutputUrls] = useState(null);
   const [chartData, setChartData] = useState(null);
-  const [selectedSku, setSelectedSku] = useState('');
+  const [selectedSkus, setSelectedSkus] = useState([]);
   const [selectedOutputType, setSelectedOutputType] = useState('inventory');
 
   const handleFileChange = (e) => {
@@ -42,7 +42,7 @@ export default function App() {
       setLoading(true);
       const res = await axios.post("https://forc-backend.onrender.com/api/run", formData);
       setOutputUrls(res.data);
-      await loadFilteredChart('inventory', ''); // Default load
+      await loadFilteredChart('inventory', []); // Load default chart
     } catch (err) {
       alert("Error: " + (err.response?.data?.message || err.message));
     } finally {
@@ -50,7 +50,7 @@ export default function App() {
     }
   };
 
-  const loadFilteredChart = async (type, sku) => {
+  const loadFilteredChart = async (type, skus = []) => {
     const url = outputUrls?.[`${type}_output_file_url`];
     if (!url) return;
 
@@ -59,31 +59,51 @@ export default function App() {
     const parsed = Papa.parse(text, { header: true });
     let rows = parsed.data.filter(row => row.Date && !isNaN(Date.parse(row.Date)));
 
-    if (sku) {
-      rows = rows.filter(row => row.SKU === sku);
-    }
+    let datasets = [];
 
-    const labels = rows.map(row => row.Date);
-    const values = rows.map(row =>
-      Number(row['Inventory Snapshot'] || row['Flow Quantity'] || row['Production Output'] || row['Occurrence Count']) || 0
-    );
+    if (skus.length === 0) {
+      const labels = rows.map(row => row.Date);
+      const values = rows.map(row =>
+        Number(row['Inventory Snapshot'] || row['Flow Quantity'] || row['Production Output'] || row['Occurrence Count']) || 0
+      );
 
-    setChartData({
-      labels,
-      datasets: [{
-        label: `${type.charAt(0).toUpperCase() + type.slice(1)} Snapshot`,
+      datasets.push({
+        label: `${type.charAt(0).toUpperCase() + type.slice(1)} (All SKUs)`,
         data: values,
         borderColor: 'rgb(34, 197, 94)',
         backgroundColor: 'rgba(34, 197, 94, 0.3)',
         fill: true,
         tension: 0.3
-      }]
-    });
+      });
+
+      setChartData({ labels, datasets });
+      return;
+    }
+
+    const labels = [...new Set(rows.map(row => row.Date))].sort();
+
+    for (const sku of skus) {
+      const skuRows = rows.filter(row => row.SKU === sku);
+      const values = labels.map(date => {
+        const entry = skuRows.find(r => r.Date === date);
+        return entry ? Number(entry['Inventory Snapshot'] || entry['Flow Quantity'] || entry['Production Output'] || entry['Occurrence Count']) : 0;
+      });
+
+      datasets.push({
+        label: sku,
+        data: values,
+        fill: true,
+        tension: 0.3,
+        borderColor: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`,
+        backgroundColor: `hsla(${Math.floor(Math.random() * 360)}, 70%, 50%, 0.3)`
+      });
+    }
+
+    setChartData({ labels, datasets });
   };
 
   return (
     <div className="min-h-screen flex font-sans">
-      {/* Sidebar */}
       <aside className="w-64 bg-emerald-900 text-white p-6 space-y-4">
         <div className="text-2xl font-bold mb-6">FOR-C</div>
         {['Disruption', 'Demand', 'Location Path', 'Location Materials', 'Information Process', 'BOM'].map(label => (
@@ -103,11 +123,9 @@ export default function App() {
         </button>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 bg-gray-50 p-8 overflow-auto">
         <h1 className="text-3xl font-semibold mb-6 text-emerald-900">FOR-C Simulation Dashboard</h1>
 
-        {/* File Uploads */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
           {['demand', 'disruptions', 'locations', 'bom', 'processes', 'location_materials'].map(key => (
             <div key={key}>
@@ -117,7 +135,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* Output Downloads */}
         {outputUrls && (
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">📄 Output Downloads</h2>
@@ -133,18 +150,20 @@ export default function App() {
           </section>
         )}
 
-        {/* Chart Filters */}
         {outputUrls && (
           <div className="flex gap-4 mb-6">
             <select
-              value={selectedSku}
-              onChange={(e) => setSelectedSku(e.target.value)}
-              className="border border-gray-300 rounded px-2 py-1"
+              multiple
+              value={selectedSkus}
+              onChange={(e) => {
+                const options = Array.from(e.target.selectedOptions, opt => opt.value);
+                setSelectedSkus(options);
+              }}
+              className="border border-gray-300 rounded px-2 py-1 h-32"
             >
-              <option value="">All SKUs</option>
               <option value="SKU-001">SKU-001</option>
               <option value="SKU-002">SKU-002</option>
-              {/* Extend this list dynamically later */}
+              <option value="SKU-003">SKU-003</option>
             </select>
 
             <select
@@ -159,7 +178,7 @@ export default function App() {
             </select>
 
             <button
-              onClick={() => loadFilteredChart(selectedOutputType, selectedSku)}
+              onClick={() => loadFilteredChart(selectedOutputType, selectedSkus)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded"
             >
               Apply Filter
@@ -167,28 +186,25 @@ export default function App() {
           </div>
         )}
 
-        {/* Chart and Export */}
         {chartData && (
           <section>
             <h2 className="text-xl font-semibold text-gray-800 mb-4">📊 Inventory Trend</h2>
             <div className="bg-white shadow rounded p-4">
               <Line data={chartData} />
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={() =>
-                    downloadCSV(
-                      chartData?.datasets?.[0]?.data.map((y, i) => ({
-                        Date: chartData.labels[i],
-                        Value: y
-                      })),
-                      `FORC_${selectedOutputType}_${selectedSku || 'All'}.csv`
-                    )
-                  }
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
-                >
-                  Download CSV
-                </button>
-              </div>
+            </div>
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => downloadCSV(chartData.labels.map((date, i) => {
+                  const row = { Date: date };
+                  chartData.datasets.forEach(ds => {
+                    row[ds.label] = ds.data[i];
+                  });
+                  return row;
+                }), `FORC_${selectedOutputType}_${selectedSkus.join("_") || 'all'}.csv`)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
+              >
+                Download Chart CSV
+              </button>
             </div>
           </section>
         )}
