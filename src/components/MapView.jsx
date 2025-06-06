@@ -1,16 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import Papa from 'papaparse';
 
 mapboxgl.accessToken = 'pk.eyJ1IjoiZXRtc21hdHQiLCJhIjoiY204OTdkMDZmMDM1NDJ2cHk1M2FvcnkxbyJ9.t8NCNACusdhKWWVuWpYh9A';
-
-const facilities = [
-  { name: 'Novi, MI', lat: 42.4806, lon: -83.4755 },
-  { name: 'Aichi, Japan', lat: 35.1802, lon: 136.9066 },
-  { name: 'Stuttgart, Germany', lat: 48.7758, lon: 9.1829 },
-  { name: 'Bangkok, Thailand', lat: 13.7563, lon: 100.5018 },
-  { name: 'Pune, India', lat: 18.5204, lon: 73.8567 }
-];
 
 export default function MapView({ filteredRows = [], selectedOutputType = 'inventory', onFacilityClick }) {
   const mapContainer = useRef(null);
@@ -27,52 +20,76 @@ export default function MapView({ filteredRows = [], selectedOutputType = 'inven
     map.on('style.load', () => map.setFog({}));
 
     map.on('load', () => {
-      facilities.forEach(fac => {
-        const rows = filteredRows.filter(row => row.Facility === fac.name);
-        if (!rows.length) return;
+      fetch('/data/locations.csv')
+        .then(res => res.text())
+        .then(csvText => {
+          Papa.parse(csvText, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              const facilities = results.data;
 
-        const skus = [...new Set(rows.map(r => r.SKU))];
-        const quantityColumn =
-          selectedOutputType === 'inventory' ? 'Initial Inventory' :
-          selectedOutputType === 'flow' ? 'Quantity Fulfilled' :
-          selectedOutputType === 'production' ? 'Quantity Produced' :
-          selectedOutputType === 'occurrence' ? 'Quantity Unmet' :
-          null;
+              facilities.forEach((fac) => {
+                const name = fac.Facility?.trim() || fac.location?.trim() || fac.Site?.trim();
+                const lat = parseFloat(fac.Latitude);
+                const lon = parseFloat(fac.Longitude);
+                if (!name || isNaN(lat) || isNaN(lon)) return;
 
-        const total = rows.reduce((sum, r) => sum + (Number(r?.[quantityColumn]) || 0), 0);
-        const dates = [...new Set(rows.map(r => r.Date))];
-        const dateRange = dates.length ? `${dates[0]} to ${dates[dates.length - 1]}` : 'N/A';
+                const rows = filteredRows.filter(row => row.Facility?.trim() === name);
 
-        const popupContent = `
-          <strong>${fac.name}</strong><br/>
-          Type: ${selectedOutputType}<br/>
-          Total: ${total}<br/>
-          SKUs: ${skus.join(', ')}<br/>
-          Dates: ${dateRange}
-        `;
+                console.log("Facility from CSV:", name);
+                console.log("Matching rows:", rows);
 
-        const markerEl = document.createElement('div');
-        markerEl.className = 'custom-marker';
-        markerEl.style.width = '16px';
-        markerEl.style.height = '16px';
-        markerEl.style.backgroundColor = '#2DD4BF';
-        markerEl.style.border = '2px solid #fff';
-        markerEl.style.borderRadius = '50%';
-        markerEl.style.cursor = 'pointer';
+                if (!rows.length) return;
 
-        markerEl.addEventListener('click', () => {
-          if (onFacilityClick) onFacilityClick(fac.name);
+                // Optional override for debug only
+                // const rows = [{}];
+
+                const quantityColumn =
+                  selectedOutputType === 'inventory' ? 'Initial Inventory' :
+                  selectedOutputType === 'flow' ? 'Quantity Fulfilled' :
+                  selectedOutputType === 'production' ? 'Quantity Produced' :
+                  selectedOutputType === 'occurrence' ? 'Quantity Unmet' :
+                  null;
+
+                const total = rows.reduce((sum, r) => sum + (Number(r?.[quantityColumn]) || 0), 0);
+                const skus = [...new Set(rows.map(r => r.SKU))];
+                const dates = [...new Set(rows.map(r => r.Date))];
+                const dateRange = dates.length ? `${dates[0]} to ${dates[dates.length - 1]}` : 'N/A';
+
+                const popupContent = `
+                  <strong>${name}</strong><br/>
+                  Type: ${selectedOutputType}<br/>
+                  Total: ${total}<br/>
+                  SKUs: ${skus.join(', ')}<br/>
+                  Dates: ${dateRange}
+                `;
+
+                const markerEl = document.createElement('div');
+                markerEl.className = 'custom-marker';
+                markerEl.style.width = '16px';
+                markerEl.style.height = '16px';
+                markerEl.style.backgroundColor = '#2DD4BF';
+                markerEl.style.border = '2px solid #fff';
+                markerEl.style.borderRadius = '50%';
+                markerEl.style.cursor = 'pointer';
+
+                markerEl.addEventListener('click', () => {
+                  if (onFacilityClick) onFacilityClick(name);
+                });
+
+                new mapboxgl.Marker(markerEl)
+                  .setLngLat([lon, lat])
+                  .setPopup(new mapboxgl.Popup().setHTML(popupContent))
+                  .addTo(map);
+              });
+            }
+          });
         });
-
-        new mapboxgl.Marker(markerEl)
-          .setLngLat([fac.lon, fac.lat])
-          .setPopup(new mapboxgl.Popup().setHTML(popupContent))
-          .addTo(map);
-      });
     });
 
     return () => map.remove();
   }, [filteredRows, selectedOutputType, onFacilityClick]);
 
-  return <div ref={mapContainer} className="w-full h-full" />;
+  return <div ref={mapContainer} className="w-full h-[600px]" />;
 }
