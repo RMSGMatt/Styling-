@@ -2,8 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global Resets */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* Custom Theme Base */
 body {
   font-family: 'Poppins', sans-serif;
   background-color: #FCFDF8;
   color: #1F1F1F;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optional: make all scrollbars more subtle */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
 }
