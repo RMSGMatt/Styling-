@@ -29,22 +29,23 @@ export default function MapView({ filteredRows = [], selectedOutputType = 'inven
             complete: (results) => {
               const facilities = results.data;
 
+              const uniqueFilteredFacilities = [...new Set(filteredRows.map(r => r.Facility?.trim().toLowerCase()))];
+              console.log("Sample filteredRows:", filteredRows.slice(0, 3));
+              console.log("Unique Facilities in filteredRows:", uniqueFilteredFacilities);
+
               facilities.forEach((fac) => {
-                const name = fac.Facility?.trim() || fac.location?.trim() || fac.Site?.trim();
+                const name = fac.Facility?.trim().toLowerCase();
                 const lat = parseFloat(fac.Latitude);
                 const lon = parseFloat(fac.Longitude);
                 if (!name || isNaN(lat) || isNaN(lon)) return;
 
-                const rows = filteredRows.filter(row => row.Facility?.trim() === name);
-
-                console.log("Facility from CSV:", name);
-                console.log("Matching rows:", rows);
+                const rows = filteredRows.filter(row => row.Facility?.trim().toLowerCase() === name);
+                console.log(`Facility from CSV: ${name}`);
+                console.log(`Matching rows:`, rows);
 
                 if (!rows.length) return;
 
-                // Optional override for debug only
-                // const rows = [{}];
-
+                const skus = [...new Set(rows.map(r => r.SKU))];
                 const quantityColumn =
                   selectedOutputType === 'inventory' ? 'Initial Inventory' :
                   selectedOutputType === 'flow' ? 'Quantity Fulfilled' :
@@ -53,12 +54,11 @@ export default function MapView({ filteredRows = [], selectedOutputType = 'inven
                   null;
 
                 const total = rows.reduce((sum, r) => sum + (Number(r?.[quantityColumn]) || 0), 0);
-                const skus = [...new Set(rows.map(r => r.SKU))];
                 const dates = [...new Set(rows.map(r => r.Date))];
                 const dateRange = dates.length ? `${dates[0]} to ${dates[dates.length - 1]}` : 'N/A';
 
                 const popupContent = `
-                  <strong>${name}</strong><br/>
+                  <strong>${fac.Facility}</strong><br/>
                   Type: ${selectedOutputType}<br/>
                   Total: ${total}<br/>
                   SKUs: ${skus.join(', ')}<br/>
@@ -75,7 +75,7 @@ export default function MapView({ filteredRows = [], selectedOutputType = 'inven
                 markerEl.style.cursor = 'pointer';
 
                 markerEl.addEventListener('click', () => {
-                  if (onFacilityClick) onFacilityClick(name);
+                  if (onFacilityClick) onFacilityClick(fac.Facility);
                 });
 
                 new mapboxgl.Marker(markerEl)
@@ -91,5 +91,5 @@ export default function MapView({ filteredRows = [], selectedOutputType = 'inven
     return () => map.remove();
   }, [filteredRows, selectedOutputType, onFacilityClick]);
 
-  return <div ref={mapContainer} className="w-full h-[600px]" />;
+  return <div ref={mapContainer} className="w-full h-full" />;
 }
