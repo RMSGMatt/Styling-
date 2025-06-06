@@ -48,3 +48,15 @@
   color: #888;
   font-size: 0.875rem;
 }
+
+/* Custom Mapbox Marker Styles */
+.custom-marker {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  cursor: pointer;
+  width: 30px;
+  height: 40px;
+}
