@@ -29,19 +29,19 @@ export default function MapView({ filteredRows = [], selectedOutputType = 'inven
             complete: (results) => {
               const facilities = results.data;
 
-              const uniqueFilteredFacilities = [...new Set(filteredRows.map(r => r.Facility?.trim().toLowerCase()))];
-              console.log("Sample filteredRows:", filteredRows.slice(0, 3));
-              console.log("Unique Facilities in filteredRows:", uniqueFilteredFacilities);
-
               facilities.forEach((fac) => {
-                const name = fac.Facility?.trim().toLowerCase();
+                const rawName = fac.Facility || fac.name || fac.Site;
+                const name = rawName?.trim();
                 const lat = parseFloat(fac.Latitude);
                 const lon = parseFloat(fac.Longitude);
+
                 if (!name || isNaN(lat) || isNaN(lon)) return;
 
-                const rows = filteredRows.filter(row => row.Facility?.trim().toLowerCase() === name);
-                console.log(`Facility from CSV: ${name}`);
-                console.log(`Matching rows:`, rows);
+                const normalizedName = name.toLowerCase();
+                const rows = filteredRows.filter(row => row.Facility?.trim().toLowerCase() === normalizedName);
+
+                console.log('✅ Facility from CSV (normalized):', normalizedName);
+                console.log('✅ Matching rows:', rows);
 
                 if (!rows.length) return;
 
@@ -58,7 +58,7 @@ export default function MapView({ filteredRows = [], selectedOutputType = 'inven
                 const dateRange = dates.length ? `${dates[0]} to ${dates[dates.length - 1]}` : 'N/A';
 
                 const popupContent = `
-                  <strong>${fac.Facility}</strong><br/>
+                  <strong>${name}</strong><br/>
                   Type: ${selectedOutputType}<br/>
                   Total: ${total}<br/>
                   SKUs: ${skus.join(', ')}<br/>
@@ -75,7 +75,7 @@ export default function MapView({ filteredRows = [], selectedOutputType = 'inven
                 markerEl.style.cursor = 'pointer';
 
                 markerEl.addEventListener('click', () => {
-                  if (onFacilityClick) onFacilityClick(fac.Facility);
+                  if (onFacilityClick) onFacilityClick(name);
                 });
 
                 new mapboxgl.Marker(markerEl)
