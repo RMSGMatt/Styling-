@@ -1,0 +1,187 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Natural Hazard",
+        "description": "Earthquake in Japan",
+        "severity": "High",
+        "color": "#e11d48",
+        "country": "Japan"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [138.2529, 36.2048]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Natural Hazard",
+        "description": "Volcanic activity near Iceland",
+        "severity": "Medium",
+        "color": "#e11d48",
+        "country": "Iceland"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-19.0208, 64.9631]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Natural Hazard",
+        "description": "Ice shelf instability",
+        "severity": "Low",
+        "color": "#e11d48",
+        "country": "Antarctica"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [0, -75.25]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Logistics Disruption",
+        "description": "Port congestion in LA",
+        "severity": "High",
+        "color": "#facc15",
+        "country": "United States"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-118.2437, 34.0522]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Logistics Disruption",
+        "description": "Highway blocked in Brazil",
+        "severity": "Medium",
+        "color": "#facc15",
+        "country": "Brazil"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-47.9292, -15.7801]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Logistics Disruption",
+        "description": "Rail disruption in Sydney",
+        "severity": "Low",
+        "color": "#facc15",
+        "country": "Australia"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [151.2093, -33.8688]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Geopolitical Risk",
+        "description": "Protest activity in Paris",
+        "severity": "High",
+        "color": "#8b5cf6",
+        "country": "France"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [2.3522, 48.8566]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Geopolitical Risk",
+        "description": "Unrest in Tehran",
+        "severity": "Medium",
+        "color": "#8b5cf6",
+        "country": "Iran"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [51.389, 35.6892]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Cyber Disruption",
+        "description": "Data breach in California",
+        "severity": "High",
+        "color": "#3b82f6",
+        "country": "United States"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.0838, 37.3861]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Cyber Disruption",
+        "description": "Server failure in Seoul",
+        "severity": "Low",
+        "color": "#3b82f6",
+        "country": "South Korea"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [126.978, 37.5665]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Industrial Fire",
+        "description": "Factory fire in Lagos",
+        "severity": "High",
+        "color": "#fb923c",
+        "country": "Nigeria"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [3.3792, 6.5244]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Industrial Fire",
+        "description": "Warehouse fire in Argentina",
+        "severity": "Medium",
+        "color": "#fb923c",
+        "country": "Argentina"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-58.4173, -34.6037]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "type": "Natural Hazard",
+        "description": "Test Earthquake near Aichi",
+        "severity": "High",
+        "color": "#e11d48",
+        "country": "Japan"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.9066, 35.1802]
+      }
+    }
+  ]
+}
