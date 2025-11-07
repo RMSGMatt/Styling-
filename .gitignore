@@ -1,3 +1,10 @@
+# -------- Frontend (Node/Vite) --------
+node_modules
+dist
+dist-ssr
+.vite
+*.local
+
 # Logs
 logs
 *.log
@@ -7,12 +14,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
+# Editors / OS
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,3 +24,33 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+
+# -------- Backend (Python/Flask) --------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env              # don't commit secrets; use .env.example for templates
+.env.*            # any other env variants
+*.sqlite
+*.db
+simulation.db
+data/             # Render-mounted persistent folder (created at runtime)
+files/            # local output/upload staging folder
+
+# -------- Local test artifacts / throwaways --------
+# (adjust if you want to keep specific sample inputs)
+checkout.json
+login.json
+signup.json
+token.json
+portal.json
+
+# If you want to keep sample CSVs in fixtures/, DO NOT ignore *.csv globally.
+# The simulator writes outputs to /files/, which is already ignored above.
+
+# Optional: ignore temporary fixture/output dirs created during manual tests
+test_inputs/
+.env*.local
