@@ -15,6 +15,8 @@ createRoot(rootElement).render(
       <Routes>
         {/* ✅ Route EVERYTHING through App */}
         <Route path="/" element={<App />} />
+        <Route path="/control-tower" element={<App />} />   {/* NEW */}
+        <Route path="/simulation" element={<App />} />       {/* Optional legacy path */}
         <Route path="/about" element={<AboutUs />} />
         <Route path="/signup" element={<AuthPage onLogin={() => {}} />} />
         <Route path="*" element={<Navigate to="/" replace />} />

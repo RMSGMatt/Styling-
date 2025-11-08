@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 // 🔧 FORCE backend base URL while we debug env issues
-const API_BASE = 'http://127.0.0.1:5000';
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.origin}/api`;
 console.log('AuthPage → API_BASE =', API_BASE);
 
 export default function AuthPage({ onLogin }) {

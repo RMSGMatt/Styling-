@@ -1,26 +1,103 @@
-/* App Container */
-#root {
-  max-width: 100%;
-  margin: 0 auto;
+/* ===== Tailwind Base ===== */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Global Reset ===== */
+html, body, #root {
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
   padding: 0;
-  text-align: left;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
+  font-family: sans-serif;
 }
 
-/* FOR-C Logo */
+/* ===== Layout Container ===== */
+#root > div {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ===== Sidebar (Fixed Width) ===== */
+aside {
+  width: 16rem; /* Tailwind w-64 */
+  background-color: #1D625B;
+  color: white;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+/* ===== Main Content (Scrollable) ===== */
+main {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #f9fafb;
+  padding: 1.5rem;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* ===== News Ticker (Single-Line Horizontal Scroll) ===== */
+.ticker-wrapper {
+  width: 100%;
+  height: 2.5rem;
+  background-color: #1D625B;
+  color: white;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-left: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ticker {
+  display: inline-block;
+  white-space: nowrap;
+  animation: ticker-scroll 25s linear infinite;
+}
+
+.ticker span {
+  margin-right: 2rem;
+  display: inline-block;
+}
+
+/* Scroll animation */
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* ===== Marker Styles ===== */
+.custom-marker {
+  width: 30px;
+  height: 40px;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+/* ===== Logo Styles ===== */
 .logo {
   height: 2.5rem;
-  will-change: filter;
   transition: filter 300ms ease;
+  will-change: filter;
 }
-
 .logo:hover {
   filter: drop-shadow(0 0 0.5rem rgba(100, 108, 255, 0.5));
 }
-
-/* Optional spinning logo behavior if used */
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
@@ -29,14 +106,13 @@
     transform: rotate(360deg);
   }
 }
-
 @media (prefers-reduced-motion: no-preference) {
   .logo.spin {
     animation: logo-spin infinite 20s linear;
   }
 }
 
-/* Optional cards if reused */
+/* ===== Card Style ===== */
 .card {
   padding: 2em;
   border-radius: 0.5rem;
@@ -44,19 +120,8 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
+/* ===== Docs Footer Note ===== */
 .read-the-docs {
   color: #888;
   font-size: 0.875rem;
-}
-
-/* Custom Mapbox Marker Styles */
-.custom-marker {
-  border-radius: 0;
-  border: none;
-  box-shadow: none;
-  background-repeat: no-repeat;
-  background-position: center;
-  cursor: pointer;
-  width: 30px;
-  height: 40px;
 }

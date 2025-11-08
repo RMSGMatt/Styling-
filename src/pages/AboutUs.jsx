@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const features = [
   {
@@ -41,9 +42,59 @@ const features = [
 
 export default function AboutUs() {
   const [selectedFeature, setSelectedFeature] = useState(null);
+  const navigate = useNavigate();
+
+  const handleBackClick = () => {
+    console.log("🔙 Back to Control Tower clicked");
+    navigate('/control');
+  };
 
   return (
-    <div className="bg-white text-gray-900 min-h-screen font-sans">
+    <div className="bg-white text-gray-900 min-h-screen font-sans relative">
+      {/* ✅ Eye + Main Logo in top-left with blinking animation */}
+<div className="absolute top-4 left-4 z-50">
+  {/* Inline <style> tag for custom blink animation */}
+  <style>{`
+    @keyframes blink {
+      0%, 90%, 100% {
+        transform: scaleY(1);
+      }
+      95% {
+        transform: scaleY(0.1);
+      }
+    }
+    .blinking-eye {
+      animation: blink 5s infinite;
+      transform-origin: center;
+    }
+  `}</style>
+
+  <div className="bg-white p-2 pr-5 pl-4 rounded-2xl shadow-md flex items-center space-x-3">
+    <img
+      src="/eye-logo.png"
+      alt="Eye Logo"
+      className="h-12 w-12 object-contain blinking-eye"
+    />
+    <img
+      src="/logo.png"
+      alt="FOR-C Logo"
+      className="h-8 object-contain"
+    />
+  </div>
+</div>
+
+
+
+      {/* ✅ Back to Control Tower button in top-right */}
+      <div className="absolute top-4 right-4 z-50">
+        <button
+          onClick={handleBackClick}
+          className="bg-[#1D625B] text-white px-4 py-2 rounded shadow hover:bg-[#144C45] transition"
+        >
+          ← Back to Control Tower
+        </button>
+      </div>
+
       {/* Hero Section */}
       <div className="bg-[#1D625B] text-white py-20 px-6 md:px-16 flex flex-col md:flex-row items-center">
         <div className="md:w-1/2 mb-10 md:mb-0">
@@ -97,17 +148,6 @@ export default function AboutUs() {
           </div>
         </div>
       )}
-
-      {/* CTA Section */}
-      <div className="bg-[#1D625B] text-white text-center py-16">
-        <h2 className="text-3xl font-extrabold mb-4">Ready to Future-Proof Your Supply Chain?</h2>
-        <a
-          href="/"
-          className="inline-block bg-white text-[#1D625B] font-semibold px-6 py-3 rounded hover:bg-gray-100 transition"
-        >
-          ← Back to Dashboard
-        </a>
-      </div>
     </div>
   );
 }
