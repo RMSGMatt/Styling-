@@ -10,27 +10,30 @@ const authHeaders = () => ({
 /** ====== SMALL UI ====== */
 function Card({ title, children, right }) {
   return (
-    <div className="bg-white rounded-lg shadow border border-gray-200">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <h3 className="font-bold text-[#1D625B]">{title}</h3>
+    <div className="bg-white rounded-2xl shadow-sm hover:shadow-md border border-[#E5ECE7] transition-all">
+      <div className="px-5 py-3 border-b border-[#E5ECE7] flex items-center justify-between">
+        <h3 className="font-semibold text-[#1D625B] text-lg flex items-center gap-2">
+          {title}
+        </h3>
         {right}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-5">{children}</div>
     </div>
   );
 }
 function Button({ children, onClick, variant = "primary", disabled }) {
-  const cls =
+  const base = "px-3 py-2 rounded-lg font-semibold transition disabled:opacity-60";
+  const variantClass =
     variant === "danger"
       ? "bg-red-600 hover:bg-red-700 text-white"
       : variant === "ghost"
-      ? "bg-white border text-[#1D625B] hover:bg-lime-50"
-      : "bg-[#1D625B] hover:bg-[#134843] text-white";
+      ? "bg-white border border-[#1D625B]/30 text-[#1D625B] hover:bg-[#ABFA7D]/10"
+      : "bg-[#1D625B] hover:bg-[#174F47] text-white";
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`px-3 py-2 rounded font-semibold transition disabled:opacity-60 ${cls}`}
+      className={`${base} ${variantClass}`}
     >
       {children}
     </button>
@@ -42,7 +45,7 @@ function ToolbarInput({ placeholder, value, onChange, className = "" }) {
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`px-3 py-2 border rounded w-full md:w-72 focus:outline-none focus:ring-2 focus:ring-[#1D625B] ${className}`}
+      className={`px-3 py-2 border rounded-lg w-full md:w-72 focus:outline-none focus:ring-2 focus:ring-[#1D625B]/50 ${className}`}
     />
   );
 }
@@ -50,30 +53,37 @@ function ToolbarInput({ placeholder, value, onChange, className = "" }) {
 /** ====== MAIN ====== */
 export default function AdminPanel() {
   console.log("🔌 AdminPanel LIVE mounted", API_BASE);
-  const [tab, setTab] = useState("stats"); // stats | users | simulations | scenarios
+  const [tab, setTab] = useState("stats");
+
+  const tabs = [
+    { key: "stats", label: "📈 Stats" },
+    { key: "users", label: "👥 Users" },
+    { key: "simulations", label: "🧪 Simulations" },
+    { key: "scenarios", label: "📁 Scenarios" },
+  ];
 
   return (
-    <div className="space-y-6">
-      <Card
-        title="🛡️ Admin Panel"
-        right={
-          <div className="flex gap-2">
-            {["stats", "users", "simulations", "scenarios"].map((t) => (
-              <Button
-                key={t}
-                variant={tab === t ? "primary" : "ghost"}
-                onClick={() => setTab(t)}
-              >
-                {t[0].toUpperCase() + t.slice(1)}
-              </Button>
-            ))}
-          </div>
-        }
-      >
-        <p className="text-gray-600">
-          Manage users, data, and visibility for your organization. Using <code>{API_BASE}</code>
-        </p>
-      </Card>
+    <div className="min-h-screen bg-[#F9FAF9] p-8 space-y-6">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#1D625B] to-[#174F47] text-white rounded-2xl shadow-md p-6 flex flex-col md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">🛡️ Admin Panel</h1>
+          <p className="text-sm opacity-90 mt-1">
+            Manage users, simulations, and scenarios across your organization.
+          </p>
+        </div>
+        <div className="flex gap-2 mt-4 md:mt-0">
+          {tabs.map((t) => (
+            <Button
+              key={t.key}
+              variant={tab === t.key ? "primary" : "ghost"}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+            </Button>
+          ))}
+        </div>
+      </div>
 
       {tab === "stats" && <StatsSection />}
       {tab === "users" && <UsersSection />}
@@ -92,8 +102,6 @@ function StatsSection() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      setLoading(true);
-      setErr("");
       try {
         const res = await fetch(`${API_BASE}/admin/stats`, { headers: authHeaders() });
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -112,15 +120,14 @@ function StatsSection() {
   const byPlan = data?.by_plan || {};
   const byRole = data?.by_role || {};
   const recent = data?.recent_activity || [];
-  const stripe = data?.stripe_linked || {};
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <Card title="Totals">
         {loading ? (
-          <div>Loading…</div>
+          <div className="animate-pulse h-6 bg-gray-100 rounded w-32" />
         ) : err ? (
-          <div className="text-red-600">Error: {err}</div>
+          <div className="text-red-600 text-sm">{err}</div>
         ) : (
           <div className="grid grid-cols-3 gap-4">
             <Stat value={totals.users} label="Users" />
@@ -146,22 +153,18 @@ function StatsSection() {
         </div>
       </Card>
 
-      <Card title="Stripe Linkage">
-        <div className="space-y-2">
-          <Row left="linked" right={stripe.linked} />
-          <Row left="unlinked" right={stripe.unlinked} />
-        </div>
-      </Card>
-
       <Card title="Recent Activity">
         <div className="space-y-2">
-          {recent.slice(0, 10).map((r, i) => (
-            <div key={i} className="flex items-center justify-between text-sm">
-              <span className="text-gray-700">{r.user_email}</span>
-              <span className="text-gray-500">{r.timestamp}</span>
-            </div>
-          ))}
-          {!recent?.length && <div className="text-gray-500 text-sm">No activity.</div>}
+          {recent.length ? (
+            recent.slice(0, 10).map((r, i) => (
+              <div key={i} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700">{r.user_email}</span>
+                <span className="text-gray-500">{r.timestamp}</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-gray-500 text-sm italic">No activity yet.</div>
+          )}
         </div>
       </Card>
     </div>
@@ -169,8 +172,10 @@ function StatsSection() {
 }
 function Stat({ value, label }) {
   return (
-    <div className="bg-gray-50 border rounded p-4 text-center">
-      <div className="text-2xl font-extrabold text-[#1D625B]">{value ?? "—"}</div>
+    <div className="bg-[#F2FBF0] border border-[#E5ECE7] rounded-xl p-4 text-center shadow-sm">
+      <div className="text-2xl font-extrabold text-[#1D625B]">
+        {value ?? "—"}
+      </div>
       <div className="text-xs text-gray-600">{label}</div>
     </div>
   );
@@ -194,13 +199,12 @@ function UsersSection() {
   const [err, setErr] = useState("");
 
   const load = async () => {
-    setLoading(true);
-    setErr("");
     try {
+      setLoading(true);
       const u = new URL(`${API_BASE}/admin/users`);
       if (q) u.searchParams.set("q", q);
-      if (limit) u.searchParams.set("limit", String(limit));
-      if (offset) u.searchParams.set("offset", String(offset));
+      u.searchParams.set("limit", String(limit));
+      u.searchParams.set("offset", String(offset));
       const res = await fetch(u.toString(), { headers: authHeaders() });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const j = await res.json();
@@ -212,7 +216,10 @@ function UsersSection() {
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-line */ }, [q, limit, offset]);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line
+  }, [q, limit, offset]);
 
   const saveRow = async (row) => {
     try {
@@ -235,12 +242,17 @@ function UsersSection() {
         <div className="flex gap-2 items-center">
           <ToolbarInput placeholder="Search email…" value={q} onChange={setQ} />
           <select
-            className="px-2 py-2 border rounded"
+            className="px-2 py-2 border rounded-lg"
             value={limit}
-            onChange={(e) => { setOffset(0); setLimit(parseInt(e.target.value, 10)); }}
+            onChange={(e) => {
+              setOffset(0);
+              setLimit(parseInt(e.target.value, 10));
+            }}
           >
             {[10, 25, 50].map((n) => (
-              <option key={n} value={n}>{n}/page</option>
+              <option key={n} value={n}>
+                {n}/page
+              </option>
             ))}
           </select>
         </div>
@@ -249,7 +261,7 @@ function UsersSection() {
       {loading ? (
         <div>Loading…</div>
       ) : err ? (
-        <div className="text-red-600">Error: {err}</div>
+        <div className="text-red-600 text-sm">{err}</div>
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -272,13 +284,21 @@ function UsersSection() {
           </div>
 
           <div className="flex justify-between items-center mt-4">
-            <Button variant="ghost" onClick={() => setOffset(Math.max(0, offset - limit))} disabled={offset === 0}>
+            <Button
+              variant="ghost"
+              onClick={() => setOffset(Math.max(0, offset - limit))}
+              disabled={offset === 0}
+            >
               ◀ Prev
             </Button>
             <div className="text-sm text-gray-600">
               Offset <code>{offset}</code> • Limit <code>{limit}</code>
             </div>
-            <Button variant="ghost" onClick={() => setOffset(offset + limit)} disabled={rows.length < limit}>
+            <Button
+              variant="ghost"
+              onClick={() => setOffset(offset + limit)}
+              disabled={rows.length < limit}
+            >
               Next ▶
             </Button>
           </div>
@@ -290,20 +310,39 @@ function UsersSection() {
 function UserRow({ row, onSave }) {
   const [plan, setPlan] = useState(row.plan?.toLowerCase() || "free");
   const [role, setRole] = useState(row.role?.toLowerCase() || "user");
-  useEffect(() => { setPlan(row.plan?.toLowerCase() || "free"); setRole(row.role?.toLowerCase() || "user"); }, [row.id]);
+  useEffect(() => {
+    setPlan(row.plan?.toLowerCase() || "free");
+    setRole(row.role?.toLowerCase() || "user");
+  }, [row.id]);
 
   return (
     <tr className="border-b last:border-0">
       <td className="py-2 pr-4">{row.id}</td>
       <td className="py-2 pr-4">{row.email}</td>
       <td className="py-2 pr-4">
-        <select className="border rounded px-2 py-1" value={plan} onChange={(e) => setPlan(e.target.value)}>
-          {["free", "pro", "enterprise"].map((p) => <option key={p} value={p}>{p}</option>)}
+        <select
+          className="border rounded px-2 py-1"
+          value={plan}
+          onChange={(e) => setPlan(e.target.value)}
+        >
+          {["free", "pro", "enterprise"].map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
         </select>
       </td>
       <td className="py-2 pr-4">
-        <select className="border rounded px-2 py-1" value={role} onChange={(e) => setRole(e.target.value)}>
-          {["user", "admin"].map((r) => <option key={r} value={r}>{r}</option>)}
+        <select
+          className="border rounded px-2 py-1"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+        >
+          {["user", "admin"].map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
         </select>
       </td>
       <td className="py-2 pr-4">
@@ -323,13 +362,12 @@ function SimulationsSection() {
   const [err, setErr] = useState("");
 
   const load = async () => {
-    setLoading(true);
-    setErr("");
     try {
+      setLoading(true);
       const u = new URL(`${API_BASE}/admin/simulations`);
       if (q) u.searchParams.set("q", q);
-      if (limit) u.searchParams.set("limit", String(limit));
-      if (offset) u.searchParams.set("offset", String(offset));
+      u.searchParams.set("limit", String(limit));
+      u.searchParams.set("offset", String(offset));
       const res = await fetch(u.toString(), { headers: authHeaders() });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const j = await res.json();
@@ -340,7 +378,10 @@ function SimulationsSection() {
       setLoading(false);
     }
   };
-  useEffect(() => { load(); /* eslint-disable-line */ }, [q, limit, offset]);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line
+  }, [q, limit, offset]);
 
   return (
     <Card
@@ -349,11 +390,18 @@ function SimulationsSection() {
         <div className="flex gap-2 items-center">
           <ToolbarInput placeholder="Filter by email…" value={q} onChange={setQ} />
           <select
-            className="px-2 py-2 border rounded"
+            className="px-2 py-2 border rounded-lg"
             value={limit}
-            onChange={(e) => { setOffset(0); setLimit(parseInt(e.target.value, 10)); }}
+            onChange={(e) => {
+              setOffset(0);
+              setLimit(parseInt(e.target.value, 10));
+            }}
           >
-            {[25, 50, 100].map((n) => <option key={n} value={n}>{n}/page</option>)}
+            {[25, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n}/page
+              </option>
+            ))}
           </select>
         </div>
       }
@@ -361,7 +409,7 @@ function SimulationsSection() {
       {loading ? (
         <div>Loading…</div>
       ) : err ? (
-        <div className="text-red-600">Error: {err}</div>
+        <div className="text-red-600 text-sm">{err}</div>
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -385,7 +433,12 @@ function SimulationsSection() {
                         .filter(([, v]) => v)
                         .map(([k, v]) => (
                           <div key={k}>
-                            <a className="text-[#1D625B] underline" href={v} target="_blank" rel="noreferrer">
+                            <a
+                              className="text-[#1D625B] underline hover:text-[#174F47]"
+                              href={v}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
                               {k}
                             </a>
                           </div>
@@ -401,11 +454,21 @@ function SimulationsSection() {
           </div>
 
           <div className="flex justify-between items-center mt-4">
-            <Button variant="ghost" onClick={() => setOffset(Math.max(0, offset - limit))} disabled={offset === 0}>
+            <Button
+              variant="ghost"
+              onClick={() => setOffset(Math.max(0, offset - limit))}
+              disabled={offset === 0}
+            >
               ◀ Prev
             </Button>
-            <div className="text-sm text-gray-600">Offset <code>{offset}</code> • Limit <code>{limit}</code></div>
-            <Button variant="ghost" onClick={() => setOffset(offset + limit)} disabled={rows.length < limit}>
+            <div className="text-sm text-gray-600">
+              Offset <code>{offset}</code> • Limit <code>{limit}</code>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => setOffset(offset + limit)}
+              disabled={rows.length < limit}
+            >
               Next ▶
             </Button>
           </div>
@@ -423,9 +486,8 @@ function ScenariosSection() {
   const [err, setErr] = useState("");
 
   const load = async () => {
-    setLoading(true);
-    setErr("");
     try {
+      setLoading(true);
       const u = new URL(`${API_BASE}/admin/scenarios`);
       if (owner) u.searchParams.set("owner_email", owner);
       const res = await fetch(u.toString(), { headers: authHeaders() });
@@ -438,7 +500,10 @@ function ScenariosSection() {
       setLoading(false);
     }
   };
-  useEffect(() => { load(); /* eslint-disable-line */ }, [owner]);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line
+  }, [owner]);
 
   const del = async (id) => {
     if (!confirm(`Delete scenario ${id}?`)) return;
@@ -460,14 +525,16 @@ function ScenariosSection() {
       right={
         <div className="flex gap-2 items-center">
           <ToolbarInput placeholder="Filter by owner email…" value={owner} onChange={setOwner} />
-          <Button variant="ghost" onClick={load}>Refresh</Button>
+          <Button variant="ghost" onClick={load}>
+            Refresh
+          </Button>
         </div>
       }
     >
       {loading ? (
         <div>Loading…</div>
       ) : err ? (
-        <div className="text-red-600">Error: {err}</div>
+        <div className="text-red-600 text-sm">{err}</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -488,13 +555,17 @@ function ScenariosSection() {
                   <td className="py-2 pr-4">{r.owner_email}</td>
                   <td className="py-2 pr-4">{r.created_at}</td>
                   <td className="py-2 pr-4">
-                    <Button variant="danger" onClick={() => del(r.id)}>Delete</Button>
+                    <Button variant="danger" onClick={() => del(r.id)}>
+                      Delete
+                    </Button>
                   </td>
                 </tr>
               ))}
               {!rows.length && (
                 <tr>
-                  <td className="py-3 text-gray-500" colSpan={5}>No scenarios found.</td>
+                  <td className="py-3 text-gray-500 italic" colSpan={5}>
+                    No scenarios found.
+                  </td>
                 </tr>
               )}
             </tbody>
