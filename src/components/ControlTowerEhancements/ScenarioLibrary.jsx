@@ -276,19 +276,16 @@ export default function ScenarioLibrary({
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-6">
+      <div className="bg-gradient-to-r from-[#1D625B] to-[#174F47] text-white rounded-2xl shadow-md p-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-[#1D625B]">Scenario Library</h1>
-          <p className="text-sm text-gray-600">
+          <h1 className="text-3xl font-bold">📁 Scenario Library</h1>
+          <p className="text-sm opacity-90">
             Save, edit, and apply what-if scenarios. Search by name, notes, or tags.
           </p>
         </div>
-        <div className="text-xs text-gray-500">
-          Plan:{" "}
-          <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            {userPlan || "Free"}
-          </span>
-        </div>
+        <div className="mt-2 md:mt-0 bg-[#ABFA7D]/20 text-[#ABFA7D] font-semibold px-4 py-2 rounded-lg border border-[#ABFA7D]/30">
+  {userPlan || "Free"} Plan
+</div>
       </div>
 
       {/* Active scenario pill (from Control Tower) */}
@@ -304,8 +301,8 @@ export default function ScenarioLibrary({
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, notes, or tag…"
-          className="border rounded-xl px-3 py-2 w-full md:w-80"
+          placeholder="🔍 Search by name, notes, or tag…"
+className="border rounded-xl px-3 py-2 w-full md:w-80 shadow-sm"
           aria-label="Search scenarios"
         />
         <span
@@ -315,11 +312,12 @@ export default function ScenarioLibrary({
           {resultCount}
         </span>
         <button
-          className="px-3 py-2 rounded-xl border border-gray-300 text-sm"
-          onClick={() => openEdit({ id: "", name: "", notes: "", tags: [], data: {} })}
-        >
-          + New
-        </button>
+  className="bg-[#1D625B] hover:bg-[#174F47] text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition"
+  onClick={() => openEdit({ id: "", name: "", notes: "", tags: [], data: {} })}
+>
+  + New Scenario
+</button>
+
       </div>
 
       {/* ===================== Unassigned Runs (no scenario) ===================== */}
