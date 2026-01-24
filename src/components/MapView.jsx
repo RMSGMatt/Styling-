@@ -1,264 +1,318 @@
-import React, { useEffect, useRef, useState } from "react";
+// src/components/MapView.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 
-// Mapbox token
+// Mapbox token (Vite)
 mapboxgl.accessToken =
-  "pk.eyJ1IjoiZm9yYy1tYXBzIiwiYSI6ImNtMGpmZ3p0bDAwNm4ydHE2MGVvbXgxeWgifQ.R-xfGe6a5viJOl3Zf1xE4w";
+  import.meta?.env?.VITE_MAPBOX_TOKEN ||
+  import.meta?.env?.VITE_MAPBOX_ACCESS_TOKEN ||
+  "";
 
-// ✅ Always use backend base (prevents Vercel returning index.html for /api/*)
-const API_BASE = (import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000").replace(
-  /\/$/,
-  ""
-);
+/**
+ * MapView (Control Tower / Simulation Dashboard)
+ * Fixes:
+ *  1) Map not appearing → enforce explicit container height (NOT h-full only)
+ *  2) GDACS / Live Incidents JSON errors → always fetch from API_BASE, not Vercel origin
+ *
+ * Features:
+ *  - Facilities loaded from CSV locationsUrl (S3)
+ *  - NOAA active alerts (api.weather.gov) emoji markers
+ *  - GDACS feed from backend (/api/gdacs-feed)
+ *  - Live incidents from backend (/api/live-incidents)
+ *  - Toggle panel + legend
+ */
 
-const NOAA_ALERTS_URL = "https://api.weather.gov/alerts/active";
-const GDACS_FEED_URL = `${API_BASE}/api/gdacs-feed`;
-const LIVE_INCIDENTS_URL = `${API_BASE}/api/live-incidents`;
-
-function getEmojiForGDACS(type) {
-  const t = String(type || "").toLowerCase();
-  if (t.includes("cyclone") || t.includes("storm")) return "🌀";
-  if (t.includes("flood")) return "🌊";
-  if (t.includes("earthquake")) return "🌍";
-  if (t.includes("volcano")) return "🌋";
-  if (t.includes("drought")) return "🌵";
-  if (t.includes("wildfire") || t.includes("fire")) return "🔥";
-  return "⚠️";
+function safeJson(res) {
+  return res
+    .json()
+    .catch(async () => ({ _raw: await res.text().catch(() => "") }));
 }
 
-function getEmojiForNOAA(event) {
-  const e = String(event || "").toLowerCase();
-  if (e.includes("tornado")) return "🌪️";
-  if (e.includes("thunderstorm")) return "⛈️";
-  if (e.includes("flood")) return "🌊";
-  if (e.includes("winter")) return "❄️";
-  if (e.includes("heat")) return "🌡️";
-  if (e.includes("fire")) return "🔥";
-  if (e.includes("hurricane")) return "🌀";
-  return "📣";
-}
-
-function getEmojiForIncident(type, severity) {
-  const t = String(type || "").toLowerCase();
-  const s = String(severity || "").toLowerCase();
-
-  if (t.includes("fire")) return "🔥";
-  if (t.includes("cyber")) return "🧑‍💻";
-  if (t.includes("strike")) return "✊";
-  if (t.includes("port")) return "⚓";
-  if (t.includes("weather")) return "🌦️";
-
-  if (s.includes("severe")) return "🚨";
-  if (s.includes("moderate")) return "⚠️";
-  return "📍";
-}
-
-async function safeFetchJson(url) {
-  const res = await fetch(url, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-  });
-
-  const contentType = res.headers.get("content-type") || "";
-  const text = await res.text();
-
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} from ${url}: ${text.slice(0, 200)}`);
-  }
-
-  if (!contentType.toLowerCase().includes("application/json")) {
-    // This is the exact failure you were seeing: HTML returned instead of JSON.
-    throw new Error(
-      `Non-JSON response from ${url}. content-type=${contentType}. First chars: ${text.slice(
-        0,
-        40
-      )}`
-    );
-  }
-
-  return JSON.parse(text);
-}
-
-export function MapView({
+export default function MapView({
   locationsUrl,
   onFacilitySelect,
-  height = "600px",
-  setMapInstance,
-  // these toggles exist on your ControlTower; we honor what’s passed
-  showLiveHazards = true,
-  showLogistics = true,
-  showIncidents = true, // ✅ this will control /api/live-incidents markers
-  showNOAA = true,
-  showGDACS = true,
+  height = "560px", // ✅ important default so map always renders
 }) {
-  const mapRef = useRef(null);
+  const API_BASE = useMemo(
+    () =>
+      (import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000").replace(/\/$/, ""),
+    []
+  );
+
+  const apiUrl = (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+
   const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
 
-  // marker refs
-  const noaaMarkersRef = useRef([]);
-  const gdacsMarkersRef = useRef([]);
-  const incidentMarkersRef = useRef([]);
+  // Marker refs (so we can clear without re-mounting map)
   const facilityMarkersRef = useRef([]);
+  const gdacsMarkersRef = useRef([]);
+  const liveMarkersRef = useRef([]);
+  const noaaMarkersRef = useRef([]);
 
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+  const [layerVisibility, setLayerVisibility] = useState({
+    facilities: true,
+    gdacs: true,
+    live: true,
+    noaa: true,
+  });
 
-  const clearMarkers = (ref) => {
-    try {
-      ref.current.forEach((m) => m.remove());
-    } catch (_) {}
-    ref.current = [];
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  // -----------------------------
+  // Emoji helpers
+  // -----------------------------
+  const getEmojiForGDACS = (props = {}) => {
+    const t = String(props.type || props.eventtype || "").toLowerCase();
+    if (t.includes("earthquake")) return "🌍";
+    if (t.includes("flood")) return "🌊";
+    if (t.includes("cyclone") || t.includes("storm") || t.includes("hurricane")) return "🌀";
+    if (t.includes("wildfire") || t.includes("fire")) return "🔥";
+    if (t.includes("volcano")) return "🌋";
+    return "⚠️";
+  };
+
+  const getEmojiForNOAA = (props = {}) => {
+    const e = String(props.event || "").toLowerCase();
+    if (e.includes("tornado")) return "🌪️";
+    if (e.includes("flood")) return "🌊";
+    if (e.includes("winter") || e.includes("snow") || e.includes("blizzard")) return "❄️";
+    if (e.includes("hurricane") || e.includes("tropical")) return "🌀";
+    if (e.includes("fire")) return "🔥";
+    if (e.includes("heat")) return "🥵";
+    return "⚠️";
+  };
+
+  const getEmojiForLiveIncident = (props = {}) => {
+    const t = String(props.type || "").toLowerCase();
+    if (t.includes("fire")) return "🔥";
+    if (t.includes("cyber")) return "🧑‍💻";
+    if (t.includes("strike")) return "✊";
+    if (t.includes("port")) return "⚓";
+    return "⚠️";
   };
 
   // -----------------------------
-  // Feed fetchers
+  // Clear markers utilities
   // -----------------------------
-  const fetchNOAAAlerts = async () => {
-    if (!mapRef.current) return;
+  const clearMarkers = (arrRef) => {
+    arrRef.current.forEach((m) => {
+      try {
+        m.remove();
+      } catch {}
+    });
+    arrRef.current = [];
+  };
 
-    try {
-      const data = await safeFetchJson(NOAA_ALERTS_URL);
-      if (!data?.features || !Array.isArray(data.features)) return;
+  // -----------------------------
+  // Facilities CSV rendering
+  // -----------------------------
+  const renderFacilitiesFromCsv = (map, csvText) => {
+    clearMarkers(facilityMarkersRef);
 
-      clearMarkers(noaaMarkersRef);
+    // Minimal CSV parse (no dependency)
+    const lines = String(csvText || "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
 
-      data.features.forEach((f) => {
-        const p = f?.properties || {};
-        const event = p.event || "Alert";
-        const desc = p.headline || p.description || "";
-        const emoji = getEmojiForNOAA(event);
+    if (lines.length < 2) return;
 
-        // weather.gov alerts can be polygon/multipolygon; try best effort to get a point
-        let coord = null;
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const idxLat = headers.findIndex((h) => h === "latitude" || h === "lat");
+    const idxLng = headers.findIndex((h) => h === "longitude" || h === "lng" || h === "lon");
+    const idxFacility = headers.findIndex((h) => h === "facility" || h === "name");
 
-        // If Point:
-        if (f?.geometry?.type === "Point" && Array.isArray(f.geometry.coordinates)) {
-          coord = f.geometry.coordinates;
-        }
+    let bounds = new mapboxgl.LngLatBounds();
+    let count = 0;
 
-        // If Polygon/MultiPolygon: grab first coordinate of first ring as fallback
-        if (!coord && f?.geometry?.coordinates) {
-          const c = f.geometry.coordinates;
-          // MultiPolygon -> c[0][0][0]
-          if (Array.isArray(c?.[0]?.[0]?.[0])) coord = c[0][0][0];
-          // Polygon -> c[0][0]
-          else if (Array.isArray(c?.[0]?.[0])) coord = c[0][0];
-        }
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(",").map((c) => c.trim());
+      const lat = Number(cols[idxLat]);
+      const lng = Number(cols[idxLng]);
+      const facility = cols[idxFacility] || `Facility ${i}`;
 
-        if (!coord || coord.length < 2) return;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 
-        const el = document.createElement("div");
-        el.style.fontSize = "20px";
-        el.style.cursor = "pointer";
-        el.textContent = emoji;
+      const el = document.createElement("div");
+      el.style.width = "14px";
+      el.style.height = "14px";
+      el.style.borderRadius = "999px";
+      el.style.background = "#1D625B";
+      el.style.border = "2px solid white";
+      el.style.boxShadow = "0 2px 10px rgba(0,0,0,0.25)";
+      el.style.cursor = "pointer";
 
-        const popup = new mapboxgl.Popup({ offset: 12 }).setHTML(
-          `<div style="font-size:12px;max-width:240px;">
-             <div style="font-weight:700;margin-bottom:6px;">${emoji} ${event}</div>
-             <div style="opacity:0.9;">${desc}</div>
-           </div>`
-        );
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .setPopup(
+          new mapboxgl.Popup({ offset: 16 }).setHTML(
+            `<div style="font-weight:700;color:#1D625B;">🏭 ${facility}</div>`
+          )
+        )
+        .addTo(map);
 
-        const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat(coord)
-          .setPopup(popup)
-          .addTo(mapRef.current);
-
-        noaaMarkersRef.current.push(marker);
+      el.addEventListener("click", () => {
+        if (typeof onFacilitySelect === "function") onFacilitySelect(facility);
       });
-    } catch (err) {
-      console.error("❌ NOAA refresh failed:", err);
+
+      facilityMarkersRef.current.push(marker);
+      bounds.extend([lng, lat]);
+      count++;
+    }
+
+    if (count > 0) {
+      map.fitBounds(bounds, { padding: 80, duration: 800 });
     }
   };
 
-  const fetchGDACSAlerts = async () => {
-    if (!mapRef.current) return;
+  // -----------------------------
+  // Backend feeds rendering
+  // -----------------------------
+  const renderPointMarkersFromGeoJSON = (map, features, destRef, emojiFn, titleFn) => {
+    clearMarkers(destRef);
+    if (!Array.isArray(features) || !features.length) return;
 
-    try {
-      const data = await safeFetchJson(GDACS_FEED_URL);
-      if (!data?.features || !Array.isArray(data.features)) return;
-
-      clearMarkers(gdacsMarkersRef);
-
-      data.features.forEach((f) => {
+    features.forEach((f) => {
+      try {
+        const geom = f?.geometry;
         const props = f?.properties || {};
-        const name = props.name || "GDACS Alert";
-        const type = props.type || "Alert";
-        const desc = props.description || "";
-        const emoji = getEmojiForGDACS(type);
+        if (!geom) return;
 
-        const geom = f?.geometry || {};
-        if (geom.type !== "Point" || !Array.isArray(geom.coordinates)) return;
-        const [lng, lat] = geom.coordinates;
-        if (typeof lng !== "number" || typeof lat !== "number") return;
+        let coords = null;
+
+        if (geom.type === "Point" && Array.isArray(geom.coordinates)) {
+          coords = geom.coordinates;
+        } else if (geom.type === "Polygon" && geom.coordinates?.[0]?.[0]) {
+          // use first polygon coordinate as representative point
+          coords = geom.coordinates[0][0];
+        } else if (geom.type === "MultiPolygon" && geom.coordinates?.[0]?.[0]?.[0]) {
+          coords = geom.coordinates[0][0][0];
+        }
+
+        if (!coords || coords.length < 2) return;
+
+        const [lng, lat] = coords.map(Number);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
         const el = document.createElement("div");
         el.style.fontSize = "20px";
         el.style.cursor = "pointer";
-        el.textContent = emoji;
+        el.textContent = emojiFn(props);
 
-        const popup = new mapboxgl.Popup({ offset: 12 }).setHTML(
-          `<div style="font-size:12px;max-width:240px;">
-             <div style="font-weight:700;margin-bottom:6px;">${emoji} ${name}</div>
-             <div style="opacity:0.9;"><b>Type:</b> ${type}</div>
-             <div style="opacity:0.9;margin-top:6px;">${desc}</div>
-           </div>`
-        );
+        const title = titleFn(props);
 
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([lng, lat])
-          .setPopup(popup)
-          .addTo(mapRef.current);
+          .setPopup(
+            new mapboxgl.Popup({ offset: 18 }).setHTML(
+              `<div style="max-width:260px">
+                 <div style="font-weight:800;color:#1D625B;margin-bottom:4px">${title}</div>
+                 <div style="font-size:12px;line-height:1.35;color:#334155">
+                   ${props.description || props.headline || props.areaDesc || ""}
+                 </div>
+               </div>`
+            )
+          )
+          .addTo(map);
 
-        gdacsMarkersRef.current.push(marker);
+        destRef.current.push(marker);
+      } catch (e) {
+        console.warn("Marker render failed:", e);
+      }
+    });
+  };
+
+  // -----------------------------
+  // Fetchers
+  // -----------------------------
+  const fetchNOAAAlerts = async () => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!layerVisibility.noaa) {
+      clearMarkers(noaaMarkersRef);
+      return;
+    }
+
+    try {
+      const res = await fetch("https://api.weather.gov/alerts/active", {
+        headers: { Accept: "application/geo+json" },
       });
-    } catch (err) {
-      console.error("❌ GDACS refresh failed:", err);
+      const data = await safeJson(res);
+
+      const feats = data?.features || [];
+      renderPointMarkersFromGeoJSON(
+        map,
+        feats,
+        noaaMarkersRef,
+        (p) => getEmojiForNOAA(p),
+        (p) => `NOAA Alert • ${p.event || "Alert"}`
+      );
+    } catch (e) {
+      console.error("❌ NOAA fetch failed:", e);
+    }
+  };
+
+  const fetchGDACS = async () => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!layerVisibility.gdacs) {
+      clearMarkers(gdacsMarkersRef);
+      return;
+    }
+
+    try {
+      const res = await fetch(apiUrl("/api/gdacs-feed"));
+      const data = await safeJson(res);
+
+      if (!res.ok) {
+        console.error("❌ GDACS HTTP", res.status, data);
+        return;
+      }
+
+      const feats = data?.features || [];
+      renderPointMarkersFromGeoJSON(
+        map,
+        feats,
+        gdacsMarkersRef,
+        (p) => getEmojiForGDACS(p),
+        (p) => `GDACS • ${p.name || p.type || "Event"}`
+      );
+    } catch (e) {
+      console.error("❌ GDACS refresh failed:", e);
     }
   };
 
   const fetchLiveIncidents = async () => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!layerVisibility.live) {
+      clearMarkers(liveMarkersRef);
+      return;
+    }
 
     try {
-      const data = await safeFetchJson(LIVE_INCIDENTS_URL);
-      if (!data?.features || !Array.isArray(data.features)) return;
+      const res = await fetch(apiUrl("/api/live-incidents"));
+      const data = await safeJson(res);
 
-      clearMarkers(incidentMarkersRef);
+      if (!res.ok) {
+        console.error("❌ Live incidents HTTP", res.status, data);
+        return;
+      }
 
-      data.features.forEach((f) => {
-        const props = f?.properties || {};
-        const type = props.type || "incident";
-        const severity = props.severity || "unknown";
-        const desc = props.description || "";
-        const emoji = getEmojiForIncident(type, severity);
-
-        const geom = f?.geometry || {};
-        if (geom.type !== "Point" || !Array.isArray(geom.coordinates)) return;
-        const [lng, lat] = geom.coordinates;
-        if (typeof lng !== "number" || typeof lat !== "number") return;
-
-        const el = document.createElement("div");
-        el.style.fontSize = "20px";
-        el.style.cursor = "pointer";
-        el.textContent = emoji;
-
-        const popup = new mapboxgl.Popup({ offset: 12 }).setHTML(
-          `<div style="font-size:12px;max-width:240px;">
-             <div style="font-weight:700;margin-bottom:6px;">${emoji} ${String(type).toUpperCase()}</div>
-             <div style="opacity:0.9;"><b>Severity:</b> ${severity}</div>
-             <div style="opacity:0.9;margin-top:6px;">${desc}</div>
-           </div>`
-        );
-
-        const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([lng, lat])
-          .setPopup(popup)
-          .addTo(mapRef.current);
-
-        incidentMarkersRef.current.push(marker);
-      });
-    } catch (err) {
-      console.error("❌ Live incident fetch failed:", err);
+      const feats = data?.features || [];
+      renderPointMarkersFromGeoJSON(
+        map,
+        feats,
+        liveMarkersRef,
+        (p) => getEmojiForLiveIncident(p),
+        (p) => `Incident • ${String(p.type || "event").toUpperCase()}`
+      );
+    } catch (e) {
+      console.error("❌ Live incident fetch failed", e);
     }
   };
 
@@ -266,205 +320,206 @@ export function MapView({
   // Init map once
   // -----------------------------
   useEffect(() => {
-    if (mapRef.current) return;
+    if (!mapContainerRef.current) return;
 
-    console.log("🧭 [MapView] Creating new Mapbox instance...");
+    if (!mapboxgl.accessToken) {
+      console.error("❌ Mapbox token missing (VITE_MAPBOX_TOKEN). Map cannot load.");
+      return;
+    }
+
+    // Destroy existing map if hot-reload
+    if (mapRef.current) {
+      try {
+        mapRef.current.remove();
+      } catch {}
+      mapRef.current = null;
+    }
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
-      center: [0, 20],
-      zoom: 1.4,
-      projection: "globe",
+      style:
+        import.meta?.env?.VITE_MAPBOX_STYLE ||
+        "mapbox://styles/mapbox/light-v11",
+      center: [-95, 37],
+      zoom: 3,
     });
 
     mapRef.current = map;
-    if (typeof setMapInstance === "function") setMapInstance(map);
 
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
 
-    map.on("style.load", () => {
-      try {
-        map.setFog({});
-      } catch (_) {}
-    });
+    const onLoad = async () => {
+      // initial pulls
+      await fetchGDACS();
+      await fetchLiveIncidents();
+      await fetchNOAAAlerts();
+      setLastUpdated(new Date().toLocaleTimeString());
+
+      // facilities
+      if (locationsUrl && layerVisibility.facilities) {
+        try {
+          const csvUrl = `${locationsUrl}?v=${Date.now()}`;
+          const res = await fetch(csvUrl);
+          const txt = await res.text();
+          renderFacilitiesFromCsv(map, txt);
+        } catch (e) {
+          console.error("❌ Facility CSV load failed:", e);
+        }
+      }
+    };
+
+    map.on("load", onLoad);
 
     return () => {
-      console.log("🧭 [MapView] Destroying Mapbox instance");
       try {
-        clearMarkers(noaaMarkersRef);
-        clearMarkers(gdacsMarkersRef);
-        clearMarkers(incidentMarkersRef);
-        clearMarkers(facilityMarkersRef);
-      } catch (_) {}
-      map.remove();
+        map.off("load", onLoad);
+      } catch {}
+      try {
+        map.remove();
+      } catch {}
       mapRef.current = null;
     };
-  }, [setMapInstance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API_BASE]);
 
   // -----------------------------
-  // Feed refresh loops (controlled by toggles)
+  // Reload facilities when URL changes or toggle changes
   // -----------------------------
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    let stopped = false;
+    if (!layerVisibility.facilities) {
+      clearMarkers(facilityMarkersRef);
+      return;
+    }
+
+    if (!locationsUrl) return;
 
     const run = async () => {
-      if (stopped) return;
-
-      // Only pull feeds if the UI says they’re on
-      if (showNOAA) await fetchNOAAAlerts();
-      else clearMarkers(noaaMarkersRef);
-
-      if (showGDACS) await fetchGDACSAlerts();
-      else clearMarkers(gdacsMarkersRef);
-
-      if (showIncidents) await fetchLiveIncidents();
-      else clearMarkers(incidentMarkersRef);
-
-      setLastUpdatedAt(new Date().toISOString());
-    };
-
-    // initial run
-    run();
-
-    // refresh interval
-    const interval = setInterval(run, 60 * 1000);
-
-    return () => {
-      stopped = true;
-      clearInterval(interval);
-    };
-  }, [showNOAA, showGDACS, showIncidents, showLiveHazards, showLogistics]);
-
-  // -----------------------------
-  // Facilities from CSV
-  // -----------------------------
-  const renderFacilitiesFromCsv = (map, csvText) => {
-    if (!csvText || typeof csvText !== "string") return;
-
-    console.log("📄 Raw CSV text:", csvText.slice(0, 300));
-
-    const rows = csvText
-      .split("\n")
-      .map((r) => r.trim())
-      .filter(Boolean);
-
-    if (rows.length < 2) return;
-
-    const header = rows[0].split(",").map((h) => h.trim().toLowerCase());
-
-    const latIdx =
-      header.indexOf("latitude") !== -1 ? header.indexOf("latitude") : header.indexOf("lat");
-    const lngIdx =
-      header.indexOf("longitude") !== -1 ? header.indexOf("longitude") : header.indexOf("lng");
-    const nameIdx =
-      header.indexOf("facility") !== -1
-        ? header.indexOf("facility")
-        : header.indexOf("name");
-
-    if (latIdx < 0 || lngIdx < 0) {
-      console.warn("⚠️ [MapView] CSV missing latitude/longitude columns");
-      return;
-    }
-
-    const facilities = rows.slice(1).map((line, idx) => {
-      const cols = line.split(",").map((c) => c.trim());
-      const lat = parseFloat(cols[latIdx]);
-      const lng = parseFloat(cols[lngIdx]);
-      const facility = cols[nameIdx] || `Facility ${idx + 1}`;
-      return { id: idx + 1, lat, lng, facility };
-    });
-
-    console.log("📌 Parsed facility rows:", facilities);
-
-    let count = 0;
-    const bounds = new mapboxgl.LngLatBounds();
-
-    facilities.forEach((f) => {
-      if (!Number.isFinite(f.lat) || !Number.isFinite(f.lng)) return;
-
-      const el = document.createElement("div");
-      el.style.width = "12px";
-      el.style.height = "12px";
-      el.style.borderRadius = "50%";
-      el.style.background = "#8BFFB5";
-      el.style.border = "2px solid #0b3d2c";
-      el.style.boxShadow = "0 0 10px rgba(139,255,181,0.6)";
-      el.style.cursor = "pointer";
-
-      const popup = new mapboxgl.Popup({ offset: 12 }).setHTML(
-        `<div style="font-size:12px;"><b>${f.facility}</b><br/>${f.lat.toFixed(
-          3
-        )}, ${f.lng.toFixed(3)}</div>`
-      );
-
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([f.lng, f.lat])
-        .setPopup(popup)
-        .addTo(map);
-
-      el.addEventListener("click", () => {
-        if (typeof onFacilitySelect === "function") onFacilitySelect(f.id);
-      });
-
-      facilityMarkersRef.current.push(marker);
-      bounds.extend([f.lng, f.lat]);
-      count++;
-    });
-
-    if (count > 0) {
-      console.log(`✅ [MapView] Added ${count} facility markers`);
-      map.fitBounds(bounds, { padding: 80, duration: 1000 });
-    }
-  };
-
-  // Reload facilities whenever locationsUrl changes
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !locationsUrl) {
-      console.log("⚠️ [MapView] Skipping reload — map not ready or URL missing:", locationsUrl);
-      return;
-    }
-
-    const doReload = async () => {
       try {
-        clearMarkers(facilityMarkersRef);
         const csvUrl = `${locationsUrl}?v=${Date.now()}`;
-        console.log("🌐 Fetching location CSV from:", csvUrl);
-
         const res = await fetch(csvUrl);
-        const text = await res.text();
-        renderFacilitiesFromCsv(map, text);
-      } catch (err) {
-        console.error("❌ [MapView] Facility reload failed:", err);
+        const txt = await res.text();
+        renderFacilitiesFromCsv(map, txt);
+      } catch (e) {
+        console.error("❌ Facility reload failed:", e);
       }
     };
 
-    // if style not loaded yet, wait once
     if (!map.isStyleLoaded()) {
-      console.log("⏳ [MapView] Style not loaded yet, queuing facility reload for:", locationsUrl);
       const handler = () => {
-        doReload();
+        run();
         map.off("style.load", handler);
       };
       map.on("style.load", handler);
       return;
     }
 
-    doReload();
-  }, [locationsUrl]);
+    run();
+  }, [locationsUrl, layerVisibility.facilities]);
 
+  // -----------------------------
+  // Refresh feeds when toggles change
+  // -----------------------------
+  useEffect(() => {
+    fetchGDACS();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layerVisibility.gdacs]);
+
+  useEffect(() => {
+    fetchLiveIncidents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layerVisibility.live]);
+
+  useEffect(() => {
+    fetchNOAAAlerts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layerVisibility.noaa]);
+
+  // -----------------------------
+  // Periodic refresh (lightweight)
+  // -----------------------------
+  useEffect(() => {
+    const tick = async () => {
+      await fetchGDACS();
+      await fetchLiveIncidents();
+      await fetchNOAAAlerts();
+      setLastUpdated(new Date().toLocaleTimeString());
+    };
+
+    const id = setInterval(tick, 60_000); // every 60s
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layerVisibility.gdacs, layerVisibility.live, layerVisibility.noaa]);
+
+  const toggle = (key) => {
+    setLayerVisibility((v) => ({ ...v, [key]: !v[key] }));
+  };
+
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
-    <div
-      ref={mapContainerRef}
-      className="w-full h-full rounded-lg overflow-hidden border border-gray-300"
-      style={{ height }}
-      data-last-updated={lastUpdatedAt || ""}
-    />
+    <div className="w-full">
+      {/* Control strip */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="text-xs text-gray-600">
+          <span className="font-semibold text-[#1D625B]">Map Feeds:</span>{" "}
+          Facilities, NOAA, GDACS, Live Incidents{" "}
+          {lastUpdated ? <span className="text-gray-400">• Updated {lastUpdated}</span> : null}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => toggle("facilities")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              layerVisibility.facilities
+                ? "bg-[#1D625B] text-white border-[#1D625B]"
+                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+            }`}
+          >
+            🏭 Facilities
+          </button>
+          <button
+            onClick={() => toggle("noaa")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              layerVisibility.noaa
+                ? "bg-[#1D625B] text-white border-[#1D625B]"
+                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+            }`}
+          >
+            ⚠️ NOAA
+          </button>
+          <button
+            onClick={() => toggle("gdacs")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              layerVisibility.gdacs
+                ? "bg-[#1D625B] text-white border-[#1D625B]"
+                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+            }`}
+          >
+            🌍 GDACS
+          </button>
+          <button
+            onClick={() => toggle("live")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              layerVisibility.live
+                ? "bg-[#1D625B] text-white border-[#1D625B]"
+                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+            }`}
+          >
+            🔥 Live Incidents
+          </button>
+        </div>
+      </div>
+
+      {/* ✅ Map container MUST have explicit height */}
+      <div
+        ref={mapContainerRef}
+        className="w-full rounded-2xl overflow-hidden border border-[#D8E5DD] shadow-sm"
+        style={{ height }}
+      />
+    </div>
   );
 }
-
-export default React.memo(MapView);
