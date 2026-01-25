@@ -141,8 +141,8 @@ export default function MapView({
     const map = mapRef.current;
     if (!map) return;
     map.easeTo({
-      center: [0, 28],
-      zoom: 0.72,
+      center: [0, 30],
+      zoom: 0.55,
       pitch: 0,
       bearing: 0,
       duration: 800,
@@ -151,9 +151,9 @@ export default function MapView({
 
   /* ============================================================================
      5) FACILITIES CSV RENDERING
-     Enhancement:
-     - Keeps facility bounds stored (for optional recenter)
-     - DOES NOT auto-fit on load (so you keep full globe view by default)
+     - Adds facility markers
+     - Stores bounds for recenter button
+     - DOES NOT auto-fit (keeps full globe view by default)
      ============================================================================ */
   const renderFacilitiesFromCsv = useCallback(
     (map, csvText) => {
@@ -216,8 +216,6 @@ export default function MapView({
 
       if (count > 0) {
         facilityBoundsRef.current = bounds;
-        // ✅ Do NOT auto-fit; keep globe view by default.
-        // If you want to fit, use the 🎯 Re-center button below.
       }
     },
     [onFacilitySelect]
@@ -380,16 +378,17 @@ export default function MapView({
 
   /* ============================================================================
      8) MAP INIT — RUNS EXACTLY ONCE
-     Enhancement:
-     - Full globe view by default
-     - Satellite-forward color (satellite-streets)
-     - Globe projection + fog
+     - Satellite-forward style
+     - Full globe view
+     - Padding + resize to prevent bottom clipping
      ============================================================================ */
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
     if (!mapboxgl.accessToken) {
-      console.error("❌ Mapbox token missing (VITE_MAPBOX_TOKEN). Map cannot load.");
+      console.error(
+        "❌ Mapbox token missing (VITE_MAPBOX_TOKEN). Map cannot load."
+      );
       return;
     }
 
@@ -404,9 +403,9 @@ export default function MapView({
       container: mapContainerRef.current,
       style: MAP_STYLE,
 
-      // 🌍 Entire globe centered
-      center: [0, 20],
-      zoom: 0.85,
+      // 🌍 Full globe framing (initial)
+      center: [0, 30],
+      zoom: 0.55,
       pitch: 0,
       bearing: 0,
     });
@@ -422,10 +421,11 @@ export default function MapView({
     );
 
     const onLoad = async () => {
-      // 🌍 Globe + atmosphere
       try {
+        // 🌍 Globe + atmosphere
         map.setProjection("globe");
         map.setRenderWorldCopies(false);
+
         map.setFog({
           range: [0.8, 8],
           "horizon-blend": 0.25,
@@ -433,7 +433,29 @@ export default function MapView({
           "high-color": "#1b2b4f",
           "space-color": "#000000",
         });
-      } catch {}
+
+        // ⬆️ Push globe upward to avoid bottom clipping in a short card
+        map.setPadding({
+          top: 10,
+          bottom: 120,
+          left: 10,
+          right: 10,
+        });
+
+        // 🔒 Lock camera AFTER layout settles
+        setTimeout(() => {
+          map.resize();
+          map.easeTo({
+            center: [0, 30],
+            zoom: 0.55,
+            pitch: 0,
+            bearing: 0,
+            duration: 0,
+          });
+        }, 0);
+      } catch (err) {
+        console.warn("Map globe init failed:", err);
+      }
 
       // initial pulls
       await fetchGDACS();
