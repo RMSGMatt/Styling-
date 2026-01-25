@@ -141,8 +141,8 @@ export default function MapView({
     const map = mapRef.current;
     if (!map) return;
     map.easeTo({
-      center: [0, 30],
-      zoom: 0.55,
+      center: [0, 35],
+      zoom: 0.45,
       pitch: 0,
       bearing: 0,
       duration: 800,
@@ -380,7 +380,7 @@ export default function MapView({
      8) MAP INIT — RUNS EXACTLY ONCE
      - Satellite-forward style
      - Full globe view
-     - Padding + resize to prevent bottom clipping
+     - Aggressive padding + resize to prevent bottom clipping
      ============================================================================ */
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -404,8 +404,8 @@ export default function MapView({
       style: MAP_STYLE,
 
       // 🌍 Full globe framing (initial)
-      center: [0, 30],
-      zoom: 0.55,
+      center: [0, 35],
+      zoom: 0.45,
       pitch: 0,
       bearing: 0,
     });
@@ -434,10 +434,10 @@ export default function MapView({
           "space-color": "#000000",
         });
 
-        // ⬆️ Push globe upward to avoid bottom clipping in a short card
+        // ⬆️ Push globe upward more to avoid bottom clipping
         map.setPadding({
           top: 10,
-          bottom: 120,
+          bottom: 190,
           left: 10,
           right: 10,
         });
@@ -446,8 +446,8 @@ export default function MapView({
         setTimeout(() => {
           map.resize();
           map.easeTo({
-            center: [0, 30],
-            zoom: 0.55,
+            center: [0, 35],
+            zoom: 0.45,
             pitch: 0,
             bearing: 0,
             duration: 0,
