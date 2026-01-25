@@ -34,25 +34,7 @@ function safeJson(res) {
 }
 
 /* ============================================================================
-   2) FIT HELPERS — “CENTERING FIX” (facilities-aware + safe fallbacks)
-   ============================================================================ */
-function fitToBoundsSafe(map, bounds, padding = 80) {
-  try {
-    if (!map || !bounds || typeof bounds.isEmpty !== "function") return;
-    if (bounds.isEmpty()) return;
-
-    map.fitBounds(bounds, {
-      padding,
-      duration: 900,
-      maxZoom: 5.5,
-    });
-  } catch (e) {
-    console.warn("fitBounds failed:", e);
-  }
-}
-
-/* ============================================================================
-   3) MAPVIEW
+   2) MAPVIEW
    ============================================================================ */
 export default function MapView({
   locationsUrl,
@@ -83,7 +65,7 @@ export default function MapView({
   const liveMarkersRef = useRef([]);
   const noaaMarkersRef = useRef([]);
 
-  // Track latest facility bounds so toggling other layers doesn’t “lose” framing
+  // Store facility bounds so user can re-center later
   const facilityBoundsRef = useRef(null);
 
   const [layerVisibility, setLayerVisibility] = useState({
@@ -96,7 +78,7 @@ export default function MapView({
   const [lastUpdated, setLastUpdated] = useState(null);
 
   /* ============================================================================
-     4) EMOJI HELPERS
+     3) EMOJI HELPERS
      ============================================================================ */
   const getEmojiForGDACS = (props = {}) => {
     const t = String(props.type || props.eventtype || "").toLowerCase();
@@ -131,7 +113,7 @@ export default function MapView({
   };
 
   /* ============================================================================
-     5) MARKER UTILITIES
+     4) MARKER UTILITIES
      ============================================================================ */
   const clearMarkers = (arrRef) => {
     arrRef.current.forEach((m) => {
@@ -142,11 +124,37 @@ export default function MapView({
     arrRef.current = [];
   };
 
+  const fitToBoundsSafe = useCallback((map, bounds, padding = 80) => {
+    try {
+      if (!map || !bounds) return;
+      map.fitBounds(bounds, {
+        padding,
+        duration: 900,
+        maxZoom: 5.5,
+      });
+    } catch (e) {
+      console.warn("fitBounds failed:", e);
+    }
+  }, []);
+
+  const recenterToGlobe = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.easeTo({
+      center: [0, 20],
+      zoom: 0.85,
+      pitch: 0,
+      bearing: 0,
+      duration: 800,
+    });
+  }, []);
+
   /* ============================================================================
-     6) FACILITIES CSV RENDERING (enhanced)
-        - Uses bounds + stores them for later re-fit
-        - Better default “Control Tower” marker styling
-   ============================================================================ */
+     5) FACILITIES CSV RENDERING
+     Enhancement:
+     - Keeps facility bounds stored (for optional recenter)
+     - DOES NOT auto-fit on load (so you keep full globe view by default)
+     ============================================================================ */
   const renderFacilitiesFromCsv = useCallback(
     (map, csvText) => {
       clearMarkers(facilityMarkersRef);
@@ -207,19 +215,17 @@ export default function MapView({
       }
 
       if (count > 0) {
-        // Store for later use (re-fit button, toggles, etc.)
         facilityBoundsRef.current = bounds;
-
-        // “Centering enhancement”: always fit to facilities after load
-        fitToBoundsSafe(map, bounds, 80);
+        // ✅ Do NOT auto-fit; keep globe view by default.
+        // If you want to fit, use the 🎯 Re-center button below.
       }
     },
     [onFacilitySelect]
   );
 
   /* ============================================================================
-     7) GENERIC GEOJSON MARKER RENDERER
-   ============================================================================ */
+     6) GENERIC GEOJSON MARKER RENDERER
+     ============================================================================ */
   const renderPointMarkersFromGeoJSON = useCallback(
     (map, features, destRef, emojiFn, titleFn) => {
       clearMarkers(destRef);
@@ -280,8 +286,8 @@ export default function MapView({
   );
 
   /* ============================================================================
-     8) FETCHERS — ALWAYS USE mapRef.current (no re-init)
-   ============================================================================ */
+     7) FETCHERS — ALWAYS USE mapRef.current (no re-init)
+     ============================================================================ */
   const fetchNOAAAlerts = useCallback(async () => {
     const map = mapRef.current;
     if (!map) return;
@@ -373,13 +379,12 @@ export default function MapView({
   }, [apiUrl, layerVisibility.live, renderPointMarkersFromGeoJSON]);
 
   /* ============================================================================
-     9) MAP INIT — RUNS EXACTLY ONCE (enhanced)
-        Enhancements:
-        - Uses a “Control Tower” default style (env override still supported)
-        - Better default camera (world-ish) before facilities fit
-        - Globe + fog for richer appearance (still works on light style)
-        - Exposes map to window for quick debugging
-   ============================================================================ */
+     8) MAP INIT — RUNS EXACTLY ONCE
+     Enhancement:
+     - Full globe view by default
+     - Satellite-forward color (satellite-streets)
+     - Globe projection + fog
+     ============================================================================ */
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -392,21 +397,23 @@ export default function MapView({
     if (mapRef.current) return;
 
     const MAP_STYLE =
-      import.meta?.env?.VITE_MAPBOX_STYLE || "mapbox://styles/mapbox/dark-v11";
+      import.meta?.env?.VITE_MAPBOX_STYLE ||
+      "mapbox://styles/mapbox/satellite-streets-v12";
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: MAP_STYLE,
-      // Better default view (will later fit to facilities)
-      center: [-20, 25],
-      zoom: 1.35,
+
+      // 🌍 Entire globe centered
+      center: [0, 20],
+      zoom: 0.85,
       pitch: 0,
       bearing: 0,
     });
 
     mapRef.current = map;
 
-    // Optional: expose for debugging
+    // Debug hook (optional)
     window.__FORC_MAP__ = map;
 
     map.addControl(
@@ -415,10 +422,17 @@ export default function MapView({
     );
 
     const onLoad = async () => {
-      // Globe + fog (makes “washed out” look go away on many styles)
+      // 🌍 Globe + atmosphere
       try {
         map.setProjection("globe");
-        map.setFog({ range: [0.8, 8], "horizon-blend": 0.2 });
+        map.setRenderWorldCopies(false);
+        map.setFog({
+          range: [0.8, 8],
+          "horizon-blend": 0.25,
+          color: "#0b1020",
+          "high-color": "#1b2b4f",
+          "space-color": "#000000",
+        });
       } catch {}
 
       // initial pulls
@@ -427,7 +441,7 @@ export default function MapView({
       await fetchNOAAAlerts();
       setLastUpdated(new Date().toLocaleTimeString());
 
-      // facilities
+      // facilities (markers only; no auto-fit so globe remains in view)
       if (locationsUrl && layerVisibility.facilities) {
         try {
           const csvUrl = `${locationsUrl}?v=${Date.now()}`;
@@ -437,9 +451,6 @@ export default function MapView({
         } catch (e) {
           console.error("❌ Facility CSV load failed:", e);
         }
-      } else {
-        // If no facilities, keep a stable global view
-        map.easeTo({ center: [-20, 25], zoom: 1.35, duration: 600 });
       }
     };
 
@@ -462,10 +473,8 @@ export default function MapView({
   }, []);
 
   /* ============================================================================
-     10) FACILITIES RELOAD ON URL/TOGGLE CHANGE (NO MAP RE-INIT)
-        Enhancement:
-        - Re-fit to facilities on reload for consistent centering
-   ============================================================================ */
+     9) FACILITIES RELOAD ON URL/TOGGLE CHANGE (NO MAP RE-INIT)
+     ============================================================================ */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -482,11 +491,6 @@ export default function MapView({
         const res = await fetch(csvUrl);
         const txt = await res.text();
         renderFacilitiesFromCsv(map, txt);
-
-        // Re-apply fit if we have stored bounds
-        if (facilityBoundsRef.current) {
-          fitToBoundsSafe(map, facilityBoundsRef.current, 80);
-        }
       } catch (e) {
         console.error("❌ Facility reload failed:", e);
       }
@@ -505,8 +509,8 @@ export default function MapView({
   }, [locationsUrl, layerVisibility.facilities, renderFacilitiesFromCsv]);
 
   /* ============================================================================
-     11) FEED RELOAD ON TOGGLE CHANGE (NO MAP RE-INIT)
-   ============================================================================ */
+     10) FEED RELOAD ON TOGGLE CHANGE (NO MAP RE-INIT)
+     ============================================================================ */
   useEffect(() => {
     fetchGDACS();
   }, [fetchGDACS]);
@@ -520,8 +524,8 @@ export default function MapView({
   }, [fetchNOAAAlerts]);
 
   /* ============================================================================
-     12) PERIODIC REFRESH (LIGHTWEIGHT)
-   ============================================================================ */
+     11) PERIODIC REFRESH (LIGHTWEIGHT)
+     ============================================================================ */
   useEffect(() => {
     const tick = async () => {
       await fetchGDACS();
@@ -538,20 +542,21 @@ export default function MapView({
     setLayerVisibility((v) => ({ ...v, [key]: !v[key] }));
   };
 
-  const recenterToFacilities = () => {
+  // 🎯 Re-center: if facilities exist, fit to them; else return to globe view
+  const recenter = () => {
     const map = mapRef.current;
     if (!map) return;
+
     if (facilityBoundsRef.current) {
       fitToBoundsSafe(map, facilityBoundsRef.current, 80);
       return;
     }
-    // fallback
-    map.easeTo({ center: [-20, 25], zoom: 1.35, duration: 700 });
+    recenterToGlobe();
   };
 
   /* ============================================================================
-     13) RENDER
-   ============================================================================ */
+     12) RENDER
+     ============================================================================ */
   return (
     <div className="w-full">
       {/* Control strip */}
@@ -609,11 +614,10 @@ export default function MapView({
             🔥 Live Incidents
           </button>
 
-          {/* ✅ New: re-center control */}
           <button
-            onClick={recenterToFacilities}
+            onClick={recenter}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-[#1D625B] border-[#D8E5DD] hover:bg-[#F4F8F6]"
-            title="Re-center map to facilities"
+            title="Re-center: fits to facilities if available, otherwise returns to full globe"
           >
             🎯 Re-center
           </button>
