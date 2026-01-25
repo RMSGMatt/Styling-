@@ -141,8 +141,8 @@ export default function MapView({
     const map = mapRef.current;
     if (!map) return;
     map.easeTo({
-      center: [0, 20],
-      zoom: 0.85,
+      center: [0, 28],
+      zoom: 0.72,
       pitch: 0,
       bearing: 0,
       duration: 800,
