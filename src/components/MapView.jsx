@@ -1,3 +1,5 @@
+console.log("🧭 MapView.jsx MOUNTED");
+
 // src/components/MapView.jsx
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
@@ -15,6 +17,12 @@ if (!MAPBOX_TOKEN) {
 } else {
   mapboxgl.accessToken = MAPBOX_TOKEN;
 }
+
+console.log("🧭 MapView env check:", {
+  MODE: import.meta.env.MODE,
+  HAS_VITE_MAPBOX_TOKEN: Boolean(import.meta.env.VITE_MAPBOX_TOKEN),
+  TOKEN_LEN: (import.meta.env.VITE_MAPBOX_TOKEN || "").length,
+});
 
 /* ============================================================================
    1) SAFE JSON HELPER
