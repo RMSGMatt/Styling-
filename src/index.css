@@ -27,3 +27,44 @@ body {
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
 }
+
+/* ================================
+   FOR-C Mapbox Popup Dark Mode Patch
+   ================================ */
+.mapboxgl-popup {
+  max-width: 320px !important;
+  font-family: 'Poppins', sans-serif !important;
+}
+
+.mapboxgl-popup-content {
+  background: rgba(12, 20, 18, 0.92) !important; /* deep green-black */
+  color: #E8FFE3 !important; /* soft mint white */
+  border: 1px solid rgba(0, 255, 120, 0.45) !important; /* neon green edge */
+  border-radius: 12px !important;
+  padding: 16px 20px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Popup title text */
+.mapboxgl-popup-content h3,
+.mapboxgl-popup-content strong {
+  color: #9BFF6D !important; /* FOR-C highlight green */
+  font-weight: 600 !important;
+}
+
+/* Standard popup text */
+.mapboxgl-popup-content p {
+  margin: 4px 0 !important;
+  font-size: 0.95rem !important;
+  color: #E8FFE3 !important;
+}
+
+/* Popup close button */
+.mapboxgl-popup-close-button {
+  color: #9BFF6D !important;
+  font-size: 22px !important;
+  font-weight: bold !important;
+  text-shadow: none !important;
+  top: 6px !important;
+  right: 8px !important;
+}

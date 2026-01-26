@@ -10,8 +10,11 @@ import { showToast } from "../Toasts";
 const KEY = "forc_scenarios";
 
 function loadScenarios() {
-  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); }
-  catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(KEY) || "[]");
+  } catch {
+    return [];
+  }
 }
 function persistScenarios(list) {
   localStorage.setItem(KEY, JSON.stringify(list));
@@ -19,10 +22,18 @@ function persistScenarios(list) {
 function genId() {
   return Date.now() + "-" + Math.random().toString(36).slice(2);
 }
+function normalize(s = "") {
+  return String(s || "").trim().toLowerCase();
+}
+function formatDate(iso) {
+  try {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString();
+  } catch {
+    return "—";
+  }
+}
 
-/* ---------------------------
-   Hooks: debounce + focus trap
----------------------------- */
 function useDebounced(value, delay = 150) {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -32,15 +43,14 @@ function useDebounced(value, delay = 150) {
   return v;
 }
 
-/** Basic focus trap + Esc close for a modal */
+/** Esc close + basic tab trap for modal */
 function useFocusTrap({ open, onClose }) {
   const modalRef = useRef(null);
   const firstRef = useRef(null);
-  const lastRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
-    const node = modalRef.current;
+
     setTimeout(() => firstRef.current?.focus(), 0);
 
     const onKey = (e) => {
@@ -50,61 +60,59 @@ function useFocusTrap({ open, onClose }) {
         return;
       }
       if (e.key !== "Tab") return;
+
+      const node = modalRef.current;
       const focusables = node?.querySelectorAll(
         'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'
       );
-      const list = Array.from(focusables || []);
-      if (list.length === 0) return;
-      const first = list[0], last = list[list.length - 1];
+      const list = Array.from(focusables || []).filter((el) => el.offsetParent !== null);
+      if (!list.length) return;
+
+      const first = list[0];
+      const last = list[list.length - 1];
+
       if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault(); last.focus();
+        e.preventDefault();
+        last.focus();
       } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault(); first.focus();
+        e.preventDefault();
+        first.focus();
       }
     };
+
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  return { modalRef, firstRef, lastRef };
+  return { modalRef, firstRef };
 }
 
-/* ---------------------------
-   Component
----------------------------- */
-export default function ScenarioLibrary({
-  userPlan,
-  getCurrentScenario,
-  onApplyScenario,
-}) {
+export default function ScenarioLibrary({ userPlan, getCurrentScenario, onApplyScenario }) {
   const [scenarios, setScenarios] = useState(loadScenarios());
+
+  // UI
   const [search, setSearch] = useState("");
-  const [editing, setEditing] = useState(null); // the scenario being edited
-  const [draft, setDraft] = useState({ id: "", name: "", notes: "", tags: [], data: {} });
+  const [sort, setSort] = useState("updatedDesc"); // updatedDesc | createdDesc | nameAsc
+  const [activeTagFilters, setActiveTagFilters] = useState([]);
+  const searchDebounced = useDebounced(search, 150);
+
+  // modal edit/create
+  const [editingId, setEditingId] = useState(null); // id | "NEW" | null
+  const [draft, setDraft] = useState({
+    id: "",
+    name: "",
+    notes: "",
+    tags: [],
+    data: {},
+    createdAt: "",
+    updatedAt: "",
+  });
   const [tagInput, setTagInput] = useState("");
 
-  const debouncedSearch = useDebounced(search, 150);
-
-  // filter by name/notes/tags
-  const filtered = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
-    if (!q) return scenarios;
-    return scenarios.filter((s) =>
-      (s.name || "").toLowerCase().includes(q) ||
-      (s.notes || "").toLowerCase().includes(q) ||
-      (s.tags || []).some((t) => (t || "").toLowerCase().includes(q))
-    );
-  }, [scenarios, debouncedSearch]);
-
-  const resultCount = filtered.length;
-
-  // active scenario (surface in header)
-  const activeScenario = (() => {
-    try { return getCurrentScenario?.(); } catch { return null; }
-  })();
+  const isPro = (userPlan || "").toLowerCase() !== "free";
+  const BRAND = "#1D625B";
 
   useEffect(() => {
-    // reflect storage updates from elsewhere
     const onStorage = (e) => {
       if (e.key === KEY) setScenarios(loadScenarios());
     };
@@ -116,11 +124,10 @@ export default function ScenarioLibrary({
      CRUD helpers
   ---------------------------- */
   const NAME_MAX = 80;
-  const normalize = (s = "") => s.trim().toLowerCase();
 
   function validateName(name) {
     if (!name || !name.trim()) {
-      showToast({ type: "error", message: "Name is required." });
+      showToast({ type: "error", message: "Scenario name is required." });
       return false;
     }
     if (name.length > NAME_MAX) {
@@ -133,24 +140,6 @@ export default function ScenarioLibrary({
   function nameConflicts(name, idToIgnore) {
     const n = normalize(name);
     return scenarios.some((s) => normalize(s.name) === n && s.id !== idToIgnore);
-  }
-
-  function openEdit(s) {
-    setEditing(s?.id || null);
-    setDraft({
-      id: s?.id || "",
-      name: s?.name || "",
-      notes: s?.notes || "",
-      tags: Array.isArray(s?.tags) ? s.tags : [],
-      data: s?.data || {},
-    });
-    setTagInput("");
-  }
-
-  function closeEdit() {
-    setEditing(null);
-    setDraft({ id: "", name: "", notes: "", tags: [], data: {} });
-    setTagInput("");
   }
 
   function createScenario(payload) {
@@ -172,11 +161,59 @@ export default function ScenarioLibrary({
   }
 
   /* ---------------------------
+     Open/close modal
+  ---------------------------- */
+  function openEdit(s) {
+    setEditingId(s?.id || null);
+    setDraft({
+      id: s?.id || "",
+      name: s?.name || "",
+      notes: s?.notes || "",
+      tags: Array.isArray(s?.tags) ? s.tags : [],
+      data: s?.data || {},
+      createdAt: s?.createdAt || "",
+      updatedAt: s?.updatedAt || "",
+    });
+    setTagInput("");
+  }
+
+  function openNewFromCurrent() {
+    const current = (() => {
+      try {
+        return getCurrentScenario?.();
+      } catch {
+        return null;
+      }
+    })();
+
+    setEditingId("NEW");
+    setDraft({
+      id: "",
+      name: "",
+      notes: "",
+      tags: [],
+      data: current || {},
+      createdAt: "",
+      updatedAt: "",
+    });
+    setTagInput("");
+  }
+
+  function closeEdit() {
+    setEditingId(null);
+    setDraft({ id: "", name: "", notes: "", tags: [], data: {}, createdAt: "", updatedAt: "" });
+    setTagInput("");
+  }
+
+  /* ---------------------------
      Save handlers
   ---------------------------- */
   async function onSaveChanges() {
+    if (!isPro) return;
+
     const d = draft;
     if (!validateName(d.name)) return;
+
     if (nameConflicts(d.name, d.id)) {
       showToast({
         type: "warn",
@@ -184,17 +221,29 @@ export default function ScenarioLibrary({
       });
       return;
     }
+
+    const now = new Date().toISOString();
     const payload = {
       ...d,
       id: d.id || genId(),
-      updatedAt: new Date().toISOString(),
+      createdAt: d.createdAt || now,
+      updatedAt: now,
     };
-    updateScenario(payload);
-    showToast({ type: "success", message: "Updated" });
+
+    if (!d.id) {
+      createScenario(payload);
+      showToast({ type: "success", message: "Scenario saved" });
+    } else {
+      updateScenario(payload);
+      showToast({ type: "success", message: "Scenario updated" });
+    }
+
     closeEdit();
   }
 
   async function onSaveAsNew() {
+    if (!isPro) return;
+
     const d = { ...draft };
     if (!validateName(d.name)) return;
 
@@ -206,422 +255,461 @@ export default function ScenarioLibrary({
       name = `${base} (${i})`;
       showToast({ type: "info", message: `Name in use. Saved as “${name}”.` });
     }
+
+    const now = new Date().toISOString();
     const payload = {
       ...d,
       id: genId(),
       name,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
+
     createScenario(payload);
     showToast({ type: "success", message: "Saved as new" });
     closeEdit();
   }
 
-  function onConfirmDelete(id) {
-    if (!window.confirm("Delete this scenario?")) return;
-    deleteScenario(id);
-    showToast({ type: "success", message: "Deleted" });
-    if (editing && editing === id) closeEdit();
-  }
-
-  /* ---------------------------
-     Tag UX
-  ---------------------------- */
-  function addTag() {
-    const t = tagInput.trim();
-    if (!t) return;
-    if (!(draft.tags || []).includes(t)) {
-      setDraft((prev) => ({ ...prev, tags: [...(prev.tags || []), t] }));
-    }
-    setTagInput("");
-  }
-  function removeTag(idx) {
-    const next = [...(draft.tags || [])];
-    next.splice(idx, 1);
-    setDraft((prev) => ({ ...prev, tags: next }));
-  }
-  function onTagKeyDown(e) {
-    if (e.key === "Enter") { e.preventDefault(); addTag(); }
-    if (e.key === "Backspace" && !tagInput) {
-      e.preventDefault();
-      if ((draft.tags || []).length > 0) removeTag((draft.tags || []).length - 1);
-    }
-  }
-
-  /* ---------------------------
-     Apply scenario (calls parent)
-  ---------------------------- */
-  function applyScenario(s) {
+  function onApply(s) {
     try {
-      onApplyScenario?.(s?.data || {}, { id: s.id, name: s.name, notes: s.notes, tags: s.tags });
-      showToast({ type: "success", message: `Applied “${s.name}”` });
+      onApplyScenario?.(s.data, { name: s.name, id: s.id });
+      showToast({ type: "success", message: `Applied: ${s.name}` });
     } catch (e) {
-      showToast({ type: "error", message: "Failed to apply scenario" });
+      showToast({ type: "error", message: e?.message || "Failed to apply scenario." });
     }
   }
 
   /* ---------------------------
-     Modal A11y hook
+     Search / filter / sort
   ---------------------------- */
-  const isModalOpen = !!editing;
-  const { modalRef, firstRef, lastRef } = useFocusTrap({
-    open: isModalOpen,
-    onClose: closeEdit,
-  });
+  const allTags = useMemo(() => {
+    const set = new Set();
+    for (const s of scenarios) (s.tags || []).forEach((t) => set.add(t));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [scenarios]);
+
+  const filtered = useMemo(() => {
+    const q = searchDebounced.trim().toLowerCase();
+    const tagSet = new Set(activeTagFilters);
+
+    let list = scenarios.filter((s) => {
+      const matchQ =
+        q.length === 0 ||
+        (s.name || "").toLowerCase().includes(q) ||
+        (s.notes || "").toLowerCase().includes(q) ||
+        (s.tags || []).some((t) => (t || "").toLowerCase().includes(q));
+
+      const matchTags = tagSet.size === 0 || (s.tags || []).some((t) => tagSet.has(t));
+      return matchQ && matchTags;
+    });
+
+    if (sort === "updatedDesc") {
+      list = list.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+    } else if (sort === "createdDesc") {
+      list = list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    } else if (sort === "nameAsc") {
+      list = list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }
+
+    return list;
+  }, [scenarios, searchDebounced, activeTagFilters, sort]);
+
+  function toggleTag(tag) {
+    setActiveTagFilters((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setActiveTagFilters([]);
+  }
+
+  const { modalRef, firstRef } = useFocusTrap({ open: !!editingId, onClose: closeEdit });
 
   /* ---------------------------
-     Render
+     UI helpers (UPDATED: no gray fog)
   ---------------------------- */
+  const cardShell =
+    "rounded-2xl border border-emerald-900/40 bg-[#020617] shadow-[0_0_0_1px_rgba(16,185,129,0.25)]";
+  const titleText = "text-slate-100";
+  const subtleText = "text-slate-300";
+  const btnBase =
+    "inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed";
+  const btnPrimary = `${btnBase} text-white hover:brightness-110`;
+  const btnGhost = `${btnBase} bg-[#020617] text-slate-100 border border-emerald-900/40 hover:bg-[#04120e]`;
+  const btnDanger = `${btnBase} bg-red-950/40 text-red-200 border border-red-900/40 hover:bg-red-950/60`;
+
+  const activeScenarioLoaded = (() => {
+    try {
+      return !!getCurrentScenario?.();
+    } catch {
+      return false;
+    }
+  })();
+
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#1D625B] to-[#174F47] text-white rounded-2xl shadow-md p-6 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">📁 Scenario Library</h1>
-          <p className="text-sm opacity-90">
-            Save, edit, and apply what-if scenarios. Search by name, notes, or tags.
-          </p>
-        </div>
-        <div className="mt-2 md:mt-0 bg-[#ABFA7D]/20 text-[#ABFA7D] font-semibold px-4 py-2 rounded-lg border border-[#ABFA7D]/30">
-  {userPlan || "Free"} Plan
-</div>
-      </div>
+    <div className="w-full">
+      <div className={`${cardShell} p-5`}>
+        {/* Header row */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-2.5 rounded-full" style={{ background: BRAND }} aria-hidden="true" />
+              <h2 className={`text-xl font-bold ${titleText}`}>Scenario Library</h2>
 
-      {/* Active scenario pill (from Control Tower) */}
-      {activeScenario?.name && (
-        <div className="mb-3 text-sm">
-          Active scenario:{" "}
-          <span className="font-medium">{activeScenario.name}</span>
-        </div>
-      )}
+              <span className="text-[11px] px-2 py-1 rounded-full border border-emerald-900/40 bg-[#04120e] text-emerald-100">
+                Plan: {isPro ? "Pro" : "Free"}
+              </span>
 
-      {/* Search + count */}
-      <div className="flex items-center gap-2 mb-4">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="🔍 Search by name, notes, or tag…"
-className="border rounded-xl px-3 py-2 w-full md:w-80 shadow-sm"
-          aria-label="Search scenarios"
-        />
-        <span
-          className="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
-          aria-live="polite"
-        >
-          {resultCount}
-        </span>
-        <button
-  className="bg-[#1D625B] hover:bg-[#174F47] text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition"
-  onClick={() => openEdit({ id: "", name: "", notes: "", tags: [], data: {} })}
->
-  + New Scenario
-</button>
-
-      </div>
-
-      {/* ===================== Unassigned Runs (no scenario) ===================== */}
-      {(() => {
-        let all = [];
-        try { all = JSON.parse(localStorage.getItem("reports") || "[]"); } catch {}
-        const unassigned = all.filter(r => !r.scenario?.name);
-
-        if (unassigned.length === 0) return null;
-
-        const openTopOutput = (r) => {
-          const u = r.urls || {};
-          const url =
-            u.projected_impact_output_file_url ||
-            u.inventory_output_file_url ||
-            u.production_output_file_url ||
-            u.flow_output_file_url ||
-            u.occurrence_output_file_url;
-          if (url) window.open(url, "_blank", "noopener,noreferrer");
-        };
-
-        const goToReports = () => {
-          if (typeof window.__FORC_SWITCHVIEW === "function") {
-            window.__FORC_SWITCHVIEW("reports");
-          } else {
-            window.location.href = "/";
-          }
-        };
-
-        const recent = unassigned
-          .slice()
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-          .slice(0, 3);
-
-        return (
-          <div className="mb-4 p-4 bg-white border border-amber-200 rounded-2xl shadow-sm">
-            <div className="text-sm font-semibold text-amber-800">Unassigned Runs</div>
-            <div className="text-xs text-amber-700/80">
-              These runs were created without a scenario applied.
+              {activeScenarioLoaded ? (
+                <span className="text-[11px] px-2 py-1 rounded-full border border-emerald-800/60 bg-emerald-950/30 text-emerald-200">
+                  Active scenario loaded
+                </span>
+              ) : (
+                <span className="text-[11px] px-2 py-1 rounded-full border border-emerald-900/30 bg-[#020617] text-slate-300">
+                  No scenario active
+                </span>
+              )}
             </div>
 
-            <ul className="mt-2 text-xs text-gray-700 space-y-1">
-              {recent.map((r) => (
-                <li key={`${r.id}-${r.timestamp}`} className="flex items-center justify-between gap-2">
-                  <span className="truncate" title={r.timestamp}>{r.timestamp}</span>
-                  <button
-                    className="px-2 py-1 rounded-lg border border-gray-300"
-                    onClick={() => openTopOutput(r)}
-                    title="Open a top output"
-                  >
-                    Open
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <p className={`text-sm ${subtleText} mt-1`}>
+              Save, manage, and apply scenario configurations to simulation runs.
+            </p>
+          </div>
 
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-xs text-gray-500">Total:</span>
-              <span className="text-xs font-medium">{unassigned.length}</span>
-              <button
-                className="ml-auto px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-xs"
-                onClick={goToReports}
-              >
-                View all in Reports →
+          <div className="flex flex-wrap items-center gap-2">
+            {!isPro && (
+              <span className="text-xs px-2 py-1 rounded-full border border-amber-800/50 bg-amber-950/30 text-amber-200">
+                Saving/editing is Pro-gated
+              </span>
+            )}
+
+            <button
+              onClick={openNewFromCurrent}
+              className={btnPrimary}
+              style={{ background: BRAND }}
+              title="Create a new saved scenario from your current scenario configuration"
+              disabled={!isPro}
+            >
+              ➕ Save Current
+            </button>
+          </div>
+        </div>
+
+        {/* Controls row */}
+        <div className="mt-4 grid gap-3 lg:grid-cols-12">
+          <div className="lg:col-span-6">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-emerald-900/40 bg-[#020617] px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-emerald-700/40"
+              placeholder="Search name, notes, or tags…"
+            />
+          </div>
+
+          <div className="lg:col-span-3">
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="w-full rounded-xl border border-emerald-900/40 bg-[#020617] px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-emerald-700/40"
+            >
+              <option value="updatedDesc">Sort: Updated (newest)</option>
+              <option value="createdDesc">Sort: Created (newest)</option>
+              <option value="nameAsc">Sort: Name (A → Z)</option>
+            </select>
+          </div>
+
+          <div className="lg:col-span-3 flex items-center justify-between lg:justify-end gap-2">
+            {(search.trim() || activeTagFilters.length > 0) && (
+              <button className={btnGhost} onClick={clearFilters} title="Clear search & tag filters">
+                Clear
               </button>
+            )}
+
+            <div className="text-xs text-slate-400">
+              Showing{" "}
+              <span className="text-slate-200 font-semibold">{filtered.length}</span> /{" "}
+              <span className="text-slate-200 font-semibold">{scenarios.length}</span>
             </div>
           </div>
-        );
-      })()}
-
-      {/* ===================== List ===================== */}
-      {filtered.length === 0 ? (
-        <div className="p-4 rounded-xl border border-gray-200 bg-white text-gray-600">
-          No scenarios yet. Click <strong>+ New</strong> to create one.
         </div>
-      ) : (
-        <div className="grid md:grid-cols-2 gap-4">
-          {filtered.map((s) => (
-            <div key={s.id} className="p-4 bg-white border border-gray-200 rounded-2xl shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="font-semibold">{s.name}</div>
-                  {s.notes && (
-                    <div className="text-xs text-gray-600 mt-0.5 line-clamp-2" title={s.notes}>
-                      {s.notes}
-                    </div>
-                  )}
-                  {(s.tags || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {s.tags.map((t, i) => (
-                        <span
-                          key={t + i}
-                          className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          title={t}
-                        >
-                          #{t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
 
-                  {/* ✅ Recent Runs (from Reports) — strictly by scenario name */}
-                  {(() => {
-                    let all = [];
-                    try { all = JSON.parse(localStorage.getItem("reports") || "[]"); } catch {}
-                    const runs = all.filter(r => r.scenario?.name === s.name);
-                    if (runs.length === 0) return null;
+        {/* Tag filters */}
+        {allTags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {allTags.map((t) => {
+              const active = activeTagFilters.includes(t);
+              return (
+                <button
+                  key={t}
+                  onClick={() => toggleTag(t)}
+                  className={`text-[11px] px-2 py-1 rounded-full border transition ${
+                    active
+                      ? "bg-emerald-900/40 text-emerald-100 border-emerald-700/60"
+                      : "bg-[#020617] text-slate-200 border-emerald-900/30 hover:bg-[#04120e]"
+                  }`}
+                  aria-pressed={active}
+                >
+                  #{t}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-                    const recent = runs
-                      .slice()
-                      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                      .slice(0, 3);
+        {/* List header */}
+        <div className="mt-5 rounded-xl border border-emerald-900/40 overflow-hidden">
+          <div className="grid grid-cols-12 gap-2 bg-[#04120e] px-3 py-2 text-[11px] text-emerald-200 border-b border-emerald-900/40">
+            <div className="col-span-5 font-semibold">Scenario</div>
+            <div className="col-span-3 font-semibold">Tags</div>
+            <div className="col-span-2 font-semibold">Updated</div>
+            <div className="col-span-2 font-semibold text-right">Actions</div>
+          </div>
 
-                    const openTopOutput = (r) => {
-                      const u = r.urls || {};
-                      const url =
-                        u.projected_impact_output_file_url ||
-                        u.inventory_output_file_url ||
-                        u.production_output_file_url ||
-                        u.flow_output_file_url ||
-                        u.occurrence_output_file_url;
-                      if (url) window.open(url, "_blank", "noopener,noreferrer");
-                    };
-
-                    const goToReports = () => {
-                      try { localStorage.setItem("reportsScenarioFilter", s.name); } catch {}
-                      if (typeof window.__FORC_SWITCHVIEW === "function") {
-                        window.__FORC_SWITCHVIEW("reports");
-                      } else {
-                        window.location.href = "/";
-                      }
-                    };
-
-                    return (
-                      <div className="mt-3">
-                        <div className="text-xs text-gray-500 mb-1">
-                          Recent Runs: <span className="font-medium">{runs.length}</span>
-                        </div>
-                        <ul className="text-xs text-gray-700 space-y-1">
-                          {recent.map((r) => (
-                            <li
-                              key={`${r.id}-${r.timestamp}`}
-                              className="flex items-center justify-between gap-2"
-                            >
-                              <span className="truncate" title={r.timestamp}>
-                                {r.timestamp}
-                              </span>
-                              <button
-                                className="px-2 py-1 rounded-lg border border-gray-300"
-                                onClick={() => openTopOutput(r)}
-                                title="Open a top output"
-                              >
-                                Open
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="mt-2">
-                          <button
-                            className="px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-xs"
-                            onClick={goToReports}
-                          >
-                            View all in Reports →
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm"
-                    onClick={() => applyScenario(s)}
-                    title="Apply to dashboard"
-                  >
-                    Apply
-                  </button>
-                  <button
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm"
-                    onClick={() => openEdit(s)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-sm"
-                    onClick={() => onConfirmDelete(s.id)}
-                  >
-                    Delete
-                  </button>
-                </div>
+          {/* Rows */}
+          <div className="divide-y divide-emerald-900/30 bg-[#020617]">
+            {filtered.length === 0 ? (
+              <div className="p-4 text-sm text-slate-300">
+                No scenarios found. Try clearing filters or saving your current scenario.
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ) : (
+              filtered.map((s) => (
+                <div
+                  key={s.id}
+                  className="grid grid-cols-12 gap-2 px-3 py-3 bg-[#020617] hover:bg-[#04120e] transition"
+                >
+                  {/* Scenario */}
+                  <div className="col-span-5 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-2 w-2 rounded-full" style={{ background: BRAND }} aria-hidden="true" />
+                      <div className="text-sm font-bold text-slate-100 truncate">
+                        {s.name || "Untitled Scenario"}
+                      </div>
+                    </div>
+                    <div className="mt-1 text-xs text-slate-400 line-clamp-1">
+                      {s.notes ? s.notes : "No notes"}
+                    </div>
+                  </div>
 
-      {/* ===================== Edit/Rename Modal ===================== */}
-      {isModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
-          aria-hidden={!isModalOpen}
-        >
+                  {/* Tags */}
+                  <div className="col-span-3 flex flex-wrap gap-2 items-start">
+                    {(s.tags || []).slice(0, 3).map((t) => (
+                      <span
+                        key={t}
+                        className="text-[11px] px-2 py-1 rounded-full border border-emerald-900/30 bg-[#04120e] text-slate-100"
+                      >
+                        #{t}
+                      </span>
+                    ))}
+                    {(s.tags || []).length > 3 && (
+                      <span className="text-[11px] text-slate-400">+{(s.tags || []).length - 3}</span>
+                    )}
+                    {(s.tags || []).length === 0 && <span className="text-[11px] text-slate-500">—</span>}
+                  </div>
+
+                  {/* Updated */}
+                  <div className="col-span-2 text-[11px] text-slate-300">
+                    {formatDate(s.updatedAt)}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="col-span-2 flex items-center justify-end gap-2">
+                    <button
+                      className={btnPrimary}
+                      style={{ background: BRAND }}
+                      onClick={() => onApply(s)}
+                      title="Apply this scenario"
+                    >
+                      Apply
+                    </button>
+
+                    <button
+                      className={btnGhost}
+                      onClick={() => openEdit(s)}
+                      disabled={!isPro}
+                      title={!isPro ? "Upgrade to edit scenarios" : "Edit scenario"}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      className={btnDanger}
+                      disabled={!isPro}
+                      onClick={() => {
+                        if (!isPro) return;
+                        const ok = window.confirm(`Delete scenario "${s.name}"? This cannot be undone.`);
+                        if (!ok) return;
+                        deleteScenario(s.id);
+                        showToast({ type: "success", message: "Deleted" });
+                      }}
+                      title={!isPro ? "Upgrade to delete scenarios" : "Delete scenario"}
+                    >
+                      Del
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Footer note */}
+        <div className="mt-4 text-xs text-slate-400">
+          Tip: If “compare runs” reuses the same S3 URLs, multiple runs can appear identical. You’ll want unique output keys per run.
+        </div>
+      </div>
+
+      {/* Modal */}
+      {!!editingId && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80" onClick={closeEdit} aria-hidden="true" />
+
           <div
             ref={modalRef}
+            className="relative w-full max-w-2xl rounded-2xl border border-emerald-900/40 bg-[#020617] shadow-2xl"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="scenario-edit-title"
-            className="w-[95vw] max-w-xl bg-white rounded-2xl shadow-xl border border-gray-200 p-5"
+            aria-label="Scenario editor"
           >
-            <div className="flex items-start justify-between">
-              <h2 id="scenario-edit-title" className="text-lg font-semibold">
-                {editing ? "Edit Scenario" : "New Scenario"}
-              </h2>
-              <button
-                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm"
-                onClick={closeEdit}
-                aria-label="Close"
-              >
-                ✕
+            <div className="p-4 border-b border-emerald-900/40 flex items-center justify-between bg-[#04120e]">
+              <div className="min-w-0">
+                <div className="text-base font-bold text-slate-100">
+                  {draft.id ? "Edit Scenario" : "New Scenario"}
+                </div>
+                <div className="text-xs text-slate-300 mt-0.5">
+                  Save Changes updates the existing scenario. Save as New creates a copy.
+                </div>
+              </div>
+
+              <button className={btnGhost} onClick={closeEdit}>
+                ✖ Close
               </button>
             </div>
 
-            {/* Name */}
-            <label htmlFor="scenario-name" className="text-sm font-medium mt-4 block">
-              Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              ref={firstRef}
-              id="scenario-name"
-              aria-required="true"
-              maxLength={NAME_MAX + 10}
-              className="w-full border rounded-xl px-3 py-2 mt-1"
-              value={draft.name}
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-            />
-            <p className="text-xs text-gray-500 mt-1">Max {NAME_MAX} characters. Use a unique name.</p>
-
-            {/* Notes */}
-            <label htmlFor="scenario-notes" className="text-sm font-medium mt-4 block">
-              Notes
-            </label>
-            <textarea
-              id="scenario-notes"
-              rows={3}
-              className="w-full border rounded-xl px-3 py-2 mt-1"
-              value={draft.notes}
-              onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
-            />
-
-            {/* Tags */}
-            <div className="mt-4">
-              <label className="text-sm font-medium block">Tags</label>
-              <div className="flex gap-2 mt-1">
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="text-xs text-slate-300">Scenario name</label>
                 <input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={onTagKeyDown}
-                  placeholder="Type a tag and press Enter"
-                  aria-label="Add tag"
-                  className="flex-1 border rounded-xl px-3 py-2"
+                  ref={firstRef}
+                  value={draft.name}
+                  onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-emerald-900/40 bg-[#020617] px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-emerald-700/40"
+                  placeholder="e.g., Mexico tariff shock + supplier switch"
+                  disabled={!isPro}
                 />
-                <button
-                  className="px-3 py-2 rounded-xl border border-gray-300 text-sm"
-                  onClick={addTag}
-                >
-                  Add
-                </button>
               </div>
-              {(draft.tags || []).length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {draft.tags.map((t, i) => (
-                    <button
-                      key={t + i}
-                      className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 focus:outline-none focus:ring-2"
-                      onClick={() => removeTag(i)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Backspace" || e.key === "Delete") removeTag(i);
-                      }}
-                      aria-label={`Remove tag ${t}`}
-                    >
-                      {t} ⌫
-                    </button>
-                  ))}
+
+              <div>
+                <label className="text-xs text-slate-300">Notes</label>
+                <textarea
+                  value={draft.notes}
+                  onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))}
+                  className="mt-1 w-full min-h-[90px] rounded-xl border border-emerald-900/40 bg-[#020617] px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-emerald-700/40"
+                  placeholder="What changed? What risk is this testing?"
+                  disabled={!isPro}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-300">Tags</label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    className="w-full rounded-xl border border-emerald-900/40 bg-[#020617] px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-emerald-700/40"
+                    placeholder="Type a tag, press Enter"
+                    disabled={!isPro}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (!isPro) return;
+                        const raw = tagInput.trim();
+                        if (!raw) return;
+                        if ((draft.tags || []).includes(raw)) {
+                          setTagInput("");
+                          return;
+                        }
+                        setDraft((p) => ({ ...p, tags: [...(p.tags || []), raw] }));
+                        setTagInput("");
+                      }
+                    }}
+                  />
+                  <button
+                    className={btnPrimary}
+                    style={{ background: BRAND }}
+                    disabled={!isPro}
+                    onClick={() => {
+                      if (!isPro) return;
+                      const raw = tagInput.trim();
+                      if (!raw) return;
+                      if ((draft.tags || []).includes(raw)) {
+                        setTagInput("");
+                        return;
+                      }
+                      setDraft((p) => ({ ...p, tags: [...(p.tags || []), raw] }));
+                      setTagInput("");
+                    }}
+                  >
+                    Add
+                  </button>
                 </div>
-              )}
+
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(draft.tags || []).length === 0 ? (
+                    <span className="text-[11px] text-slate-500">No tags</span>
+                  ) : (
+                    (draft.tags || []).map((t) => (
+                      <button
+                        key={t}
+                        className="text-[11px] px-2 py-1 rounded-full border border-emerald-900/30 bg-[#04120e] text-slate-100 hover:bg-emerald-900/30"
+                        onClick={() => {
+                          if (!isPro) return;
+                          setDraft((p) => ({ ...p, tags: (p.tags || []).filter((x) => x !== t) }));
+                        }}
+                        disabled={!isPro}
+                        title={!isPro ? "Upgrade to edit tags" : "Remove tag"}
+                      >
+                        #{t} ✕
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-emerald-900/30 bg-[#020617] p-3">
+                <div className="text-xs text-slate-200 font-semibold">Scenario payload</div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Stored exactly as your current scenario configuration object (used by Apply).
+                </div>
+                <pre className="mt-2 max-h-52 overflow-auto text-[11px] text-slate-200 bg-black/40 rounded-xl p-3 border border-emerald-900/30">
+{JSON.stringify(draft.data || {}, null, 2)}
+                </pre>
+              </div>
             </div>
 
-            {/* Actions */}
-            <div className="mt-6 flex flex-wrap gap-2 justify-end">
-              {editing && (
-                <button
-                  className="px-3 py-2 rounded-xl border border-gray-300 text-sm"
-                  onClick={onSaveChanges}
-                >
-                  Save Changes
-                </button>
-              )}
+            <div className="p-4 border-t border-emerald-900/40 flex items-center justify-end gap-2 bg-[#020617]">
+              <button className={btnGhost} onClick={closeEdit}>
+                Cancel
+              </button>
+
               <button
-                className="px-3 py-2 rounded-xl border border-emerald-300 text-emerald-700 text-sm"
+                className={btnGhost}
                 onClick={onSaveAsNew}
-                ref={lastRef}
+                disabled={!isPro}
+                title={!isPro ? "Upgrade to save scenarios" : "Create a new scenario copy"}
               >
                 Save as New
+              </button>
+
+              <button
+                className={btnPrimary}
+                style={{ background: BRAND }}
+                onClick={onSaveChanges}
+                disabled={!isPro}
+                title={!isPro ? "Upgrade to save/edit scenarios" : "Save changes"}
+              >
+                Save Changes
               </button>
             </div>
           </div>

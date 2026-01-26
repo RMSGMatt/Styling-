@@ -16,13 +16,36 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  */
 
 const API_BASE =
-  (import.meta?.env?.VITE_API_BASE && import.meta.env.VITE_API_BASE.replace(/\/$/, "")) ||
+  (import.meta?.env?.VITE_API_BASE &&
+    import.meta.env.VITE_API_BASE.replace(/\/$/, "")) ||
   `${window.location.origin}/api`;
 
+// ------------------------------------------------------------
+// Brand-ish UI tokens (Tailwind class strings)
+// ------------------------------------------------------------
+const BRAND = {
+  mint: "#1D625B",
+  mintDark: "#144c45",
+  lime: "#B6F09C",
+  orange: "#F59E0B",
+};
 
-const BRAND_BTN = "bg-[#1D625B] text-white hover:bg-[#144c45]";
-const BTN = "px-3 py-2 rounded-xl border";
-const CARD = "p-4 bg-white rounded-2xl shadow border border-gray-100";
+const SURFACE =
+  "bg-slate-950/60 border border-slate-800 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.25)]";
+const PANEL =
+  "p-5 bg-slate-950/55 border border-slate-800 rounded-2xl";
+const INPUT =
+  "w-full px-3 py-2 rounded-xl bg-slate-950/40 border border-slate-800 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/40";
+const BTN =
+  "px-3 py-2 rounded-xl border border-slate-800 bg-slate-950/40 text-slate-100 hover:bg-slate-900/60 disabled:opacity-50 disabled:cursor-not-allowed";
+const BTN_BRAND =
+  "px-4 py-2 rounded-xl shadow border border-emerald-600/30 bg-emerald-700/90 text-white hover:bg-emerald-700";
+const BTN_DANGER =
+  "px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/15 disabled:opacity-50";
+const CHIP =
+  "text-[11px] px-2 py-0.5 rounded-full border border-slate-700 bg-slate-950/35 text-slate-200";
+const CHIP_ACTIVE =
+  "text-[11px] px-2 py-0.5 rounded-full border border-emerald-500/40 bg-emerald-500/15 text-emerald-200";
 
 export default function ScenarioLibrary({
   onApplyScenario,
@@ -157,7 +180,9 @@ export default function ScenarioLibrary({
       // Normalize payload (object or JSON string)
       let payload = out?.data;
       if (typeof payload === "string") {
-        try { payload = JSON.parse(payload); } catch {}
+        try {
+          payload = JSON.parse(payload);
+        } catch {}
       }
 
       if (payload && typeof payload === "object" && Object.keys(payload).length) {
@@ -175,7 +200,9 @@ export default function ScenarioLibrary({
           window.location.href = "/simulation";
         }
       } else {
-        setStatus("No data in this scenario (empty). Try saving again after setting a preset/builder.");
+        setStatus(
+          "No data in this scenario (empty). Try saving again after setting a preset/builder."
+        );
       }
     } catch (e) {
       setStatus(`Load failed: ${e.message}`);
@@ -222,7 +249,9 @@ export default function ScenarioLibrary({
       const loaded = await api(`/scenario/load/${row.id}`);
       let payload = loaded?.data;
       if (typeof payload === "string") {
-        try { payload = JSON.parse(payload); } catch {}
+        try {
+          payload = JSON.parse(payload);
+        } catch {}
       }
       setEditData(payload || {}); // even {} is fine; backend requires data present
     } catch (e) {
@@ -251,7 +280,8 @@ export default function ScenarioLibrary({
     if (n.length > 80) return "Name must be ≤ 80 characters.";
     for (const t of editTags) {
       if (!t || t.length > 24) return "Each tag must be 1–24 chars.";
-      if (!/^[\w\- ]+$/.test(t)) return "Tags may contain letters, numbers, spaces, _ and - only.";
+      if (!/^[\w\- ]+$/.test(t))
+        return "Tags may contain letters, numbers, spaces, _ and - only.";
     }
     return "";
   }
@@ -259,9 +289,14 @@ export default function ScenarioLibrary({
   function addTagFromInput() {
     const raw = tagInput.trim();
     if (!raw) return;
-    if (editTags.includes(raw)) { setTagInput(""); return; }
+    if (editTags.includes(raw)) {
+      setTagInput("");
+      return;
+    }
     if (raw.length > 24 || !/^[\w\- ]+$/.test(raw)) {
-      setEditError("Tags may contain letters, numbers, spaces, _ and - only (≤24 chars).");
+      setEditError(
+        "Tags may contain letters, numbers, spaces, _ and - only (≤24 chars)."
+      );
       return;
     }
     setEditTags((prev) => [...prev, raw]);
@@ -275,7 +310,10 @@ export default function ScenarioLibrary({
   async function saveEditUpdate() {
     if (!editRow) return;
     const err = validateEdit();
-    if (err) { setEditError(err); return; }
+    if (err) {
+      setEditError(err);
+      return;
+    }
 
     try {
       setEditSaving(true);
@@ -287,11 +325,15 @@ export default function ScenarioLibrary({
           const loaded = await api(`/scenario/load/${editRow.id}`);
           let payload = loaded?.data;
           if (typeof payload === "string") {
-            try { payload = JSON.parse(payload); } catch {}
+            try {
+              payload = JSON.parse(payload);
+            } catch {}
           }
           dataToSend = payload || {};
         } catch (e) {
-          setEditError("Unable to fetch scenario data for update. Please try again.");
+          setEditError(
+            "Unable to fetch scenario data for update. Please try again."
+          );
           setEditSaving(false);
           return;
         }
@@ -315,7 +357,13 @@ export default function ScenarioLibrary({
       setItems((prev) =>
         prev.map((r) =>
           r.id === editRow.id
-            ? { ...r, name: editName.trim(), notes: editNotes, tags: editTags, updated_at: new Date().toISOString() }
+            ? {
+                ...r,
+                name: editName.trim(),
+                notes: editNotes,
+                tags: editTags,
+                updated_at: new Date().toISOString(),
+              }
             : r
         )
       );
@@ -330,7 +378,10 @@ export default function ScenarioLibrary({
   async function saveAsNewFromExisting() {
     if (!editRow) return;
     const err = validateEdit();
-    if (err) { setEditError(err); return; }
+    if (err) {
+      setEditError(err);
+      return;
+    }
     try {
       setEditSaving(true);
       // Use already-loaded data if present, else load now
@@ -339,7 +390,9 @@ export default function ScenarioLibrary({
         const loaded = await api(`/scenario/load/${editRow.id}`);
         payload = loaded?.data;
         if (typeof payload === "string") {
-          try { payload = JSON.parse(payload); } catch {}
+          try {
+            payload = JSON.parse(payload);
+          } catch {}
         }
       }
       const out = await api("/scenario/save", {
@@ -376,8 +429,7 @@ export default function ScenarioLibrary({
         q.length === 0 ||
         (r.name || "").toLowerCase().includes(q) ||
         (r.notes || "").toLowerCase().includes(q);
-      const matchTags =
-        tagSet.size === 0 || (r.tags || []).some((t) => tagSet.has(t));
+      const matchTags = tagSet.size === 0 || (r.tags || []).some((t) => tagSet.has(t));
       return matchQ && matchTags;
     });
   }, [items, searchDebounced, activeTags]);
@@ -414,9 +466,7 @@ export default function ScenarioLibrary({
         const focusables = modalRef.current.querySelectorAll(
           'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
         );
-        const list = Array.from(focusables).filter(
-          (el) => el.offsetParent !== null // visible
-        );
+        const list = Array.from(focusables).filter((el) => el.offsetParent !== null);
         if (list.length === 0) return;
         const first = list[0];
         const last = list[list.length - 1];
@@ -437,74 +487,144 @@ export default function ScenarioLibrary({
   // ---------- Render ----------
   return (
     <div className={`w-full ${className}`}>
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Save Panel */}
-        <div className={CARD}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Scenario Library</h2>
-            <PlanBadge plan={plan} />
+      {/* Header */}
+      <div className={`mb-4 ${SURFACE} p-5`}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
+                <span className="text-emerald-200 text-lg">🧩</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-100">
+                  Scenario Library
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Save, tag, edit, and reload scenario configurations.
+                </p>
+              </div>
+            </div>
           </div>
 
-          {!isPro && <UpsellBanner />}
+          <div className="flex items-center gap-2">
+            <PlanBadge plan={plan} />
+            <button
+              onClick={refreshList}
+              disabled={!isPro || loading}
+              className={BTN}
+              title="Refresh list"
+            >
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+        </div>
 
-          <div className="mt-2">
-            <label className="block text-sm mb-1">Scenario name</label>
+        {!isPro && <UpsellBanner />}
+
+        {status && (
+          <div className="mt-3 text-sm">
+            <div className="px-3 py-2 rounded-xl border border-slate-800 bg-slate-950/35 text-slate-200">
+              {status}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Save Panel */}
+        <div className={PANEL}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-100">
+              Save current scenario
+            </h3>
+            <span className="text-xs text-slate-500">
+              {isPro ? "Pro enabled" : "Pro required"}
+            </span>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-xs text-slate-400 mb-1">
+              Scenario name
+            </label>
             <input
               type="text"
-              placeholder={isPro ? "e.g., Quarterly stress test" : "Pro required"}
-              className="w-full px-3 py-2 border rounded-xl focus:outline-none"
+              placeholder={isPro ? "e.g., Quarterly stress test" : "Upgrade to Pro"}
+              className={INPUT}
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={!isPro}
             />
-            <div className="flex items-center gap-2 mt-3">
+
+            <div className="mt-3 flex flex-col sm:flex-row gap-2">
               <button
                 onClick={handleSave}
                 disabled={!isPro || saving}
-                className={`px-4 py-2 rounded-xl shadow ${
-                  isPro ? BRAND_BTN : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                }`}
+                className={BTN_BRAND}
               >
                 {saving ? "Saving…" : "Save Scenario"}
               </button>
               <button
-                onClick={refreshList}
-                disabled={!isPro || loading}
-                className={`${BTN} ${!isPro ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"}`}
-                title="Refresh list"
+                onClick={() => {
+                  setName("");
+                  setStatus("");
+                }}
+                disabled={!isPro || saving}
+                className={BTN}
+                title="Clear name and status"
               >
-                {loading ? "Refreshing…" : "Refresh"}
+                Clear
               </button>
             </div>
-            {status && <p className="text-sm mt-2 opacity-80">{status}</p>}
+
+            <div className="mt-4 p-3 rounded-xl border border-slate-800 bg-slate-950/30">
+              <div className="text-xs text-slate-400">
+                Tip: Use tags like{" "}
+                <span className="text-emerald-200">#tariff</span>,{" "}
+                <span className="text-emerald-200">#supplier</span>,{" "}
+                <span className="text-emerald-200">#plant</span> so you can filter quickly.
+              </div>
+            </div>
           </div>
         </div>
 
         {/* List Panel */}
-        <div className={CARD}>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-base font-semibold">My Scenarios</h3>
-            {loading && <span className="text-sm">Loading…</span>}
+        <div className={PANEL}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-100">My scenarios</h3>
+              <div className="text-xs text-slate-500">
+                {filteredItems.length} {filteredItems.length === 1 ? "scenario" : "scenarios"}
+                {loading ? " • Loading…" : ""}
+              </div>
+            </div>
           </div>
 
           {/* Search + Tag Filters */}
-          <div className="mb-2 space-y-2">
+          <div className="mb-3 space-y-2">
             <div className="flex gap-2">
-              <label htmlFor="scenario-search" className="sr-only">Search scenarios</label>
+              <label htmlFor="scenario-search" className="sr-only">
+                Search scenarios
+              </label>
               <input
                 id="scenario-search"
                 aria-label="Search scenarios by name or notes"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full px-3 py-2 border rounded-xl focus:outline-none"
+                className={INPUT}
                 placeholder="Search by name or notes…"
               />
               {filtersActive && (
-                <button onClick={clearFilters} className={`${BTN} hover:bg-gray-50`} title="Clear filters" aria-label="Clear search and tag filters">
+                <button
+                  onClick={clearFilters}
+                  className={BTN}
+                  title="Clear filters"
+                  aria-label="Clear search and tag filters"
+                >
                   Clear
                 </button>
               )}
             </div>
+
             {allTags.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {allTags.map((t) => {
@@ -513,9 +633,7 @@ export default function ScenarioLibrary({
                     <button
                       key={t}
                       onClick={() => toggleTag(t)}
-                      className={`text-xs px-2 py-1 rounded-full border ${
-                        active ? "bg-[#1D625B] text-white border-[#1D625B]" : "bg-gray-50"
-                      }`}
+                      className={active ? CHIP_ACTIVE : CHIP}
                       aria-pressed={active}
                       aria-label={active ? `Remove tag filter ${t}` : `Filter by tag ${t}`}
                       title={active ? "Click to remove filter" : "Click to filter by tag"}
@@ -526,64 +644,83 @@ export default function ScenarioLibrary({
                 })}
               </div>
             )}
-            <div className="text-xs text-gray-500">
-              {filteredItems.length} {filteredItems.length === 1 ? "scenario" : "scenarios"}
-            </div>
           </div>
 
           {!isPro ? (
-            <p className="text-sm text-gray-500">
+            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/35 text-slate-300 text-sm">
               Upgrade to Pro to save and view scenarios.
-            </p>
+            </div>
           ) : filteredItems.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              {items.length === 0
-                ? "No scenarios yet. Save one on the left."
-                : "No scenarios match your filters."}
-            </p>
+            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/35">
+              <p className="text-sm text-slate-300">
+                {items.length === 0
+                  ? "No scenarios yet. Save one on the left."
+                  : "No scenarios match your filters."}
+              </p>
+              {filtersActive && (
+                <button onClick={clearFilters} className={`${BTN} mt-3`}>
+                  Clear filters
+                </button>
+              )}
+            </div>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2 max-h-[520px] overflow-auto pr-1">
               {filteredItems.map((row) => (
-                <li key={row.id} className="p-3 border rounded-xl">
-                  <div className="flex items-start justify-between gap-2">
+                <li
+                  key={row.id}
+                  className="p-4 rounded-xl border border-slate-800 bg-slate-950/35 hover:bg-slate-900/40 transition"
+                >
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium truncate flex items-center gap-2">
-                        <span className="truncate">{row.name}</span>
-                        {/* edit pencil */}
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold text-slate-100 truncate">
+                          {row.name}
+                        </div>
+
                         <button
                           disabled={!isPro}
                           onClick={() => openEdit(row)}
-                          className="text-xs px-2 py-0.5 rounded border hover:bg-gray-50 disabled:opacity-50"
+                          className={`${BTN} py-1 px-2 text-xs`}
                           title="Edit"
                         >
                           ✏️ Edit
                         </button>
                       </div>
+
                       {row.tags?.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
+                        <div className="mt-2 flex flex-wrap gap-2">
                           {row.tags.map((t) => (
-                            <span key={t} className="text-[11px] px-2 py-0.5 rounded-full border bg-gray-50">
+                            <span key={t} className={CHIP}>
                               #{t}
                             </span>
                           ))}
                         </div>
                       )}
-                      <div className="text-xs opacity-70 mt-1">
-                        {fmtDate(row.updated_at || row.created_at)}
-                        {row.notes ? ` • ${row.notes.slice(0, 80)}` : ""}
+
+                      <div className="text-xs text-slate-400 mt-2">
+                        <span className="text-slate-500">
+                          {fmtDate(row.updated_at || row.created_at)}
+                        </span>
+                        {row.notes ? (
+                          <>
+                            <span className="mx-2 text-slate-700">•</span>
+                            <span className="text-slate-300">
+                              {row.notes.slice(0, 110)}
+                              {row.notes.length > 110 ? "…" : ""}
+                            </span>
+                          </>
+                        ) : null}
                       </div>
                     </div>
+
                     <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => handleLoad(row.id)}
-                        className={`${BTN} hover:bg-gray-50`}
-                      >
+                      <button onClick={() => handleLoad(row.id)} className={BTN}>
                         Load
                       </button>
                       <button
                         onClick={() => handleDelete(row.id)}
                         disabled={deletingId === row.id}
-                        className={`${BTN} text-red-600 hover:bg-red-50 disabled:opacity-50`}
+                        className={BTN_DANGER}
                       >
                         {deletingId === row.id ? "Deleting…" : "Delete"}
                       </button>
@@ -600,28 +737,41 @@ export default function ScenarioLibrary({
       {editOpen && (
         <div
           ref={modalRef}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="edit-scenario-title"
-          onClick={(e) => { if (e.target === e.currentTarget) closeEdit(); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeEdit();
+          }}
         >
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h4 id="edit-scenario-title" className="text-lg font-semibold">Edit Scenario</h4>
-              <button className="text-gray-500 hover:text-black" onClick={closeEdit} aria-label="Close">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-950 shadow-[0_12px_50px_rgba(0,0,0,0.55)]">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+              <div>
+                <h4 id="edit-scenario-title" className="text-lg font-semibold text-slate-100">
+                  Edit Scenario
+                </h4>
+                <div className="text-xs text-slate-500">
+                  Update name, notes, and tags. Save changes or save as new.
+                </div>
+              </div>
+              <button
+                className="text-slate-400 hover:text-slate-100"
+                onClick={closeEdit}
+                aria-label="Close"
+              >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm mb-1">Name *</label>
+                <label className="block text-xs text-slate-400 mb-1">Name *</label>
                 <input
                   ref={nameInputRef}
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-xl focus:outline-none"
+                  className={INPUT}
                   maxLength={80}
                   placeholder="Scenario name"
                   aria-invalid={!!editError}
@@ -630,18 +780,18 @@ export default function ScenarioLibrary({
               </div>
 
               <div>
-                <label className="block text-sm mb-1">Notes</label>
+                <label className="block text-xs text-slate-400 mb-1">Notes</label>
                 <textarea
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-xl focus:outline-none"
+                  className={`${INPUT} min-h-[90px]`}
                   rows={3}
                   placeholder="Add optional notes"
                 />
               </div>
 
               <div>
-                <label className="block text-sm mb-1">Tags</label>
+                <label className="block text-xs text-slate-400 mb-1">Tags</label>
                 <div className="flex gap-2">
                   <input
                     value={tagInput}
@@ -652,22 +802,23 @@ export default function ScenarioLibrary({
                         addTagFromInput();
                       }
                     }}
-                    className="flex-1 px-3 py-2 border rounded-xl focus:outline-none"
+                    className={INPUT}
                     placeholder="Type a tag and press Enter"
                     maxLength={24}
                   />
-                  <button onClick={addTagFromInput} className={`${BTN} hover:bg-gray-50`}>
+                  <button onClick={addTagFromInput} className={BTN}>
                     Add
                   </button>
                 </div>
+
                 {editTags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {editTags.map((t) => (
-                      <span key={t} className="text-xs px-2 py-1 rounded-full border bg-gray-50">
+                      <span key={t} className={CHIP}>
                         #{t}{" "}
                         <button
                           onClick={() => removeTag(t)}
-                          className="ml-1 text-gray-500 hover:text-black"
+                          className="ml-1 text-slate-400 hover:text-slate-100"
                           title="Remove tag"
                         >
                           ×
@@ -678,18 +829,26 @@ export default function ScenarioLibrary({
                 )}
               </div>
 
-              {editDataLoading && <p className="text-sm text-gray-500">Loading scenario data…</p>}
-              {editError && <p id="edit-error" className="text-sm text-red-600">{editError}</p>}
+              {editDataLoading && (
+                <div className="text-sm text-slate-400">
+                  Loading scenario data…
+                </div>
+              )}
+              {editError && (
+                <div id="edit-error" className="text-sm text-red-300">
+                  {editError}
+                </div>
+              )}
 
-              <div className="flex items-center justify-between pt-2">
-                <div className="text-xs text-gray-500">
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="text-xs text-slate-600">
                   {editRow?.id ? `ID: ${editRow.id}` : ""}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 justify-end">
                   <button
                     onClick={saveAsNewFromExisting}
                     disabled={editSaving}
-                    className={`${BTN} hover:bg-gray-50`}
+                    className={BTN}
                     title="Create a new scenario using the same data with updated metadata"
                   >
                     Save as New
@@ -697,8 +856,12 @@ export default function ScenarioLibrary({
                   <button
                     onClick={saveEditUpdate}
                     disabled={editSaving || editDataLoading}
-                    className={`px-4 py-2 rounded-xl shadow ${BRAND_BTN}`}
-                    title={editDataLoading ? "Please wait, loading scenario data…" : "Save changes to this scenario"}
+                    className={BTN_BRAND}
+                    title={
+                      editDataLoading
+                        ? "Please wait, loading scenario data…"
+                        : "Save changes to this scenario"
+                    }
                   >
                     {editSaving ? "Saving…" : "Save Changes"}
                   </button>
@@ -715,17 +878,35 @@ export default function ScenarioLibrary({
 
 function PlanBadge({ plan }) {
   const label = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "Unknown";
+  const isPro = ["pro", "enterprise"].includes((plan || "").toLowerCase());
   return (
-    <span className="text-xs px-2 py-1 rounded-full border bg-gray-50">{label}</span>
+    <span
+      className={`text-xs px-2 py-1 rounded-full border ${
+        isPro
+          ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
+          : "border-slate-700 bg-slate-950/35 text-slate-300"
+      }`}
+      title={isPro ? "Pro features enabled" : "Pro required for saving/loading"}
+    >
+      {label}
+    </span>
   );
 }
 
 function UpsellBanner() {
   return (
-    <div className="mt-2 p-3 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 border">
-      <div className="text-sm font-medium">Pro feature</div>
-      <div className="text-xs opacity-80">
+    <div className="mt-3 p-4 rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-950/40 to-slate-900/40">
+      <div className="text-sm font-semibold text-slate-100">Pro feature</div>
+      <div className="text-xs text-slate-400 mt-1">
         Upgrade to save, load, and manage scenarios.
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-500/30">
+          Includes tagging + editing
+        </span>
+        <span className="text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-200 border border-amber-500/25">
+          Faster scenario iteration
+        </span>
       </div>
     </div>
   );
