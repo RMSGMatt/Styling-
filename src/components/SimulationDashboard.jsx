@@ -21,8 +21,7 @@ import {
   loadScenario,
   saveScenario,
   runSimulationWithScenario
-} from "../api/scenarios";
-
+} from "../api/scenarios.js";
 
 // ✅ Register Chart.js components
 ChartJS.register(
