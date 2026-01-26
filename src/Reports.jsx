@@ -5,7 +5,7 @@ import UpgradeModal from "./UpgradeModal";
 /**
  * Reports – Full page (Revenue-ready)
  * - Fetches simulation history from backend (/api/simulations) using localStorage.token
- * - Adds Executive Report panel:
+ * - Executive Report panel:
  *    - GET  /api/executive-report/latest
  *    - POST /api/executive-report/build
  * - NO window.location.reload(); everything refreshes via fetches + state
@@ -127,10 +127,6 @@ export default function Reports() {
     res?.status === 402 && (data?.error === "upgrade_required" || data?.code === "upgrade_required");
 
   const fetchLatestExecutiveReport = async () => {
-    console.log(
-      "🔄 [ReportsView] (MARKER-123) Reload clicked → fetching /api/executive-report/latest"
-    );
-
     setExecLoading(true);
     setExecError("");
     setShowExecUpgrade(false);
@@ -138,7 +134,6 @@ export default function Reports() {
     try {
       const token = getToken();
       if (!token) {
-        console.warn("⚠️ [ReportsView] No token found in localStorage");
         setExecReport(null);
         setExecError("You are not logged in (missing token). Please log in again.");
         setExecLoading(false);
@@ -150,12 +145,9 @@ export default function Reports() {
         headers: { ...authHeaders() },
       });
 
-      console.log("📡 [ReportsView] /latest status:", res.status);
-
       const data = await res.json().catch(() => ({}));
-      console.log("📦 [ReportsView] /latest payload (FULL):", JSON.stringify(data, null, 2));
 
-      // ✅ Step 3C: 402 gate => show upgrade UX + open modal
+      // ✅ 402 gate => show upgrade UX + open modal
       if (isUpgradeResponse(res, data)) {
         setExecReport(null);
 
@@ -169,7 +161,6 @@ export default function Reports() {
         });
 
         openUpgrade(data);
-
         setExecLoading(false);
         return;
       }
@@ -187,7 +178,6 @@ export default function Reports() {
       setExecLastRefreshedAt(new Date().toLocaleTimeString());
       setExecLoading(false);
     } catch (e) {
-      console.error("❌ [ReportsView] fetchLatestExecutiveReport error:", e);
       setExecError(String(e?.message || e));
       setExecReport(null);
       setExecLoading(false);
@@ -195,8 +185,6 @@ export default function Reports() {
   };
 
   const buildExecutiveReport = async () => {
-    console.log("🛠️ [ReportsView] Generate Executive Report clicked");
-
     setExecBuilding(true);
     setExecError("");
     setShowExecUpgrade(false);
@@ -204,7 +192,6 @@ export default function Reports() {
     try {
       const token = getToken();
       if (!token) {
-        console.warn("⚠️ [ReportsView] No token found in localStorage");
         setExecError("You are not logged in (missing token). Please log in again.");
         setExecBuilding(false);
         return;
@@ -219,12 +206,9 @@ export default function Reports() {
         body: JSON.stringify({ source: "simulation", force: true }),
       });
 
-      console.log("📡 [ReportsView] /build status:", res.status);
-
       const data = await res.json().catch(() => ({}));
-      console.log("📦 [ReportsView] /build payload:", data);
 
-      // ✅ Step 3C: 402 gate => show upgrade UX + open modal
+      // ✅ 402 gate => show upgrade UX + open modal
       if (isUpgradeResponse(res, data)) {
         setShowExecUpgrade(true);
         setExecGate({
@@ -236,7 +220,6 @@ export default function Reports() {
         });
 
         openUpgrade(data);
-
         setExecBuilding(false);
         return;
       }
@@ -254,7 +237,6 @@ export default function Reports() {
       await fetchLatestExecutiveReport();
       setExecBuilding(false);
     } catch (e) {
-      console.error("❌ [ReportsView] buildExecutiveReport error:", e);
       setExecError(String(e?.message || e));
       setExecBuilding(false);
     }
@@ -355,7 +337,7 @@ export default function Reports() {
     return x.toLocaleString(undefined, { maximumFractionDigits: decimals });
   };
 
-  // ✅ FIX: inputs are fractions (0–1). Multiply by 100 for display.
+  // ✅ inputs are fractions (0–1). Multiply by 100 for display.
   const formatPercent = (n, decimals = 1) => {
     const x = Number(n);
     if (!Number.isFinite(x)) return "—";
@@ -378,7 +360,7 @@ export default function Reports() {
         onBackToControlTower={() => {
           setUpgradeOpen(false);
           // Replace with your real navigation if you have switchView/router
-          window.location.href = "/";
+          window.location.href = "/control-tower";
         }}
       />
 
@@ -390,8 +372,8 @@ export default function Reports() {
               <div className="text-xs uppercase tracking-widest opacity-80">FOR-C • Reports</div>
               <h1 className="text-3xl font-bold mt-2">📊 Simulation Reports</h1>
               <p className="text-sm opacity-90 mt-2 max-w-2xl">
-                Download complete report packs from your simulation runs—core outputs, risk insights, and
-                supporting datasets. Executive Report is generated from your latest run (BBI + KPIs + narrative).
+                Download complete report packs from your simulation runs—core outputs, risk insights, and supporting
+                datasets. Executive Report is generated from your latest run (BBI + KPIs + narrative).
               </p>
             </div>
 
@@ -421,8 +403,8 @@ export default function Reports() {
         {/* Subheader strip */}
         <div className="bg-white p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="text-sm text-gray-700">
-            <span className="font-semibold text-[#1D625B]">Tip:</span>{" "}
-            Use “Download Full Pack” for the fastest export, or grab individual files below.
+            <span className="font-semibold text-[#1D625B]">Tip:</span> Use “Download Full Pack” for the fastest export,
+            or grab individual files below.
           </div>
           <div className="text-xs text-gray-500">
             {simLastRefreshedAt ? `Simulation list refreshed: ${simLastRefreshedAt}` : ""}
@@ -438,8 +420,7 @@ export default function Reports() {
             <div className="text-xs uppercase tracking-widest text-gray-400">Executive Report</div>
             <div className="text-xl font-bold text-[#1D625B]">📘 BBI + KPI Summary</div>
             <div className="text-sm text-gray-600">
-              Stored on the backend and returned via{" "}
-              <span className="font-semibold">/api/executive-report/latest</span>.
+              Stored on the backend and returned via <span className="font-semibold">/api/executive-report/latest</span>.
             </div>
           </div>
 
@@ -463,9 +444,7 @@ export default function Reports() {
               }
               disabled={execBuilding || execLocked}
               title={
-                execLocked
-                  ? "Upgrade required to generate Executive Reports"
-                  : "Generate a fresh executive report from latest simulation"
+                execLocked ? "Upgrade required to generate Executive Reports" : "Generate a fresh executive report"
               }
             >
               {execBuilding ? "Generating…" : execLocked ? "Upgrade to Generate" : "Generate Executive Report"}
@@ -507,15 +486,12 @@ export default function Reports() {
 
           {/* Normal errors (non-402) */}
           {execError ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 text-red-700 p-4 text-sm">
-              {execError}
-            </div>
+            <div className="rounded-2xl border border-red-200 bg-red-50 text-red-700 p-4 text-sm">{execError}</div>
           ) : null}
 
           {!execLoading && !execReport && !showExecUpgrade ? (
             <div className="rounded-2xl border border-[#E5ECE7] bg-[#F9FAF9] p-5 text-sm text-gray-600">
-              No executive report found yet. Click{" "}
-              <span className="font-semibold">Generate Executive Report</span>.
+              No executive report found yet. Click <span className="font-semibold">Generate Executive Report</span>.
             </div>
           ) : null}
 
@@ -532,16 +508,8 @@ export default function Reports() {
                   value={formatPercent(kpis.onTimeFulfillment, 1)}
                   hint="(Proxy until demand totals are wired)"
                 />
-                <KPIBox
-                  label="Unfulfilled Qty"
-                  value={formatNumber(kpis.unfulfilledQty, 0)}
-                  hint="Shortfall signal"
-                />
-                <KPIBox
-                  label="Avg Inventory"
-                  value={formatNumber(kpis.avgInventory, 0)}
-                  hint="Across run horizon"
-                />
+                <KPIBox label="Unfulfilled Qty" value={formatNumber(kpis.unfulfilledQty, 0)} hint="Shortfall signal" />
+                <KPIBox label="Avg Inventory" value={formatNumber(kpis.avgInventory, 0)} hint="Across run horizon" />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -564,11 +532,7 @@ export default function Reports() {
                 </div>
 
                 <div className="rounded-3xl border border-[#E5ECE7] bg-white p-5">
-                  <SectionTitle
-                    icon="🧠"
-                    title="Narrative"
-                    subtitle="Backend-generated sections for the Executive Report"
-                  />
+                  <SectionTitle icon="🧠" title="Narrative" subtitle="Backend-generated sections for the Executive Report" />
                   <div className="mt-4 space-y-3">
                     {sections.length ? (
                       sections.map((s) => (
@@ -590,9 +554,7 @@ export default function Reports() {
 
       {/* Simulation Report Packs */}
       {simError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 text-red-700 p-4 text-sm">
-          {simError}
-        </div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 text-red-700 p-4 text-sm">{simError}</div>
       ) : null}
 
       {simLoading ? (
@@ -609,15 +571,11 @@ export default function Reports() {
             const productionUrl = pickUrl(outputs, "production_output_file_url", "production_output_file_url");
             const occurrenceUrl = pickUrl(outputs, "occurrence_output_file_url", "occurrence_output_file_url");
 
-            // handle both styles:
-            // - inside outputUrls (camel)
-            // - inside sim row as *_url columns (snake)
             const disruptionImpactUrl =
               pickUrl(outputs, "disruption_impact_url", "disruptionImpactUrl") || sim?.disruption_impact_url;
             const projectedImpactUrl =
               pickUrl(outputs, "projected_impact_url", "projectedImpactUrl") || sim?.projected_impact_url;
-            const runoutRiskUrl =
-              pickUrl(outputs, "runout_risk_url", "runoutRiskUrl") || sim?.runout_risk_url;
+            const runoutRiskUrl = pickUrl(outputs, "runout_risk_url", "runoutRiskUrl") || sim?.runout_risk_url;
             const countermeasuresUrl =
               pickUrl(outputs, "countermeasures_url", "countermeasuresUrl") || sim?.countermeasures_url;
 
