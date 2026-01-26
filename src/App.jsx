@@ -21,7 +21,7 @@ import AdminPanel from "./components/ControlTowerEhancements/AdminPanel.jsx";
 // - we always want ROOT without trailing "/api"
 // ------------------------------------------------------------
 const RAW_API_BASE =
-  import.meta?.env?.VITE_API_BASE || `${window.location.origin}/api`;
+  import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
 
 const API_ROOT = String(RAW_API_BASE || "")
   .trim()
@@ -813,7 +813,14 @@ export default function App() {
       ) : view === "reports" ? (
         <Reports simulationHistory={simulationHistory} switchView={setView} />
       ) : (
-        <ControlTower onLogout={handleLogout} switchView={setView} view={view} userRole={userRole} userPlan={userPlan} />
+        <ControlTower
+          onLogout={handleLogout}
+          switchView={setView}
+          view={view}
+          userRole={userRole}
+          userPlan={userPlan}
+          simulationHistory={simulationHistory}
+        />
       )}
 
       <UpgradeModal
