@@ -16,7 +16,7 @@ import {
 
 import AdminPanel from "./ControlTowerEhancements/AdminPanel.jsx";
 import ScenarioLibrary from "./ControlTowerEhancements/ScenarioLibrary.jsx";
-import BillingView from "./ControlTowerEhancements/BillingView.jsx"; // ← NEW
+import BillingView from "./ControlTowerEhancements/BillingView.jsx";
 
 ChartJS.register(
   CategoryScale,
@@ -28,6 +28,72 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
+const normalizePlan = (p) => (p || "").toString().trim().toLowerCase();
+const isProPlusPlan = (p) => ["pro", "enterprise", "admin"].includes(normalizePlan(p));
+
+function UpgradeCtaCard({ plan, onUpgrade }) {
+  return (
+    <div
+      style={{
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 18,
+        padding: 18,
+        background: "rgba(255,255,255,0.06)",
+        boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 6 }}>
+        🔒 Simulation Repository is Pro+
+      </div>
+
+      <div style={{ opacity: 0.85, lineHeight: 1.4, marginBottom: 12 }}>
+        Upgrade to view past runs, download outputs, and access reporting features.
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button
+          onClick={onUpgrade}
+          style={{
+            background: "#0f5e4a",
+            color: "white",
+            border: "none",
+            padding: "10px 14px",
+            borderRadius: 12,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          Upgrade to Pro →
+        </button>
+
+        <button
+          onClick={onUpgrade}
+          style={{
+            background: "transparent",
+            color: "#b7f7d8",
+            border: "1px solid rgba(183,247,216,0.35)",
+            padding: "10px 14px",
+            borderRadius: 12,
+            fontWeight: 900,
+            cursor: "pointer",
+          }}
+        >
+          See plans
+        </button>
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
+        Current plan: <b>{normalizePlan(plan) || "free"}</b>
+      </div>
+    </div>
+  );
+}
+
+// 🌍 Global facility dataset for Control Tower map
+const GLOBAL_LOCATIONS_URL =
+  "https://supply-chain-simulation-files.s3.us-east-2.amazonaws.com/locations.csv";
 
 function KpiCard({ value, label, risk, trend }) {
   const trendLabels = { up: "Improving", down: "Declining", neutral: "Stable" };
@@ -98,7 +164,19 @@ function KpiCard({ value, label, risk, trend }) {
   );
 }
 
-export default function ControlTower({ switchView, simulationHistory, onLogout }) {
+export default function ControlTower({
+  switchView,
+  simulationHistory,
+  onLogout,
+  userPlan, // ✅ allow App.jsx to pass this; fallback to localStorage below
+}) {
+  // --------------------------------------
+  // 🔒 Stable handler so MapView never remounts
+  // --------------------------------------
+  const handleFacilitySelect = React.useCallback((facility) => {
+    console.log("📍 [ControlTower] Facility clicked:", facility);
+  }, []);
+
   // --- identity / display
   const [userName, setUserName] = useState("");
 
@@ -153,15 +231,24 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
       localStorage.setItem("currentScenarioName", name || "");
     } catch {}
     console.log("[ControlTower] Applied scenario:", { name, data: clean });
-    // hand off to the Simulation route (App.jsx uses this path)
     window.location.href = "/simulation";
   }
 
+  // ✅ Resolve plan from props OR localStorage for backward compatibility
+  const resolvedPlan =
+    normalizePlan(userPlan) || normalizePlan(localStorage.getItem("plan")) || "free";
+  const proPlus = isProPlusPlan(resolvedPlan);
+
+  // ✅ Role gate (Admin: B = hidden unless role=admin)
+  const resolvedRole = (localStorage.getItem("role") || "").toString().trim().toLowerCase();
+  const isAdmin = resolvedRole === "admin";
+
+
   // --- local navigation inside Control Tower
-  const [activeView, setActiveView] = useState("dashboard"); // 'dashboard' | 'scenario' | 'billing' | 'admin'
+  const [activeView, setActiveView] = useState("dashboard"); // 'dashboard' | 'scenario' | 'billing' | 'admin' | 'simulations'
 
   // --- KPI & charts
-  const [kpiRange, setKpiRange] = useState("month"); // 'day'|'week'|'month'|'ytd'
+  const [kpiRange, setKpiRange] = useState("month");
   const [businessKpis, setBusinessKpis] = useState(null);
 
   const [kpiSectionVisibility, setKpiSectionVisibility] = useState({
@@ -335,15 +422,18 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
     );
   };
 
+  // ✅ CTA action: route inside Control Tower (billing tab)
+  const goToBilling = () => setActiveView("billing");
+
   return (
     <div className="flex h-screen bg-[#f9fafb] font-sans">
-      {/* Sidebar (independent scroll) */}
+      {/* Sidebar */}
       <aside className="w-64 bg-[#1D625B] text-white p-6 space-y-6 h-screen overflow-y-auto">
         <div className="flex items-center justify-center mb-4">
           <img src="/logo.png" alt="FOR-C Logo" className="h-12 w-auto rounded-lg" />
         </div>
 
-        {/* Quick user badge */}
+        {/* User badge */}
         <div className="flex flex-col items-center space-y-2">
           <img
             src="/mj_profile.jpg"
@@ -352,38 +442,8 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
           />
           <div className="text-sm font-semibold text-white">{userName || "User"}</div>
           <div className="text-[11px] opacity-80 bg-white/10 rounded px-2 py-0.5">
-            {(localStorage.getItem("plan") || "FREE").toUpperCase()}
+            {(resolvedPlan || "FREE").toUpperCase()}
           </div>
-        </div>
-
-        <div>
-          <h2 className="text-sm uppercase text-gray-300 mb-2">News</h2>
-          <ul className="space-y-2 text-sm">
-            <li className="flex justify-between items-center">
-              📺 In the Media{" "}
-              <span className="text-white text-[10px] italic opacity-70 ml-2">Coming Soon</span>
-            </li>
-            <li className="flex justify-between items-center">
-              ✍️ Blog / Insights{" "}
-              <span className="text-white text-[10px] italic opacity-70 ml-2">Coming Soon</span>
-            </li>
-            <li className="flex justify-between items-center">
-              🏢 Company Updates{" "}
-              <span className="text-white text-[10px] italic opacity-70 ml-2">Coming Soon</span>
-            </li>
-            <li className="flex justify-between items-center">
-              🌐 Industry News{" "}
-              <span className="text-white text-[10px] italic opacity-70 ml-2">Coming Soon</span>
-            </li>
-            <li className="flex justify-between items-center">
-              📁 Case Studies{" "}
-              <span className="text-white text-[10px] italic opacity-70 ml-2">Coming Soon</span>
-            </li>
-            <li className="flex justify-between items-center">
-              📌 Saved Items{" "}
-              <span className="text-white text-[10px] italic opacity-70 ml-2">Coming Soon</span>
-            </li>
-          </ul>
         </div>
 
         <div>
@@ -399,6 +459,19 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
                 📊 Dashboard
               </a>
             </li>
+
+            {/* ✅ NEW: Simulations view */}
+            <li>
+              <a
+                onClick={() => setActiveView("simulations")}
+                className={`block cursor-pointer ${
+                  activeView === "simulations" ? "text-lime-300" : "hover:underline"
+                }`}
+              >
+                🧪 Simulations
+              </a>
+            </li>
+
             <li>
               <a
                 onClick={() => {
@@ -412,6 +485,7 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
                 🧪 Scenario Library
               </a>
             </li>
+
             <li>
               <a
                 onClick={() => setActiveView("billing")}
@@ -422,22 +496,27 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
                 💸 Billing
               </a>
             </li>
+
             <li>
               <a onClick={() => switchView("reports")} className="block cursor-pointer hover:underline">
                 📊 Reports
               </a>
             </li>
-            <li>
-              <a
-                onClick={() => setActiveView("admin")}
-                className={`block cursor-pointer ${
-                  activeView === "admin" ? "text-lime-300" : "hover:underline"
-                }`}
-              >
-                🛠 Admin
-              </a>
-            </li>
-            
+
+            {isAdmin && (
+              <li>
+                <a
+                  onClick={() => setActiveView("admin")}
+                  className={`block cursor-pointer ${
+                    activeView === "admin" ? "text-lime-300" : "hover:underline"
+                  }`}
+                >
+                  🛠 Admin
+                </a>
+              </li>
+            )}
+
+
             <li>
               <a onClick={() => switchView("simulation")} className="hover:underline block cursor-pointer">
                 🚀 Launch Simulation
@@ -448,18 +527,13 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
                 📘 About FOR-C
               </a>
             </li>
-            <li>
-              <a href="/signup" className="hover:underline block">
-                📝 Signup
-              </a>
-            </li>
           </ul>
         </div>
       </aside>
 
-      {/* Main column: sticky header + scrollable content */}
+      {/* Main column */}
       <main className="flex-1 min-h-0 flex flex-col">
-        {/* Sticky header with Logout */}
+        {/* Sticky header */}
         <div className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
           <div className="flex items-center justify-between px-6 py-3">
             <h1 className="text-2xl font-bold text-[#1D625B]">Control Tower</h1>
@@ -480,7 +554,7 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
           </div>
         </div>
 
-        {/* Scrollable content area */}
+        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-6">
           {activeView === "dashboard" && (
             <>
@@ -495,7 +569,10 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
               )}
 
               <section className="h-96 mb-6 rounded overflow-hidden shadow border border-gray-300">
-                <MapView locationsUrl="https://supply-chain-simulation-files.s3.us-east-2.amazonaws.com/locations.csv" />
+                <MapView
+                  locationsUrl={simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
+                  onFacilitySelect={handleFacilitySelect}
+                />
               </section>
 
               <div className="flex justify-end mb-4">
@@ -518,7 +595,6 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
 
               {businessKpis && (
                 <section className="space-y-8 mb-6">
-                  {/* Fulfillment & Inventory */}
                   <div>
                     <div
                       className="flex items-center justify-between cursor-pointer group"
@@ -552,7 +628,6 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
                     </div>
                   </div>
 
-                  {/* Production & Disruption */}
                   <div>
                     <div
                       className="flex items-center justify-between cursor-pointer group"
@@ -588,7 +663,6 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
                     </div>
                   </div>
 
-                  {/* Cost & Service Metrics */}
                   <div>
                     <div
                       className="flex items-center justify-between cursor-pointer group"
@@ -624,7 +698,6 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
                 </section>
               )}
 
-              {/* Charts */}
               <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[chartType1, chartType2].map((type, i) => (
                   <div key={i} className="bg-white p-4 rounded shadow">
@@ -641,10 +714,74 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
             </>
           )}
 
+          {/* ✅ NEW: Simulations view with Upgrade CTA */}
+          {activeView === "simulations" && (
+            <section className="mt-2">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl font-semibold text-[#1D625B]">🧪 Simulation Repository</h2>
+                {!proPlus && (
+                  <button
+                    onClick={goToBilling}
+                    className="rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50"
+                  >
+                    Upgrade
+                  </button>
+                )}
+              </div>
+
+              {!proPlus ? (
+                <div className="rounded-2xl bg-[#1D625B] text-white p-5">
+                  <UpgradeCtaCard plan={resolvedPlan} onUpgrade={goToBilling} />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {Array.isArray(simulationHistory) && simulationHistory.length > 0 ? (
+                    simulationHistory.map((run, idx) => (
+                      <div
+                        key={run.id || run.created_at || idx}
+                        className="bg-white border rounded-xl p-4 shadow-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-[#1D625B]">
+                              {run.name || `Simulation Run #${idx + 1}`}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {run.created_at || run.timestamp || ""}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => switchView?.("simulation")}
+                            className="rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50"
+                            title="Open Simulation Dashboard"
+                          >
+                            Open →
+                          </button>
+                        </div>
+
+                        <div className="mt-3 text-sm text-gray-600">
+                          Outputs:{" "}
+                          <span className="font-mono">
+                            {Object.keys(run.output_urls || run.urls || {}).length} files
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="bg-white border rounded-xl p-4 text-gray-600">
+                      No runs yet.
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
           {activeView === "scenario" && (
             <section className="mt-10">
               <ScenarioLibrary
-                userPlan={localStorage.getItem("plan")}
+                userPlan={resolvedPlan}
                 getCurrentScenario={() => scenario}
                 onApplyScenario={(data, meta) => applyScenario(data, meta?.name)}
               />
@@ -657,11 +794,12 @@ export default function ControlTower({ switchView, simulationHistory, onLogout }
             </section>
           )}
 
-          {activeView === "admin" && (
+          {activeView === "admin" && isAdmin && (
             <section className="mt-10">
               <AdminPanel />
             </section>
           )}
+
         </div>
       </main>
     </div>
