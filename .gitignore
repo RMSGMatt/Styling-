@@ -54,3 +54,7 @@ portal.json
 # Optional: ignore temporary fixture/output dirs created during manual tests
 test_inputs/
 .env*.local
+
+# accidental npm/vite shims (do not commit)
+vite
+forc-frontend@0.0.0
