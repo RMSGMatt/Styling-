@@ -1,23 +1,22 @@
 // src/config/apiBase.js
-// Canonical API base resolver.
-// - Prod MUST never fall back to localhost.
-// - Local dev can use localhost when env is unset.
+
+function normalize(raw) {
+  return String(raw || "").trim().replace(/\/+$/, "");
+}
 
 export function getApiBase() {
-  const env =
-    import.meta?.env?.VITE_API_BASE ||
-    import.meta?.env?.VITE_API_URL ||
-    "";
+  const mode = import.meta?.env?.MODE || "";
+  const envBase = normalize(import.meta?.env?.VITE_API_BASE);
 
-  const mode = import.meta?.env?.MODE || "development";
+  // ✅ If env is set, always use it (dev/prod/preview)
+  if (envBase) return envBase;
 
-  // If env is provided, always trust it.
-  if (env && typeof env === "string") return env.replace(/\/$/, "");
-
-  // Hard-safe defaults
+  // ✅ In production, NEVER fall back to localhost (prevents exactly this issue)
+  // If env is missing in prod, default to your Render backend.
   if (mode === "production") {
     return "https://supply-chain-simulator.onrender.com";
   }
 
+  // ✅ Dev fallback only
   return "http://127.0.0.1:5000";
 }
