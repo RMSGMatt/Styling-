@@ -1,3 +1,4 @@
+// src/pages/AuthPage.jsx
 import React, { useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -5,7 +6,9 @@ import { useNavigate } from "react-router-dom";
 /**
  * AuthPage.jsx
  * - Single-source API base resolution via getApiBase()
- * - No localhost fallback in production
+ * - No localhost fallback in production (handled in config/apiBase.js)
+ * - Tight request/response diagnostics
+ * - Persists token/role/plan/userName to localStorage
  * - Keeps UI behavior unchanged
  */
 
@@ -29,7 +32,7 @@ console.log(
 );
 
 // -----------------------------
-// 2) Axios helper with tight diagnostics
+// Axios helper with tight diagnostics
 // -----------------------------
 async function postJson(url, body) {
   try {
@@ -81,9 +84,10 @@ export default function AuthPage({ onLogin }) {
     const base = String(API_BASE || "").trim().replace(/\/+$/, "");
     return {
       login: `${base}/auth/login`,
-      signup: `${base}/auth/signup`,
+      // ✅ Correct backend route
+      signup: `${base}/auth/register`,
     };
-  }, [API_BASE]);
+  }, []);
 
   const saveAuthAndProceed = ({ token, role, plan, emailOrName }) => {
     if (!token) throw new Error("No token returned from server");
@@ -152,10 +156,10 @@ export default function AuthPage({ onLogin }) {
     try {
       console.log("POST →", endpoints.signup);
 
-      // Your backend may ignore name; keep for UI
-      await postJson(endpoints.signup, { name, email, password });
+      // Backend register
+      await postJson(endpoints.signup, { email, password });
 
-      // If signup doesn’t return a token, auto-login
+      // If register doesn’t return a token, auto-login
       console.log("POST →", endpoints.login);
 
       const loginRes = await postJson(endpoints.login, { email, password });
@@ -164,7 +168,8 @@ export default function AuthPage({ onLogin }) {
       const role = loginRes.data?.role;
       const plan = loginRes.data?.plan;
 
-      if (!token) throw new Error(loginRes.data?.message || "Signup/login failed");
+      if (!token)
+        throw new Error(loginRes.data?.message || "Signup/login failed");
 
       saveAuthAndProceed({
         token,
@@ -193,7 +198,11 @@ export default function AuthPage({ onLogin }) {
               className="h-16 w-16 object-contain blinking-eye"
             />
           </div>
-          <img src="/logo.png" alt="FOR-C Logo" className="h-10 object-contain" />
+          <img
+            src="/logo.png"
+            alt="FOR-C Logo"
+            className="h-10 object-contain"
+          />
         </div>
 
         <h2 className="text-2xl font-bold text-center mb-6">
