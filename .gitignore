@@ -58,3 +58,8 @@ test_inputs/
 # accidental npm/vite shims (do not commit)
 vite
 forc-frontend@0.0.0
+
+.env
+.env.*
+.tmp_forc/
+tmp_forc/
