@@ -1,32 +1,13 @@
 import React, { useEffect, useState } from "react";
 
 /** ====== CONFIG ====== */
-// Accept multiple env var names (different files sometimes use different ones)
-const ENV_API_BASE =
-  import.meta?.env?.VITE_API_BASE ||
-  import.meta?.env?.VITE_API_URL ||
-  import.meta?.env?.VITE_BACKEND_URL ||
-  import.meta?.env?.VITE_FLASK_BASE ||
-  "";
+import { getApiBase } from "../../config/apiBase";
 
-const DEFAULT_LOCAL_FLASK = "http://127.0.0.1:5000";
+// Canonical API base (single source of truth)
+const API_BASE = getApiBase();
 
-// Normalize base (strip trailing slash)
+// Local helper (keep, since file uses normalizeBase in many places)
 const normalizeBase = (s) => String(s || "").replace(/\/+$/, "");
-
-// Prefer env; else prefer Flask on localhost; else fall back to origin (prod case)
-const API_BASE = (() => {
-  const env = normalizeBase(ENV_API_BASE);
-  if (env) return env;
-
-  const isLocal =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
-
-  if (isLocal) return DEFAULT_LOCAL_FLASK;
-
-  return normalizeBase(window.location.origin);
-})();
 
 const authHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("token") || ""}`,

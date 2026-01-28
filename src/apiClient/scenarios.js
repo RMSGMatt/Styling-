@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:5000";
+import { getApiBase } from "../config/apiBase";
+const API_BASE = getApiBase();
 
 // 🔐 Token helpers
 const token = () => localStorage.getItem("token");

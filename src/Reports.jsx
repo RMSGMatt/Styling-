@@ -1,6 +1,7 @@
 // src/Reports.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import UpgradeModal from "./UpgradeModal";
+import { getApiBase } from "./config/apiBase";
 
 /**
  * Reports – Full page (Revenue-ready)
@@ -17,12 +18,9 @@ import UpgradeModal from "./UpgradeModal";
 
 export default function Reports() {
   // -----------------------------
-  // API helpers
+  // API helpers (canonical)
   // -----------------------------
-  const API_BASE = (import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000").replace(
-    /\/$/,
-    ""
-  );
+  const API_BASE = getApiBase();
 
   const getToken = () => localStorage.getItem("token");
 

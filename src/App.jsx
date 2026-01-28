@@ -16,14 +16,16 @@ import { api as apiClient, setUpgradeHandler } from "./apiClient";
 import AdminPanel from "./components/ControlTowerEhancements/AdminPanel.jsx";
 
 // ------------------------------------------------------------
-// ✅ API base normalization
-// - supports VITE_API_BASE = "http://127.0.0.1:5000" OR ".../api"
-// - we always want ROOT without trailing "/api"
+// ✅ API base normalization (single source of truth)
+// - Uses getApiBase()
+// - NEVER falls back to localhost in production
 // ------------------------------------------------------------
-const RAW_API_BASE =
-  import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
+import { getApiBase } from "./config/apiBase";
 
-const API_ROOT = String(RAW_API_BASE || "")
+const API_BASE = getApiBase();
+
+// Root without trailing slash or `/api`
+const API_ROOT = String(API_BASE || "")
   .trim()
   .replace(/\/$/, "")
   .replace(/\/api$/, "");
@@ -33,6 +35,7 @@ const api = axios.create({
   baseURL: API_ROOT,
   withCredentials: false, // bearer tokens only
 });
+
 
 api.interceptors.request.use(
   (config) => {

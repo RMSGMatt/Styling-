@@ -3,35 +3,18 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 /**
- * AuthPage.jsx (corrected + env-debug safe)
- * - Single-source API base resolution (env first, stable fallback)
- * - Normalizes base (no trailing slash)
- * - Tight request/response diagnostics
- * - Persists token/role/plan/userName to localStorage
- * - Keeps UI the same
+ * AuthPage.jsx
+ * - Single-source API base resolution via getApiBase()
+ * - No localhost fallback in production
+ * - Keeps UI behavior unchanged
  */
 
 // -----------------------------
-// 1) Base URL resolution (stable + normalized)
+// API base (canonical)
 // -----------------------------
-const RAW_ENV_BASE = import.meta.env.VITE_API_BASE;
-const MODE = import.meta.env.MODE;
+import { getApiBase } from "../config/apiBase";
 
-function normalizeBase(raw) {
-  if (!raw) return "";
-  return String(raw).trim().replace(/\/+$/, "");
-}
-
-function deriveApiBase() {
-  // Prefer env when set (dev/prod)
-  const env = normalizeBase(RAW_ENV_BASE);
-  if (env) return env;
-
-  // ✅ Safe fallback for local dev (prevents same-origin /api surprises)
-  return "http://127.0.0.1:5000";
-}
-
-const API_BASE = deriveApiBase();
+const API_BASE = getApiBase();
 
 // Expose for quick console verification
 window.__API_BASE_DEBUG__ = API_BASE;
@@ -40,9 +23,9 @@ console.log(
   "AuthPage → API_BASE =",
   API_BASE,
   "| MODE =",
-  MODE,
+  import.meta.env.MODE,
   "| VITE_API_BASE =",
-  RAW_ENV_BASE
+  import.meta.env.VITE_API_BASE
 );
 
 // -----------------------------
@@ -95,7 +78,7 @@ export default function AuthPage({ onLogin }) {
 
   // Build URLs in one place, safely
   const endpoints = useMemo(() => {
-    const base = normalizeBase(API_BASE);
+    const base = String(API_BASE || "").trim().replace(/\/+$/, "");
     return {
       login: `${base}/auth/login`,
       signup: `${base}/auth/signup`,

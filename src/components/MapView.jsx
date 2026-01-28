@@ -1,6 +1,13 @@
 // src/components/MapView.jsx
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import mapboxgl from "mapbox-gl";
+import { getApiBase } from "../config/apiBase";
 
 /* ============================================================================
    0) MAPBOX TOKEN — SET ONCE AT MODULE LOAD
@@ -41,15 +48,10 @@ export default function MapView({
   onFacilitySelect,
   height = "560px", // ✅ explicit default height so map can render
 }) {
-  // Keep API_BASE stable (does not control map init)
-  const API_BASE = useMemo(
-    () =>
-      (import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000").replace(
-        /\/$/,
-        ""
-      ),
-    []
-  );
+  // --------------------------------------------------------------------------
+  // API base (canonical, NO localhost fallback)
+  // --------------------------------------------------------------------------
+  const API_BASE = useMemo(() => getApiBase(), []);
 
   const apiUrl = useCallback(
     (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`,
