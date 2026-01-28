@@ -1,30 +1,29 @@
 // src/config/apiBase.js
-// Canonical API base resolver — production safe
 
 function normalize(raw) {
   return String(raw || "").trim().replace(/\/+$/, "");
 }
 
 export function getApiBase() {
-  const mode = import.meta?.env?.MODE;
+  const mode = String(import.meta?.env?.MODE || "").trim();
+
+  // Accept multiple env names (just in case different files used different ones)
   const envBase = normalize(
     import.meta?.env?.VITE_API_BASE ||
-    import.meta?.env?.VITE_API_URL ||
-    ""
+      import.meta?.env?.VITE_API_URL ||
+      import.meta?.env?.VITE_BACKEND_URL ||
+      import.meta?.env?.VITE_FLASK_BASE
   );
 
-  // 1) If explicitly provided (prod / preview), ALWAYS use it
-  if (envBase) {
-    return envBase;
-  }
+  // ✅ If env exists, always use it (dev/prod)
+  if (envBase) return envBase;
 
-  // 2) Production must NEVER fall back silently
+  // ✅ PRODUCTION SAFETY:
+  // Never allow localhost in production builds (prevents broken auth + gating).
   if (mode === "production") {
-    throw new Error(
-      "❌ VITE_API_BASE is not set in production. Refusing to fall back."
-    );
+    return "https://supply-chain-simulator.onrender.com";
   }
 
-  // 3) Local dev only
+  // ✅ Local dev only
   return "http://127.0.0.1:5000";
 }
