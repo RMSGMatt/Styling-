@@ -40,3 +40,5 @@ export function getApiBase() {
   // 3) Local dev only
   return "http://127.0.0.1:5000";
 }
+
+export const API_BASE = getApiBase();

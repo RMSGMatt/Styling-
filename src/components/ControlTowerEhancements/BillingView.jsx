@@ -6,9 +6,10 @@ import React, { useEffect, useMemo, useState } from "react";
  * - Enhanced card design, spacing, hover & brand colors
  */
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE?.replace(/\/$/, "") ||
-  `${window.location.origin}/api`;
+import { getApiBase } from "../../config/apiBase";
+
+const API_BASE = getApiBase();
+
 
 const PRICE_PRO = import.meta.env.VITE_STRIPE_PRICE_PRO || "";
 const PRICE_ENT =

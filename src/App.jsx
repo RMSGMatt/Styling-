@@ -199,29 +199,56 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("token") || localStorage.getItem("access_token");
-    setIsAuthenticated(!!token);
+  const token =
+    localStorage.getItem("token") || localStorage.getItem("access_token");
 
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        setUserRole(decoded.role || "user");
-                const plan = decoded.plan || "free";
-        setUserPlan(plan);
+  setIsAuthenticated(!!token);
+  if (!token) return;
 
-                // ✅ Pro+ only: avoid 401 spam for Free users
-        if (isProPlusPlan(plan)) {
-          fetchSimulationHistory();
-        } else {
-          setSimulationHistory([]); // keep UI consistent for Free
-          console.log("🔒 Skipping /api/simulations on Free plan.");
-        }
-      } catch (e) {
-        console.error("❌ Failed to decode JWT:", e);
-      }
+  const boot = async () => {
+    // 1) Decode JWT for ROLE fallback only
+    try {
+      const decoded = jwtDecode(token);
+      setUserRole(decoded?.role || "user");
+    } catch (e) {
+      console.error("❌ Failed to decode JWT:", e);
+      setUserRole("user");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    // 2) Fetch DB-truth user info
+    try {
+      const res = await fetch(`${API_ROOT}/api/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.error("❌ /api/me failed:", res.status, data);
+        return; // don't assume free
+      }
+
+      const planFromDb = data?.plan || "free";
+      const roleFromDb = data?.role || "user";
+
+      setUserPlan(planFromDb);
+      setUserRole(roleFromDb);
+
+      // ✅ Pro+ only: avoid 401 spam for Free users
+      if (isProPlusPlan(planFromDb)) {
+        fetchSimulationHistory();
+      } else {
+        setSimulationHistory([]);
+        console.log("🔒 Skipping /api/simulations on Free plan.");
+      }
+    } catch (err) {
+      console.error("❌ Failed to fetch /api/me:", err);
+    }
+  };
+
+  boot();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
 
   // Expose SPA router setter globally (used by Reports, etc.)
   useEffect(() => {

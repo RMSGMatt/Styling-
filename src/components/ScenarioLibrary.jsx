@@ -2,6 +2,7 @@ console.log(">>> Loaded ScenarioLibrary from [components]");
 console.log(">>> Loaded ScenarioLibrary from [ControlTowerEnhancements]");
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { getApiBase } from "../config/apiBase";
 
 /**
  * ScenarioLibrary.jsx — Live (edit + search + tag filters + PATCHED EDIT SAVE + debounce + a11y)
@@ -15,10 +16,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  * - Debounced search; modal focus-trap + Esc
  */
 
-const API_BASE =
-  (import.meta?.env?.VITE_API_BASE &&
-    import.meta.env.VITE_API_BASE.replace(/\/$/, "")) ||
-  `${window.location.origin}/api`;
+const API_BASE = getApiBase();
+
 
 // ------------------------------------------------------------
 // Brand-ish UI tokens (Tailwind class strings)

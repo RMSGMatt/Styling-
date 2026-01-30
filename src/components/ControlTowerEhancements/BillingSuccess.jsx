@@ -2,7 +2,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const API = import.meta.env.VITE_API_BASE || `${window.location.origin}/api`;
+import { getApiBase } from "../../config/apiBase";
+
+const API = getApiBase();
+
 
 export default function BillingSuccess() {
   const nav = useNavigate();

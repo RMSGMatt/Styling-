@@ -1,7 +1,6 @@
 import axios from "axios";
 
-import { getApiBase } from "./config/apiBase";
-const API_BASE = getApiBase();
+import { API_BASE } from "./config/apiBase";
 
 let upgradeHandler = null;
 

@@ -28,7 +28,6 @@ console.log(
   "| MODE =",
   import.meta.env.MODE,
   "| VITE_API_BASE =",
-  import.meta.env.VITE_API_BASE
 );
 
 // -----------------------------
