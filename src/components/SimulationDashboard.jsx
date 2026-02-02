@@ -1377,8 +1377,8 @@ setOverlayChartData(overlay);
                     )
                   )
                     return;
-                  setScenarioData({});
-                  setScenarioJson({ name: "" });
+                  setScenarioData(null);
+                  setScenarioJson(null);
                   setSelectedScenarioId("");
                   alert("🔄 Baseline restored! Scenario cleared.");
                 }}
@@ -1393,20 +1393,24 @@ setOverlayChartData(overlay);
               setScenarioData={setScenarioData}
             />
 
-            {/* 🧩 Apply Scenario Button */}
+            {/* 🧩 Scenario Status (applied via ScenarioBuilder) */}
             <div className="mt-3">
-              <button
-                onClick={() => {
-                  setScenarioJson((prev) => ({
-                    ...(prev || {}),
-                    ...scenarioData,
-                  }));
-                  alert("📌 Scenario applied to next simulation run!");
-                }}
-                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-400 hover:bg-amber-300 text-slate-900"
-              >
-                📌 Apply Scenario
-              </button>
+              {scenarioData?.name ? (
+                <div
+                  className="px-3 py-2 rounded-md text-xs font-semibold"
+                  style={{
+                    backgroundColor: "rgba(156, 247, 0, 0.10)",
+                    border: "1px solid #9CF700",
+                    color: "#9CF700",
+                  }}
+                >
+                  ✅ Scenario ready for next simulation run
+                </div>
+              ) : (
+                <div className="text-[11px] text-slate-400">
+                  No active scenario applied.
+                </div>
+              )}
             </div>
 
             {/* 💾 Scenario Save/Load Controls */}
