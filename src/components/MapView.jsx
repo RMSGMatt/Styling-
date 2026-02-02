@@ -14,16 +14,30 @@ import { getApiBase } from "../config/apiBase";
    ============================================================================ */
 console.log("🧭 MapView.jsx MOUNTED");
 
+// ✅ Capture Vite env once (and expose for debugging in prod)
+const VITE_ENV = import.meta?.env || {};
+if (typeof window !== "undefined") {
+  window.__FORC_VITE_ENV__ = VITE_ENV; // <- lets you inspect in DevTools safely
+}
+
 const MAPBOX_TOKEN =
-  import.meta?.env?.VITE_MAPBOX_TOKEN ||
-  import.meta?.env?.VITE_MAPBOX_ACCESS_TOKEN ||
-  "";
+  VITE_ENV.VITE_MAPBOX_TOKEN || VITE_ENV.VITE_MAPBOX_ACCESS_TOKEN || "";
+
+console.log("🧭 MapView env check:", {
+  MODE: VITE_ENV.MODE,
+  HAS_VITE_MAPBOX_TOKEN: Boolean(VITE_ENV.VITE_MAPBOX_TOKEN),
+  HAS_VITE_MAPBOX_ACCESS_TOKEN: Boolean(VITE_ENV.VITE_MAPBOX_ACCESS_TOKEN),
+  TOKEN_LEN: (VITE_ENV.VITE_MAPBOX_TOKEN || VITE_ENV.VITE_MAPBOX_ACCESS_TOKEN || "")
+    .length,
+  MAPBOX_KEYS: Object.keys(VITE_ENV).filter((k) => k.toLowerCase().includes("mapbox")),
+});
 
 if (!MAPBOX_TOKEN) {
   console.error("❌ Mapbox token missing (VITE_MAPBOX_TOKEN). Map cannot load.");
 } else {
   mapboxgl.accessToken = MAPBOX_TOKEN;
 }
+
 
 /* ============================================================================
    1) SAFE JSON HELPER
