@@ -1457,7 +1457,7 @@ setOverlayChartData(overlay);
       // Backend expects: { name: string, data: object }
       await saveScenario({
         name,
-        data: finalData,
+        data: JSON.stringify(finalData),
       });
 
       alert("💾 Scenario Saved!");
