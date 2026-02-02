@@ -66,16 +66,19 @@ export default function MapView({
   const gdacsMarkersRef = useRef([]);
   const liveMarkersRef = useRef([]);
   const noaaMarkersRef = useRef([]);
+  const usgsMarkersRef = useRef([]);
 
   // Store facility bounds so user can re-center later
   const facilityBoundsRef = useRef(null);
 
   const [layerVisibility, setLayerVisibility] = useState({
     facilities: true,
+    usgs: true,
     noaa: true,
     gdacs: true,
     live: true,
   });
+
 
   const [lastUpdated, setLastUpdated] = useState(null);
 
@@ -113,6 +116,22 @@ export default function MapView({
     if (t.includes("port")) return "⚓";
     return "⚠️";
   };
+
+    // 🌐 USGS Earthquakes — emoji by magnitude
+  const getEmojiForUSGSQuake = (props = {}) => {
+    const mag = Number(props.mag ?? props.magnitude ?? 0);
+    if (mag >= 6) return "🔴";
+    if (mag >= 5) return "🟠";
+    if (mag >= 4) return "🟡";
+    return "🟢";
+  };
+
+  const getTitleForUSGSQuake = (props = {}) => {
+    const mag = Number(props.mag ?? props.magnitude ?? 0);
+    const place = String(props.place || props.title || "Earthquake");
+    return `USGS • M${Number.isFinite(mag) ? mag.toFixed(1) : "?"} • ${place}`;
+  };
+
 
   /* ============================================================================
      4) MARKER UTILITIES
@@ -378,6 +397,43 @@ export default function MapView({
     }
   }, [apiUrl, layerVisibility.live, renderPointMarkersFromGeoJSON]);
 
+    // 🌐 USGS Earthquakes (GeoJSON feed) — independent of backend
+  const fetchUSGSEarthquakes = useCallback(async () => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!layerVisibility.usgs) {
+      clearMarkers(usgsMarkersRef);
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+      );
+      const data = await safeJson(res);
+
+      if (!res.ok) {
+        console.error("❌ USGS earthquakes HTTP", res.status, data);
+        return;
+      }
+
+      const feats = data?.features || [];
+
+      // USGS puts mag/place/time under properties
+      renderPointMarkersFromGeoJSON(
+        map,
+        feats,
+        usgsMarkersRef,
+        (p) => getEmojiForUSGSQuake(p),
+        (p) => getTitleForUSGSQuake(p)
+      );
+    } catch (e) {
+      console.error("❌ USGS earthquakes fetch failed", e);
+    }
+  }, [layerVisibility.usgs, renderPointMarkersFromGeoJSON]);
+
+
   /* ============================================================================
      8) MAP INIT — RUNS EXACTLY ONCE
      - Satellite-forward style
@@ -461,6 +517,7 @@ export default function MapView({
 
       // initial pulls
       await fetchGDACS();
+      await fetchUSGSEarthquakes();
       await fetchLiveIncidents();
       await fetchNOAAAlerts();
       setLastUpdated(new Date().toLocaleTimeString());
@@ -540,6 +597,10 @@ export default function MapView({
   }, [fetchGDACS]);
 
   useEffect(() => {
+    fetchUSGSEarthquakes();
+  }, [fetchUSGSEarthquakes]);
+
+  useEffect(() => {
     fetchLiveIncidents();
   }, [fetchLiveIncidents]);
 
@@ -553,6 +614,7 @@ export default function MapView({
   useEffect(() => {
     const tick = async () => {
       await fetchGDACS();
+      await fetchUSGSEarthquakes();
       await fetchLiveIncidents();
       await fetchNOAAAlerts();
       setLastUpdated(new Date().toLocaleTimeString());
@@ -587,7 +649,7 @@ export default function MapView({
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <div className="text-xs text-gray-600">
           <span className="font-semibold text-[#1D625B]">Map Feeds:</span>{" "}
-          Facilities, NOAA, GDACS, Live Incidents{" "}
+          Facilities, USGS Earthquakes, NOAA, GDACS, Live Incidents{" "}
           {lastUpdated ? (
             <span className="text-gray-400">• Updated {lastUpdated}</span>
           ) : null}
@@ -604,6 +666,18 @@ export default function MapView({
           >
             🏭 Facilities
           </button>
+
+          <button
+            onClick={() => toggle("usgs")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              layerVisibility.usgs
+                ? "bg-[#1D625B] text-white border-[#1D625B]"
+                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+            }`}
+          >
+            🌐 USGS Quakes
+          </button>
+
 
           <button
             onClick={() => toggle("noaa")}
