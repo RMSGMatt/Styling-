@@ -25,12 +25,6 @@ if (!MAPBOX_TOKEN) {
   mapboxgl.accessToken = MAPBOX_TOKEN;
 }
 
-console.log("🧭 MapView env check:", {
-  MODE: import.meta.env.MODE,
-  HAS_VITE_MAPBOX_TOKEN: Boolean(import.meta.env.VITE_MAPBOX_TOKEN),
-  TOKEN_LEN: (import.meta.env.VITE_MAPBOX_TOKEN || "").length,
-});
-
 /* ============================================================================
    1) SAFE JSON HELPER
    ============================================================================ */
@@ -41,190 +35,146 @@ function safeJson(res) {
 }
 
 /* ============================================================================
-   2) MAPVIEW
+   2) CSV PARSER (LIGHTWEIGHT)
+   ============================================================================ */
+function parseCSV(text) {
+  const lines = (text || "").trim().split(/\r?\n/);
+  if (!lines.length) return [];
+  const header = lines[0].split(",").map((s) => s.trim());
+  return lines.slice(1).map((line) => {
+    const cols = line.split(",").map((s) => s.trim());
+    const row = {};
+    header.forEach((h, i) => (row[h] = cols[i]));
+    return row;
+  });
+}
+
+/* ============================================================================
+   3) SMALL UTIL: SAFE FIT BOUNDS
+   ============================================================================ */
+function fitToBoundsSafe(map, bounds, padding = 80) {
+  try {
+    map.fitBounds(bounds, {
+      padding,
+      duration: 650,
+      maxZoom: 3.5,
+    });
+  } catch {}
+}
+
+/* ============================================================================
+   4) MAIN COMPONENT
    ============================================================================ */
 export default function MapView({
   locationsUrl,
-  onFacilitySelect,
-  height = "560px", // ✅ explicit default height so map can render
+  height = 520,
 }) {
-  // --------------------------------------------------------------------------
-  // API base (canonical, NO localhost fallback)
-  // --------------------------------------------------------------------------
-  const API_BASE = useMemo(() => getApiBase(), []);
-
-  const apiUrl = useCallback(
-    (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`,
-    [API_BASE]
-  );
-
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
 
-  // Marker refs (so we can clear without re-mounting map)
   const facilityMarkersRef = useRef([]);
   const gdacsMarkersRef = useRef([]);
   const liveMarkersRef = useRef([]);
   const noaaMarkersRef = useRef([]);
+  const usgsMarkersRef = useRef([]);
 
-  // Store facility bounds so user can re-center later
   const facilityBoundsRef = useRef(null);
+
+  const [lastUpdated, setLastUpdated] = useState("");
 
   const [layerVisibility, setLayerVisibility] = useState({
     facilities: true,
+    usgs: true,
     noaa: true,
     gdacs: true,
     live: true,
   });
 
-  const [lastUpdated, setLastUpdated] = useState(null);
-
-  /* ============================================================================
-     3) EMOJI HELPERS
-     ============================================================================ */
-  const getEmojiForGDACS = (props = {}) => {
-    const t = String(props.type || props.eventtype || "").toLowerCase();
-    if (t.includes("earthquake")) return "🌍";
-    if (t.includes("flood")) return "🌊";
-    if (t.includes("cyclone") || t.includes("storm") || t.includes("hurricane"))
-      return "🌀";
-    if (t.includes("wildfire") || t.includes("fire")) return "🔥";
-    if (t.includes("volcano")) return "🌋";
-    return "⚠️";
-  };
-
-  const getEmojiForNOAA = (props = {}) => {
-    const e = String(props.event || "").toLowerCase();
-    if (e.includes("tornado")) return "🌪️";
-    if (e.includes("flood")) return "🌊";
-    if (e.includes("winter") || e.includes("snow") || e.includes("blizzard"))
-      return "❄️";
-    if (e.includes("hurricane") || e.includes("tropical")) return "🌀";
-    if (e.includes("fire")) return "🔥";
-    if (e.includes("heat")) return "🥵";
-    return "⚠️";
-  };
-
-  const getEmojiForLiveIncident = (props = {}) => {
-    const t = String(props.type || "").toLowerCase();
-    if (t.includes("fire")) return "🔥";
-    if (t.includes("cyber")) return "🧑‍💻";
-    if (t.includes("strike")) return "✊";
-    if (t.includes("port")) return "⚓";
-    return "⚠️";
-  };
-
-  /* ============================================================================
-     4) MARKER UTILITIES
-     ============================================================================ */
-  const clearMarkers = (arrRef) => {
-    arrRef.current.forEach((m) => {
-      try {
-        m.remove();
-      } catch {}
-    });
-    arrRef.current = [];
-  };
-
-  const fitToBoundsSafe = useCallback((map, bounds, padding = 80) => {
-    try {
-      if (!map || !bounds) return;
-      map.fitBounds(bounds, {
-        padding,
-        duration: 900,
-        maxZoom: 5.5,
-      });
-    } catch (e) {
-      console.warn("fitBounds failed:", e);
-    }
-  }, []);
-
-  const recenterToGlobe = useCallback(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    map.easeTo({
-      center: [0, 35],
-      zoom: 0.45,
-      pitch: 0,
-      bearing: 0,
-      duration: 800,
-    });
-  }, []);
-
-  /* ============================================================================
-     5) FACILITIES CSV RENDERING
-     - Adds facility markers
-     - Stores bounds for recenter button
-     - DOES NOT auto-fit (keeps full globe view by default)
-     ============================================================================ */
-  const renderFacilitiesFromCsv = useCallback(
-    (map, csvText) => {
-      clearMarkers(facilityMarkersRef);
-
-      const lines = String(csvText || "")
-        .split("\n")
-        .map((l) => l.trim())
-        .filter(Boolean);
-
-      if (lines.length < 2) return;
-
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-      const idxLat = headers.findIndex((h) => h === "latitude" || h === "lat");
-      const idxLng = headers.findIndex(
-        (h) => h === "longitude" || h === "lng" || h === "lon"
-      );
-      const idxFacility = headers.findIndex(
-        (h) => h === "facility" || h === "name"
-      );
-
-      let bounds = new mapboxgl.LngLatBounds();
-      let count = 0;
-
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(",").map((c) => c.trim());
-
-        const lat = Number(cols[idxLat]);
-        const lng = Number(cols[idxLng]);
-        const facility = cols[idxFacility] || `Facility ${i}`;
-
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-
-        const el = document.createElement("div");
-        el.style.width = "14px";
-        el.style.height = "14px";
-        el.style.borderRadius = "999px";
-        el.style.background = "#1D625B";
-        el.style.border = "2px solid white";
-        el.style.boxShadow = "0 2px 10px rgba(0,0,0,0.25)";
-        el.style.cursor = "pointer";
-
-        const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([lng, lat])
-          .setPopup(
-            new mapboxgl.Popup({ offset: 16 }).setHTML(
-              `<div style="font-weight:700;color:#1D625B;">🏭 ${facility}</div>`
-            )
-          )
-          .addTo(map);
-
-        el.addEventListener("click", () => {
-          if (typeof onFacilitySelect === "function") onFacilitySelect(facility);
-        });
-
-        facilityMarkersRef.current.push(marker);
-        bounds.extend([lng, lat]);
-        count++;
-      }
-
-      if (count > 0) {
-        facilityBoundsRef.current = bounds;
-      }
-    },
-    [onFacilitySelect]
+  const apiBase = useMemo(() => getApiBase(), []);
+  const apiUrl = useCallback(
+    (path) => `${apiBase}${path.startsWith("/") ? path : `/${path}`}`,
+    [apiBase]
   );
 
   /* ============================================================================
-     6) GENERIC GEOJSON MARKER RENDERER
+     5) MARKER HELPERS
+     ============================================================================ */
+  const clearMarkers = (ref) => {
+    try {
+      (ref.current || []).forEach((m) => m.remove());
+    } catch {}
+    ref.current = [];
+  };
+
+  const recenterToGlobe = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    try {
+      map.easeTo({
+        center: [0, 35],
+        zoom: 0.45,
+        pitch: 0,
+        bearing: 0,
+        duration: 650,
+      });
+    } catch {}
+  };
+
+  /* ============================================================================
+     6) EMOJI HELPERS
+     ============================================================================ */
+  const getEmojiForGDACS = (p) => {
+    const t = String(p?.eventtype || p?.type || p?.hazard || "")
+      .toLowerCase()
+      .trim();
+
+    if (t.includes("earthquake")) return "🌍";
+    if (t.includes("flood")) return "🌊";
+    if (t.includes("cyclone") || t.includes("storm")) return "🌀";
+    if (t.includes("wildfire") || t.includes("fire")) return "🔥";
+    if (t.includes("volcano")) return "🌋";
+    if (t.includes("drought")) return "🌾";
+    return "⚠️";
+  };
+
+  // 🧨 USGS Earthquakes — emoji based on magnitude
+  const getEmojiForUSGSQuake = (p) => {
+    const mag = Number(p?.mag ?? p?.magnitude ?? 0);
+    if (mag >= 6) return "🔴";
+    if (mag >= 5) return "🟠";
+    if (mag >= 4) return "🟡";
+    return "🟢";
+  };
+
+  const getTitleForUSGSQuake = (p) => {
+    const mag = Number(p?.mag ?? p?.magnitude ?? 0);
+    const place = String(p?.place || p?.title || "Earthquake");
+    return `USGS • M${Number.isFinite(mag) ? mag.toFixed(1) : "?"} • ${place}`;
+  };
+
+  const getEmojiForNOAA = (p) => {
+    const e = String(p?.event || p?.headline || "").toLowerCase();
+    if (e.includes("tornado")) return "🌪️";
+    if (e.includes("severe")) return "⛈️";
+    if (e.includes("flood")) return "🌊";
+    if (e.includes("winter")) return "❄️";
+    if (e.includes("fire")) return "🔥";
+    if (e.includes("hurricane")) return "🌀";
+    return "⚠️";
+  };
+
+  const getEmojiForLiveIncident = (p) => {
+    const t = String(p?.type || p?.category || "").toLowerCase();
+    if (t.includes("earthquake")) return "🌍";
+    if (t.includes("flood")) return "🌊";
+    if (t.includes("storm")) return "🌀";
+    if (t.includes("fire")) return "🔥";
+    if (t.includes("cyber")) return "💻";
+    return "🔥";
+  };
+
+  /* ============================================================================
+     7) GENERIC GEOJSON MARKER RENDERER
      ============================================================================ */
   const renderPointMarkersFromGeoJSON = useCallback(
     (map, features, destRef, emojiFn, titleFn) => {
@@ -286,7 +236,61 @@ export default function MapView({
   );
 
   /* ============================================================================
-     7) FETCHERS — ALWAYS USE mapRef.current (no re-init)
+     8) FACILITIES RENDERER
+     ============================================================================ */
+  const renderFacilitiesFromCsv = useCallback((map, csvText) => {
+    clearMarkers(facilityMarkersRef);
+    facilityBoundsRef.current = null;
+
+    const rows = parseCSV(csvText);
+    if (!rows.length) return;
+
+    const bounds = new mapboxgl.LngLatBounds();
+
+    rows.forEach((r) => {
+      const lat = Number(r.lat || r.latitude);
+      const lng = Number(r.lng || r.lon || r.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      bounds.extend([lng, lat]);
+
+      const el = document.createElement("div");
+      el.style.fontSize = "18px";
+      el.style.cursor = "pointer";
+      el.textContent = "🏭";
+
+      const name =
+        r.facility ||
+        r.name ||
+        r.location ||
+        r.site ||
+        "Facility";
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .setPopup(
+          new mapboxgl.Popup({ offset: 18 }).setHTML(
+            `<div style="max-width:240px">
+               <div style="font-weight:800;color:#1D625B;margin-bottom:4px">${name}</div>
+               <div style="font-size:12px;line-height:1.35;color:#334155">
+                 ${r.region ? `Region: ${r.region}<br/>` : ""}
+                 ${r.country ? `Country: ${r.country}` : ""}
+               </div>
+             </div>`
+          )
+        )
+        .addTo(map);
+
+      facilityMarkersRef.current.push(marker);
+    });
+
+    if (!bounds.isEmpty()) {
+      facilityBoundsRef.current = bounds;
+    }
+  }, []);
+
+  /* ============================================================================
+     9) FETCHERS — ALWAYS USE mapRef.current (no re-init)
      ============================================================================ */
   const fetchNOAAAlerts = useCallback(async () => {
     const map = mapRef.current;
@@ -298,21 +302,24 @@ export default function MapView({
     }
 
     try {
-      const res = await fetch("https://api.weather.gov/alerts/active", {
-        headers: { Accept: "application/geo+json" },
-      });
+      const res = await fetch("https://api.weather.gov/alerts/active");
       const data = await safeJson(res);
-      const feats = data?.features || [];
 
+      if (!res.ok) {
+        console.error("❌ NOAA alerts HTTP", res.status, data);
+        return;
+      }
+
+      const feats = data?.features || [];
       renderPointMarkersFromGeoJSON(
         map,
         feats,
         noaaMarkersRef,
         (p) => getEmojiForNOAA(p),
-        (p) => `NOAA Alert • ${p.event || "Alert"}`
+        (p) => `NOAA • ${String(p.event || "Alert")}`
       );
     } catch (e) {
-      console.error("❌ NOAA fetch failed:", e);
+      console.error("❌ NOAA alerts fetch failed", e);
     }
   }, [layerVisibility.noaa, renderPointMarkersFromGeoJSON]);
 
@@ -340,10 +347,10 @@ export default function MapView({
         feats,
         gdacsMarkersRef,
         (p) => getEmojiForGDACS(p),
-        (p) => `GDACS • ${p.name || p.type || "Event"}`
+        (p) => `GDACS • ${String(p.eventtype || p.type || "Event")}`
       );
     } catch (e) {
-      console.error("❌ GDACS refresh failed:", e);
+      console.error("❌ GDACS fetch failed", e);
     }
   }, [apiUrl, layerVisibility.gdacs, renderPointMarkersFromGeoJSON]);
 
@@ -378,11 +385,45 @@ export default function MapView({
     }
   }, [apiUrl, layerVisibility.live, renderPointMarkersFromGeoJSON]);
 
+  // 🌐 USGS Earthquakes (GeoJSON feed) — independent of backend
+  const fetchUSGSEarthquakes = useCallback(async () => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!layerVisibility.usgs) {
+      clearMarkers(usgsMarkersRef);
+      return;
+    }
+
+    try {
+      // all quakes in the past day (good default for demos)
+      const res = await fetch(
+        "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+      );
+      const data = await safeJson(res);
+
+      if (!res.ok) {
+        console.error("❌ USGS earthquakes HTTP", res.status, data);
+        return;
+      }
+
+      const feats = data?.features || [];
+
+      // USGS places useful fields under properties (mag/place/time)
+      renderPointMarkersFromGeoJSON(
+        map,
+        feats,
+        usgsMarkersRef,
+        (p) => getEmojiForUSGSQuake(p),
+        (p) => getTitleForUSGSQuake(p)
+      );
+    } catch (e) {
+      console.error("❌ USGS earthquakes fetch failed", e);
+    }
+  }, [layerVisibility.usgs, renderPointMarkersFromGeoJSON]);
+
   /* ============================================================================
-     8) MAP INIT — RUNS EXACTLY ONCE
-     - Satellite-forward style
-     - Full globe view
-     - Aggressive padding + resize to prevent bottom clipping
+     10) MAP INIT — RUNS EXACTLY ONCE
      ============================================================================ */
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -413,8 +454,6 @@ export default function MapView({
     });
 
     mapRef.current = map;
-
-    // Debug hook (optional)
     window.__FORC_MAP__ = map;
 
     map.addControl(
@@ -424,7 +463,6 @@ export default function MapView({
 
     const onLoad = async () => {
       try {
-        // 🌍 Globe + atmosphere
         map.setProjection("globe");
         map.setRenderWorldCopies(false);
 
@@ -436,7 +474,6 @@ export default function MapView({
           "space-color": "#000000",
         });
 
-        // ⬆️ Push globe upward more to avoid bottom clipping
         map.setPadding({
           top: 10,
           bottom: 190,
@@ -444,7 +481,6 @@ export default function MapView({
           right: 10,
         });
 
-        // 🔒 Lock camera AFTER layout settles
         setTimeout(() => {
           map.resize();
           map.easeTo({
@@ -461,11 +497,12 @@ export default function MapView({
 
       // initial pulls
       await fetchGDACS();
+      await fetchUSGSEarthquakes();
       await fetchLiveIncidents();
       await fetchNOAAAlerts();
       setLastUpdated(new Date().toLocaleTimeString());
 
-      // facilities (markers only; no auto-fit so globe remains in view)
+      // facilities
       if (locationsUrl && layerVisibility.facilities) {
         try {
           const csvUrl = `${locationsUrl}?v=${Date.now()}`;
@@ -492,12 +529,11 @@ export default function MapView({
         delete window.__FORC_MAP__;
       } catch {}
     };
-    // ✅ DO NOT ADD DEPENDENCIES HERE (must run once)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ============================================================================
-     9) FACILITIES RELOAD ON URL/TOGGLE CHANGE (NO MAP RE-INIT)
+     11) FACILITIES RELOAD ON URL/TOGGLE CHANGE
      ============================================================================ */
   useEffect(() => {
     const map = mapRef.current;
@@ -533,11 +569,15 @@ export default function MapView({
   }, [locationsUrl, layerVisibility.facilities, renderFacilitiesFromCsv]);
 
   /* ============================================================================
-     10) FEED RELOAD ON TOGGLE CHANGE (NO MAP RE-INIT)
+     12) FEED RELOAD ON TOGGLE CHANGE
      ============================================================================ */
   useEffect(() => {
     fetchGDACS();
   }, [fetchGDACS]);
+
+  useEffect(() => {
+    fetchUSGSEarthquakes();
+  }, [fetchUSGSEarthquakes]);
 
   useEffect(() => {
     fetchLiveIncidents();
@@ -548,11 +588,12 @@ export default function MapView({
   }, [fetchNOAAAlerts]);
 
   /* ============================================================================
-     11) PERIODIC REFRESH (LIGHTWEIGHT)
+     13) PERIODIC REFRESH
      ============================================================================ */
   useEffect(() => {
     const tick = async () => {
       await fetchGDACS();
+      await fetchUSGSEarthquakes();
       await fetchLiveIncidents();
       await fetchNOAAAlerts();
       setLastUpdated(new Date().toLocaleTimeString());
@@ -560,13 +601,12 @@ export default function MapView({
 
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
-  }, [fetchGDACS, fetchLiveIncidents, fetchNOAAAlerts]);
+  }, [fetchGDACS, fetchUSGSEarthquakes, fetchLiveIncidents, fetchNOAAAlerts]);
 
   const toggle = (key) => {
     setLayerVisibility((v) => ({ ...v, [key]: !v[key] }));
   };
 
-  // 🎯 Re-center: if facilities exist, fit to them; else return to globe view
   const recenter = () => {
     const map = mapRef.current;
     if (!map) return;
@@ -579,7 +619,7 @@ export default function MapView({
   };
 
   /* ============================================================================
-     12) RENDER
+     14) RENDER
      ============================================================================ */
   return (
     <div className="w-full">
@@ -587,7 +627,7 @@ export default function MapView({
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <div className="text-xs text-gray-600">
           <span className="font-semibold text-[#1D625B]">Map Feeds:</span>{" "}
-          Facilities, NOAA, GDACS, Live Incidents{" "}
+          Facilities, USGS Earthquakes, NOAA, GDACS, Live Incidents{" "}
           {lastUpdated ? (
             <span className="text-gray-400">• Updated {lastUpdated}</span>
           ) : null}
@@ -603,6 +643,17 @@ export default function MapView({
             }`}
           >
             🏭 Facilities
+          </button>
+
+          <button
+            onClick={() => toggle("usgs")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              layerVisibility.usgs
+                ? "bg-[#1D625B] text-white border-[#1D625B]"
+                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+            }`}
+          >
+            🌐 USGS Quakes
           </button>
 
           <button
