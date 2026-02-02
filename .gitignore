@@ -64,3 +64,6 @@ forc-frontend@0.0.0
 .tmp_forc/
 tmp_forc/
 scenario.json
+
+# local scenario scratch
+scenario.json
