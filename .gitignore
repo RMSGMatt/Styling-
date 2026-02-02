@@ -63,3 +63,4 @@ forc-frontend@0.0.0
 .env.*
 .tmp_forc/
 tmp_forc/
+scenario.json

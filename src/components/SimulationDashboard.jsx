@@ -1435,12 +1435,14 @@ setOverlayChartData(overlay);
   type="button"
   onClick={async () => {
     try {
+      // Merge current builder state + local scenarioJson edits
       const finalData = {
         ...(scenarioData || {}),
         ...(scenarioJson || {}),
       };
 
-      const name = (finalData.name || "").trim();
+      // Force name to be a string
+      const name = String(finalData.name || "").trim();
       if (!name) {
         alert("Scenario must have a name.");
         return;
@@ -1448,17 +1450,28 @@ setOverlayChartData(overlay);
 
       finalData.name = name;
 
-      // 🔥 Keep scenarioData in sync so transforms work on the next simulation
+      // Keep scenarioData in sync so transforms work on the next simulation
       setScenarioData(finalData);
 
-      await saveScenario(finalData);
+      // ✅ IMPORTANT: match backend contract (same as your console test)
+      // Backend expects: { name: string, data: object }
+      await saveScenario({
+        name,
+        data: finalData,
+      });
+
       alert("💾 Scenario Saved!");
 
       const res = await listScenarios();
       setSavedScenarios(res.data || []);
     } catch (err) {
       console.error("❌ Save scenario failed:", err);
-      alert("Save failed. Check console for details.");
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Unknown error";
+      alert(`Save failed: ${msg}`);
     }
   }}
   className="px-3 py-1.5 rounded-md font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-900"
@@ -1467,38 +1480,64 @@ setOverlayChartData(overlay);
 </button>
 
 
+{/* 📂 Scenario Selector */}
+<select
+  value={selectedScenarioId || ""}
+  onChange={(e) => setSelectedScenarioId(e.target.value)}
+  className="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-200"
+>
+  <option value="">Saved...</option>
+  {(savedScenarios || []).map((s) => (
+    <option key={s.id} value={s.id}>
+      {s.name}
+    </option>
+  ))}
+</select>
 
-              {/* 📂 Scenario Selector */}
-              <select
-                value={selectedScenarioId || ""}
-                onChange={(e) => setSelectedScenarioId(e.target.value)}
-                className="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-200"
-              >
-                <option value="">Saved...</option>
-                {savedScenarios.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+{/* 📥 Load Scenario */}
+<button
+  type="button"
+  onClick={async () => {
+    try {
+      if (!selectedScenarioId) {
+        alert("Select a scenario first.");
+        return;
+      }
 
-              {/* 📥 Load Scenario */}
-              <button
-                onClick={() => {
-                  if (!selectedScenarioId)
-                    return alert("Select a scenario first.");
+      const res = await loadScenario(selectedScenarioId);
 
-                  loadScenario(selectedScenarioId).then((res) => {
-                    const loaded = res.data || {};
-                    setScenarioJson(loaded);
-                    setScenarioData(loaded);
-                    alert(`📥 Scenario "${loaded.name || ""}" applied!`);
-                  });
-                }}
-                className="px-3 py-1.5 rounded-md font-semibold bg-blue-500 hover:bg-blue-400 text-slate-900"
-              >
-                📥 Load
-              </button>
+      // Your API may return:
+      // - { name, data: "json-string" }
+      // - OR the raw object
+      const raw = res?.data || {};
+      let loaded = raw;
+
+      if (raw?.data && typeof raw.data === "string") {
+        try {
+          loaded = JSON.parse(raw.data);
+        } catch {
+          // if parsing fails, fall back to raw
+          loaded = raw;
+        }
+      }
+
+      setScenarioJson(loaded);
+      setScenarioData(loaded);
+
+      alert(`📥 Scenario "${loaded?.name || raw?.name || ""}" applied!`);
+    } catch (err) {
+      console.error("❌ Load scenario failed:", err);
+      alert(
+        "Load failed. Check console for details.\n\n" +
+          (err?.response?.data?.message || err?.message || "")
+      );
+    }
+  }}
+  className="px-3 py-1.5 rounded-md font-semibold bg-blue-500 hover:bg-blue-400 text-slate-900"
+>
+  📥 Load
+</button>
+
             </div>
           </div>
 
