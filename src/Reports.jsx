@@ -14,6 +14,12 @@ import { getApiBase } from "./config/apiBase";
  * Step 3C: Free user executive report gate
  * - Backend returns 402 + { error:"upgrade_required", plan:"free", required:[...] }
  * - Frontend shows Upgrade UI + opens UpgradeModal
+ *
+ * ✅ Scenario-aware (Phase 1A)
+ * - Reads active scenario from localStorage ("forc_active_scenario")
+ * - Listens for "forc:scenario_updated" events from ScenarioBuilder
+ * - Includes scenario context in POST /api/executive-report/build
+ * - Shows Active Scenario banner in Reports UI
  */
 
 export default function Reports() {
@@ -51,6 +57,38 @@ export default function Reports() {
   };
 
   // -----------------------------
+  // Active Scenario (from ScenarioBuilder)
+  // - Loaded from localStorage
+  // - Updated via window event
+  // -----------------------------
+  const [activeScenario, setActiveScenario] = useState(null);
+
+  const readActiveScenario = () => {
+    try {
+      const raw = localStorage.getItem("forc_active_scenario");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    // initial load
+    const initial = readActiveScenario();
+    setActiveScenario(initial);
+
+    // live updates (ScenarioBuilder dispatches this)
+    const handler = (e) => {
+      const next = e?.detail ?? readActiveScenario();
+      setActiveScenario(next);
+      console.log("📣 [Reports] Scenario updated:", next);
+    };
+
+    window.addEventListener("forc:scenario_updated", handler);
+    return () => window.removeEventListener("forc:scenario_updated", handler);
+  }, []);
+
+  // -----------------------------
   // Simulation History state
   // -----------------------------
   const [simulationHistory, setSimulationHistory] = useState([]);
@@ -66,7 +104,9 @@ export default function Reports() {
       const token = getToken();
       if (!token) {
         setSimulationHistory([]);
-        setSimError("You are not logged in (missing token). Please log in again.");
+        setSimError(
+          "You are not logged in (missing token). Please log in again."
+        );
         setSimLoading(false);
         return;
       }
@@ -80,7 +120,9 @@ export default function Reports() {
 
       if (!res.ok) {
         const msg =
-          data?.msg || data?.error || `Failed to load simulations (HTTP ${res.status}).`;
+          data?.msg ||
+          data?.error ||
+          `Failed to load simulations (HTTP ${res.status}).`;
         setSimError(msg);
         setSimulationHistory([]);
         setSimLoading(false);
@@ -122,7 +164,8 @@ export default function Reports() {
   });
 
   const isUpgradeResponse = (res, data) =>
-    res?.status === 402 && (data?.error === "upgrade_required" || data?.code === "upgrade_required");
+    res?.status === 402 &&
+    (data?.error === "upgrade_required" || data?.code === "upgrade_required");
 
   const fetchLatestExecutiveReport = async () => {
     setExecLoading(true);
@@ -133,7 +176,9 @@ export default function Reports() {
       const token = getToken();
       if (!token) {
         setExecReport(null);
-        setExecError("You are not logged in (missing token). Please log in again.");
+        setExecError(
+          "You are not logged in (missing token). Please log in again."
+        );
         setExecLoading(false);
         return;
       }
@@ -165,7 +210,9 @@ export default function Reports() {
 
       if (!res.ok) {
         const msg =
-          data?.msg || data?.error || `Failed to load executive report (HTTP ${res.status}).`;
+          data?.msg ||
+          data?.error ||
+          `Failed to load executive report (HTTP ${res.status}).`;
         setExecError(msg);
         setExecReport(null);
         setExecLoading(false);
@@ -190,7 +237,9 @@ export default function Reports() {
     try {
       const token = getToken();
       if (!token) {
-        setExecError("You are not logged in (missing token). Please log in again.");
+        setExecError(
+          "You are not logged in (missing token). Please log in again."
+        );
         setExecBuilding(false);
         return;
       }
@@ -201,7 +250,11 @@ export default function Reports() {
           "Content-Type": "application/json",
           ...authHeaders(),
         },
-        body: JSON.stringify({ source: "simulation", force: true }),
+        body: JSON.stringify({
+          source: "simulation",
+          force: true,
+          scenario: activeScenario || null, // ✅ include scenario context for backend
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -224,7 +277,9 @@ export default function Reports() {
 
       if (!res.ok) {
         const msg =
-          data?.msg || data?.error || `Failed to build executive report (HTTP ${res.status}).`;
+          data?.msg ||
+          data?.error ||
+          `Failed to build executive report (HTTP ${res.status}).`;
         setExecError(msg);
         setExecBuilding(false);
         return;
@@ -250,12 +305,25 @@ export default function Reports() {
   }, []);
 
   // -----------------------------
+  // Optional: if scenario changes, re-check executive report
+  // (does not auto-build)
+  // -----------------------------
+  useEffect(() => {
+    if (activeScenario) {
+      fetchLatestExecutiveReport();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeScenario]);
+
+  // -----------------------------
   // Existing Simulation Report helpers
   // -----------------------------
-  const hasReports = Array.isArray(simulationHistory) && simulationHistory.length > 0;
+  const hasReports =
+    Array.isArray(simulationHistory) && simulationHistory.length > 0;
 
   const getOutputs = (sim) => sim?.output_urls || sim?.outputUrls || sim?.outputURLs || {};
-  const pickUrl = (outputs, snakeKey, camelKey) => outputs?.[snakeKey] || outputs?.[camelKey] || null;
+  const pickUrl = (outputs, snakeKey, camelKey) =>
+    outputs?.[snakeKey] || outputs?.[camelKey] || null;
 
   const formatTimestamp = (ts) => {
     if (!ts) return "Unknown date";
@@ -278,7 +346,8 @@ export default function Reports() {
 
   const statusStyles = (status) => {
     const s = String(status || "").toLowerCase();
-    if (s.includes("error") || s.includes("fail")) return "bg-red-50 text-red-700 border-red-200";
+    if (s.includes("error") || s.includes("fail"))
+      return "bg-red-50 text-red-700 border-red-200";
     if (s.includes("run") || s.includes("process") || s.includes("pending"))
       return "bg-amber-50 text-amber-800 border-amber-200";
     return "bg-emerald-50 text-emerald-800 border-emerald-200";
@@ -288,8 +357,11 @@ export default function Reports() {
     "group relative flex items-center gap-3 rounded-xl border px-4 py-3 transition-all " +
     "hover:shadow-md hover:-translate-y-[1px] active:translate-y-0";
 
-  const tilePrimary = tileBase + " bg-[#1D625B] border-[#1D625B] text-white hover:bg-[#174F47]";
-  const tileSecondary = tileBase + " bg-white border-[#D8E5DD] text-[#1D625B] hover:bg-[#F2F6F3]";
+  const tilePrimary =
+    tileBase + " bg-[#1D625B] border-[#1D625B] text-white hover:bg-[#174F47]";
+  const tileSecondary =
+    tileBase +
+    " bg-white border-[#D8E5DD] text-[#1D625B] hover:bg-[#F2F6F3]";
   const tileMuted =
     "flex items-center gap-3 rounded-xl border border-dashed border-[#D8E5DD] px-4 py-3 text-sm text-gray-400 bg-white";
 
@@ -300,14 +372,18 @@ export default function Reports() {
       </div>
       <div>
         <div className="text-sm font-semibold text-[#1D625B]">{title}</div>
-        {subtitle ? <div className="text-xs text-gray-500 mt-0.5">{subtitle}</div> : null}
+        {subtitle ? (
+          <div className="text-xs text-gray-500 mt-0.5">{subtitle}</div>
+        ) : null}
       </div>
     </div>
   );
 
   const Chip = ({ label, value }) => (
     <div className="px-3 py-2 rounded-xl bg-white/10 border border-white/20">
-      <div className="text-[11px] uppercase tracking-wide opacity-90">{label}</div>
+      <div className="text-[11px] uppercase tracking-wide opacity-90">
+        {label}
+      </div>
       <div className="text-sm font-semibold">{value}</div>
     </div>
   );
@@ -315,15 +391,23 @@ export default function Reports() {
   // -----------------------------
   // Executive Report view helpers
   // -----------------------------
-  const execCreatedAt = execReport?.createdAt ? formatTimestamp(execReport.createdAt) : "—";
+  const execCreatedAt = execReport?.createdAt
+    ? formatTimestamp(execReport.createdAt)
+    : "—";
   const bbi = execReport?.metrics?.bbi;
-  const highlights = Array.isArray(execReport?.metrics?.highlights) ? execReport.metrics.highlights : [];
+  const highlights = Array.isArray(execReport?.metrics?.highlights)
+    ? execReport.metrics.highlights
+    : [];
   const kpis = execReport?.metrics?.kpis || {};
-  const sections = Array.isArray(execReport?.narrative?.sections) ? execReport.narrative.sections : [];
+  const sections = Array.isArray(execReport?.narrative?.sections)
+    ? execReport.narrative.sections
+    : [];
 
   const KPIBox = ({ label, value, hint }) => (
     <div className="rounded-2xl border border-[#E5ECE7] bg-white p-4 shadow-sm">
-      <div className="text-[11px] uppercase tracking-widest text-gray-400">{label}</div>
+      <div className="text-[11px] uppercase tracking-widest text-gray-400">
+        {label}
+      </div>
       <div className="text-xl font-bold text-[#1D625B] mt-1">{value}</div>
       {hint ? <div className="text-xs text-gray-500 mt-1">{hint}</div> : null}
     </div>
@@ -367,11 +451,15 @@ export default function Reports() {
         <div className="bg-gradient-to-r from-[#1D625B] to-[#174F47] text-white p-7">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
-              <div className="text-xs uppercase tracking-widest opacity-80">FOR-C • Reports</div>
+              <div className="text-xs uppercase tracking-widest opacity-80">
+                FOR-C • Reports
+              </div>
               <h1 className="text-3xl font-bold mt-2">📊 Simulation Reports</h1>
               <p className="text-sm opacity-90 mt-2 max-w-2xl">
-                Download complete report packs from your simulation runs—core outputs, risk insights, and supporting
-                datasets. Executive Report is generated from your latest run (BBI + KPIs + narrative).
+                Download complete report packs from your simulation runs—core
+                outputs, risk insights, and supporting datasets. Executive
+                Report is generated from your latest run (BBI + KPIs +
+                narrative).
               </p>
             </div>
 
@@ -401,8 +489,9 @@ export default function Reports() {
         {/* Subheader strip */}
         <div className="bg-white p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="text-sm text-gray-700">
-            <span className="font-semibold text-[#1D625B]">Tip:</span> Use “Download Full Pack” for the fastest export,
-            or grab individual files below.
+            <span className="font-semibold text-[#1D625B]">Tip:</span> Use
+            “Download Full Pack” for the fastest export, or grab individual
+            files below.
           </div>
           <div className="text-xs text-gray-500">
             {simLastRefreshedAt ? `Simulation list refreshed: ${simLastRefreshedAt}` : ""}
@@ -411,14 +500,52 @@ export default function Reports() {
         </div>
       </div>
 
+      {/* Active Scenario Banner */}
+      {activeScenario ? (
+        <div className="bg-white border border-[#E5ECE7] rounded-3xl shadow-sm p-5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-gray-400">
+                Active Scenario
+              </div>
+              <div className="text-lg font-bold text-[#1D625B] mt-1">
+                🧪 {activeScenario?.name || "Unnamed Scenario"}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">
+                This scenario context will be included when generating the Executive Report.
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                try {
+                  localStorage.removeItem("forc_active_scenario");
+                } catch {}
+                setActiveScenario(null);
+                console.log("🧼 [Reports] Cleared active scenario.");
+              }}
+              className="px-4 py-2 rounded-xl border border-[#D8E5DD] bg-white text-[#1D625B] hover:bg-[#F2F6F3] font-semibold transition"
+              title="Clear active scenario for Reports"
+            >
+              Clear Scenario
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Executive Report Panel */}
       <div className="bg-white border border-[#E5ECE7] rounded-3xl shadow-sm overflow-hidden">
         <div className="p-6 border-b border-[#E5ECE7] flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div className="space-y-1">
-            <div className="text-xs uppercase tracking-widest text-gray-400">Executive Report</div>
-            <div className="text-xl font-bold text-[#1D625B]">📘 BBI + KPI Summary</div>
+            <div className="text-xs uppercase tracking-widest text-gray-400">
+              Executive Report
+            </div>
+            <div className="text-xl font-bold text-[#1D625B]">
+              📘 BBI + KPI Summary
+            </div>
             <div className="text-sm text-gray-600">
-              Stored on the backend and returned via <span className="font-semibold">/api/executive-report/latest</span>.
+              Stored on the backend and returned via{" "}
+              <span className="font-semibold">/api/executive-report/latest</span>.
             </div>
           </div>
 
@@ -442,10 +569,16 @@ export default function Reports() {
               }
               disabled={execBuilding || execLocked}
               title={
-                execLocked ? "Upgrade required to generate Executive Reports" : "Generate a fresh executive report"
+                execLocked
+                  ? "Upgrade required to generate Executive Reports"
+                  : "Generate a fresh executive report"
               }
             >
-              {execBuilding ? "Generating…" : execLocked ? "Upgrade to Generate" : "Generate Executive Report"}
+              {execBuilding
+                ? "Generating…"
+                : execLocked
+                ? "Upgrade to Generate"
+                : "Generate Executive Report"}
             </button>
           </div>
         </div>
@@ -454,21 +587,29 @@ export default function Reports() {
           {/* Gate banner (friendly) */}
           {showExecUpgrade ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-              <div className="text-sm font-semibold text-amber-900">🔒 Executive Report is a Pro feature</div>
+              <div className="text-sm font-semibold text-amber-900">
+                🔒 Executive Report is a Pro feature
+              </div>
               <div className="text-sm text-amber-900/80 mt-1">
                 {execGate?.message || "Upgrade to Pro to access the Executive Report."}
               </div>
               <div className="text-xs text-amber-900/70 mt-3">
-                Current plan: <span className="font-semibold">{execGate?.plan || "free"}</span> • Required:{" "}
+                Current plan:{" "}
+                <span className="font-semibold">{execGate?.plan || "free"}</span>{" "}
+                • Required:{" "}
                 <span className="font-semibold">
-                  {Array.isArray(execGate?.required) ? execGate.required.join(" / ") : "pro"}
+                  {Array.isArray(execGate?.required)
+                    ? execGate.required.join(" / ")
+                    : "pro"}
                 </span>
               </div>
 
               <div className="mt-4 flex flex-col sm:flex-row gap-3">
                 <button
                   className="px-4 py-2 rounded-xl bg-[#1D625B] hover:bg-[#174F47] text-white font-semibold shadow-sm transition"
-                  onClick={() => openUpgrade({ plan: execGate?.plan, required: execGate?.required })}
+                  onClick={() =>
+                    openUpgrade({ plan: execGate?.plan, required: execGate?.required })
+                  }
                 >
                   Upgrade
                 </button>
@@ -484,12 +625,15 @@ export default function Reports() {
 
           {/* Normal errors (non-402) */}
           {execError ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 text-red-700 p-4 text-sm">{execError}</div>
+            <div className="rounded-2xl border border-red-200 bg-red-50 text-red-700 p-4 text-sm">
+              {execError}
+            </div>
           ) : null}
 
           {!execLoading && !execReport && !showExecUpgrade ? (
             <div className="rounded-2xl border border-[#E5ECE7] bg-[#F9FAF9] p-5 text-sm text-gray-600">
-              No executive report found yet. Click <span className="font-semibold">Generate Executive Report</span>.
+              No executive report found yet. Click{" "}
+              <span className="font-semibold">Generate Executive Report</span>.
             </div>
           ) : null}
 
@@ -498,7 +642,11 @@ export default function Reports() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <KPIBox
                   label="BBI"
-                  value={bbi === null || bbi === undefined ? "—" : `${formatNumber(bbi, 1)}/100`}
+                  value={
+                    bbi === null || bbi === undefined
+                      ? "—"
+                      : `${formatNumber(bbi, 1)}/100`
+                  }
                   hint="Business Balance Index"
                 />
                 <KPIBox
@@ -506,13 +654,25 @@ export default function Reports() {
                   value={formatPercent(kpis.onTimeFulfillment, 1)}
                   hint="(Proxy until demand totals are wired)"
                 />
-                <KPIBox label="Unfulfilled Qty" value={formatNumber(kpis.unfulfilledQty, 0)} hint="Shortfall signal" />
-                <KPIBox label="Avg Inventory" value={formatNumber(kpis.avgInventory, 0)} hint="Across run horizon" />
+                <KPIBox
+                  label="Unfulfilled Qty"
+                  value={formatNumber(kpis.unfulfilledQty, 0)}
+                  hint="Shortfall signal"
+                />
+                <KPIBox
+                  label="Avg Inventory"
+                  value={formatNumber(kpis.avgInventory, 0)}
+                  hint="Across run horizon"
+                />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div className="rounded-3xl border border-[#E5ECE7] bg-white p-5">
-                  <SectionTitle icon="✨" title="Highlights" subtitle="Top signals from the latest run" />
+                  <SectionTitle
+                    icon="✨"
+                    title="Highlights"
+                    subtitle="Top signals from the latest run"
+                  />
                   <div className="mt-4 space-y-2">
                     {highlights.length ? (
                       highlights.map((h, i) => (
@@ -530,17 +690,30 @@ export default function Reports() {
                 </div>
 
                 <div className="rounded-3xl border border-[#E5ECE7] bg-white p-5">
-                  <SectionTitle icon="🧠" title="Narrative" subtitle="Backend-generated sections for the Executive Report" />
+                  <SectionTitle
+                    icon="🧠"
+                    title="Narrative"
+                    subtitle="Backend-generated sections for the Executive Report"
+                  />
                   <div className="mt-4 space-y-3">
                     {sections.length ? (
                       sections.map((s) => (
-                        <div key={s.id || s.title} className="rounded-2xl border border-[#E5ECE7] bg-white p-4">
-                          <div className="text-sm font-bold text-[#1D625B]">{s.title || s.id}</div>
-                          <div className="text-sm text-gray-700 whitespace-pre-line mt-2">{s.body || ""}</div>
+                        <div
+                          key={s.id || s.title}
+                          className="rounded-2xl border border-[#E5ECE7] bg-white p-4"
+                        >
+                          <div className="text-sm font-bold text-[#1D625B]">
+                            {s.title || s.id}
+                          </div>
+                          <div className="text-sm text-gray-700 whitespace-pre-line mt-2">
+                            {s.body || ""}
+                          </div>
                         </div>
                       ))
                     ) : (
-                      <div className="text-sm text-gray-500">No narrative sections yet.</div>
+                      <div className="text-sm text-gray-500">
+                        No narrative sections yet.
+                      </div>
                     )}
                   </div>
                 </div>
@@ -552,7 +725,9 @@ export default function Reports() {
 
       {/* Simulation Report Packs */}
       {simError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 text-red-700 p-4 text-sm">{simError}</div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 text-red-700 p-4 text-sm">
+          {simError}
+        </div>
       ) : null}
 
       {simLoading ? (
@@ -600,10 +775,19 @@ export default function Reports() {
                 {/* Card Header */}
                 <div className="p-6 border-b border-[#E5ECE7] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-gray-400">Report Pack</div>
+                    <div className="text-xs uppercase tracking-widest text-gray-400">
+                      Report Pack
+                    </div>
                     <div className="flex items-center gap-3 mt-2">
-                      <h2 className="text-xl font-bold text-[#1D625B]">Run {idx + 1}</h2>
-                      <span className={"text-xs font-semibold px-2.5 py-1 rounded-full border " + statusStyles(status)}>
+                      <h2 className="text-xl font-bold text-[#1D625B]">
+                        Run {idx + 1}
+                      </h2>
+                      <span
+                        className={
+                          "text-xs font-semibold px-2.5 py-1 rounded-full border " +
+                          statusStyles(status)
+                        }
+                      >
                         {status}
                       </span>
                     </div>
@@ -623,7 +807,9 @@ export default function Reports() {
                     </a>
                   ) : (
                     <div className="text-xs text-gray-400 sm:text-right">
-                      {anyUrl ? "Full pack not available (download individual files)." : "No files available yet."}
+                      {anyUrl
+                        ? "Full pack not available (download individual files)."
+                        : "No files available yet."}
                     </div>
                   )}
                 </div>
@@ -632,14 +818,25 @@ export default function Reports() {
                 <div className="p-6 space-y-6">
                   {/* Core Outputs */}
                   <div className="space-y-3">
-                    <SectionTitle icon="🧾" title="Core Outputs" subtitle="Simulation output CSVs" />
+                    <SectionTitle
+                      icon="🧾"
+                      title="Core Outputs"
+                      subtitle="Simulation output CSVs"
+                    />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {flowUrl ? (
-                        <a className={tilePrimary} href={flowUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                          className={tilePrimary}
+                          href={flowUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <span className="text-xl">🌊</span>
                           <div className="flex-1">
                             <div className="font-semibold">Flow Output</div>
-                            <div className="text-xs opacity-90">flow_output.csv</div>
+                            <div className="text-xs opacity-90">
+                              flow_output.csv
+                            </div>
                           </div>
                           <span className="opacity-90">↗</span>
                         </a>
@@ -648,82 +845,138 @@ export default function Reports() {
                       )}
 
                       {inventoryUrl ? (
-                        <a className={tilePrimary} href={inventoryUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                          className={tilePrimary}
+                          href={inventoryUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <span className="text-xl">📦</span>
                           <div className="flex-1">
                             <div className="font-semibold">Inventory Output</div>
-                            <div className="text-xs opacity-90">inventory_output.csv</div>
+                            <div className="text-xs opacity-90">
+                              inventory_output.csv
+                            </div>
                           </div>
                           <span className="opacity-90">↗</span>
                         </a>
                       ) : (
-                        <div className={tileMuted}>📦 Inventory Output (missing)</div>
+                        <div className={tileMuted}>
+                          📦 Inventory Output (missing)
+                        </div>
                       )}
 
                       {productionUrl ? (
-                        <a className={tileSecondary} href={productionUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                          className={tileSecondary}
+                          href={productionUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <span className="text-xl">🏭</span>
                           <div className="flex-1">
                             <div className="font-semibold">Production Output</div>
-                            <div className="text-xs text-gray-500">production_output.csv</div>
+                            <div className="text-xs text-gray-500">
+                              production_output.csv
+                            </div>
                           </div>
                           <span className="text-[#1D625B] opacity-90">↗</span>
                         </a>
                       ) : (
-                        <div className={tileMuted}>🏭 Production Output (missing)</div>
+                        <div className={tileMuted}>
+                          🏭 Production Output (missing)
+                        </div>
                       )}
 
                       {occurrenceUrl ? (
-                        <a className={tileSecondary} href={occurrenceUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                          className={tileSecondary}
+                          href={occurrenceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <span className="text-xl">⚠️</span>
                           <div className="flex-1">
                             <div className="font-semibold">Occurrence Output</div>
-                            <div className="text-xs text-gray-500">occurrence_output.csv</div>
+                            <div className="text-xs text-gray-500">
+                              occurrence_output.csv
+                            </div>
                           </div>
                           <span className="text-[#1D625B] opacity-90">↗</span>
                         </a>
                       ) : (
-                        <div className={tileMuted}>⚠️ Occurrence Output (missing)</div>
+                        <div className={tileMuted}>
+                          ⚠️ Occurrence Output (missing)
+                        </div>
                       )}
                     </div>
                   </div>
 
                   {/* Insights */}
                   <div className="space-y-3">
-                    <SectionTitle icon="🧠" title="Insights" subtitle="Risk, impact, and recommended actions" />
+                    <SectionTitle
+                      icon="🧠"
+                      title="Insights"
+                      subtitle="Risk, impact, and recommended actions"
+                    />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {disruptionImpactUrl ? (
-                        <a className={tileSecondary} href={disruptionImpactUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                          className={tileSecondary}
+                          href={disruptionImpactUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <span className="text-xl">🧯</span>
                           <div className="flex-1">
                             <div className="font-semibold">Disruption Impact</div>
-                            <div className="text-xs text-gray-500">disruption_impact_output.csv</div>
+                            <div className="text-xs text-gray-500">
+                              disruption_impact_output.csv
+                            </div>
                           </div>
                           <span className="text-[#1D625B] opacity-90">↗</span>
                         </a>
                       ) : (
-                        <div className={tileMuted}>🧯 Disruption Impact (missing)</div>
+                        <div className={tileMuted}>
+                          🧯 Disruption Impact (missing)
+                        </div>
                       )}
 
                       {projectedImpactUrl ? (
-                        <a className={tileSecondary} href={projectedImpactUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                          className={tileSecondary}
+                          href={projectedImpactUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <span className="text-xl">📈</span>
                           <div className="flex-1">
                             <div className="font-semibold">Projected Impact</div>
-                            <div className="text-xs text-gray-500">projected_impact_output.csv</div>
+                            <div className="text-xs text-gray-500">
+                              projected_impact_output.csv
+                            </div>
                           </div>
                           <span className="text-[#1D625B] opacity-90">↗</span>
                         </a>
                       ) : (
-                        <div className={tileMuted}>📈 Projected Impact (missing)</div>
+                        <div className={tileMuted}>
+                          📈 Projected Impact (missing)
+                        </div>
                       )}
 
                       {runoutRiskUrl ? (
-                        <a className={tileSecondary} href={runoutRiskUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                          className={tileSecondary}
+                          href={runoutRiskUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <span className="text-xl">⛔</span>
                           <div className="flex-1">
                             <div className="font-semibold">SKU Runout Risk</div>
-                            <div className="text-xs text-gray-500">sku_runout_risk_output.csv</div>
+                            <div className="text-xs text-gray-500">
+                              sku_runout_risk_output.csv
+                            </div>
                           </div>
                           <span className="text-[#1D625B] opacity-90">↗</span>
                         </a>
@@ -732,11 +985,18 @@ export default function Reports() {
                       )}
 
                       {countermeasuresUrl ? (
-                        <a className={tileSecondary} href={countermeasuresUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                          className={tileSecondary}
+                          href={countermeasuresUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <span className="text-xl">🛠️</span>
                           <div className="flex-1">
                             <div className="font-semibold">Countermeasures</div>
-                            <div className="text-xs text-gray-500">countermeasures_output.csv</div>
+                            <div className="text-xs text-gray-500">
+                              countermeasures_output.csv
+                            </div>
                           </div>
                           <span className="text-[#1D625B] opacity-90">↗</span>
                         </a>
@@ -745,11 +1005,18 @@ export default function Reports() {
                       )}
 
                       {locationsUrl ? (
-                        <a className={tileSecondary} href={locationsUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                          className={tileSecondary}
+                          href={locationsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <span className="text-xl">🗺️</span>
                           <div className="flex-1">
                             <div className="font-semibold">Locations</div>
-                            <div className="text-xs text-gray-500">locations_input.csv</div>
+                            <div className="text-xs text-gray-500">
+                              locations_input.csv
+                            </div>
                           </div>
                           <span className="text-[#1D625B] opacity-90">↗</span>
                         </a>
@@ -766,7 +1033,8 @@ export default function Reports() {
       ) : (
         <div className="bg-white border border-[#E5ECE7] rounded-3xl shadow-sm p-7">
           <div className="text-sm text-gray-600">
-            No simulation history found yet. Run a simulation to generate report packs and an executive report.
+            No simulation history found yet. Run a simulation to generate report
+            packs and an executive report.
           </div>
         </div>
       )}

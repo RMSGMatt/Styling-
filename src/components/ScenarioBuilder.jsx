@@ -1,16 +1,22 @@
 import React, { useMemo, useState } from "react";
 
-export default function ScenarioBuilder({ setScenarioData, onClear }) {
+export default function ScenarioBuilder({
+  setScenarioData,
+  onClear,
+  apiBase = "https://supply-chain-simulator.onrender.com",
+  token,
+  onSaved, // optional callback({id,name,created_at})
+}) {
   // UI state
   const [open, setOpen] = useState(true);
   const [selectedTypes, setSelectedTypes] = useState(["natural_disaster"]);
   const [facility, setFacility] = useState("VN-Facility-1");
   const [startDate, setStartDate] = useState("2025-08-01");
   const [duration, setDuration] = useState(14); // days
-  const [severity, setSeverity] = useState(70); // 0-100, applies to disruptions
-  const [demandSpikePct, setDemandSpikePct] = useState(25); // % increase in demand
-  const [supplyCapPct, setSupplyCapPct] = useState(80); // resulting capacity (e.g., 80% of normal)
-  const [sourcing, setSourcing] = useState("none"); // sourcing strategy
+  const [severity, setSeverity] = useState(70); // 0-100
+  const [demandSpikePct, setDemandSpikePct] = useState(25); // % demand change
+  const [supplyCapPct, setSupplyCapPct] = useState(80); // capacity % of normal
+  const [sourcing, setSourcing] = useState("none");
   const [notes, setNotes] = useState("");
 
   const disruptionOptions = [
@@ -52,9 +58,7 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
 
   const handleToggleType = (value) => {
     setSelectedTypes((prev) =>
-      prev.includes(value)
-        ? prev.filter((v) => v !== value)
-        : [...prev, value]
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
   };
 
@@ -69,16 +73,19 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
     setSourcing("none");
     setNotes("");
     setScenarioData?.(null);
+    try {
+      localStorage.removeItem("forc_active_scenario");
+    } catch {}
     onClear?.();
+    console.log("🧼 [ScenarioBuilder] Scenario reset + cleared.");
   };
 
-  const applyScenario = () => {
-    // Build a scenario payload that your SimulationDashboard can consume
+  // ✅ Canonical scenario object (used by Apply AND Save)
+  const buildScenarioObject = () => {
     const scenarioName = `Scenario: ${selectedTypes
       .map((t) => disruptionOptions.find((o) => o.value === t)?.label || t)
       .join(", ")} @ ${facility}`;
 
-    // One disruptionScenario per selected type
     const disruptionScenarios = selectedTypes.map((type) => ({
       type,
       facility,
@@ -87,12 +94,11 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
       severity,
     }));
 
-    // Demand adjustments: global spike if non-zero
     const demandAdjustments =
       Number(demandSpikePct) !== 0
         ? [
             {
-              sku: "", // empty = apply broadly; SimulationDashboard can match as needed
+              sku: "",
               facility: "",
               changeType: "percent",
               value: Number(demandSpikePct),
@@ -100,10 +106,9 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
           ]
         : [];
 
-    // Inventory policies: future hook (kept for compatibility)
     const inventoryPolicies = [];
 
-    setScenarioData?.({
+    return {
       name: scenarioName,
       disruptionScenarios,
       demandAdjustments,
@@ -113,7 +118,78 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
         sourcing,
         notes,
       },
-    });
+    };
+  };
+
+  // ✅ Shared helper: persist + broadcast so Reports/other views can see it too
+  const persistAndBroadcastScenario = (scenario) => {
+    try {
+      localStorage.setItem("forc_active_scenario", JSON.stringify(scenario));
+    } catch {}
+
+    try {
+      window.dispatchEvent(
+        new CustomEvent("forc:scenario_updated", { detail: scenario })
+      );
+    } catch {}
+
+    console.log("📦 [ScenarioBuilder] Scenario applied:", scenario);
+  };
+
+  const applyScenario = () => {
+    const scenario = buildScenarioObject();
+
+    // 1) update parent state (SimulationDashboard path)
+    setScenarioData?.(scenario);
+
+    // 2) persist + broadcast (Reports / other views path)
+    persistAndBroadcastScenario(scenario);
+  };
+
+  const saveScenarioToBackend = async () => {
+    const scenario = buildScenarioObject();
+
+    if (!token) {
+      alert("No auth token found. Please login again.");
+      return;
+    }
+
+    let res;
+    try {
+      res = await fetch(`${apiBase}/api/scenarios`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: scenario.name,
+          data: scenario, // backend expects { name, data }
+        }),
+      });
+    } catch (err) {
+      console.error("❌ [ScenarioBuilder] Save scenario network error:", err);
+      alert("Save scenario failed (network error). Check console.");
+      return;
+    }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error("❌ [ScenarioBuilder] Save scenario failed:", res.status, text);
+      alert(`Save scenario failed (${res.status}). Check console.`);
+      return;
+    }
+
+    const json = await res.json();
+    onSaved?.(json?.scenario);
+    console.log("✅ [ScenarioBuilder] Saved scenario:", json?.scenario);
+    alert(`✅ Scenario saved: ${json?.scenario?.name || scenario.name}`);
+  };
+
+  // ✅ Convenience: Apply first, then Save (most common workflow)
+  const applyAndSave = async () => {
+    applyScenario();
+    await saveScenarioToBackend();
   };
 
   return (
@@ -131,25 +207,19 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
             Scenario Builder (Phase 1A)
           </span>
         </div>
-        <span className="text-xs text-slate-300">
-          {open ? "Hide" : "Show"}
-        </span>
+        <span className="text-xs text-slate-300">{open ? "Hide" : "Show"}</span>
       </button>
 
       {open && (
         <div className="p-4 space-y-4">
-          {/* Intro */}
           <p className="text-xs text-slate-300">
-            Configure demand shocks, disruption injections, and high-level
-            policies, then apply this configuration to the next simulation run.
+            Configure demand shocks, disruption injections, and high-level policies,
+            then apply this configuration to the next simulation run.
           </p>
 
           {/* Disruption types */}
           <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-            <p
-              className="text-xs font-semibold mb-2"
-              style={{ color: "#E8FFE8" }}
-            >
+            <p className="text-xs font-semibold mb-2" style={{ color: "#E8FFE8" }}>
               Disruption Types
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -168,15 +238,10 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
                   >
                     <span className="text-base">{opt.icon}</span>
                     <div>
-                      <p
-                        className="text-[11px] font-semibold"
-                        style={{ color: "#E8FFE8" }}
-                      >
+                      <p className="text-[11px] font-semibold" style={{ color: "#E8FFE8" }}>
                         {opt.label}
                       </p>
-                      <p className="text-[11px] text-slate-300">
-                        {opt.description}
-                      </p>
+                      <p className="text-[11px] text-slate-300">{opt.description}</p>
                     </div>
                   </button>
                 );
@@ -187,10 +252,7 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
           {/* Facility + dates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-              <p
-                className="text-[11px] font-semibold mb-1"
-                style={{ color: "#E8FFE8" }}
-              >
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
                 Affected Facility
               </p>
               <input
@@ -206,17 +268,12 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
             </div>
 
             <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-              <p
-                className="text-[11px] font-semibold mb-1"
-                style={{ color: "#E8FFE8" }}
-              >
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
                 Disruption Window
               </p>
               <div className="flex items-center gap-2 mb-2">
                 <div className="flex-1">
-                  <label className="text-[10px] text-slate-300">
-                    Start Date
-                  </label>
+                  <label className="text-[10px] text-slate-300">Start Date</label>
                   <input
                     type="date"
                     className="w-full rounded-md bg-slate-950/80 border border-slate-700 px-2 py-1 text-[11px] text-slate-100"
@@ -225,9 +282,7 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[10px] text-slate-300">
-                    Duration (days)
-                  </label>
+                  <label className="text-[10px] text-slate-300">Duration (days)</label>
                   <input
                     type="number"
                     min={1}
@@ -239,22 +294,15 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
                 </div>
               </div>
               <p className="text-[11px] text-slate-300">
-                End Date:{" "}
-                <span className="text-slate-100">
-                  {endDate || "—"}
-                </span>
+                End Date: <span className="text-slate-100">{endDate || "—"}</span>
               </p>
             </div>
           </div>
 
-          {/* Sliders row: Severity, Demand spike, Capacity */}
+          {/* Sliders */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            {/* Severity */}
             <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-              <p
-                className="text-[11px] font-semibold mb-1"
-                style={{ color: "#E8FFE8" }}
-              >
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
                 Disruption Severity
               </p>
               <input
@@ -266,19 +314,12 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
                 className="w-full accent-rose-400"
               />
               <p className="text-[11px] text-slate-300 mt-1">
-                Severity:{" "}
-                <span className="text-rose-300 font-semibold">
-                  {severity}%
-                </span>
+                Severity: <span className="text-rose-300 font-semibold">{severity}%</span>
               </p>
             </div>
 
-            {/* Demand spike */}
             <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-              <p
-                className="text-[11px] font-semibold mb-1"
-                style={{ color: "#E8FFE8" }}
-              >
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
                 Demand Spike
               </p>
               <input
@@ -286,25 +327,17 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
                 min="-50"
                 max="200"
                 value={demandSpikePct}
-                onChange={(e) =>
-                  setDemandSpikePct(Number(e.target.value) || 0)
-                }
+                onChange={(e) => setDemandSpikePct(Number(e.target.value) || 0)}
                 className="w-full accent-amber-300"
               />
               <p className="text-[11px] text-slate-300 mt-1">
                 Demand change:{" "}
-                <span className="text-amber-300 font-semibold">
-                  {demandSpikePct}%
-                </span>
+                <span className="text-amber-300 font-semibold">{demandSpikePct}%</span>
               </p>
             </div>
 
-            {/* Supply capacity */}
             <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-              <p
-                className="text-[11px] font-semibold mb-1"
-                style={{ color: "#E8FFE8" }}
-              >
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
                 Available Capacity
               </p>
               <input
@@ -312,17 +345,13 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
                 min="0"
                 max="120"
                 value={supplyCapPct}
-                onChange={(e) =>
-                  setSupplyCapPct(Number(e.target.value) || 0)
-                }
+                onChange={(e) => setSupplyCapPct(Number(e.target.value) || 0)}
                 className="w-full accent-emerald-400"
               />
               <p className="text-[11px] text-slate-300 mt-1">
                 Capacity set to{" "}
-                <span className="text-emerald-300 font-semibold">
-                  {supplyCapPct}%
-                </span>{" "}
-                of normal.
+                <span className="text-emerald-300 font-semibold">{supplyCapPct}%</span> of
+                normal.
               </p>
             </div>
           </div>
@@ -330,10 +359,7 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
           {/* Sourcing + Notes */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-              <p
-                className="text-[11px] font-semibold mb-1"
-                style={{ color: "#E8FFE8" }}
-              >
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
                 Sourcing Strategy
               </p>
               <select
@@ -342,12 +368,8 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
                 onChange={(e) => setSourcing(e.target.value)}
               >
                 <option value="none">No change (baseline sourcing)</option>
-                <option value="alternate">
-                  Shift volume to alternate sources
-                </option>
-                <option value="localize">
-                  Localize to NA / regional plants
-                </option>
+                <option value="alternate">Shift volume to alternate sources</option>
+                <option value="localize">Localize to NA / regional plants</option>
                 <option value="dual_source">Dual-source key SKUs</option>
               </select>
               <p className="text-[11px] text-slate-300 mt-1">
@@ -356,10 +378,7 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
             </div>
 
             <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-              <p
-                className="text-[11px] font-semibold mb-1"
-                style={{ color: "#E8FFE8" }}
-              >
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
                 Scenario Notes
               </p>
               <textarea
@@ -375,46 +394,21 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
           {/* Preview + actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
             <div className="md:col-span-2 border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-              <p
-                className="text-[11px] font-semibold mb-1"
-                style={{ color: "#E8FFE8" }}
-              >
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
                 Preview
               </p>
               <p className="text-[11px] text-slate-300">
                 <span className="text-slate-100 font-semibold">
                   {selectedTypes
-                    .map(
-                      (t) =>
-                        disruptionOptions.find((o) => o.value === t)
-                          ?.label || t
-                    )
+                    .map((t) => disruptionOptions.find((o) => o.value === t)?.label || t)
                     .join(", ") || "No type selected"}
                 </span>{" "}
-                impacting{" "}
-                <span className="text-slate-100 font-semibold">
-                  {facility}
-                </span>{" "}
-                from{" "}
-                <span className="text-slate-100 font-semibold">
-                  {startDate || "—"}
-                </span>{" "}
-                to{" "}
-                <span className="text-slate-100 font-semibold">
-                  {endDate || "—"}
-                </span>
-                , with{" "}
-                <span className="text-rose-300 font-semibold">
-                  {severity}% severity
-                </span>
-                ,{" "}
-                <span className="text-amber-300 font-semibold">
-                  {demandSpikePct}% demand change
-                </span>
-                , and{" "}
-                <span className="text-emerald-300 font-semibold">
-                  capacity at {supplyCapPct}%.
-                </span>
+                impacting <span className="text-slate-100 font-semibold">{facility}</span>{" "}
+                from <span className="text-slate-100 font-semibold">{startDate || "—"}</span>{" "}
+                to <span className="text-slate-100 font-semibold">{endDate || "—"}</span>, with{" "}
+                <span className="text-rose-300 font-semibold">{severity}% severity</span>,{" "}
+                <span className="text-amber-300 font-semibold">{demandSpikePct}% demand change</span>,{" "}
+                and <span className="text-emerald-300 font-semibold">capacity at {supplyCapPct}%</span>.
               </p>
               {notes && (
                 <p className="text-[11px] text-slate-300 mt-1">
@@ -431,6 +425,17 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
               >
                 Reset
               </button>
+
+              {/* ✅ NEW: Save */}
+              <button
+                type="button"
+                onClick={saveScenarioToBackend}
+                className="w-full border border-slate-500 rounded-lg py-1.5 text-[11px] font-semibold text-slate-100 hover:bg-slate-800/70 transition"
+              >
+                💾 Save Scenario
+              </button>
+
+              {/* ✅ Apply */}
               <button
                 type="button"
                 onClick={applyScenario}
@@ -441,6 +446,19 @@ export default function ScenarioBuilder({ setScenarioData, onClear }) {
                 }}
               >
                 ✅ Apply Scenario
+              </button>
+
+              {/* ✅ NEW: Apply + Save (best UX) */}
+              <button
+                type="button"
+                onClick={applyAndSave}
+                className="w-full rounded-lg py-1.5 text-[11px] font-semibold shadow-md"
+                style={{
+                  background: "linear-gradient(90deg, #22c55e, #0ea5e9)",
+                  color: "#020617",
+                }}
+              >
+                ✅💾 Apply + Save
               </button>
             </div>
           </div>
