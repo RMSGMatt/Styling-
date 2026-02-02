@@ -1,34 +1,44 @@
-import axios from "axios";
+import api from "./api"; // IMPORTANT: shared axios instance
 
-import { getApiBase } from "../config/apiBase";
-const API_BASE = getApiBase();
+function getAuthToken() {
+  const token =
+    localStorage.getItem("token") ||
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("jwt") ||
+    sessionStorage.getItem("token") ||
+    "";
 
-// 🔐 Token helpers
-const token = () => localStorage.getItem("token");
-const auth = () => ({ headers: { Authorization: `Bearer ${token()}` } });
-const authMultipart = () => ({
-  headers: {
-    Authorization: `Bearer ${token()}`,
-    "Content-Type": "multipart/form-data"
+  return typeof token === "string" ? token.trim() : "";
+}
+
+function requireAuthHeaders() {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error("No auth token found. Please login again.");
   }
-});
+  return { Authorization: `Bearer ${token}` };
+}
 
-// 📌 List scenarios for current user
-export const listScenarios = () =>
-  axios.get(`${API_BASE}/api/scenarios`, auth());
+export function listScenarios() {
+  return api.get("/api/scenarios", {
+    headers: requireAuthHeaders(),
+  });
+}
 
-// 📌 Save or overwrite scenario
-export const saveScenario = (name, data) =>
-  axios.post(`${API_BASE}/api/scenarios`, { name, data }, auth());
+export function loadScenario(id) {
+  return api.get(`/api/scenarios/${id}`, {
+    headers: requireAuthHeaders(),
+  });
+}
 
-// 📌 Load single scenario JSON
-export const loadScenario = (id) =>
-  axios.get(`${API_BASE}/api/scenarios/${id}`, auth());
+export function saveScenario(payload) {
+  return api.post("/api/scenarios", payload, {
+    headers: requireAuthHeaders(),
+  });
+}
 
-// 📌 Run simulation with or without scenario
-export const runSimulationWithScenario = (files, scenario = null) => {
-  const fd = new FormData();
-  Object.entries(files).forEach(([k, v]) => fd.append(k, v));
-  if (scenario) fd.append("scenario", JSON.stringify(scenario));
-  return axios.post(`${API_BASE}/api/run`, fd, authMultipart());
-};
+export function deleteScenario(id) {
+  return api.delete(`/api/scenarios/${id}`, {
+    headers: requireAuthHeaders(),
+  });
+}
