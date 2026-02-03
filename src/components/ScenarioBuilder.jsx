@@ -1,10 +1,21 @@
 import React, { useMemo, useState } from "react";
 
+function getAuthToken() {
+  const t =
+    localStorage.getItem("token") ||
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("jwt") ||
+    sessionStorage.getItem("token") ||
+    "";
+
+  return typeof t === "string" ? t.trim() : "";
+}
+
 export default function ScenarioBuilder({
   setScenarioData,
   onClear,
   apiBase = "https://supply-chain-simulator.onrender.com",
-  token,
+  token, // optional prop from parent
   onSaved, // optional callback({id,name,created_at})
 }) {
   // UI state
@@ -149,8 +160,24 @@ export default function ScenarioBuilder({
   const saveScenarioToBackend = async () => {
     const scenario = buildScenarioObject();
 
-    if (!token) {
-      alert("No auth token found. Please login again.");
+    // ✅ Use token prop first (if provided), fallback to storage
+    const authToken =
+      (typeof token === "string" ? token.trim() : "") || getAuthToken();
+
+    // Block only if truly invalid (prevents false negatives)
+    const bad =
+      !authToken ||
+      authToken === "null" ||
+      authToken === "undefined" ||
+      authToken.length < 20;
+
+    if (bad) {
+      console.warn("⚠️ ScenarioBuilder: token missing or invalid at click time", {
+        authToken,
+        keys: Object.keys(localStorage),
+        origin: window.location.origin,
+      });
+      alert("Session expired. Please log in again.");
       return;
     }
 
@@ -159,12 +186,13 @@ export default function ScenarioBuilder({
       res = await fetch(`${apiBase}/api/scenarios`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: scenario.name,
-          data: scenario, // backend expects { name, data }
+          // ✅ stringify to avoid backend 'dict'.strip crash
+          data: JSON.stringify(scenario),
         }),
       });
     } catch (err) {
@@ -180,7 +208,7 @@ export default function ScenarioBuilder({
       return;
     }
 
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     onSaved?.(json?.scenario);
     console.log("✅ [ScenarioBuilder] Saved scenario:", json?.scenario);
     alert(`✅ Scenario saved: ${json?.scenario?.name || scenario.name}`);
@@ -238,7 +266,10 @@ export default function ScenarioBuilder({
                   >
                     <span className="text-base">{opt.icon}</span>
                     <div>
-                      <p className="text-[11px] font-semibold" style={{ color: "#E8FFE8" }}>
+                      <p
+                        className="text-[11px] font-semibold"
+                        style={{ color: "#E8FFE8" }}
+                      >
                         {opt.label}
                       </p>
                       <p className="text-[11px] text-slate-300">{opt.description}</p>
@@ -314,7 +345,8 @@ export default function ScenarioBuilder({
                 className="w-full accent-rose-400"
               />
               <p className="text-[11px] text-slate-300 mt-1">
-                Severity: <span className="text-rose-300 font-semibold">{severity}%</span>
+                Severity:{" "}
+                <span className="text-rose-300 font-semibold">{severity}%</span>
               </p>
             </div>
 
@@ -350,8 +382,8 @@ export default function ScenarioBuilder({
               />
               <p className="text-[11px] text-slate-300 mt-1">
                 Capacity set to{" "}
-                <span className="text-emerald-300 font-semibold">{supplyCapPct}%</span> of
-                normal.
+                <span className="text-emerald-300 font-semibold">{supplyCapPct}%</span>{" "}
+                of normal.
               </p>
             </div>
           </div>
@@ -403,8 +435,9 @@ export default function ScenarioBuilder({
                     .map((t) => disruptionOptions.find((o) => o.value === t)?.label || t)
                     .join(", ") || "No type selected"}
                 </span>{" "}
-                impacting <span className="text-slate-100 font-semibold">{facility}</span>{" "}
-                from <span className="text-slate-100 font-semibold">{startDate || "—"}</span>{" "}
+                impacting{" "}
+                <span className="text-slate-100 font-semibold">{facility}</span> from{" "}
+                <span className="text-slate-100 font-semibold">{startDate || "—"}</span>{" "}
                 to <span className="text-slate-100 font-semibold">{endDate || "—"}</span>, with{" "}
                 <span className="text-rose-300 font-semibold">{severity}% severity</span>,{" "}
                 <span className="text-amber-300 font-semibold">{demandSpikePct}% demand change</span>,{" "}
@@ -426,7 +459,7 @@ export default function ScenarioBuilder({
                 Reset
               </button>
 
-              {/* ✅ NEW: Save */}
+              {/* ✅ Save */}
               <button
                 type="button"
                 onClick={saveScenarioToBackend}
@@ -448,7 +481,7 @@ export default function ScenarioBuilder({
                 ✅ Apply Scenario
               </button>
 
-              {/* ✅ NEW: Apply + Save (best UX) */}
+              {/* ✅ Apply + Save */}
               <button
                 type="button"
                 onClick={applyAndSave}
