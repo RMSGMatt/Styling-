@@ -642,10 +642,9 @@ export default function App() {
       });
       window.dispatchEvent(new Event("runs-updated"));
 
-      // ⏱ Sync history, panels, KPIs, and chart
-      if (isProPlusPlan(userPlan)) {
-        await fetchSimulationHistory();
-      }
+      // ⏱ Sync history after run (backend will gate if needed)
+      await fetchSimulationHistory();
+
 
       await Promise.all([
         loadCsvToJson(urls.disruption_impact_output_file_url, setDisruptionImpactData),
@@ -729,7 +728,7 @@ export default function App() {
   }, [outputUrls, selectedSku, selectedOutputType, selectedFacility]);
 
   const onReloadRun = async (entry) => {
-    const urls = entry.output_urls || entry.urls || {};
+    const urls = entry.output_urls || entry.outputUrls || entry.urls || {};
     setOutputUrls(urls);
 
     setSimulationStatus("done");
