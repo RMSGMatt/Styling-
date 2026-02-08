@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import ToastsHost from "./components/Toasts";
 import AboutUs from "./pages/AboutUs";
 import AuthPage from "./pages/AuthPage";
@@ -174,8 +174,34 @@ export default function App() {
 
   const [locationsUrl, setLocationsUrl] = useState(null);
   const [scenarioData, setScenarioData] = useState({});
+  // ================================
+  // Scenario Authority (Step 0)
+  // ================================
+  const scenarioRef = useRef({});
+
+  useEffect(() => {
+    scenarioRef.current = scenarioData || {};
+
+    // Keep localStorage in sync so legacy reads still work
+    try {
+      const hasScenario =
+        scenarioData && typeof scenarioData === "object" && Object.keys(scenarioData).length > 0;
+
+      if (hasScenario) {
+        localStorage.setItem("currentScenarioJSON", JSON.stringify(scenarioData));
+        console.log("🧪 [App] Scenario synced → localStorage + ref", scenarioData);
+      } else {
+        localStorage.removeItem("currentScenarioJSON");
+        console.log("🧪 [App] Scenario cleared (baseline)");
+      }
+    } catch (e) {
+      console.warn("⚠️ [App] Failed to sync scenario to localStorage:", e);
+    }
+  }, [scenarioData]);
+
   const [userRole, setUserRole] = useState("");
   const [userPlan, setUserPlan] = useState("");
+
 
   // ✅ Plan helpers (used to gate Pro-only endpoints like /api/simulations)
   const normalizePlan = (p) => (p || "").toString().trim().toLowerCase();
@@ -557,8 +583,25 @@ export default function App() {
             if (file) fd.append(backendKey, file);
           });
 
-          const scenarioRaw = localStorage.getItem("currentScenarioJSON");
-          if (scenarioRaw) fd.append("scenario", scenarioRaw);
+          // Prefer authoritative in-memory scenario (prevents stale localStorage reads)
+          try {
+            const activeScenario = scenarioRef.current;
+            const hasScenario =
+              activeScenario && typeof activeScenario === "object" && Object.keys(activeScenario).length > 0;
+
+            if (hasScenario) {
+              const payload = JSON.stringify(activeScenario);
+              fd.append("scenario", payload);
+              console.log("🧪 [App] Applying scenario to simulation:", activeScenario);
+            } else {
+              console.log("🧪 [App] No scenario applied (baseline run)");
+            }
+          } catch (e) {
+            console.warn("⚠️ [App] Scenario attach failed, falling back to localStorage:", e);
+            const scenarioRaw = localStorage.getItem("currentScenarioJSON");
+            if (scenarioRaw) fd.append("scenario", scenarioRaw);
+          }
+
 
           // Debug keys (names only)
           console.log("🧾 [App] FormData keys:");
