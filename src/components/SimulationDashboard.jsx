@@ -1163,6 +1163,15 @@ setOverlayChartData(overlay);
 
       transformedDisruptions = Papa.unparse(rows);
       console.log("✅ disruptions.csv appended");
+      // 🔎 Verify we actually appended at least 1 disruption row (not just headers)
+      try {
+        const txt = String(transformedDisruptions || "");
+        const lines = txt.split(/\r?\n/).filter(Boolean);
+        console.log("🧪 [Verify] disruptions total lines:", lines.length);
+        console.log("🧪 [Verify] disruptions last row:", lines[lines.length - 1] || "(none)");
+      } catch (e) {
+        console.warn("⚠️ [Verify] disruptions check failed:", e);
+      }
     }
 
     if (
