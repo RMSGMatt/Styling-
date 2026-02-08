@@ -1158,33 +1158,34 @@ setOverlayChartData(overlay);
     // 4) Overwrite ONLY if transform produced a valid CSV
     // -----------------------------
     const overwriteCsvIfValid = (key, csvText, fallbackName) => {
-    if (!isValidCsvText(csvText)) {
-      if (key === "disruptions") {
-        console.log("🧪 [Debug] disruptions transformed CSV length:", String(csvText || "").length);
-        console.log("🧪 [Debug] disruptions transformed CSV preview:", String(csvText || "").slice(0, 300));
+
+      // ---------- INVALID CSV ----------
+      if (!isValidCsvText(csvText)) {
+        if (key === "disruptions") {
+          console.log("🧪 [Verify] disruptions INVALID length:", String(csvText || "").length);
+          console.log("🧪 [Verify] disruptions INVALID preview:", String(csvText || "").slice(0, 300));
+        }
+
+        console.warn(
+          `⚠️ Skipping overwrite for "${key}" (transform produced empty/invalid CSV). Using raw uploaded file instead.`
+        );
+        return;
       }
 
-      console.warn(
-        `⚠️ Skipping overwrite for "${key}" (transform produced empty/invalid CSV). Using raw uploaded file instead.`
-      );
-      return;
-    }
-    const blob = new Blob([csvText], { type: "text/csv" });
-    setFormFile(formData, key, blob, fallbackName);
-  };
+      // ---------- VALID CSV (THIS IS WHAT WE CARE ABOUT) ----------
+      if (key === "disruptions") {
+        const t = String(csvText || "").trim();
+        const lines = t.split(/\r?\n/);
 
+        console.log("🧪 [Verify] disruptions total lines:", lines.length);
+        console.log("🧪 [Verify] disruptions header:", lines[0]);
+        console.log("🧪 [Verify] disruptions first row:", lines[1] || "(no rows written)");
+      }
 
-    overwriteCsvIfValid("demand", transformedDemand, files.demand?.name || "demand.csv");
-    overwriteCsvIfValid(
-      "disruptions",
-      transformedDisruptions,
-      files.disruptions?.name || "disruptions.csv"
-    );
-    overwriteCsvIfValid(
-      "location_materials",
-      transformedLocMaterials,
-      files.locationMaterials?.name || "location_materials.csv"
-    );
+      const blob = new Blob([csvText], { type: "text/csv" });
+      setFormFile(formData, key, blob, fallbackName);
+    };
+
 
     // Debug: final keys
     console.log(
