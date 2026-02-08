@@ -961,17 +961,20 @@ setOverlayChartData(overlay);
   try {
     console.log("🧪 Applying scenario transforms before run...");
 
-    // ==============================
-    // Authoritative Scenario Capture
-    // ==============================
-    const __activeScenario = (() => {
+    // ✅ Always use authoritative scenario from props first,
+    // then fall back to localStorage (legacy), then baseline {}
+    const activeScenario = (() => {
       try {
-        // 1) Prefer scenario passed from App.jsx
-        if (scenarioData && typeof scenarioData === "object" && Object.keys(scenarioData).length > 0) {
+        // Prefer props scenarioData (from App.jsx)
+        if (
+          scenarioData &&
+          typeof scenarioData === "object" &&
+          Object.keys(scenarioData).length > 0
+        ) {
           return scenarioData;
         }
 
-        // 2) Fallback to localStorage (ScenarioBuilder writes here)
+        // Fallback: localStorage (legacy support)
         const raw = localStorage.getItem("currentScenarioJSON");
         if (raw) {
           const parsed = JSON.parse(raw);
@@ -982,18 +985,17 @@ setOverlayChartData(overlay);
       } catch (e) {
         console.warn("⚠️ Scenario parse failed:", e);
       }
-
-      // 3) Baseline
       return {};
     })();
 
-    // 🔥 CRITICAL LINE — this redirects ALL existing scenarioData usage below
-    const scenarioDataSafe = __activeScenario;
-    const scenarioData = scenarioDataSafe;
+    console.log("🧪 [Scenario Debug] activeScenario used:", activeScenario);
 
-    console.log("🧪 [Scenario Debug] activeScenario used:", scenarioData);
-
-
+    // ==============================
+    // 🔥 Shadow scenarioData SAFELY (block-scoped)
+    // Everything below can keep using `scenarioData`
+    // ==============================
+    {
+      const scenarioData = activeScenario;
 
     // -----------------------------
     // Helpers
@@ -1229,7 +1231,7 @@ setOverlayChartData(overlay);
 
     await handleSubmit(formData);
 
-    console.log("🎯 Scenario-applied run submitted.");
+    console.log("🎯 Scenario-applied run submitted.");}
   } catch (err) {
     console.error("❌ Error applying scenario before run:", err);
     alert("Scenario run failed. Check console + backend logs for details.");
