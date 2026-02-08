@@ -960,7 +960,40 @@ setOverlayChartData(overlay);
   const handleRunSimulationWithScenario = async () => {
   try {
     console.log("🧪 Applying scenario transforms before run...");
-    console.log("🧪 [Scenario Debug] scenarioData received:", scenarioData);
+
+    // ==============================
+    // Authoritative Scenario Capture
+    // ==============================
+    const __activeScenario = (() => {
+      try {
+        // 1) Prefer scenario passed from App.jsx
+        if (scenarioData && typeof scenarioData === "object" && Object.keys(scenarioData).length > 0) {
+          return scenarioData;
+        }
+
+        // 2) Fallback to localStorage (ScenarioBuilder writes here)
+        const raw = localStorage.getItem("currentScenarioJSON");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.warn("⚠️ Scenario parse failed:", e);
+      }
+
+      // 3) Baseline
+      return {};
+    })();
+
+    // 🔥 CRITICAL LINE — this redirects ALL existing scenarioData usage below
+    const scenarioDataSafe = __activeScenario;
+    const scenarioData = scenarioDataSafe;
+
+    console.log("🧪 [Scenario Debug] activeScenario used:", scenarioData);
+
+
 
     // -----------------------------
     // Helpers
