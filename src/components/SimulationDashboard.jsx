@@ -960,6 +960,7 @@ setOverlayChartData(overlay);
   const handleRunSimulationWithScenario = async () => {
   try {
     console.log("🧪 Applying scenario transforms before run...");
+    console.log("🧪 [Scenario Debug] scenarioData received:", scenarioData);
 
     // -----------------------------
     // Helpers
@@ -1071,6 +1072,8 @@ setOverlayChartData(overlay);
 
     let transformedDemand = originalDemandText;
     let transformedDisruptions = originalDisruptionsText;
+    console.log("🧪 [Scenario Debug] transformedDisruptions length:", String(transformedDisruptions || "").length);
+    console.log("🧪 [Scenario Debug] transformedDisruptions preview:", String(transformedDisruptions || "").slice(0, 300));
     let transformedLocMaterials = originalLocMaterialsText;
 
     // -----------------------------
