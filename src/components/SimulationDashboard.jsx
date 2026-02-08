@@ -1158,34 +1158,32 @@ setOverlayChartData(overlay);
     // 4) Overwrite ONLY if transform produced a valid CSV
     // -----------------------------
     const overwriteCsvIfValid = (key, csvText, fallbackName) => {
-
-      // ---------- INVALID CSV ----------
-      if (!isValidCsvText(csvText)) {
-        if (key === "disruptions") {
-          console.log("🧪 [Verify] disruptions INVALID length:", String(csvText || "").length);
-          console.log("🧪 [Verify] disruptions INVALID preview:", String(csvText || "").slice(0, 300));
-        }
-
-        console.warn(
-          `⚠️ Skipping overwrite for "${key}" (transform produced empty/invalid CSV). Using raw uploaded file instead.`
-        );
-        return;
-      }
-
-      // ---------- VALID CSV (THIS IS WHAT WE CARE ABOUT) ----------
+    // ---------- INVALID CSV ----------
+    if (!isValidCsvText(csvText)) {
       if (key === "disruptions") {
-        const t = String(csvText || "").trim();
-        const lines = t.split(/\r?\n/);
-
-        console.log("🧪 [Verify] disruptions total lines:", lines.length);
-        console.log("🧪 [Verify] disruptions header:", lines[0]);
-        console.log("🧪 [Verify] disruptions first row:", lines[1] || "(no rows written)");
+        console.log("🧪 [Verify] disruptions INVALID length:", String(csvText || "").length);
+        console.log("🧪 [Verify] disruptions INVALID preview:", String(csvText || "").slice(0, 300));
       }
 
-      const blob = new Blob([csvText], { type: "text/csv" });
-      setFormFile(formData, key, blob, fallbackName);
-    };
+      console.warn(
+        `⚠️ Skipping overwrite for "${key}" (transform produced empty/invalid CSV). Using raw uploaded file instead.`
+      );
+      return;
+    }
 
+    // ---------- VALID CSV (THIS IS WHAT WE CARE ABOUT) ----------
+    if (key === "disruptions") {
+      const t = String(csvText || "").trim();
+      const lines = t.split(/\r?\n/);
+
+      console.log("🧪 [Verify] disruptions total lines:", lines.length);
+      console.log("🧪 [Verify] disruptions header:", lines[0]);
+      console.log("🧪 [Verify] disruptions first row:", lines[1] || "(no rows written)");
+    }
+
+    const blob = new Blob([csvText], { type: "text/csv" });
+    setFormFile(formData, key, blob, fallbackName);
+  };
 
     // Debug: final keys
     console.log(
