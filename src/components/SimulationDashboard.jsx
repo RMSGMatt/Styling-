@@ -974,12 +974,24 @@ setOverlayChartData(overlay);
       });
 
     const isValidCsvText = (txt) => {
-      if (!txt) return false;
-      const t = String(txt).trim();
-      // must have at least one newline and at least one comma in header
-      const firstLine = t.split(/\r?\n/)[0] || "";
-      return t.length > 5 && t.includes("\n") && firstLine.includes(",");
-    };
+    if (txt === null || txt === undefined) return false;
+
+    const t = String(txt).trim();
+    if (!t) return false;
+
+    // guard against accidental non-CSV payloads
+    const lower = t.toLowerCase();
+    if (lower === "null" || lower === "undefined") return false;
+    if (t.startsWith("{") || t.startsWith("[")) return false;
+
+    // Accept header-only CSVs (valid for “no rows”, e.g., empty disruptions)
+    const lines = t.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    const firstLine = lines[0] || "";
+
+    // must at least look like a CSV header
+    return t.length > 5 && firstLine.includes(",");
+  };
+
 
     const setFormFile = (fd, key, fileOrBlob, filename) => {
       // Prefer .set() to avoid duplicate keys (critical)
@@ -1146,15 +1158,21 @@ setOverlayChartData(overlay);
     // 4) Overwrite ONLY if transform produced a valid CSV
     // -----------------------------
     const overwriteCsvIfValid = (key, csvText, fallbackName) => {
-      if (!isValidCsvText(csvText)) {
-        console.warn(
-          `⚠️ Skipping overwrite for "${key}" (transform produced empty/invalid CSV). Using raw uploaded file instead.`
-        );
-        return;
+    if (!isValidCsvText(csvText)) {
+      if (key === "disruptions") {
+        console.log("🧪 [Debug] disruptions transformed CSV length:", String(csvText || "").length);
+        console.log("🧪 [Debug] disruptions transformed CSV preview:", String(csvText || "").slice(0, 300));
       }
-      const blob = new Blob([csvText], { type: "text/csv" });
-      setFormFile(formData, key, blob, fallbackName);
-    };
+
+      console.warn(
+        `⚠️ Skipping overwrite for "${key}" (transform produced empty/invalid CSV). Using raw uploaded file instead.`
+      );
+      return;
+    }
+    const blob = new Blob([csvText], { type: "text/csv" });
+    setFormFile(formData, key, blob, fallbackName);
+  };
+
 
     overwriteCsvIfValid("demand", transformedDemand, files.demand?.name || "demand.csv");
     overwriteCsvIfValid(
