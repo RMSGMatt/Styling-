@@ -351,7 +351,7 @@ export default function App() {
         return;
       }
 
-      const response = await axios.get(url);
+      const response = await axios.get(url, { responseType: "text" });
       const results = Papa.parse(response.data, { header: true, skipEmptyLines: true }).data;
 
       if (!results.length) {
@@ -429,7 +429,7 @@ export default function App() {
   // ====================================================================
   const parseSimulationPanels = async (urls) => {
     const fetchCsv = async (url) => {
-      const response = await axios.get(url);
+      const response = await axios.get(url, { responseType: "text" });
       return Papa.parse(response.data, { header: true, skipEmptyLines: true }).data;
     };
 
@@ -470,7 +470,7 @@ export default function App() {
       if (!url) continue;
 
       try {
-        const response = await axios.get(url);
+        const response = await axios.get(url, { responseType: "text" });
         const results = Papa.parse(response.data, { header: true, skipEmptyLines: true }).data;
 
         const filtered = results.filter((row) => {
@@ -776,7 +776,7 @@ export default function App() {
   const extractAndSetSkuOptions = async (url) => {
     if (!url) return;
     try {
-      const response = await axios.get(url);
+      const response = await axios.get(url, { responseType: "text" });
       const results = Papa.parse(response.data, { header: true, skipEmptyLines: true }).data;
 
       const skus = [...new Set(results.map((r) => normalizeSku(r.sku || r.SKU)).filter(Boolean))];
