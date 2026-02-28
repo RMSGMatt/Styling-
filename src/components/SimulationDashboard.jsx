@@ -1873,7 +1873,7 @@ setOverlayChartData(overlay);
                         Baseline Run (Left)
                       </p>
                       <Select
-                        options={simulationHistory.map((s, idx) => ({
+                        options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
                           value: idx,
                           label: `${idx + 1}. ${new Date(
                             s.timestamp
@@ -1897,7 +1897,7 @@ setOverlayChartData(overlay);
                         Comparison Run (Right)
                       </p>
                       <Select
-                        options={simulationHistory.map((s, idx) => ({
+                        options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
                           value: idx,
                           label: `${idx + 1}. ${new Date(
                             s.timestamp
@@ -2017,7 +2017,7 @@ setOverlayChartData(overlay);
             </p>
           ) : (
             <div className="space-y-4">
-              {simulationHistory.map((sim, idx) => (
+              {(Array.isArray(simulationHistory) ? simulationHistory : []).map((sim, idx) => (
                 <div
                   key={idx}
                   className="bg-slate-900/60 border border-slate-700/80 rounded-xl p-4"
