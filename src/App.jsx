@@ -454,8 +454,9 @@ export default function App() {
   // ====================================================================
   // 📊 KPI aggregation across all outputs
   // ====================================================================
-  const runAllKpiUpdates = async () => {
-    if (!outputUrls) return;
+  const runAllKpiUpdates = async (urlsOverride) => {
+    const urls = urlsOverride || outputUrls;
+    if (!urls) return;
     const allKpis = {};
 
     const skuFilter = Array.isArray(selectedSku)
@@ -465,7 +466,7 @@ export default function App() {
       : [];
 
     for (const type of ["inventory", "production", "flow", "occurrence"]) {
-      const url = outputUrls[`${type}_output_file_url`];
+      const url = urls[`${type}_output_file_url`];
       if (!url) continue;
 
       try {
@@ -617,14 +618,73 @@ export default function App() {
       const res = await apiClient.post("/api/run", formData);
 
 
-      const urls = res.data.output_urls || res.data;
-      console.log("✅ [App] Simulation complete:", urls);
+      
 
+      const payload = res.data || {};
+
+      // Backends may return:
+      //  - { run_id, status, timestamp, urls: { ...actual URLs... } }
+      //  - { output_urls: { ... } }
+      //  - or occasionally the urls object directly
+      let raw = payload.output_urls || payload.urls || payload.outputUrls || payload;
+
+      // If raw is outer wrapper containing nested `.urls`, unwrap it.
+      if (
+        raw &&
+        typeof raw === "object" &&
+        raw.urls &&
+        typeof raw.urls === "object" &&
+        !raw.inventory_output_file_url &&
+        !raw.flow_output_file_url
+      ) {
+        raw = raw.urls;
+      }
+
+      // Normalize keys the dashboard expects
+      const normalizedUrls = {
+        ...raw,
+
+        inventory_output_file_url:
+          raw.inventory_output_file_url || raw.inventory_output || raw.inventory,
+        flow_output_file_url:
+          raw.flow_output_file_url || raw.flow_output || raw.flow,
+        production_output_file_url:
+          raw.production_output_file_url || raw.production_output || raw.production,
+        occurrence_output_file_url:
+          raw.occurrence_output_file_url || raw.occurrence_output || raw.occurrence,
+
+        disruption_impact_output_file_url:
+          raw.disruption_impact_output_file_url || raw.disruption_impact_output || raw.disruption_impact,
+        projected_impact_output_file_url:
+          raw.projected_impact_output_file_url || raw.projected_impact_output || raw.projected_impact,
+
+        // backend file is often sku_runout_risk_output.csv
+        runout_risk_output_file_url:
+          raw.runout_risk_output_file_url ||
+          raw.sku_runout_risk_output_file_url ||
+          raw.sku_runout_risk_output ||
+          raw.runout_risk ||
+          raw.sku_runout_risk,
+
+        countermeasures_output_file_url:
+          raw.countermeasures_output_file_url || raw.countermeasures_output || raw.countermeasures,
+
+        locations_output_file_url:
+          raw.locations_output_file_url || raw.locations_output || raw.locations_url || raw.locations,
+      };
+
+      console.log("✅ [App] Simulation complete (normalized):", {
+        keys: Object.keys(normalizedUrls || {}),
+        normalizedUrls,
+      });
+
+      // ✅ locationsUrl (map)
       const locUrl =
-        urls.locations_output_file_url ||
-        urls.locations_Output_File_URL ||
-        urls.locations_output ||
-        urls.locations_url ||
+        normalizedUrls.locations_output_file_url ||
+        normalizedUrls.locations_Output_File_URL ||
+        normalizedUrls.locations_output ||
+        normalizedUrls.locations_url ||
+        normalizedUrls.locations ||
         null;
 
       if (locUrl) {
@@ -635,73 +695,44 @@ export default function App() {
         console.warn("⚠️ No dynamic locations URL found in simulation output.");
       }
 
-      setOutputUrls(urls);
+      // ✅ Commit urls to state (single source of truth)
+      setOutputUrls(normalizedUrls);
+
       await buildExecutiveReportAfterSim();
 
       // 🧭 Reset facility selection
       setSelectedFacility(null);
 
-      // 🔗 Scenario metadata
-      const scenarioName = localStorage.getItem("currentScenarioName") || res.data.scenarioName || "";
-      const scenarioId = localStorage.getItem("currentScenarioId") || res.data.scenarioId || "";
-
-      // ✅ Persist this run for Reports & baseline tracking
+      // ✅ Seed SKUs BEFORE charts/KPIs so selectedSku is non-empty
       try {
-        const existing = JSON.parse(localStorage.getItem("reports") || "[]");
-
-        const scenarioName2 = localStorage.getItem("currentScenarioName") || null;
-        const scenarioId2 = localStorage.getItem("currentScenarioId") || null;
-        const scenario = scenarioName2 ? { name: scenarioName2, id: scenarioId2 || undefined } : null;
-
-        const nowId = Date.now();
-        const report = {
-          id: nowId,
-          name: res.data.name || scenarioName || "Simulation Run",
-          timestamp: new Date().toLocaleString(),
-          urls,
-          kpis: res.data.kpis || {},
-          scenario,
-        };
-
-        localStorage.setItem("reports", JSON.stringify([report, ...existing]));
-        if (!localStorage.getItem("baselineRunId")) localStorage.setItem("baselineRunId", String(nowId));
+        if (normalizedUrls?.inventory_output_file_url) {
+          await extractAndSetSkuOptions(normalizedUrls.inventory_output_file_url);
+        } else {
+          console.warn("⚠️ [PostRun] No inventory_output_file_url available to seed SKUs.");
+        }
       } catch (e) {
-        console.warn("⚠️ [App] Failed to save report to localStorage:", e);
+        console.warn("⚠️ [PostRun] SKU seed failed:", e);
       }
 
-      // ✅ Save to in-memory runResultsStore
-      saveRun({
-        id: Date.now(),
-        name: res.data.name || "Simulation Run",
-        timestamp: new Date().toLocaleString(),
-        urls,
-        kpis: res.data.kpis || {},
-        scenario: localStorage.getItem("currentScenarioName")
-          ? {
-              name: localStorage.getItem("currentScenarioName"),
-              id: localStorage.getItem("currentScenarioId") || undefined,
-            }
-          : null,
-      });
-      window.dispatchEvent(new Event("runs-updated"));
-
-      // ⏱ Sync history after run (backend will gate if needed)
-      await fetchSimulationHistory();
-
-
+      // ✅ Load panel CSVs (don’t block dashboard if these fail)
       await Promise.all([
-        loadCsvToJson(urls.disruption_impact_output_file_url, setDisruptionImpactData),
-        loadCsvToJson(urls.projected_impact_output_file_url, setProjectedImpactData),
-        loadCsvToJson(urls.runout_risk_output_file_url, setRunoutRiskData),
-        loadCsvToJson(urls.countermeasures_output_file_url, setCountermeasuresData),
+        loadCsvToJson(normalizedUrls.disruption_impact_output_file_url, setDisruptionImpactData),
+        loadCsvToJson(normalizedUrls.projected_impact_output_file_url, setProjectedImpactData),
+        loadCsvToJson(normalizedUrls.runout_risk_output_file_url, setRunoutRiskData),
+        loadCsvToJson(normalizedUrls.countermeasures_output_file_url, setCountermeasuresData),
       ]);
 
-      await loadFilteredChart(urls, selectedOutputType || "inventory", selectedSku || []);
-      extractAndSetSkuOptions(urls["inventory_output_file_url"]);
-      await parseSimulationPanels(urls);
+      // ✅ Parse panels + chart
+      try { await parseSimulationPanels(normalizedUrls); } catch (e) { console.warn("⚠️ parseSimulationPanels failed:", e); }
+      try { await loadFilteredChart(normalizedUrls, selectedOutputType || "inventory", selectedSku || []); } catch (e) { console.warn("⚠️ loadFilteredChart failed:", e); }
 
-      setKpis(res.data.kpis ? res.data.kpis : {});
-      await runAllKpiUpdates();
+      // ✅ Prefer backend KPIs if present, else compute from CSVs
+      if (payload.kpis && Object.keys(payload.kpis || {}).length > 0) {
+        setKpis(payload.kpis);
+      } else {
+        await runAllKpiUpdates(normalizedUrls);
+      }
+
 
       setSimulationStatus("done");
       console.log("✅ [App] Simulation workflow finished successfully.");
