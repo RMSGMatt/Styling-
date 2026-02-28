@@ -706,7 +706,7 @@ export default function App() {
       // ✅ Seed SKUs BEFORE charts/KPIs so selectedSku is non-empty
       try {
         if (normalizedUrls?.inventory_output_file_url) {
-          await extractAndSetSkuOptions(normalizedUrls.inventory_output_file_url);
+          const seededSkus = await extractAndSetSkuOptions(normalizedUrls.inventory_output_file_url);
         } else {
           console.warn("⚠️ [PostRun] No inventory_output_file_url available to seed SKUs.");
         }
@@ -724,7 +724,7 @@ export default function App() {
 
       // ✅ Parse panels + chart
       try { await parseSimulationPanels(normalizedUrls); } catch (e) { console.warn("⚠️ parseSimulationPanels failed:", e); }
-      try { await loadFilteredChart(normalizedUrls, selectedOutputType || "inventory", selectedSku || []); } catch (e) { console.warn("⚠️ loadFilteredChart failed:", e); }
+      try { await loadFilteredChart(normalizedUrls, selectedOutputType || "inventory", (typeof seededSkus !== "undefined" && seededSkus) ? seededSkus : (selectedSku || [])); } catch (e) { console.warn("⚠️ loadFilteredChart failed:", e); }
 
       // ✅ Prefer backend KPIs if present, else compute from CSVs
       if (payload.kpis && Object.keys(payload.kpis || {}).length > 0) {
@@ -783,6 +783,17 @@ export default function App() {
       const options = skus.map((sku) => ({ label: sku, value: sku }));
       setSkuOptions(options);
 
+
+      // Return a deterministic seeded sku list (avoid state timing races)
+      const seeded = (selectedSku && selectedSku.length > 0)
+        ? (Array.isArray(selectedSku) ? selectedSku : [selectedSku])
+        : options.map((o) => o.value);
+
+      if (!selectedSku || selectedSku.length === 0) {
+        setSelectedSku(seeded);
+      }
+
+      return seeded;
       if (!selectedSku || selectedSku.length === 0) {
         setSelectedSku(options.map((o) => o.value));
       }
