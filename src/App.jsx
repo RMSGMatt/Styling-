@@ -124,6 +124,14 @@ const calculateProductionKpis = (filtered) => {
 
 const normalizeSku = (sku) => sku?.toString().trim().toUpperCase();
 
+// ✅ Effective SKU selection (prevents empty-array clobbering)
+const getEffectiveSkus = (selectedSku, skuOptions) => {
+  const sel = Array.isArray(selectedSku) ? selectedSku.filter(Boolean) : (selectedSku ? [selectedSku] : []);
+  if (sel.length > 0) return sel;
+  const opt = Array.isArray(skuOptions) ? skuOptions.map((o) => o?.value).filter(Boolean) : [];
+  return opt;
+};
+
 // ====================================================================
 // 📊 Generic CSV loader for disruption / panel data
 // ====================================================================
@@ -459,10 +467,12 @@ export default function App() {
     if (!urls) return;
     const allKpis = {};
 
-    const skuFilter = Array.isArray(selectedSku)
-      ? selectedSku.map(normalizeSku)
-      : selectedSku
-      ? [normalizeSku(selectedSku)]
+    const effectiveSkus = getEffectiveSkus(selectedSku, skuOptions);
+
+    const skuFilter = Array.isArray(effectiveSkus)
+      ? effectiveSkus.map(normalizeSku)
+      : effectiveSkus
+      ? [normalizeSku(effectiveSkus)]
       : [];
 
     for (const type of ["inventory", "production", "flow", "occurrence"]) {
@@ -807,8 +817,13 @@ export default function App() {
   // ====================================================================
   useEffect(() => {
     if (!outputUrls) return;
+    const effectiveSkus = getEffectiveSkus(selectedSku, skuOptions);
+    if (!effectiveSkus || effectiveSkus.length === 0) {
+      console.log("⏳ [PostRun] Waiting for SKU seed before KPI/chart recompute...");
+      return;
+    }
     runAllKpiUpdates();
-    loadFilteredChart(outputUrls, selectedOutputType || "inventory", selectedSku || []);
+    loadFilteredChart(outputUrls, selectedOutputType || "inventory", getEffectiveSkus(selectedSku, skuOptions));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outputUrls, selectedSku, selectedOutputType, selectedFacility]);
 
@@ -819,7 +834,7 @@ export default function App() {
     setSimulationStatus("done");
     setChartData(null);
 
-    await loadFilteredChart(urls, selectedOutputType || "inventory", selectedSku || []);
+    await loadFilteredChart(urls, selectedOutputType || "inventory", getEffectiveSkus(selectedSku, skuOptions));
     extractAndSetSkuOptions(urls[selectedOutputType + "_output_file_url"]);
     parseSimulationPanels(urls);
     runAllKpiUpdates();
