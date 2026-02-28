@@ -132,6 +132,14 @@ const getEffectiveSkus = (selectedSku, skuOptions) => {
   return opt;
 };
 
+// ✅ Effective SKU selection (prevents empty-array clobbering)
+const getEffectiveSkus = (selectedSku, skuOptions) => {
+  const sel = Array.isArray(selectedSku) ? selectedSku.filter(Boolean) : (selectedSku ? [selectedSku] : []);
+  if (sel.length > 0) return sel;
+  const opt = Array.isArray(skuOptions) ? skuOptions.map((o) => o?.value).filter(Boolean) : [];
+  return opt;
+};
+
 // ====================================================================
 // 📊 Generic CSV loader for disruption / panel data
 // ====================================================================
@@ -817,6 +825,11 @@ export default function App() {
   // ====================================================================
   useEffect(() => {
     if (!outputUrls) return;
+    const effectiveSkus = getEffectiveSkus(selectedSku, skuOptions);
+    if (!effectiveSkus || effectiveSkus.length === 0) {
+      console.log("⏳ [PostRun] Waiting for SKU seed before KPI/chart recompute...");
+      return;
+    }
     const effectiveSkus = getEffectiveSkus(selectedSku, skuOptions);
     if (!effectiveSkus || effectiveSkus.length === 0) {
       console.log("⏳ [PostRun] Waiting for SKU seed before KPI/chart recompute...");
