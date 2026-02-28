@@ -72,3 +72,19 @@ export function saveScenario(payload) {
 export function deleteScenario(id) {
   return request(`/api/scenarios/${id}`, { method: "DELETE" });
 }
+
+// ------------------------------------------------------------
+// Run simulation with scenario-applied uploads (FormData)
+// NOTE: do NOT set Content-Type; browser will set multipart boundary.
+// ------------------------------------------------------------
+export function runSimulationWithScenario(formData) {
+  if (!(formData instanceof FormData)) {
+    throw new Error("runSimulationWithScenario expects a FormData payload.");
+  }
+
+  return request("/api/run", {
+    method: "POST",
+    body: formData,
+  });
+}
+
