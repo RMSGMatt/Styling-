@@ -7,19 +7,14 @@ import ControlTower from "./components/ControlTower";
 import axios from "axios";
 import Papa from "papaparse";
 import { jwtDecode } from "jwt-decode";
-import Reports from "./Reports"; // ✅ Reports route
-import { saveRun } from "./lib/runResultsStore"; // ✅ Save runs for Reports
+import Reports from "./Reports";
 import UpgradeModal from "./UpgradeModal.jsx";
 import { api as apiClient, setUpgradeHandler } from "./apiClient";
 
 // 🔐 Admin
 import AdminPanel from "./components/ControlTowerEhancements/AdminPanel.jsx";
 
-// ------------------------------------------------------------
 // ✅ API base normalization (single source of truth)
-// - Uses getApiBase()
-// - NEVER falls back to localhost in production
-// ------------------------------------------------------------
 import { getApiBase } from "./config/apiBase";
 
 const API_BASE = getApiBase();
@@ -30,12 +25,11 @@ const API_ROOT = String(API_BASE || "")
   .replace(/\/$/, "")
   .replace(/\/api$/, "");
 
-// ✅ dedicated axios instance for multipart + auth
+// Dedicated axios instance for csv fetches (public S3) + auth header
 const api = axios.create({
   baseURL: API_ROOT,
-  withCredentials: false, // bearer tokens only
+  withCredentials: false,
 });
-
 
 api.interceptors.request.use(
   (config) => {
@@ -50,7 +44,39 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ Auto-build Executive Report after each simulation run
+// -------------------------------
+// Local run history (fallback)
+// -------------------------------
+const LOCAL_RUNS_KEY = "forc_local_runs_v1";
+
+function loadLocalRunsSafe() {
+  try {
+    const raw = localStorage.getItem(LOCAL_RUNS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalRunsSafe(runs) {
+  try {
+    localStorage.setItem(LOCAL_RUNS_KEY, JSON.stringify(runs || []));
+  } catch {
+    // ignore
+  }
+}
+
+function upsertLocalRun(entry) {
+  const runs = loadLocalRunsSafe();
+  const id = entry?.run_id || entry?.id || entry?.timestamp || `${Date.now()}`;
+  const normalized = { ...entry, id };
+  const next = [normalized, ...runs.filter((r) => (r?.id || r?.run_id) !== id)].slice(0, 50);
+  saveLocalRunsSafe(next);
+  return next;
+}
+
+// Auto-build Executive Report after each simulation run
 async function buildExecutiveReportAfterSim() {
   try {
     const token =
@@ -90,59 +116,24 @@ async function buildExecutiveReportAfterSim() {
   }
 }
 
-// 🔧 KPI helper for Production & Disruption
-const calculateProductionKpis = (filtered) => {
-  let totalProduction = 0;
-  const facilityRecovery = {};
+const normalizePlan = (p) => (p || "").toString().trim().toLowerCase();
+const isProPlusPlan = (p) => ["pro", "enterprise", "admin"].includes(normalizePlan(p));
 
-  filtered.forEach((row) => {
-    const produced = parseFloat(row.produced || 0);
-    totalProduction += produced;
+const normalizeSku = (sku) => (sku ?? "").toString().trim().toUpperCase();
 
-    const facility = row.facility_id || row.facility;
-    const recovery = parseInt(row.recovery_days || 0, 10);
-    if (produced > 0 && facility) {
-      if (!facilityRecovery[facility]) facilityRecovery[facility] = recovery;
-      else facilityRecovery[facility] = Math.max(facilityRecovery[facility], recovery);
-    }
-  });
-
-  const impactedFacilities = Object.keys(facilityRecovery).length;
-  const avgTimeToRecovery =
-    impactedFacilities > 0
-      ? Math.round(
-          Object.values(facilityRecovery).reduce((a, b) => a + b, 0) / impactedFacilities
-        )
-      : 0;
-
-  return {
-    totalProduction: totalProduction.toFixed(0),
-    impactedFacilities,
-    avgTimeToRecovery,
-  };
-};
-
-const normalizeSku = (sku) => sku?.toString().trim().toUpperCase();
-
-// ✅ Effective SKU selection (prevents empty-array clobbering)
+// Effective SKU selection (prevents empty-array clobbering)
 const getEffectiveSkus = (selectedSku, skuOptions) => {
-  const sel = Array.isArray(selectedSku) ? selectedSku.filter(Boolean) : (selectedSku ? [selectedSku] : []);
+  const sel = Array.isArray(selectedSku)
+    ? selectedSku.filter(Boolean)
+    : selectedSku
+    ? [selectedSku]
+    : [];
   if (sel.length > 0) return sel;
   const opt = Array.isArray(skuOptions) ? skuOptions.map((o) => o?.value).filter(Boolean) : [];
   return opt;
 };
 
-// ✅ Effective SKU selection (prevents empty-array clobbering)
-const getEffectiveSkus = (selectedSku, skuOptions) => {
-  const sel = Array.isArray(selectedSku) ? selectedSku.filter(Boolean) : (selectedSku ? [selectedSku] : []);
-  if (sel.length > 0) return sel;
-  const opt = Array.isArray(skuOptions) ? skuOptions.map((o) => o?.value).filter(Boolean) : [];
-  return opt;
-};
-
-// ====================================================================
-// 📊 Generic CSV loader for disruption / panel data
-// ====================================================================
+// Generic CSV loader for disruption / panel data
 async function loadCsvToJson(url, setter) {
   if (!url) return;
   try {
@@ -156,6 +147,38 @@ async function loadCsvToJson(url, setter) {
   }
 }
 
+// CSV helpers
+function toNum(v) {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
+}
+function str(v) {
+  return (v ?? "").toString();
+}
+function upper(v) {
+  return str(v).trim().toUpperCase();
+}
+function lower(v) {
+  return str(v).trim().toLowerCase();
+}
+
+function pickFirstKey(obj, candidates) {
+  const keys = Object.keys(obj || {});
+  for (const c of candidates) {
+    const found = keys.find((k) => k.toLowerCase() === c.toLowerCase());
+    if (found) return found;
+  }
+  return null;
+}
+
+async function fetchCsvRows(url) {
+  if (!url) return [];
+  const response = await axios.get(url, { responseType: "text" });
+  const parsed = Papa.parse(response.data, { header: true, skipEmptyLines: true });
+  const rows = Array.isArray(parsed.data) ? parsed.data : [];
+  return rows.filter((r) => r && typeof r === "object");
+}
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -165,18 +188,19 @@ export default function App() {
     plan: "free",
   });
 
-  // ✅ Default to Control Tower
+  // Default to Control Tower
   const [view, setView] = useState("control");
 
   const [files, setFiles] = useState({});
   const [simulationStatus, setSimulationStatus] = useState("idle"); // idle | running | done | error
   const [outputUrls, setOutputUrls] = useState(null);
+
   const [chartData, setChartData] = useState(null);
   const [skuOptions, setSkuOptions] = useState([]);
   const [selectedSku, setSelectedSku] = useState([]); // normalize to array
   const [selectedOutputType, setSelectedOutputType] = useState("inventory");
 
-  // 🏭 Facility selected on the map
+  // Facility selected on the map
   const [selectedFacility, setSelectedFacility] = useState(null);
 
   const [simulationHistory, setSimulationHistory] = useState([]);
@@ -190,15 +214,23 @@ export default function App() {
 
   const [locationsUrl, setLocationsUrl] = useState(null);
   const [scenarioData, setScenarioData] = useState({});
-  // ================================
-  // Scenario Authority (Step 0)
-  // ================================
-  const scenarioRef = useRef({});
 
+  // Post-run deterministic pipeline gate: idle | seeding | primed
+  const [postRunPhase, setPostRunPhase] = useState("idle");
+
+  // Scenario Authority (Step 0)
+  const scenarioRef = useRef({});
+  const justPrimedRef = useRef(false);
+
+  // Tracks whether backend supplied KPIs for the CURRENT run
+  const backendKpisRef = useRef(false);
+
+  const [userRole, setUserRole] = useState("");
+  const [userPlan, setUserPlan] = useState("");
+
+  // Keep scenario ref + localStorage sync
   useEffect(() => {
     scenarioRef.current = scenarioData || {};
-
-    // Keep localStorage in sync so legacy reads still work
     try {
       const hasScenario =
         scenarioData && typeof scenarioData === "object" && Object.keys(scenarioData).length > 0;
@@ -215,19 +247,8 @@ export default function App() {
     }
   }, [scenarioData]);
 
-  const [userRole, setUserRole] = useState("");
-  const [userPlan, setUserPlan] = useState("");
-
-
-  // ✅ Plan helpers (used to gate Pro-only endpoints like /api/simulations)
-  const normalizePlan = (p) => (p || "").toString().trim().toLowerCase();
-  const isProPlusPlan = (p) => ["pro", "enterprise", "admin"].includes(normalizePlan(p));
-
-
-  // ------------------------------------------------------------------
-  // 💳 Upgrade gate handler (opens modal on 402 upgrade_required)
-  // ------------------------------------------------------------------
-    useEffect(() => {
+  // Upgrade gate handler
+  useEffect(() => {
     setUpgradeHandler(({ required, plan }) => {
       console.log("💳 [UpgradeGate] Triggered:", { required, plan });
       setUpgradeGate({
@@ -236,63 +257,66 @@ export default function App() {
         plan: plan || "free",
       });
     });
-
     return () => setUpgradeHandler(null);
   }, []);
 
+  // Boot auth + plan + history
   useEffect(() => {
-  const token =
-    localStorage.getItem("token") || localStorage.getItem("access_token");
+    const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+    setIsAuthenticated(!!token);
 
-  setIsAuthenticated(!!token);
-  if (!token) return;
-
-  const boot = async () => {
-    // 1) Decode JWT for ROLE fallback only
-    try {
-      const decoded = jwtDecode(token);
-      setUserRole(decoded?.role || "user");
-    } catch (e) {
-      console.error("❌ Failed to decode JWT:", e);
-      setUserRole("user");
+    // Always seed local history first (so you NEVER see an empty history panel)
+    const localRuns = loadLocalRunsSafe();
+    if (localRuns.length > 0) {
+      setSimulationHistory(localRuns);
     }
 
-    // 2) Fetch DB-truth user info
-    try {
-      const res = await fetch(`${API_ROOT}/api/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    if (!token) return;
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        console.error("❌ /api/me failed:", res.status, data);
-        return; // don't assume free
+    const boot = async () => {
+      // 1) Decode JWT for ROLE fallback only
+      try {
+        const decoded = jwtDecode(token);
+        setUserRole(decoded?.role || "user");
+      } catch (e) {
+        console.error("❌ Failed to decode JWT:", e);
+        setUserRole("user");
       }
 
-      const planFromDb = data?.plan || "free";
-      const roleFromDb = data?.role || "user";
+      // 2) Fetch DB-truth user info
+      try {
+        const res = await fetch(`${API_ROOT}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      setUserPlan(planFromDb);
-      setUserRole(roleFromDb);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          console.error("❌ /api/me failed:", res.status, data);
+          return;
+        }
 
-      // ✅ Pro+ only: avoid 401 spam for Free users
-      if (isProPlusPlan(planFromDb)) {
-        fetchSimulationHistory();
-      } else {
-        setSimulationHistory([]);
-        console.log("🔒 Skipping /api/simulations on Free plan.");
+        const planFromDb = data?.plan || "free";
+        const roleFromDb = data?.role || "user";
+
+        setUserPlan(planFromDb);
+        setUserRole(roleFromDb);
+
+        // Pro+ only: fetch remote history and merge with local
+        if (isProPlusPlan(planFromDb)) {
+          await fetchSimulationHistory(); // merges into state
+        } else {
+          console.log("🔒 Skipping /api/simulations on Free plan (using local history).");
+        }
+      } catch (err) {
+        console.error("❌ Failed to fetch /api/me:", err);
       }
-    } catch (err) {
-      console.error("❌ Failed to fetch /api/me:", err);
-    }
-  };
+    };
 
-  boot();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+    boot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-
-  // Expose SPA router setter globally (used by Reports, etc.)
+  // Expose view switcher
   useEffect(() => {
     window.__FORC_SWITCHVIEW = (v) => setView(v);
     return () => {
@@ -300,7 +324,7 @@ export default function App() {
     };
   }, []);
 
-  // ✅ Keep view in sync after auth & URL path → default to Control Tower
+  // Keep view in sync with URL path
   useEffect(() => {
     if (!isAuthenticated) return;
     const path = window.location.pathname;
@@ -325,36 +349,46 @@ export default function App() {
     setSelectedFacility(facilityName);
   };
 
+  // Remote history (Pro+) — merge with local
   const fetchSimulationHistory = async () => {
     try {
-      // NOTE: keep compatibility with your apiClient routing
       const res = await apiClient.get("/api/simulations");
-      setSimulationHistory(res.data);
-        } catch (err) {
-      const status = err?.response?.status;
+      const remote = Array.isArray(res.data) ? res.data : [];
+      const local = loadLocalRunsSafe();
 
-      // ✅ Expected when Free / unauthenticated — don't pollute console
+      // merge (prefer remote)
+      const merged = [
+        ...remote.map((r) => ({ ...r, _source: "remote" })),
+        ...local
+          .filter((lr) => {
+            const lid = lr?.id || lr?.run_id;
+            return !remote.some((rr) => (rr?.id || rr?.run_id) === lid);
+          })
+          .map((r) => ({ ...r, _source: "local" })),
+      ];
+
+      setSimulationHistory(merged);
+    } catch (err) {
+      const status = err?.response?.status;
       if (status === 401 || status === 403) {
-        console.log("🔒 /api/simulations blocked (plan gating).");
-        setSimulationHistory([]);
+        console.log("🔒 /api/simulations blocked (plan gating). Using local history.");
+        setSimulationHistory(loadLocalRunsSafe());
         return;
       }
-
       console.error("❌ Error fetching simulation history:", err);
+      setSimulationHistory(loadLocalRunsSafe());
     }
   };
 
-  // ====================================================================
-  // 📊 Robust chart data loader — SINGLE source of truth
-  // ====================================================================
+  // Robust chart data loader — single source of truth
   const loadFilteredChart = async (urls, outputType, skuFilterRaw) => {
     try {
       console.log("📥 [Chart] Loading", outputType, "for", skuFilterRaw);
 
       const skuFilter = Array.isArray(skuFilterRaw)
-        ? skuFilterRaw.filter(Boolean).map((s) => s.toString().trim().toLowerCase())
+        ? skuFilterRaw.filter(Boolean).map((s) => lower(s))
         : skuFilterRaw
-        ? [skuFilterRaw.toString().trim().toLowerCase()]
+        ? [lower(skuFilterRaw)]
         : [];
 
       const url =
@@ -367,41 +401,42 @@ export default function App() {
         return;
       }
 
-      const response = await axios.get(url, { responseType: "text" });
-      const results = Papa.parse(response.data, { header: true, skipEmptyLines: true }).data;
-
+      const results = await fetchCsvRows(url);
       if (!results.length) {
         console.warn("⚠️ [Chart] CSV empty:", url);
         return;
       }
 
       const sample = results[0] || {};
-      const headers = Object.keys(sample).map((h) => h.toLowerCase());
 
       const dateKey =
-        headers.find((h) => /(date|day|period|time|timestamp)/i.test(h)) ||
-        headers.find((h) => /(period_start|period_end)/i.test(h)) ||
-        headers[0];
+        pickFirstKey(sample, ["date", "day", "period", "time", "timestamp", "period_start", "period_end"]) ||
+        Object.keys(sample)[0];
 
-      const skuKey = headers.find((h) => /(sku|part|item|product|id)/i.test(h)) || headers[1];
+      const skuKey =
+        pickFirstKey(sample, ["sku", "item", "part", "product", "id"]) ||
+        Object.keys(sample)[1];
 
-      let valueKey;
-      if (outputType === "inventory") valueKey = "inventory";
-      else if (outputType === "production") valueKey = "produced";
-      else if (outputType === "flow") valueKey = "flow";
-      else if (outputType === "occurrence") valueKey = "event";
+      let desiredValueKey =
+        outputType === "inventory"
+          ? ["inventory", "ending_inventory", "on_hand", "level", "initial_inventory"]
+          : outputType === "production"
+          ? ["produced", "production", "qty"]
+          : outputType === "flow"
+          ? ["flow", "quantity", "shipped"]
+          : ["event", "value", "amount"];
 
-      valueKey = Object.keys(sample).find((k) => k.toLowerCase() === valueKey.toLowerCase()) || valueKey;
+      const valueKey = pickFirstKey(sample, desiredValueKey) || Object.keys(sample)[2];
 
       const filtered = results.filter((row) => {
-        const skuVal = (row[skuKey] || "").toString().trim().toLowerCase();
+        const skuVal = lower(row[skuKey]);
         const facilityVal =
           row.facility || row.Facility || row.facility_id || row.Location || row.location || "";
 
         const skuMatch = skuFilter.length === 0 || skuFilter.includes(skuVal);
         const facilityMatch =
           !selectedFacility ||
-          facilityVal.toString().trim().toUpperCase() === selectedFacility.toString().trim().toUpperCase();
+          upper(facilityVal) === upper(selectedFacility);
 
         return skuMatch && facilityMatch;
       });
@@ -410,16 +445,17 @@ export default function App() {
 
       const skuGroups = {};
       filtered.forEach((row) => {
-        const skuVal = (row[skuKey] || "Unknown").toString().trim();
+        const skuVal = str(row[skuKey] || "Unknown").trim();
         const dateVal = row[dateKey];
-        const numVal = parseFloat(row[valueKey]) || 0;
+        const numVal = toNum(row[valueKey]);
         if (!skuGroups[skuVal]) skuGroups[skuVal] = {};
-        skuGroups[skuVal][dateVal] = numVal;
+        // sum if multiple rows collide on same date
+        skuGroups[skuVal][dateVal] = (skuGroups[skuVal][dateVal] || 0) + numVal;
       });
 
       const datasets = Object.entries(skuGroups).map(([skuName, dateMap]) => ({
         label: skuName,
-        data: dateSet.map((d) => dateMap[d] ?? null),
+        data: dateSet.map((d) => (dateMap[d] ?? null)),
         fill: false,
         borderWidth: 2,
         tension: 0.25,
@@ -427,11 +463,11 @@ export default function App() {
 
       setChartData({ labels: dateSet, datasets });
 
-      const total = filtered.reduce((sum, r) => sum + (parseFloat(r[valueKey]) || 0), 0);
+      const total = filtered.reduce((sum, r) => sum + toNum(r[valueKey]), 0);
       const avg = (total / Math.max(filtered.length || 1, 1)).toFixed(2);
       const uniqueDates = [...new Set(filtered.map((r) => r[dateKey]))].length;
       const uniqueFacilities = new Set(
-        filtered.map((r) => r.facility || r.Facility || r.Location || r.location)
+        filtered.map((r) => r.facility || r.Facility || r.Location || r.location).map((x) => upper(x))
       ).size;
 
       setSummaryStats({ total, avg, uniqueDates, uniqueFacilities });
@@ -440,26 +476,19 @@ export default function App() {
     }
   };
 
-  // ====================================================================
-  // 🧩 Parse simulation panels (impact, runout, countermeasures)
-  // ====================================================================
+  // Parse simulation panels (impact, runout, countermeasures)
   const parseSimulationPanels = async (urls) => {
-    const fetchCsv = async (url) => {
-      const response = await axios.get(url, { responseType: "text" });
-      return Papa.parse(response.data, { header: true, skipEmptyLines: true }).data;
-    };
-
     try {
       if (urls.projected_impact_output_file_url) {
-        const rows = await fetchCsv(urls.projected_impact_output_file_url);
+        const rows = await fetchCsvRows(urls.projected_impact_output_file_url);
         setProjectedImpactData(rows);
       }
       if (urls.runout_risk_output_file_url) {
-        const rows = await fetchCsv(urls.runout_risk_output_file_url);
+        const rows = await fetchCsvRows(urls.runout_risk_output_file_url);
         setRunoutRiskData(rows);
       }
       if (urls.countermeasures_output_file_url) {
-        const rows = await fetchCsv(urls.countermeasures_output_file_url);
+        const rows = await fetchCsvRows(urls.countermeasures_output_file_url);
         setCountermeasuresData(rows);
       }
     } catch (err) {
@@ -467,117 +496,231 @@ export default function App() {
     }
   };
 
-  // ====================================================================
-  // 📊 KPI aggregation across all outputs
-  // ====================================================================
-  const runAllKpiUpdates = async (urlsOverride) => {
+  // ✅ KPI aggregation — FIXED source of truth for service KPIs
+  const runAllKpiUpdates = async (urlsOverride, skuOverride) => {
     const urls = urlsOverride || outputUrls;
     if (!urls) return;
+
+    const effectiveSkusLocal = getEffectiveSkus((skuOverride ?? selectedSku), skuOptions);
+    const skuFilter = (Array.isArray(effectiveSkusLocal) ? effectiveSkusLocal : [effectiveSkusLocal])
+      .filter(Boolean)
+      .map(normalizeSku);
+
+    const facilityFilter = selectedFacility ? upper(selectedFacility) : null;
+
     const allKpis = {};
 
-    const effectiveSkus = getEffectiveSkus(selectedSku, skuOptions);
+    try {
+      // ----- INVENTORY KPIs -----
+      if (urls.inventory_output_file_url) {
+        const invRows = await fetchCsvRows(urls.inventory_output_file_url);
 
-    const skuFilter = Array.isArray(effectiveSkus)
-      ? effectiveSkus.map(normalizeSku)
-      : effectiveSkus
-      ? [normalizeSku(effectiveSkus)]
-      : [];
+        const sample = invRows[0] || {};
+        const skuKey = pickFirstKey(sample, ["sku"]) || "sku";
+        const facKey = pickFirstKey(sample, ["facility", "facility_id", "location"]) || "facility";
+        const invKey =
+          pickFirstKey(sample, ["inventory", "ending_inventory", "on_hand", "level", "initial_inventory"]) ||
+          "inventory";
 
-    for (const type of ["inventory", "production", "flow", "occurrence"]) {
-      const url = urls[`${type}_output_file_url`];
-      if (!url) continue;
-
-      try {
-        const response = await axios.get(url, { responseType: "text" });
-        const results = Papa.parse(response.data, { header: true, skipEmptyLines: true }).data;
-
-        const filtered = results.filter((row) => {
-          const sku = normalizeSku(row.sku || row.SKU || row.Sku || row.SkuID);
-          const facility = row.facility || row.facility_id || row.Facility || "";
-
+        const invFiltered = invRows.filter((r) => {
+          const sku = normalizeSku(r[skuKey] || r.sku || r.SKU);
+          const fac = upper(r[facKey] || r.facility || r.facility_id || r.Location || r.location);
           const skuMatch = skuFilter.length === 0 || skuFilter.includes(sku);
-          const facilityMatch =
-            !selectedFacility ||
-            facility.toString().trim().toUpperCase() === selectedFacility.toString().trim().toUpperCase();
-
-          return skuMatch && facilityMatch;
+          const facMatch = !facilityFilter || fac === facilityFilter;
+          return skuMatch && facMatch;
         });
 
-        if (type === "inventory") {
-          const totalInventory = filtered.reduce((sum, r) => {
-            const raw =
-              r.initial_inventory ??
-              r.Initial_Inventory ??
-              r.INITIAL_INVENTORY ??
-              r.inventory ??
-              r.Inventory;
-            const parsed = parseFloat(raw);
-            return sum + (isNaN(parsed) ? 0 : parsed);
-          }, 0);
+        const invValues = invFiltered.map((r) => toNum(r[invKey])).filter((n) => Number.isFinite(n));
+        const avgInventory = invValues.length ? invValues.reduce((a, b) => a + b, 0) / invValues.length : 0;
 
-          const avgInventory = filtered.length > 0 ? totalInventory / filtered.length : 0;
-
-          const totalInventoryMovement = filtered.reduce((sum, r) => {
-            const raw = parseFloat(r.initial_inventory ?? r.inventory ?? 0);
-            return sum + (isNaN(raw) || raw <= 0 ? 0 : raw);
-          }, 0);
-
-          const inventoryTurns =
-            avgInventory > 0 ? (totalInventoryMovement / avgInventory).toFixed(2) : "0.00";
-          const onTimeFulfillment = totalInventoryMovement > 0 ? "100.0" : "0.0";
-
-          allKpis.avgInventory = avgInventory.toFixed(1);
-          allKpis.inventoryTurns = inventoryTurns;
-          allKpis.onTimeFulfillment = `${onTimeFulfillment}%`;
-        }
-
-        if (type === "production") {
-          const productionKpis = calculateProductionKpis(filtered);
-          Object.assign(allKpis, productionKpis);
-        }
-
-        if (type === "flow") {
-          const totalCost = filtered.reduce((sum, r) => {
-            const quantity = parseFloat(r.quantity || r.flow || 0);
-            const costPerUnit = parseFloat(r.cost_per_unit || 10);
-            return sum + (isNaN(quantity) || isNaN(costPerUnit) ? 0 : quantity * costPerUnit);
-          }, 0);
-
-          const expediteCount = filtered.filter(
-            (r) => r.expedited === "true" || r.expedited === "1" || r.expedited === "yes"
-          ).length;
-
-          const expediteRatio =
-            filtered.length > 0 ? ((100 * expediteCount) / filtered.length).toFixed(1) : "0.0";
-
-          allKpis.costToServe = `$${totalCost.toFixed(0)}`;
-          allKpis.expediteRatio = `${expediteRatio}%`;
-        }
-
-        if (type === "occurrence") {
-          const backorderVolume = filtered.reduce((sum, r) => {
-            const eventVal = parseFloat(r.event);
-            return sum + (isNaN(eventVal) ? 0 : eventVal);
-          }, 0);
-
-          allKpis.backorderVolume = backorderVolume.toFixed(0);
-        }
-      } catch (err) {
-        console.error(`❌ Failed KPI calc for ${type}:`, err);
+        allKpis.avgInventory = avgInventory.toFixed(1);
       }
-    }
 
-    setKpis(allKpis);
+      // ----- PRODUCTION KPIs -----
+      if (urls.production_output_file_url) {
+        const prodRows = await fetchCsvRows(urls.production_output_file_url);
+        const sample = prodRows[0] || {};
+        const skuKey = pickFirstKey(sample, ["sku"]) || "sku";
+        const facKey = pickFirstKey(sample, ["facility", "facility_id", "location"]) || "facility";
+        const prodKey = pickFirstKey(sample, ["produced", "production", "qty"]) || "produced";
+        const recKey = pickFirstKey(sample, ["recovery_days", "ttr", "recovery"]) || "recovery_days";
+
+        let totalProduction = 0;
+        const facilityRecovery = {};
+
+        prodRows.forEach((row) => {
+          const sku = normalizeSku(row[skuKey] || row.sku);
+          const fac = upper(row[facKey] || row.facility || row.facility_id || "");
+          if (skuFilter.length && !skuFilter.includes(sku)) return;
+          if (facilityFilter && fac !== facilityFilter) return;
+
+          const produced = toNum(row[prodKey]);
+          totalProduction += produced;
+
+          const recovery = parseInt(row[recKey] || 0, 10) || 0;
+          if (produced > 0 && fac) {
+            facilityRecovery[fac] = Math.max(facilityRecovery[fac] || 0, recovery);
+          }
+        });
+
+        const impactedFacilities = Object.keys(facilityRecovery).length;
+        const avgTimeToRecovery =
+          impactedFacilities > 0
+            ? Math.round(Object.values(facilityRecovery).reduce((a, b) => a + b, 0) / impactedFacilities)
+            : 0;
+
+        allKpis.totalProduction = totalProduction.toFixed(0);
+        allKpis.impactedFacilities = impactedFacilities;
+        allKpis.avgTimeToRecovery = avgTimeToRecovery;
+      }
+
+        // ----- SERVICE KPIs (SOURCE OF TRUTH = FLOW OUTPUT CUSTOMER_SHIP) -----
+        // Definition:
+        // - OTF = % of due-date demand days fulfilled IN FULL on the due date
+        //   In this schema, due-date is the row date, and "in full" means backlog_out == 0 at end of day.
+        // - BackorderVolume = backlog_out on the LAST due-date row (current open shortage)
+        // - BackorderRate = BackorderVolume / totalDemand
+        if (urls.flow_output_file_url) {
+          const flowRows = await fetchCsvRows(urls.flow_output_file_url);
+          const sample = flowRows[0] || {};
+
+          const skuKey = pickFirstKey(sample, ["sku"]) || "sku";
+          const flowTypeKey = pickFirstKey(sample, ["flow_type", "type"]) || "flow_type";
+
+          // IMPORTANT: for CUSTOMER_SHIP, filter facility using "facility" (or "from"), NOT "to" (which is CUSTOMER)
+          const facilityKey =
+            pickFirstKey(sample, ["facility", "facility_id", "location"]) ||
+            pickFirstKey(sample, ["from"]) ||
+            "facility";
+
+          const demandKey = pickFirstKey(sample, ["demand"]) || "demand";
+          const boKey = pickFirstKey(sample, ["backlog_out", "backorder", "unfulfilled"]) || "backlog_out";
+          const dateKey =
+            pickFirstKey(sample, ["date", "day", "timestamp", "time", "period"]) || "date";
+
+          const shipRows = flowRows
+            .filter((r) => {
+              const sku = normalizeSku(r[skuKey] || r.sku);
+              if (skuFilter.length && !skuFilter.includes(sku)) return false;
+
+              const ft = lower(r[flowTypeKey] || r.flow_type);
+              const isCustomerShip =
+                ft === "customer_ship" || ft === "customer ship" || ft === "customership";
+              if (!isCustomerShip) return false;
+
+              // facility filter (map selection)
+              if (facilityFilter) {
+                const fac = upper(
+                  r[facilityKey] ||
+                    r.facility ||
+                    r.Facility ||
+                    r.facility_id ||
+                    r.Location ||
+                    r.location ||
+                    r.from ||
+                    ""
+                );
+                if (fac !== facilityFilter) return false;
+              }
+
+              return true;
+            })
+            .map((r) => {
+              const demand = toNum(r[demandKey]);
+              const backlogOut = toNum(r[boKey]);
+              const dateVal = r[dateKey];
+              return { demand, backlogOut, dateVal };
+            });
+
+          // Sort by date so "last backlog_out" is deterministic
+          shipRows.sort((a, b) => new Date(a.dateVal) - new Date(b.dateVal));
+
+          const totalDays = shipRows.length;
+          const totalDemand = shipRows.reduce((s, r) => s + (r.demand || 0), 0);
+
+          // On-time day = backlog_out == 0 (demand fulfilled in full on due date)
+          const EPS = 1e-9;
+          const onTimeDays = shipRows.filter((r) => Math.abs(r.backlogOut || 0) <= EPS).length;
+          const otfFrac = totalDays > 0 ? onTimeDays / totalDays : 1;
+
+          // Current open shortage = backlog_out on last due-date row
+          const backorderVolume = totalDays > 0 ? toNum(shipRows[totalDays - 1].backlogOut) : 0;
+
+          const backorderRateFrac = totalDemand > 0 ? backorderVolume / totalDemand : 0;
+
+          allKpis.onTimeFulfillment = `${(100 * otfFrac).toFixed(1)}%`;
+          allKpis.backorderRate = `${(100 * backorderRateFrac).toFixed(1)}%`;
+          allKpis.backorderVolume = `${Math.round(backorderVolume)}`;
+        }
+
+// ----- COST TO SERVE + EXPEDITE RATIO (flow output, all flow types) -----
+      if (urls.flow_output_file_url) {
+        const flowRows = await fetchCsvRows(urls.flow_output_file_url);
+        const sample = flowRows[0] || {};
+        const skuKey = pickFirstKey(sample, ["sku"]) || "sku";
+        const facKey = pickFirstKey(sample, ["facility", "facility_id", "to", "from", "location"]) || "facility";
+        const qtyKey = pickFirstKey(sample, ["quantity", "flow", "shipped"]) || "quantity";
+        const cpuKey = pickFirstKey(sample, ["cost_per_unit", "cpu", "unit_cost"]) || "cost_per_unit";
+        const expKey = pickFirstKey(sample, ["expedited", "expedite", "is_expedited"]) || "expedited";
+
+        const filtered = flowRows.filter((r) => {
+          const sku = normalizeSku(r[skuKey] || r.sku);
+          const fac = upper(r[facKey] || r.facility || r.facility_id || r.to || r.from || "");
+          const skuMatch = skuFilter.length === 0 || skuFilter.includes(sku);
+          const facMatch = !facilityFilter || fac === facilityFilter;
+          return skuMatch && facMatch;
+        });
+
+        const totalCost = filtered.reduce((sum, r) => {
+          const quantity = toNum(r[qtyKey]);
+          const cpu = toNum(r[cpuKey] ?? 10);
+          return sum + quantity * cpu;
+        }, 0);
+
+        const expediteCount = filtered.filter((r) => {
+          const v = lower(r[expKey]);
+          return v === "true" || v === "1" || v === "yes";
+        }).length;
+
+        const expediteRatio = filtered.length ? (100 * expediteCount) / filtered.length : 0;
+
+        allKpis.costToServe = `$${totalCost.toFixed(0)}`;
+        allKpis.expediteRatio = `${expediteRatio.toFixed(1)}%`;
+      }
+
+      // ----- OCCURRENCE COUNT (sanity metric) -----
+      if (urls.occurrence_output_file_url) {
+        const occRows = await fetchCsvRows(urls.occurrence_output_file_url);
+        const sample = occRows[0] || {};
+        const skuKey = pickFirstKey(sample, ["sku"]) || "sku";
+        const facKey = pickFirstKey(sample, ["facility", "facility_id", "location"]) || "facility";
+
+        const filtered = occRows.filter((r) => {
+          const sku = normalizeSku(r[skuKey] || r.sku);
+          const fac = upper(r[facKey] || r.facility || r.facility_id || "");
+          const skuMatch = skuFilter.length === 0 || skuFilter.includes(sku);
+          const facMatch = !facilityFilter || fac === facilityFilter;
+          return skuMatch && facMatch;
+        });
+
+        allKpis.occurrenceCount = `${filtered.length}`;
+      }
+
+      console.log("KPI_DEBUG_DUMP", allKpis);
+      setKpis({ ...allKpis });
+    } catch (err) {
+      console.error("❌ [KPI] Failed KPI pipeline:", err);
+    }
   };
 
-  // ====================================================================
-  // 🧪 Simulation submit (FormData)
-  // ====================================================================
+  // Submit simulation (FormData)
   const handleSubmit = async (maybeFormData) => {
     if (simulationStatus === "running") return;
 
     setSimulationStatus("running");
     setChartData(null);
+
+    backendKpisRef.current = false;
 
     try {
       const formData =
@@ -602,15 +745,14 @@ export default function App() {
             if (file) fd.append(backendKey, file);
           });
 
-          // Prefer authoritative in-memory scenario (prevents stale localStorage reads)
+          // Prefer authoritative in-memory scenario
           try {
             const activeScenario = scenarioRef.current;
             const hasScenario =
               activeScenario && typeof activeScenario === "object" && Object.keys(activeScenario).length > 0;
 
             if (hasScenario) {
-              const payload = JSON.stringify(activeScenario);
-              fd.append("scenario", payload);
+              fd.append("scenario", JSON.stringify(activeScenario));
               console.log("🧪 [App] Applying scenario to simulation:", activeScenario);
             } else {
               console.log("🧪 [App] No scenario applied (baseline run)");
@@ -621,8 +763,6 @@ export default function App() {
             if (scenarioRaw) fd.append("scenario", scenarioRaw);
           }
 
-
-          // Debug keys (names only)
           console.log("🧾 [App] FormData keys:");
           for (const [k] of fd.entries()) console.log("  -", k);
 
@@ -632,21 +772,11 @@ export default function App() {
       console.log("▶️ [App] Starting simulation run...");
       console.log("📡 [App] POST", `${API_ROOT}/api/run`);
 
-      // IMPORTANT: do NOT set Content-Type; browser sets multipart boundaries
       const res = await apiClient.post("/api/run", formData);
-
-
-      
-
       const payload = res.data || {};
 
-      // Backends may return:
-      //  - { run_id, status, timestamp, urls: { ...actual URLs... } }
-      //  - { output_urls: { ... } }
-      //  - or occasionally the urls object directly
+      // unwrap urls
       let raw = payload.output_urls || payload.urls || payload.outputUrls || payload;
-
-      // If raw is outer wrapper containing nested `.urls`, unwrap it.
       if (
         raw &&
         typeof raw === "object" &&
@@ -658,25 +788,19 @@ export default function App() {
         raw = raw.urls;
       }
 
-      // Normalize keys the dashboard expects
       const normalizedUrls = {
         ...raw,
 
-        inventory_output_file_url:
-          raw.inventory_output_file_url || raw.inventory_output || raw.inventory,
-        flow_output_file_url:
-          raw.flow_output_file_url || raw.flow_output || raw.flow,
-        production_output_file_url:
-          raw.production_output_file_url || raw.production_output || raw.production,
-        occurrence_output_file_url:
-          raw.occurrence_output_file_url || raw.occurrence_output || raw.occurrence,
+        inventory_output_file_url: raw.inventory_output_file_url || raw.inventory_output || raw.inventory,
+        flow_output_file_url: raw.flow_output_file_url || raw.flow_output || raw.flow,
+        production_output_file_url: raw.production_output_file_url || raw.production_output || raw.production,
+        occurrence_output_file_url: raw.occurrence_output_file_url || raw.occurrence_output || raw.occurrence,
 
         disruption_impact_output_file_url:
           raw.disruption_impact_output_file_url || raw.disruption_impact_output || raw.disruption_impact,
         projected_impact_output_file_url:
           raw.projected_impact_output_file_url || raw.projected_impact_output || raw.projected_impact,
 
-        // backend file is often sku_runout_risk_output.csv
         runout_risk_output_file_url:
           raw.runout_risk_output_file_url ||
           raw.sku_runout_risk_output_file_url ||
@@ -696,7 +820,7 @@ export default function App() {
         normalizedUrls,
       });
 
-      // ✅ locationsUrl (map)
+      // Update locationsUrl
       const locUrl =
         normalizedUrls.locations_output_file_url ||
         normalizedUrls.locations_Output_File_URL ||
@@ -713,18 +837,41 @@ export default function App() {
         console.warn("⚠️ No dynamic locations URL found in simulation output.");
       }
 
-      // ✅ Commit urls to state (single source of truth)
+      // Commit urls to state
+      setPostRunPhase("seeding");
       setOutputUrls(normalizedUrls);
+
+      // Save run locally immediately (so history is never empty)
+      const entry = {
+        id: payload.run_id || payload.id || payload.timestamp || `${Date.now()}`,
+        run_id: payload.run_id,
+        created_at: payload.timestamp || new Date().toISOString(),
+        output_urls: normalizedUrls,
+        urls: normalizedUrls,
+        outputUrls: normalizedUrls,
+        _source: "local",
+      };
+      const nextLocal = upsertLocalRun(entry);
+      setSimulationHistory((prev) => {
+        const prevArr = Array.isArray(prev) ? prev : [];
+        // merge: prefer remote entries if present
+        const merged = [
+          ...prevArr.filter((r) => r?._source === "remote"),
+          ...nextLocal,
+        ];
+        return merged;
+      });
 
       await buildExecutiveReportAfterSim();
 
-      // 🧭 Reset facility selection
+      // Reset facility selection
       setSelectedFacility(null);
 
-      // ✅ Seed SKUs BEFORE charts/KPIs so selectedSku is non-empty
+      // Seed SKUs BEFORE charts/KPIs
+      let seededSkus = null;
       try {
         if (normalizedUrls?.inventory_output_file_url) {
-          const seededSkus = await extractAndSetSkuOptions(normalizedUrls.inventory_output_file_url);
+          seededSkus = await extractAndSetSkuOptions(normalizedUrls.inventory_output_file_url);
         } else {
           console.warn("⚠️ [PostRun] No inventory_output_file_url available to seed SKUs.");
         }
@@ -732,7 +879,9 @@ export default function App() {
         console.warn("⚠️ [PostRun] SKU seed failed:", e);
       }
 
-      // ✅ Load panel CSVs (don’t block dashboard if these fail)
+      setPostRunPhase("primed");
+
+      // Load panel CSVs (non-blocking)
       await Promise.all([
         loadCsvToJson(normalizedUrls.disruption_impact_output_file_url, setDisruptionImpactData),
         loadCsvToJson(normalizedUrls.projected_impact_output_file_url, setProjectedImpactData),
@@ -740,36 +889,37 @@ export default function App() {
         loadCsvToJson(normalizedUrls.countermeasures_output_file_url, setCountermeasuresData),
       ]);
 
-      // ✅ Parse panels + chart
-      try { await parseSimulationPanels(normalizedUrls); } catch (e) { console.warn("⚠️ parseSimulationPanels failed:", e); }
-      try { await loadFilteredChart(normalizedUrls, selectedOutputType || "inventory", (typeof seededSkus !== "undefined" && seededSkus) ? seededSkus : (selectedSku || [])); } catch (e) { console.warn("⚠️ loadFilteredChart failed:", e); }
-
-      // ✅ Prefer backend KPIs if present, else compute from CSVs
-      if (payload.kpis && Object.keys(payload.kpis || {}).length > 0) {
-        setKpis(payload.kpis);
-      } else {
-        await runAllKpiUpdates(normalizedUrls);
+      try {
+        await parseSimulationPanels(normalizedUrls);
+      } catch (e) {
+        console.warn("⚠️ parseSimulationPanels failed:", e);
       }
 
+      // Prefer backend KPIs if present
+      if (payload.kpis && Object.keys(payload.kpis || {}).length > 0) {
+        backendKpisRef.current = true;
+        setKpis(payload.kpis);
+      } else {
+        backendKpisRef.current = false;
+      }
 
       setSimulationStatus("done");
       console.log("✅ [App] Simulation workflow finished successfully.");
       setTimeout(() => setSimulationStatus("idle"), 3000);
     } catch (error) {
-      // ✅ Better diagnostics than “AxiosError”
       const status = error?.response?.status;
       const data = error?.response?.data;
-            // ✅ If backend says "upgrade required", open the modal instead of alerting
+
       if (status === 402) {
         setUpgradeGate({
           open: true,
           required: data?.required || ["pro"],
           plan: data?.plan || "free",
         });
-
         setSimulationStatus("idle");
         return;
       }
+
       console.error("❌ [App] Simulation API call failed:", {
         status,
         data,
@@ -788,69 +938,110 @@ export default function App() {
     }
   };
 
-  // ====================================================================
-  // 🆔 Extract SKUs and build options
-  // ====================================================================
+  // Extract SKUs and build options
   const extractAndSetSkuOptions = async (url) => {
     if (!url) return;
     try {
-      const response = await axios.get(url, { responseType: "text" });
-      const results = Papa.parse(response.data, { header: true, skipEmptyLines: true }).data;
+      const rows = await fetchCsvRows(url);
 
-      const skus = [...new Set(results.map((r) => normalizeSku(r.sku || r.SKU)).filter(Boolean))];
+      const skus = [...new Set(rows.map((r) => normalizeSku(r.sku || r.SKU)).filter(Boolean))];
       const options = skus.map((sku) => ({ label: sku, value: sku }));
       setSkuOptions(options);
 
-
-      // Return a deterministic seeded sku list (avoid state timing races)
-      const seeded = (selectedSku && selectedSku.length > 0)
-        ? (Array.isArray(selectedSku) ? selectedSku : [selectedSku])
-        : options.map((o) => o.value);
+      const seeded =
+        selectedSku && selectedSku.length > 0
+          ? Array.isArray(selectedSku)
+            ? selectedSku
+            : [selectedSku]
+          : options.map((o) => o.value);
 
       if (!selectedSku || selectedSku.length === 0) {
         setSelectedSku(seeded);
       }
 
       return seeded;
-      if (!selectedSku || selectedSku.length === 0) {
-        setSelectedSku(options.map((o) => o.value));
-      }
     } catch (err) {
       console.error("❌ Failed to extract SKUs:", err);
     }
   };
 
-  // ====================================================================
-  // 🔁 Recompute KPIs & chart whenever outputs / SKU / type change
-  // ====================================================================
+  // Recompute KPIs & chart whenever outputs / SKU / type change
   useEffect(() => {
-    if (!outputUrls) return;
+    const urls = outputUrls;
+
+    console.log("🧪 [PostRun] outputUrls keys:", Object.keys(urls || {}));
+    console.log("🧪 [PostRun] sample urls:", {
+      inventory: urls?.inventory_output_file_url,
+      production: urls?.production_output_file_url,
+      flow: urls?.flow_output_file_url,
+      occurrence: urls?.occurrence_output_file_url,
+    });
+
+    if (!urls) return;
+
+    if (postRunPhase === "idle" && justPrimedRef.current) {
+      justPrimedRef.current = false;
+      console.log("⏭️ [PostRun] Skipping immediate post-primed rerun");
+      return;
+    }
+
+    if (postRunPhase === "seeding") {
+      console.log("⏳ [PostRun] Seeding SKUs — holding KPI/chart recompute...");
+      return;
+    }
+
     const effectiveSkus = getEffectiveSkus(selectedSku, skuOptions);
     if (!effectiveSkus || effectiveSkus.length === 0) {
       console.log("⏳ [PostRun] Waiting for SKU seed before KPI/chart recompute...");
       return;
     }
-    const effectiveSkus = getEffectiveSkus(selectedSku, skuOptions);
-    if (!effectiveSkus || effectiveSkus.length === 0) {
-      console.log("⏳ [PostRun] Waiting for SKU seed before KPI/chart recompute...");
+
+    if (postRunPhase === "primed") {
+      console.log("✅ [PostRun] Primed — running deterministic KPI+chart recompute once...");
+
+      if (!backendKpisRef.current || !kpis || Object.keys(kpis).length === 0) {
+        runAllKpiUpdates(urls, effectiveSkus);
+      }
+
+      loadFilteredChart(urls, selectedOutputType || "inventory", effectiveSkus);
+
+      justPrimedRef.current = true;
+      setPostRunPhase("idle");
       return;
     }
-    runAllKpiUpdates();
-    loadFilteredChart(outputUrls, selectedOutputType || "inventory", getEffectiveSkus(selectedSku, skuOptions));
+
+    // Normal interactive recompute
+    runAllKpiUpdates(urls, effectiveSkus);
+    loadFilteredChart(urls, selectedOutputType || "inventory", effectiveSkus);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outputUrls, selectedSku, selectedOutputType, selectedFacility]);
+  }, [outputUrls, selectedSku, selectedOutputType, selectedFacility, postRunPhase]);
 
   const onReloadRun = async (entry) => {
     const urls = entry.output_urls || entry.outputUrls || entry.urls || {};
-    setOutputUrls(urls);
-
-    setSimulationStatus("done");
     setChartData(null);
 
-    await loadFilteredChart(urls, selectedOutputType || "inventory", getEffectiveSkus(selectedSku, skuOptions));
-    extractAndSetSkuOptions(urls[selectedOutputType + "_output_file_url"]);
-    parseSimulationPanels(urls);
-    runAllKpiUpdates();
+    setPostRunPhase("seeding");
+    setOutputUrls(urls);
+    setSimulationStatus("done");
+
+    try {
+      if (urls?.inventory_output_file_url) {
+        await extractAndSetSkuOptions(urls.inventory_output_file_url);
+      } else if (urls?.[`${selectedOutputType}_output_file_url`]) {
+        await extractAndSetSkuOptions(urls[`${selectedOutputType}_output_file_url`]);
+      }
+    } catch (e) {
+      console.warn("⚠️ [ReloadRun] SKU seed failed:", e);
+    }
+
+    try {
+      await parseSimulationPanels(urls);
+    } catch (e) {
+      console.warn("⚠️ [ReloadRun] parseSimulationPanels failed:", e);
+    }
+
+    setPostRunPhase("primed");
 
     setView("simulation");
     window.history.pushState(null, "", "/simulation");
@@ -866,42 +1057,38 @@ export default function App() {
   };
 
   const handleLogin = () => {
-  setIsAuthenticated(true);
-  setView("control");
-  window.history.replaceState(null, "", "/control-tower");
+    setIsAuthenticated(true);
+    setView("control");
+    window.history.replaceState(null, "", "/control-tower");
 
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("access_token") ||
-    sessionStorage.getItem("token") ||
-    sessionStorage.getItem("access_token");
+    // Always show local history immediately
+    setSimulationHistory(loadLocalRunsSafe());
 
-  if (!token) {
-    setSimulationHistory([]);
-    return;
-  }
+    const token =
+      localStorage.getItem("token") ||
+      localStorage.getItem("access_token") ||
+      sessionStorage.getItem("token") ||
+      sessionStorage.getItem("access_token");
 
-  try {
-    const decoded = jwtDecode(token);
-    const plan = decoded.plan || "free";
-    setUserPlan(plan);
-    setUserRole(decoded.role || "user");
+    if (!token) return;
 
-    if (isProPlusPlan(plan)) {
-      fetchSimulationHistory();
-    } else {
-      setSimulationHistory([]);
-      console.log("🔒 Skipping /api/simulations on Free plan (login).");
+    try {
+      const decoded = jwtDecode(token);
+      const plan = decoded.plan || "free";
+      setUserPlan(plan);
+      setUserRole(decoded.role || "user");
+
+      if (isProPlusPlan(plan)) {
+        fetchSimulationHistory();
+      } else {
+        console.log("🔒 Skipping /api/simulations on Free plan (login). Using local history.");
+      }
+    } catch (e) {
+      console.error("❌ Failed to decode JWT on login:", e);
     }
-  } catch (e) {
-    console.error("❌ Failed to decode JWT on login:", e);
-    setSimulationHistory([]);
-  }
-};
+  };
 
-  // ====================================================================
-  // 🖼️ Render
-  // ====================================================================
+  // Render
   return (
     <>
       {!isAuthenticated ? (
