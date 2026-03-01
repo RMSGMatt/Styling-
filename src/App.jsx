@@ -632,19 +632,23 @@ export default function App() {
               return { demand, backlogOut, dateVal };
             });
 
-          // Sort by date so "last backlog_out" is deterministic
-          shipRows.sort((a, b) => new Date(a.dateVal) - new Date(b.dateVal));
+            // Sort by date so "last backlog_out" is deterministic
+            shipRows.sort((a, b) => new Date(a.dateVal) - new Date(b.dateVal));
 
-          const totalDays = shipRows.length;
-          const totalDemand = shipRows.reduce((s, r) => s + (r.demand || 0), 0);
+            // Only due-date rows count for OTF: demand > 0 defines due-date demand.
+            // (Rows with demand==0 are padding/carry-forward and must not affect OTF or "current backlog".)
+            const dueRows = shipRows.filter((r) => toNum(r.demand) > 0);
+
+          const totalDays = dueRows.length;
+          const totalDemand = dueRows.reduce((s, r) => s + (toNum(r.demand) || 0), 0);
 
           // On-time day = backlog_out == 0 (demand fulfilled in full on due date)
           const EPS = 1e-9;
-          const onTimeDays = shipRows.filter((r) => Math.abs(r.backlogOut || 0) <= EPS).length;
+          const onTimeDays = dueRows.filter((r) => Math.abs(toNum(r.backlogOut) || 0) <= EPS).length;
           const otfFrac = totalDays > 0 ? onTimeDays / totalDays : 1;
 
           // Current open shortage = backlog_out on last due-date row
-          const backorderVolume = totalDays > 0 ? toNum(shipRows[totalDays - 1].backlogOut) : 0;
+          const backorderVolume = totalDays > 0 ? toNum(dueRows[totalDays - 1].backlogOut) : 0;
 
           const backorderRateFrac = totalDemand > 0 ? backorderVolume / totalDemand : 0;
 
