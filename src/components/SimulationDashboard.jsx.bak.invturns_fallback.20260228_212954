@@ -1358,7 +1358,7 @@ setOverlayChartData(overlay);
               <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
                 <p className="text-slate-300 mb-1">Inventory Turns</p>
                 <p className="text-lg font-semibold text-sky-400">
-                  {kpis?.inventoryTurns ?? "--"}
+                  {kpis?.inventoryTurns ?? "--x"}
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Average annualized turns for selected scope.

@@ -61,6 +61,83 @@ function pickOutputUrlForType(sim, outputType) {
   return null;
 }
 
+// =======================================================
+// GLOBAL KPI HELPERS (must be module scope, not component)
+// =======================================================
+
+function pickKpi(...candidates) {
+  for (const c of candidates) {
+    if (c === undefined || c === null) continue;
+    if (typeof c === "string" && c.trim() === "") continue;
+    return c;
+  }
+  return null;
+}
+
+// Extract a number from strings like "0.0%", "1,234", "$5,678", "0.00x"
+function toNumberMaybe(v) {
+  if (v === null || v === undefined) return null;
+
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+
+  const s = String(v).trim();
+  if (!s) return null;
+
+  // keep digits, minus, and dot only
+  const cleaned = s.replace(/[^0-9.\-]/g, "");
+  if (!cleaned || cleaned === "-" || cleaned === "." || cleaned === "-.") return null;
+
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Accepts fraction (0-1) OR already-percent (0-100) OR string "12.3%"
+function fmtPct(v) {
+  if (v === undefined || v === null) return "--";
+
+  // Accept strings like "12.3%", "0.0", "0", "  5 % "
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return "--";
+    const cleaned = s.replace(/%/g, "").trim();
+    const n = Number(cleaned);
+    if (!Number.isFinite(n)) return "--";
+    return String(Math.round(n * 10) / 10);
+  }
+
+  // Numbers: treat 0..1 as fraction, otherwise as percent
+  if (typeof v === "number") {
+    if (!Number.isFinite(v)) return "--";
+    const pct = (v <= 1 && v >= 0) ? (v * 100) : v;
+    return String(Math.round(pct * 10) / 10);
+  }
+
+  return "--";
+}
+
+// Accepts number OR string like "3.21x"
+function fmtX(v) {
+  if (v === undefined || v === null) return "--";
+
+  // Accept strings like "0.00x", "1.2", " 3 "
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return "--";
+    const cleaned = s.replace(/x/gi, "").trim();
+    const n = Number(cleaned);
+    if (!Number.isFinite(n)) return "--";
+    return (Math.round(n * 100) / 100).toFixed(2);
+  }
+
+  if (typeof v === "number") {
+    if (!Number.isFinite(v)) return "--";
+    return (Math.round(v * 100) / 100).toFixed(2);
+  }
+
+  return "--";
+}
+
+// END KPI helpers
 function normalizeDate(val) {
   if (!val) return null;
   const s = String(val).trim();
@@ -448,7 +525,7 @@ const revenueAtRiskMillions =
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
             <p className="text-xs text-slate-300">On-Time Fulfillment</p>
             <p className="text-xl font-semibold text-sky-400">
-              {kpis?.onTimeFulfillment ?? "--"}
+              {fmtPct(pickKpi(kpis?.onTimeFulfillment, kpis?.otf, kpis?.otf_frac, kpis?.on_time_fulfillment))}%
             </p>
           </div>
         </div>
@@ -540,6 +617,39 @@ export default function SimulationDashboard({
   requirePro,
   openUpgradeGate,
 }) {
+  useEffect(() => {
+    console.log("🧪 [SimDash] kpis prop:", kpis);
+  }, [kpis]);
+
+  // ------------------------------------------------------------------
+  // KPI helpers (robust against missing keys + handles %/x formatting)
+  // ------------------------------------------------------------------
+  const pickKpi = (...vals) => {
+    for (const v of vals) {
+      if (v === 0) return 0;
+      if (v !== undefined && v !== null && v !== "" && v !== "--") return v;
+    }
+    return undefined;
+  };
+
+  const fmtPct = (v) => {
+    const x = pickKpi(v);
+    if (x === undefined) return "--";
+    if (typeof x === "string") return x.replace(/%+$/g, "");
+    const n = Number(x);
+    if (!Number.isFinite(n)) return "--";
+    return n.toFixed(1);
+  };
+
+  const fmtX = (v) => {
+    const x = pickKpi(v);
+    if (x === undefined) return "--";
+    if (typeof x === "string") return x.replace(/x+$/gi, "");
+    const n = Number(x);
+    if (!Number.isFinite(n)) return "--";
+    return n.toFixed(2);
+  };
+
 
   const [projectedSlider, setProjectedSlider] = useState(0);
   // 🧠 Scenario State
@@ -1349,7 +1459,7 @@ setOverlayChartData(overlay);
                   className="text-lg font-semibold"
                   style={{ color: "#9CF700" }}
                 >
-                  {kpis?.onTimeFulfillment ?? "--"}
+                  {fmtPct(pickKpi(kpis?.onTimeFulfillment, kpis?.otf, kpis?.otf_frac, kpis?.on_time_fulfillment))}%
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Share of demand met on requested date.
@@ -1358,7 +1468,7 @@ setOverlayChartData(overlay);
               <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
                 <p className="text-slate-300 mb-1">Inventory Turns</p>
                 <p className="text-lg font-semibold text-sky-400">
-                  {kpis?.inventoryTurns ?? "--"}
+                  {fmtX(pickKpi(kpis?.inventoryTurns, kpis?.invTurns, kpis?.inventory_turns))}x
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Average annualized turns for selected scope.
@@ -1367,7 +1477,7 @@ setOverlayChartData(overlay);
               <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
                 <p className="text-slate-300 mb-1">Backorder Rate</p>
                 <p className="text-lg font-semibold text-rose-400">
-                  {kpis?.backorderRate ?? "--"}  •  Vol: {kpis?.backorderVolume ?? "--"}
+                  {fmtPct(pickKpi(kpis?.backorderRate, kpis?.backorder_frac, kpis?.boRate, kpis?.backorder_rate))}%
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Portion of demand missed or delayed.

@@ -589,102 +589,68 @@ export default function App() {
       }
 
       // ----- SERVICE KPIs (SOURCE OF TRUTH = FLOW OUTPUT CUSTOMER_SHIP) -----
-      // Definition:
-      // - OTF = % of due-date demand days fulfilled IN FULL on the due date
-      //   In this schema, due-date is the row date, and "in full" means backlog_out == 0 at end of day.
-      // - BackorderVolume = backlog_out on the LAST due-date row (current open shortage)
-      // - BackorderRate = BackorderVolume / totalDemand (due-date demand only)
-      // - InventoryTurns = annualized customer shipments / avg inventory (requires avgInventoryNum + invUniqueDays captured in inventory block)
       if (urls.flow_output_file_url) {
         const flowRows = await fetchCsvRows(urls.flow_output_file_url);
         const sample = flowRows[0] || {};
 
         const skuKey = pickFirstKey(sample, ["sku"]) || "sku";
+        const facToKey = pickFirstKey(sample, ["to", "facility", "facility_id", "customer"]) || "to";
         const flowTypeKey = pickFirstKey(sample, ["flow_type", "type"]) || "flow_type";
 
-        // IMPORTANT: for CUSTOMER_SHIP, filter facility using "facility" (or "from"), NOT "to" (which is CUSTOMER)
-        const facilityKey =
-          pickFirstKey(sample, ["facility", "facility_id", "location"]) ||
-          pickFirstKey(sample, ["from"]) ||
-          "facility";
-
-        const demandKey = pickFirstKey(sample, ["demand"]) || "demand";
+        // shipped units
         const shippedKey = pickFirstKey(sample, ["flow", "quantity", "shipped"]) || "flow";
+        // demand units
+        const demandKey = pickFirstKey(sample, ["demand"]) || "demand";
+        // backlog out units
         const boKey = pickFirstKey(sample, ["backlog_out", "backorder", "unfulfilled"]) || "backlog_out";
-        const dateKey =
-          pickFirstKey(sample, ["date", "day", "timestamp", "time", "period"]) || "date";
 
-        const shipRows = flowRows
-          .filter((r) => {
-            const sku = normalizeSku(r[skuKey] || r.sku);
-            if (skuFilter.length && !skuFilter.includes(sku)) return false;
+        const shipRows = flowRows.filter((r) => {
+          const sku = normalizeSku(r[skuKey] || r.sku);
+          if (skuFilter.length && !skuFilter.includes(sku)) return false;
 
-            const ft = lower(r[flowTypeKey] || r.flow_type);
-            const isCustomerShip =
-              ft === "customer_ship" || ft === "customer ship" || ft === "customership";
-            if (!isCustomerShip) return false;
+          const toFac = upper(r[facToKey] || r.to || r.facility || r.facility_id || "");
+          if (facilityFilter && toFac !== facilityFilter) return false;
 
-            // facility filter (map selection)
-            if (facilityFilter) {
-              const fac = upper(
-                r[facilityKey] ||
-                  r.facility ||
-                  r.Facility ||
-                  r.facility_id ||
-                  r.Location ||
-                  r.location ||
-                  r.from ||
-                  ""
-              );
-              if (fac !== facilityFilter) return false;
-            }
+          const ft = lower(r[flowTypeKey] || r.flow_type);
+          return ft === "customer_ship" || ft === "customer ship" || ft === "customership";
+        });
 
-            return true;
-          })
-          .map((r) => {
-            const demand = toNum(r[demandKey]);
-            const shipped = toNum(r[shippedKey]);
-            const backlogOut = toNum(r[boKey]);
-            const dateVal = r[dateKey];
-            return { demand, shipped, backlogOut, dateVal };
-          });
+        let totalDemand = 0;
+        let totalShipped = 0;
+        let totalBackorder = 0;
 
-        // Sort by date so "last backlog_out" is deterministic
-        shipRows.sort((a, b) => new Date(a.dateVal) - new Date(b.dateVal));
+        shipRows.forEach((r) => {
+          const shipped = toNum(r[shippedKey]);
+          const demand = toNum(r[demandKey]);
+          const backlogOut = toNum(r[boKey]);
 
-        // Only due-date rows count for OTF/backorder: demand > 0 defines due-date demand.
-        // (Rows with demand==0 are padding/carry-forward and must not affect OTF or "current backlog".)
-        const dueRows = shipRows.filter((r) => toNum(r.demand) > 0);
+          // Effective demand:
+          // if demand present, use it; else infer from shipped + backlogOut
+          const effectiveDemand = demand > 0 ? demand : (shipped + backlogOut);
 
-        const totalDays = dueRows.length;
-        const totalDemand = dueRows.reduce((s, r) => s + toNum(r.demand), 0);
+          totalDemand += effectiveDemand;
+          totalShipped += shipped;
+          totalBackorder += backlogOut;
+        });
 
-        // On-time day = backlog_out == 0 (demand fulfilled in full on due date)
-        const EPS = 1e-9;
-        const onTimeDays = dueRows.filter((r) => Math.abs(toNum(r.backlogOut)) <= EPS).length;
-        const otfFrac = totalDays > 0 ? onTimeDays / totalDays : 1;
+        const otf = totalDemand > 0 ? (100 * totalShipped) / totalDemand : 100;
+        const bor = totalDemand > 0 ? (100 * totalBackorder) / totalDemand : 0;
 
-        // Current open shortage = backlog_out on last due-date row
-        const backorderVolume = totalDays > 0 ? toNum(dueRows[totalDays - 1].backlogOut) : 0;
-        const backorderRateFrac = totalDemand > 0 ? backorderVolume / totalDemand : 0;
+        allKpis.onTimeFulfillment = `${otf.toFixed(1)}%`;
+        allKpis.backorderRate = `${bor.toFixed(1)}%`;
+        allKpis.backorderVolume = `${Math.round(totalBackorder)}`;
 
-        allKpis.onTimeFulfillment = `${(100 * otfFrac).toFixed(1)}%`;
-        allKpis.backorderRate = `${(100 * backorderRateFrac).toFixed(1)}%`;
-        allKpis.backorderVolume = `${Math.round(backorderVolume)}`;
-
-        // For inventoryTurns: annualize customer shipments (use dueRows if you prefer "due-date shipped", or shipRows for all shipped)
-        const totalCustomerShippedUnits = dueRows.reduce((sum, r) => sum + toNum(r.shipped), 0);
-
-        // Inventory Turns = annualized customer shipments / avg inventory
-        if (typeof avgInventoryNum !== "undefined" && avgInventoryNum > 0 && typeof invUniqueDays !== "undefined" && invUniqueDays > 0) {
-          const annualFactor = 365 / Math.max(invUniqueDays, 1);
-          const annualizedThroughput = totalCustomerShippedUnits * annualFactor;
-          const turns = annualizedThroughput / avgInventoryNum;
-          allKpis.inventoryTurns = `${turns.toFixed(1)}x`;
-        } else {
-          allKpis.inventoryTurns = `--x`;
-        }
+              // Inventory Turns = annualized customer shipments / avg inventory
+              if (avgInventoryNum > 0 && invUniqueDays > 0) {
+                const annualFactor = 365 / Math.max(invUniqueDays, 1);
+                const annualizedThroughput = totalCustomerShippedUnits * annualFactor;
+                const turns = annualizedThroughput / avgInventoryNum;
+                allKpis.inventoryTurns = `${turns.toFixed(1)}x`;
+              } else {
+                allKpis.inventoryTurns = `--x`;
+              }
       }
+
       // ----- COST TO SERVE + EXPEDITE RATIO (flow output, all flow types) -----
       if (urls.flow_output_file_url) {
         const flowRows = await fetchCsvRows(urls.flow_output_file_url);
