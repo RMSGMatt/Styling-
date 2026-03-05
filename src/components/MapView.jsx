@@ -248,6 +248,8 @@ export default function MapView({
   const renderPointMarkersFromGeoJSON = useCallback(
     (map, features, destRef, emojiFn, titleFn) => {
       clearMarkers(destRef);
+        // Guard: map may be unmounted/recreated while async fetch resolves
+        if (!map || typeof map.getCanvasContainer !== "function" || !map.getCanvasContainer()) return;
       if (!Array.isArray(features) || !features.length) return;
 
       features.forEach((f) => {
@@ -273,6 +275,11 @@ export default function MapView({
 
           const [lng, lat] = coords.map(Number);
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+          // Guard: map may be unmounted/recreated while async data loads
+          if (!map || typeof map.getCanvasContainer !== "function" || !map.getCanvasContainer()) {
+            return;
+          }
 
           const el = document.createElement("div");
           el.style.fontSize = "20px";

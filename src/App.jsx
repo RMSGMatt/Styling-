@@ -133,6 +133,19 @@ const getEffectiveSkus = (selectedSku, skuOptions) => {
   return opt;
 };
 
+// Demo-safe SKU scope:
+// - Prefer Finished Goods (FG*) for KPI + chart default scope
+// - Fallback to original list if no FG SKUs exist
+const getDemoSkus = (skus) => {
+  const arr = Array.isArray(skus) ? skus : (skus ? [skus] : []);
+  const cleaned = arr
+    .map((x) => String(x ?? "").trim())
+    .filter((x) => x && x.toLowerCase() !== "nan" && x.toLowerCase() !== "undefined" && x.toLowerCase() !== "null");
+
+  const fg = cleaned.filter((x) => /^FG/i.test(x));
+  return (fg.length ? fg : cleaned);
+};
+
 // Generic CSV loader for disruption / panel data
 async function loadCsvToJson(url, setter) {
   if (!url) return;
@@ -502,7 +515,8 @@ export default function App() {
     if (!urls) return;
 
     const effectiveSkusLocal = getEffectiveSkus((skuOverride ?? selectedSku), skuOptions);
-    const skuFilter = (Array.isArray(effectiveSkusLocal) ? effectiveSkusLocal : [effectiveSkusLocal])
+    const demoSkusLocal = getDemoSkus(effectiveSkusLocal);
+    const skuFilter = demoSkusLocal
       .filter(Boolean)
       .map(normalizeSku);
 
@@ -1023,7 +1037,8 @@ export default function App() {
     }
 
     const effectiveSkus = getEffectiveSkus(selectedSku, skuOptions);
-    if (!effectiveSkus || effectiveSkus.length === 0) {
+    const demoSkus = getDemoSkus(effectiveSkus);
+    if (!demoSkus || demoSkus.length === 0) {
       console.log("⏳ [PostRun] Waiting for SKU seed before KPI/chart recompute...");
       return;
     }
@@ -1032,10 +1047,10 @@ export default function App() {
       console.log("✅ [PostRun] Primed — running deterministic KPI+chart recompute once...");
 
       if (!backendKpisRef.current || !kpis || Object.keys(kpis).length === 0) {
-        runAllKpiUpdates(urls, effectiveSkus);
+        runAllKpiUpdates(urls, demoSkus);
       }
 
-      loadFilteredChart(urls, selectedOutputType || "inventory", effectiveSkus);
+      loadFilteredChart(urls, selectedOutputType || "inventory", demoSkus);
 
       justPrimedRef.current = true;
       setPostRunPhase("idle");
@@ -1043,8 +1058,8 @@ export default function App() {
     }
 
     // Normal interactive recompute
-    runAllKpiUpdates(urls, effectiveSkus);
-    loadFilteredChart(urls, selectedOutputType || "inventory", effectiveSkus);
+    runAllKpiUpdates(urls, demoSkus);
+    loadFilteredChart(urls, selectedOutputType || "inventory", demoSkus);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outputUrls, selectedSku, selectedOutputType, selectedFacility, postRunPhase]);
