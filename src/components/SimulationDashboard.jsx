@@ -33,6 +33,73 @@ ChartJS.register(
   Legend,
   TimeScale
 );
+// ===============================
+// ✅ KPI display helpers (demo-safe)
+// ===============================
+function _toNumberLoose(v) {
+  if (v === null || v === undefined) return NaN;
+  if (typeof v === "number") return v;
+  const s = String(v).trim();
+  if (!s) return NaN;
+  // strip common formatting ($, commas, %)
+  const cleaned = s.replace(/[$,%]/g, "").replace(/,/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function formatPercent(v, opts) {
+  const o = opts || {};
+  const zeroIsDash = !!o.zeroIsDash;
+  const digits = Number.isFinite(o.digits) ? o.digits : 1;
+
+  if (v === null || v === undefined) return "--";
+
+  // If already "7.6%" etc., keep it unless it’s empty
+  if (typeof v === "string" && v.trim().endsWith("%")) {
+    const t = v.trim();
+    if (t === "%" || t === "0%") return zeroIsDash ? "--" : "0%";
+    return t;
+  }
+
+  const n = _toNumberLoose(v);
+  if (!Number.isFinite(n)) return "--";
+  if (zeroIsDash && n === 0) return "--";
+
+  // If caller passes 0-1 ratio, convert to percent. If already 0-100, keep.
+  const pct = n <= 1 ? n * 100 : n;
+  return pct.toFixed(digits) + "%";
+}
+
+function formatNumber(v, opts) {
+  const o = opts || {};
+  const zeroIsDash = (o.zeroIsDash !== undefined) ? !!o.zeroIsDash : true;
+  const digits = Number.isFinite(o.digits) ? o.digits : 0;
+
+  const n = _toNumberLoose(v);
+  if (!Number.isFinite(n)) return "--";
+  if (zeroIsDash && n === 0) return "--";
+
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function formatCurrency(v, opts) {
+  const o = opts || {};
+  const zeroIsDash = (o.zeroIsDash !== undefined) ? !!o.zeroIsDash : true;
+  const digits = Number.isFinite(o.digits) ? o.digits : 0;
+
+  const n = _toNumberLoose(v);
+  if (!Number.isFinite(n)) return "--";
+  if (zeroIsDash && n === 0) return "--";
+
+  return "$" + n.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
 
 // Small helper for fallbacks so panels don't explode on "missing" data
 function safeArray(input) {
@@ -448,7 +515,7 @@ const revenueAtRiskMillions =
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
             <p className="text-xs text-slate-300">On-Time Fulfillment</p>
             <p className="text-xl font-semibold text-sky-400">
-              {kpis?.onTimeFulfillment ?? "--"}
+              {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
             </p>
           </div>
         </div>
@@ -1349,7 +1416,7 @@ setOverlayChartData(overlay);
                   className="text-lg font-semibold"
                   style={{ color: "#9CF700" }}
                 >
-                  {kpis?.onTimeFulfillment ?? "--"}
+                  {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Share of demand met on requested date.
@@ -1358,7 +1425,7 @@ setOverlayChartData(overlay);
               <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
                 <p className="text-slate-300 mb-1">Inventory Turns</p>
                 <p className="text-lg font-semibold text-sky-400">
-                  {kpis?.inventoryTurns ?? "--"}
+                  {formatNumber(kpis?.inventoryTurns, { zeroIsDash: true, digits: 2 })}
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Average annualized turns for selected scope.
@@ -1367,7 +1434,7 @@ setOverlayChartData(overlay);
               <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
                 <p className="text-slate-300 mb-1">Backorder Rate</p>
                 <p className="text-lg font-semibold text-rose-400">
-                  {kpis?.backorderRate ?? "--"}  •  Vol: {kpis?.backorderVolume ?? "--"}
+                  {formatPercent(kpis?.backorderRate, { zeroIsDash: false, digits: 1 })} • Vol: {formatNumber(kpis?.backorderVolume, { zeroIsDash: true, digits: 0 })}
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Portion of demand missed or delayed.
@@ -1376,9 +1443,7 @@ setOverlayChartData(overlay);
               <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
                 <p className="text-slate-300 mb-1">Expedite Cost</p>
                 <p className="text-lg font-semibold text-amber-400">
-                  {kpis?.expediteCost
-                    ? `$${kpis.expediteCost.toLocaleString()}`
-                    : "--"}
+                  {formatCurrency(kpis?.expediteCost, { zeroIsDash: true, digits: 0 })}
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Incremental cost from mitigation actions.
