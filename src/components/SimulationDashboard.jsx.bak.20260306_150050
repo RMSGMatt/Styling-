@@ -137,46 +137,6 @@ function normalizeDate(val) {
   return d.toISOString().slice(0, 10);
 }
 
-function formatRunLabel(sim, idx) {
-  const raw =
-    sim?.timestamp ||
-    sim?.created_at ||
-    sim?.run_id ||
-    sim?.id ||
-    "";
-
-  const s = String(raw).trim();
-
-  // Match patterns like:
-  // 20260306_123314
-  // BASELINE_HEALTHY_20260306_122636
-  const m = s.match(/(\d{8})_(\d{6})/);
-
-  if (m) {
-    const d = m[1];
-    const t = m[2];
-    const dt = new Date(
-      Number(d.slice(0, 4)),
-      Number(d.slice(4, 6)) - 1,
-      Number(d.slice(6, 8)),
-      Number(t.slice(0, 2)),
-      Number(t.slice(2, 4)),
-      Number(t.slice(4, 6))
-    );
-
-    if (!Number.isNaN(dt.getTime())) {
-      return `${idx + 1}. ${dt.toLocaleString()}`;
-    }
-  }
-
-  const fallback = new Date(s);
-  if (!Number.isNaN(fallback.getTime())) {
-    return `${idx + 1}. ${fallback.toLocaleString()}`;
-  }
-
-  return `${idx + 1}. Run ${idx + 1}`;
-}
-
 // Build chart datasets from CSV text for a given output type.
 // We use flexible column detection to survive schema drift.
 function buildOverlaySeriesFromCsvText(
@@ -1531,26 +1491,22 @@ setOverlayChartData(overlay);
               className="text-xs font-semibold px-3 py-1 rounded-full"
               style={{
                 backgroundColor:
-                  scenarioImpactSummary?.networkHealth === "healthy"
+                  (scenarioImpactSummary?.fillRate ?? 0) >= 99
                     ? "rgba(156, 247, 0, 0.12)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "rgba(239, 68, 68, 0.14)"
                     : "rgba(255, 178, 0, 0.12)",
                 color:
-                  scenarioImpactSummary?.networkHealth === "healthy"
+                  (scenarioImpactSummary?.fillRate ?? 0) >= 99
                     ? "#9CF700"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "#f87171"
                     : "#FFB200",
                 border:
-                  scenarioImpactSummary?.networkHealth === "healthy"
+                  (scenarioImpactSummary?.fillRate ?? 0) >= 99
                     ? "1px solid rgba(156, 247, 0, 0.35)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "1px solid rgba(239, 68, 68, 0.35)"
                     : "1px solid rgba(255, 178, 0, 0.35)",
               }}
             >
-              {scenarioImpactSummary?.networkHealthLabel || "🟠 Network Under Stress"}
+              {(scenarioImpactSummary?.fillRate ?? 0) >= 99
+                ? "Healthy Network"
+                : "Disruption Detected"}
             </div>
           </div>
 
@@ -2147,7 +2103,9 @@ setOverlayChartData(overlay);
                       <Select
                         options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
                           value: idx,
-                          label: formatRunLabel(s, idx),
+                          label: `${idx + 1}. ${new Date(
+                            s.timestamp
+                          ).toLocaleString()}`,
                         }))}
                         onChange={(opt) =>
                           setScenarioData((d) => ({
@@ -2169,7 +2127,9 @@ setOverlayChartData(overlay);
                       <Select
                         options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
                           value: idx,
-                          label: formatRunLabel(s, idx),
+                          label: `${idx + 1}. ${new Date(
+                            s.timestamp
+                          ).toLocaleString()}`,
                         }))}
                         onChange={(opt) =>
                           setScenarioData((d) => ({

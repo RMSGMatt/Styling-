@@ -184,71 +184,6 @@ function pickFirstKey(obj, candidates) {
   return null;
 }
 
-
-function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], productionRows = []) {
-  const custRows = (flowRows || []).filter((r) => {
-    const ft = String(r.flow_type || r.FlowType || r.type || "").trim().toLowerCase();
-    return ft === "customer_ship" || ft === "customer ship" || ft === "customership";
-  });
-
-  const demand = custRows.reduce((sum, r) => {
-    const v = Number(r.demand ?? r.Demand ?? 0);
-    return sum + (Number.isFinite(v) ? v : 0);
-  }, 0);
-
-  const shipped = custRows.reduce((sum, r) => {
-    const v = Number(r.flow ?? r.Flow ?? 0);
-    return sum + (Number.isFinite(v) ? v : 0);
-  }, 0);
-
-  const fillRate = demand > 0 ? (shipped / demand) * 100 : 0;
-
-  const byReason = (occurrenceRows || []).reduce((acc, r) => {
-    const reason = String(r.reason || r.Reason || "UNKNOWN").trim();
-    const qty = Number(r.unfulfilled ?? r.Unfulfilled ?? 0);
-    acc[reason] = (acc[reason] || 0) + (Number.isFinite(qty) ? qty : 0);
-    return acc;
-  }, {});
-
-  const lateDemand = byReason["LATE_CUSTOMER_DEMAND"] || 0;
-  const missingComponents = byReason["MISSING_COMPONENTS"] || 0;
-
-  const totalProduction = (productionRows || []).reduce((sum, r) => {
-    const v = Number(r.produced ?? r.Produced ?? 0);
-    return sum + (Number.isFinite(v) ? v : 0);
-  }, 0);
-
-  let headline = "Simulation completed.";
-  let narrative = "Review KPI and chart outputs for scenario impact.";
-
-  let networkHealth = "healthy";
-  let networkHealthLabel = "🟢 Healthy Network";
-
-  if (fillRate >= 99 && lateDemand === 0) {
-    networkHealth = "healthy";
-    networkHealthLabel = "🟢 Healthy Network";
-  } else if (fillRate < 90) {
-    networkHealth = "critical";
-    networkHealthLabel = "🔴 Critical Supply Disruption";
-  } else {
-    networkHealth = "stress";
-    networkHealthLabel = "🟠 Network Under Stress";
-  }
-
-  return {
-    demand,
-    shipped,
-    fillRate,
-    lateDemand,
-    missingComponents,
-    totalProduction,
-    headline,
-    narrative,
-    networkHealth,
-    networkHealthLabel,
-  };
-}
-
 async function fetchCsvRows(url) {
   if (!url) return [];
   const response = await axios.get(url, { responseType: "text" });
@@ -284,7 +219,6 @@ export default function App() {
   const [simulationHistory, setSimulationHistory] = useState([]);
   const [summaryStats, setSummaryStats] = useState({});
   const [kpis, setKpis] = useState({});
-  const [scenarioImpactSummary, setScenarioImpactSummary] = useState(null);
 
   const [disruptionImpactData, setDisruptionImpactData] = useState([]);
   const [projectedImpactData, setProjectedImpactData] = useState([]);
@@ -498,37 +432,24 @@ export default function App() {
 
       let desiredValueKey =
         outputType === "inventory"
-          ? ["ending_inventory", "inventory", "on_hand", "level", "initial_inventory"]
+          ? ["inventory", "ending_inventory", "on_hand", "level", "initial_inventory"]
           : outputType === "production"
           ? ["produced", "production", "qty"]
           : outputType === "flow"
-          ? ["flow"]
-          : ["unfulfilled", "event", "value", "amount"];
+          ? ["flow", "quantity", "shipped"]
+          : ["event", "value", "amount"];
 
       const valueKey = pickFirstKey(sample, desiredValueKey) || Object.keys(sample)[2];
 
       const filtered = results.filter((row) => {
         const skuVal = lower(row[skuKey]);
         const facilityVal =
-          row.facility ||
-          row.Facility ||
-          row.facility_id ||
-          row.Location ||
-          row.location ||
-          row.from ||
-          row.from_facility ||
-          "";
+          row.facility || row.Facility || row.facility_id || row.Location || row.location || "";
 
         const skuMatch = skuFilter.length === 0 || skuFilter.includes(skuVal);
         const facilityMatch =
-          !selectedFacility || upper(facilityVal) === upper(selectedFacility);
-
-        if (outputType === "flow") {
-          const ft = lower(row.flow_type || row.type || "");
-          const isCustomerShip =
-            ft === "customer_ship" || ft === "customer ship" || ft === "customership";
-          return skuMatch && facilityMatch && isCustomerShip;
-        }
+          !selectedFacility ||
+          upper(facilityVal) === upper(selectedFacility);
 
         return skuMatch && facilityMatch;
       });
@@ -616,8 +537,8 @@ export default function App() {
         const skuKey = pickFirstKey(sample, ["sku"]) || "sku";
         const facKey = pickFirstKey(sample, ["facility", "facility_id", "location"]) || "facility";
         const invKey =
-          pickFirstKey(sample, ["ending_inventory", "inventory", "on_hand", "level", "initial_inventory"]) ||
-          "ending_inventory";
+          pickFirstKey(sample, ["inventory", "ending_inventory", "on_hand", "level", "initial_inventory"]) ||
+          "inventory";
 
         const invFiltered = invRows.filter((r) => {
           const sku = normalizeSku(r[skuKey] || r.sku || r.SKU);
@@ -681,21 +602,21 @@ export default function App() {
         allKpis.avgTimeToRecovery = avgTimeToRecovery;
       }
 
-      // ----- SERVICE KPIs (SOURCE OF TRUTH = demand.csv + CUSTOMER_SHIP rows) -----
+      // ----- SERVICE KPIs (SOURCE OF TRUTH = DEMAND + SHIPMENTS INTO DEMAND NODE) -----
       // Truth definition for demo:
       // - Demand = total qty in demand.csv for selected SKU/facility scope
-      // - Fulfillment = CUSTOMER_SHIP flow rows
-      // - BackorderVolume = latest backlog_out from CUSTOMER_SHIP rows
-      // - OnTimeFulfillment = fulfilled / demand
+      // - Fulfillment = shipped qty INTO the demand node (ex: OEM_A)
+      // - BackorderVolume = Demand - Fulfillment
+      // - OnTimeFulfillment = Fulfillment / Demand
       //
       // Important:
-      // - shipped_downstream is not customer fulfillment
-      // - inbound replenishment into OEM is not customer fulfillment
-      // - only CUSTOMER_SHIP rows count as service fulfillment
+      // - shipped_downstream is NOT customer fulfillment
+      // - customer fulfillment is shipment INTO the demand node (OEM)
+
       if (urls.flow_output_file_url) {
         const flowRows = await fetchCsvRows(urls.flow_output_file_url);
 
-        // 1) Load demand truth from uploaded demand file
+        // 1) Load demand truth from the uploaded demand file if available
         let demandRows = [];
         try {
           const demandFile = files?.demand || files?.demand_file || files?.demandCsv;
@@ -713,20 +634,21 @@ export default function App() {
         const demandSample = demandRows[0] || {};
         const flowSample = flowRows[0] || {};
 
+        // demand.csv keys
         const demandSkuKey = pickFirstKey(demandSample, ["sku"]) || "sku";
         const demandFacilityKey =
           pickFirstKey(demandSample, ["facility", "facility_id", "location"]) || "facility";
         const demandQtyKey = pickFirstKey(demandSample, ["demand", "qty", "quantity"]) || "demand";
 
+        // flow_output.csv keys
         const flowSkuKey = pickFirstKey(flowSample, ["sku"]) || "sku";
-        const flowFromKey =
-          pickFirstKey(flowSample, ["from", "from_facility", "facility", "facility_id", "location"]) || "from";
         const flowQtyKey = pickFirstKey(flowSample, ["flow", "quantity", "shipped"]) || "flow";
-        const flowTypeKey = pickFirstKey(flowSample, ["flow_type", "type"]) || "flow_type";
-        const backlogOutKey = pickFirstKey(flowSample, ["backlog_out", "backorder", "unfulfilled"]) || "backlog_out";
-        const dateKey = pickFirstKey(flowSample, ["date", "day", "timestamp", "time"]) || "date";
 
-        // Scope demand rows
+        // destination / inbound side keys
+        const flowToKey =
+          pickFirstKey(flowSample, ["to", "to_facility", "destination", "dest", "facility"]) || "to";
+
+        // 2) Filter demand rows to current dashboard scope
         const scopedDemandRows = demandRows.filter((r) => {
           const sku = normalizeSku(r[demandSkuKey] || r.sku);
           const fac = upper(
@@ -735,11 +657,16 @@ export default function App() {
 
           const skuMatch = skuFilter.length === 0 || skuFilter.includes(sku);
           const facMatch = !facilityFilter || fac === facilityFilter;
+
           return skuMatch && facMatch;
         });
 
-        const totalDemand = scopedDemandRows.reduce((sum, r) => sum + toNum(r[demandQtyKey]), 0);
+        const totalDemand = scopedDemandRows.reduce(
+          (sum, r) => sum + toNum(r[demandQtyKey]),
+          0
+        );
 
+        // Demand nodes/facilities in scope (ex: OEM_A)
         const demandFacilities = new Set(
           scopedDemandRows
             .map((r) =>
@@ -750,71 +677,171 @@ export default function App() {
             .filter(Boolean)
         );
 
-        // Only CUSTOMER_SHIP rows count as customer fulfillment
-        const customerShipRows = flowRows
-          .filter((r) => {
-            const sku = normalizeSku(r[flowSkuKey] || r.sku);
-            const skuMatch = skuFilter.length === 0 || skuFilter.includes(sku);
-            if (!skuMatch) return false;
+        // 3) Sum fulfillment at the demand node
+        // For demo robustness, evaluate multiple row interpretations and use the
+        // strongest demand-node fulfillment signal.
+        const flowTypeKey = pickFirstKey(flowSample, ["flow_type", "type"]) || "flow_type";
+        const flowFacilityKey =
+          pickFirstKey(flowSample, ["facility", "facility_id", "location"]) ||
+          pickFirstKey(flowSample, ["from", "from_facility", "source", "origin"]) ||
+          "facility";
+        const flowFromKey =
+          pickFirstKey(flowSample, ["from", "from_facility", "source", "origin"]) || "from";
+        const flowToKey2 =
+          pickFirstKey(flowSample, ["to", "to_facility", "destination", "dest"]) || "to";
 
-            const ft = lower(r[flowTypeKey] || r.flow_type || r.type);
-            const isCustomerShip =
-              ft === "customer_ship" || ft === "customer ship" || ft === "customership";
-            if (!isCustomerShip) return false;
+        const qtyCandidates = [
+          pickFirstKey(flowSample, ["flow", "quantity", "shipped", "shipped_downstream"]) || "flow",
+          "flow",
+          "quantity",
+          "shipped",
+          "shipped_downstream",
+        ].filter(Boolean);
 
-            const fromFacility = upper(
-              r[flowFromKey] ||
-                r.from ||
-                r.from_facility ||
-                r.facility ||
-                r.facility_id ||
-                r.location ||
-                ""
-            );
+        const uniqueQtyCandidates = [...new Set(qtyCandidates)];
 
-            const facMatch =
-              !facilityFilter || fromFacility === facilityFilter || demandFacilities.has(fromFacility);
+        const sumByKey = (rows, key) =>
+          rows.reduce((sum, r) => sum + toNum(r[key]), 0);
 
-            return facMatch;
-          })
-          .map((r) => ({
-            date: r[dateKey],
-            flow: toNum(r[flowQtyKey]),
-            backlogOut: toNum(r[backlogOutKey]),
-          }))
-          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        const customerShipRows = flowRows.filter((r) => {
+          const sku = normalizeSku(r[flowSkuKey] || r.sku);
+          const skuMatch = skuFilter.length === 0 || skuFilter.includes(sku);
+          if (!skuMatch) return false;
 
-        const fulfilledCustomerShip = customerShipRows.reduce((sum, r) => sum + toNum(r.flow), 0);
-        const latestBacklogOut =
-          customerShipRows.length > 0
-            ? toNum(customerShipRows[customerShipRows.length - 1].backlogOut)
-            : Math.max(0, totalDemand - fulfilledCustomerShip);
+          const ft = lower(r[flowTypeKey] || r.flow_type || r.type);
+          const isCustomerShip =
+            ft === "customer_ship" || ft === "customer ship" || ft === "customership";
+          if (!isCustomerShip) return false;
 
-        const otfFrac = totalDemand > 0 ? fulfilledCustomerShip / totalDemand : 0;
-        const backorderVolume = Math.max(0, latestBacklogOut);
+          const facilityVal = upper(
+            r[flowFacilityKey] ||
+            r.facility ||
+            r.Facility ||
+            r.location ||
+            r.Location ||
+            r[flowFromKey] ||
+            r.from ||
+            ""
+          );
+
+          return demandFacilities.has(facilityVal);
+        });
+
+        const inboundDemandShipments = flowRows.filter((r) => {
+          const sku = normalizeSku(r[flowSkuKey] || r.sku);
+          const skuMatch = skuFilter.length === 0 || skuFilter.includes(sku);
+          if (!skuMatch) return false;
+
+          const toFacility = upper(
+            r[flowToKey2] || r.to || r.to_facility || r.destination || r.dest || ""
+          );
+
+          return demandFacilities.has(toFacility);
+        });
+
+        const demandNodeToCustomerRows = flowRows.filter((r) => {
+          const sku = normalizeSku(r[flowSkuKey] || r.sku);
+          const skuMatch = skuFilter.length === 0 || skuFilter.includes(sku);
+          if (!skuMatch) return false;
+
+          const fromFacility = upper(
+            r[flowFromKey] || r.from || r.from_facility || r.source || r.origin || r[flowFacilityKey] || ""
+          );
+          const toFacility = upper(
+            r[flowToKey2] || r.to || r.to_facility || r.destination || r.dest || ""
+          );
+
+          const fromDemandNode = demandFacilities.has(fromFacility);
+          const toCustomer =
+            toFacility === "CUSTOMER" ||
+            toFacility === "DEMAND" ||
+            toFacility === "OEM_CUSTOMER";
+
+          return fromDemandNode && toCustomer;
+        });
+
+        const candidateModes = [];
+
+        for (const qtyKey of uniqueQtyCandidates) {
+          candidateModes.push({
+            mode: `customer_ship_at_demand_node:${qtyKey}`,
+            qtyKey,
+            rows: customerShipRows.length,
+            total: sumByKey(customerShipRows, qtyKey),
+          });
+          candidateModes.push({
+            mode: `inbound_to_demand_node:${qtyKey}`,
+            qtyKey,
+            rows: inboundDemandShipments.length,
+            total: sumByKey(inboundDemandShipments, qtyKey),
+          });
+          candidateModes.push({
+            mode: `demand_node_to_customer:${qtyKey}`,
+            qtyKey,
+            rows: demandNodeToCustomerRows.length,
+            total: sumByKey(demandNodeToCustomerRows, qtyKey),
+          });
+        }
+
+        const validCandidates = candidateModes.filter((c) => c.total > 0);
+        const bestCandidate = validCandidates.sort((a, b) => b.total - a.total)[0] || {
+          mode: "none",
+          qtyKey: flowQtyKey,
+          rows: 0,
+          total: 0,
+        };
+
+        const fulfilledIntoDemandNode = bestCandidate.total;
+
+        const backorderVolume = Math.max(0, totalDemand - fulfilledIntoDemandNode);
+        const otfFrac = totalDemand > 0 ? fulfilledIntoDemandNode / totalDemand : 0;
         const backorderRateFrac = totalDemand > 0 ? backorderVolume / totalDemand : 0;
 
         allKpis.onTimeFulfillment = `${(100 * otfFrac).toFixed(1)}%`;
         allKpis.backorderRate = `${(100 * backorderRateFrac).toFixed(1)}%`;
         allKpis.backorderVolume = `${Math.round(backorderVolume)}`;
 
-        if (avgInventoryNum > 0 && invUniqueDays > 0) {
+        // Inventory turns should also use true customer fulfillment
+        if (
+          typeof avgInventoryNum !== "undefined" &&
+          avgInventoryNum > 0 &&
+          typeof invUniqueDays !== "undefined" &&
+          invUniqueDays > 0
+        ) {
           const annualFactor = 365 / Math.max(invUniqueDays, 1);
-          const annualizedThroughput = fulfilledCustomerShip * annualFactor;
+          const annualizedThroughput = fulfilledIntoDemandNode * annualFactor;
           const turns = annualizedThroughput / avgInventoryNum;
           allKpis.inventoryTurns = `${turns.toFixed(1)}x`;
         } else {
-          allKpis.inventoryTurns = "--x";
+          allKpis.inventoryTurns = `--x`;
         }
 
-        console.log("📦 [KPI] Service truth:", {
+        const serviceTruthDebug = {
           totalDemand,
-          fulfilledCustomerShip,
+          fulfilledIntoDemandNode,
           backorderVolume,
           otfPercent: (100 * otfFrac).toFixed(1),
-          customerShipRowCount: customerShipRows.length,
           demandFacilities: Array.from(demandFacilities),
-        });
+          customerShipRowCount: customerShipRows.length,
+          inboundDemandShipmentRowCount: inboundDemandShipments.length,
+          demandNodeToCustomerRowCount: demandNodeToCustomerRows.length,
+          shipmentTruthMode: bestCandidate.mode,
+          shipmentTruthQtyKey: bestCandidate.qtyKey,
+          shipmentTruthRows: bestCandidate.rows,
+          shipmentTruthTopCandidates: candidateModes
+            .filter((c) => c.total > 0)
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 12),
+        };
+
+        console.log("📦 [KPI] Service truth:", serviceTruthDebug);
+        console.log("📦 [KPI] Service truth JSON:", JSON.stringify(serviceTruthDebug, null, 2));
+        console.table(
+          candidateModes
+            .filter((c) => c.total > 0)
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 20)
+        );
       }
       // ----- COST TO SERVE + EXPEDITE RATIO (flow output, all flow types) -----
       if (urls.flow_output_file_url) {
@@ -867,32 +894,6 @@ export default function App() {
         });
 
         allKpis.occurrenceCount = `${filtered.length}`;
-      }
-
-      // ----- SCENARIO IMPACT SUMMARY -----
-      try {
-        const flowRowsForSummary = urls.flow_output_file_url
-          ? await fetchCsvRows(urls.flow_output_file_url)
-          : [];
-
-        const occurrenceRowsForSummary = urls.occurrence_output_file_url
-          ? await fetchCsvRows(urls.occurrence_output_file_url)
-          : [];
-
-        const productionRowsForSummary = urls.production_output_file_url
-          ? await fetchCsvRows(urls.production_output_file_url)
-          : [];
-
-        const summary = buildScenarioImpactSummary(
-          flowRowsForSummary,
-          occurrenceRowsForSummary,
-          productionRowsForSummary
-        );
-
-        setScenarioImpactSummary(summary);
-      } catch (e) {
-        console.warn("⚠️ Failed to build scenario impact summary:", e);
-        setScenarioImpactSummary(null);
       }
 
       console.log("KPI_DEBUG_DUMP", allKpis);
@@ -1296,7 +1297,6 @@ export default function App() {
           setSelectedOutputType={setSelectedOutputType}
           chartData={chartData}
           summaryStats={summaryStats}
-          scenarioImpactSummary={scenarioImpactSummary}
           simulationHistory={simulationHistory}
           files={files}
           kpis={kpis}

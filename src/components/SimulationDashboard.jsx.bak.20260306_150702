@@ -1531,26 +1531,22 @@ setOverlayChartData(overlay);
               className="text-xs font-semibold px-3 py-1 rounded-full"
               style={{
                 backgroundColor:
-                  scenarioImpactSummary?.networkHealth === "healthy"
+                  (scenarioImpactSummary?.fillRate ?? 0) >= 99
                     ? "rgba(156, 247, 0, 0.12)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "rgba(239, 68, 68, 0.14)"
                     : "rgba(255, 178, 0, 0.12)",
                 color:
-                  scenarioImpactSummary?.networkHealth === "healthy"
+                  (scenarioImpactSummary?.fillRate ?? 0) >= 99
                     ? "#9CF700"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "#f87171"
                     : "#FFB200",
                 border:
-                  scenarioImpactSummary?.networkHealth === "healthy"
+                  (scenarioImpactSummary?.fillRate ?? 0) >= 99
                     ? "1px solid rgba(156, 247, 0, 0.35)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "1px solid rgba(239, 68, 68, 0.35)"
                     : "1px solid rgba(255, 178, 0, 0.35)",
               }}
             >
-              {scenarioImpactSummary?.networkHealthLabel || "🟠 Network Under Stress"}
+              {(scenarioImpactSummary?.fillRate ?? 0) >= 99
+                ? "Healthy Network"
+                : "Disruption Detected"}
             </div>
           </div>
 

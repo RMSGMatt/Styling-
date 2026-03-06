@@ -221,18 +221,18 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
   let headline = "Simulation completed.";
   let narrative = "Review KPI and chart outputs for scenario impact.";
 
-  let networkHealth = "healthy";
-  let networkHealthLabel = "🟢 Healthy Network";
-
-  if (fillRate >= 99 && lateDemand === 0) {
-    networkHealth = "healthy";
-    networkHealthLabel = "🟢 Healthy Network";
-  } else if (fillRate < 90) {
-    networkHealth = "critical";
-    networkHealthLabel = "🔴 Critical Supply Disruption";
-  } else {
-    networkHealth = "stress";
-    networkHealthLabel = "🟠 Network Under Stress";
+  if (fillRate >= 99) {
+    headline = "Supply chain operated normally.";
+    narrative =
+      "Demand was fulfilled without meaningful service degradation. Production and shipment flow remained stable across the network.";
+  } else if (missingComponents > 0) {
+    headline = "Component shortage disrupted production.";
+    narrative =
+      "Upstream material constraints limited Tier-1 output, which propagated downstream into late customer demand and lower service levels.";
+  } else if (lateDemand > 0) {
+    headline = "Customer service degradation detected.";
+    narrative =
+      "Demand was not fully met on time, indicating backlog growth and downstream service pressure.";
   }
 
   return {
@@ -244,8 +244,6 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
     totalProduction,
     headline,
     narrative,
-    networkHealth,
-    networkHealthLabel,
   };
 }
 
