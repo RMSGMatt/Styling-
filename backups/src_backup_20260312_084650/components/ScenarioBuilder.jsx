@@ -150,20 +150,6 @@ export default function ScenarioBuilder({
   const applyScenario = () => {
     const scenario = buildScenarioObject();
 
-    console.log("🧪 [ScenarioBuilder] buildScenarioObject output:", JSON.stringify(scenario, null, 2));
-    console.log("🧪 [ScenarioBuilder] current raw state:", {
-      selectedTypes,
-      facility,
-      startDate,
-      endDate,
-      duration,
-      severity,
-      demandSpikePct,
-      supplyCapPct,
-      sourcing,
-      notes,
-    });
-
     // 1) update parent state (SimulationDashboard path)
     setScenarioData?.(scenario);
 

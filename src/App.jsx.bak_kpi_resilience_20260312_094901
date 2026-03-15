@@ -821,20 +821,6 @@ export default function App() {
           allKpis.inventoryTurns = "--x";
         }
 
-        // ----- INVENTORY BUFFER INDEX (days of demand coverage) -----
-        try {
-          const avgDailyDemand = invUniqueDays > 0 ? totalDemand / Math.max(invUniqueDays, 1) : 0;
-          if (avgInventoryNum > 0 && avgDailyDemand > 0) {
-            const ibiDays = avgInventoryNum / avgDailyDemand;
-            allKpis.inventoryBuffer = `${ibiDays.toFixed(1)} days`;
-          } else {
-            allKpis.inventoryBuffer = "--";
-          }
-        } catch (e) {
-          console.warn("⚠️ [KPI] inventoryBuffer calc failed:", e);
-          allKpis.inventoryBuffer = "--";
-        }
-
         console.log("📦 [KPI] Service truth:", {
           totalDemand,
           fulfilledCustomerShip,
@@ -885,7 +871,6 @@ export default function App() {
         const sample = occRows[0] || {};
         const skuKey = pickFirstKey(sample, ["sku"]) || "sku";
         const facKey = pickFirstKey(sample, ["facility", "facility_id", "location"]) || "facility";
-        const dateKey = pickFirstKey(sample, ["date", "Date", "day", "Day"]) || "date";
 
         const filtered = occRows.filter((r) => {
           const sku = normalizeSku(r[skuKey] || r.sku);
@@ -896,27 +881,6 @@ export default function App() {
         });
 
         allKpis.occurrenceCount = `${filtered.length}`;
-
-        // ----- TIME TO RECOVERY (occurrence-span based) -----
-        try {
-          const occDates = filtered
-            .map((r) => r[dateKey] || r.date || r.Date || r.day || r.Day)
-            .filter(Boolean)
-            .map((d) => new Date(d))
-            .filter((d) => !Number.isNaN(d.getTime()));
-
-          if (occDates.length > 0) {
-            const first = new Date(Math.min(...occDates.map((d) => d.getTime())));
-            const last = new Date(Math.max(...occDates.map((d) => d.getTime())));
-            const diffDays = Math.round((last - first) / (1000 * 60 * 60 * 24));
-            allKpis.timeToRecovery = `${diffDays} days`;
-          } else {
-            allKpis.timeToRecovery = "--";
-          }
-        } catch (e) {
-          console.warn("⚠️ [KPI] timeToRecovery calc failed:", e);
-          allKpis.timeToRecovery = "--";
-        }
       }
 
       // ----- SCENARIO IMPACT SUMMARY -----

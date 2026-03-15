@@ -680,10 +680,6 @@ export default function SimulationDashboard({
     console.log("🧩 SimulationDashboard loaded (with scenario transforms)");
   }, []);
 
-  useEffect(() => {
-    console.log("🧪 [SimulationDashboard] kpis prop:", kpis);
-  }, [kpis]);
-
   // 📥 Load Saved Scenarios on Mount
   useEffect(() => {
     listScenarios()
@@ -1255,28 +1251,32 @@ setOverlayChartData(overlay);
       console.log("✅ demand.csv transformed");
     }
 
-    if (scenarioData?.disruptionScenarios?.length) {
-      const scenarioRows = scenarioData.disruptionScenarios.map((scenario) => ({
-        start_date: scenario.startDate || scenario.start_date || "2025-01-01",
-        end_date: scenario.endDate || scenario.end_date || "2025-01-10",
-        facility: scenario.facility || "ScenarioFacility",
-        severity:
-          scenario.severity !== undefined && scenario.severity !== null && scenario.severity !== ""
-            ? scenario.severity
-            : 100,
-      }));
+    if (
+      isValidCsvText(originalDisruptionsText) &&
+      scenarioData?.disruptionScenarios?.length
+    ) {
+      const parsed = Papa.parse(originalDisruptionsText, { header: true, skipEmptyLines: true });
+      const rows = parsed.data || [];
 
-      transformedDisruptions = Papa.unparse(scenarioRows, {
-        columns: ["start_date", "end_date", "facility", "severity"],
+      scenarioData.disruptionScenarios.forEach((scenario) => {
+        rows.push({
+          sku: scenario.sku || "SCENARIO_SKU",
+          facility: scenario.facility || "ScenarioFacility",
+          start_date: scenario.startDate || "2025-01-01",
+          end_date: scenario.endDate || "2025-01-10",
+          severity: scenario.severity || "High",
+          type: scenario.type || "ScenarioInjection",
+        });
       });
 
-      console.log("✅ disruptions.csv replaced from Scenario Builder");
+      transformedDisruptions = Papa.unparse(rows);
+      console.log("✅ disruptions.csv appended");
+      // 🔎 Verify we actually appended at least 1 disruption row (not just headers)
       try {
         const txt = String(transformedDisruptions || "");
         const lines = txt.split(/\r?\n/).filter(Boolean);
         console.log("🧪 [Verify] disruptions total lines:", lines.length);
-        console.log("🧪 [Verify] disruptions header:", lines[0] || "(none)");
-        console.log("🧪 [Verify] disruptions first row:", lines[1] || "(no rows written)");
+        console.log("🧪 [Verify] disruptions last row:", lines[lines.length - 1] || "(none)");
       } catch (e) {
         console.warn("⚠️ [Verify] disruptions check failed:", e);
       }
@@ -1488,24 +1488,6 @@ setOverlayChartData(overlay);
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Incremental cost from mitigation actions.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Inventory Buffer</p>
-                <p className="text-lg font-semibold text-emerald-300">
-                  {String(kpis?.inventoryBuffer || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Days of demand coverage from average inventory.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Time to Recovery</p>
-                <p className="text-lg font-semibold text-violet-300">
-                  {String(kpis?.timeToRecovery || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Time span from first to last disruption occurrence.
                 </p>
               </div>
             </div>

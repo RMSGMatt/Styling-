@@ -137,46 +137,6 @@ function normalizeDate(val) {
   return d.toISOString().slice(0, 10);
 }
 
-function formatRunLabel(sim, idx) {
-  const raw =
-    sim?.timestamp ||
-    sim?.created_at ||
-    sim?.run_id ||
-    sim?.id ||
-    "";
-
-  const s = String(raw).trim();
-
-  // Match patterns like:
-  // 20260306_123314
-  // BASELINE_HEALTHY_20260306_122636
-  const m = s.match(/(\d{8})_(\d{6})/);
-
-  if (m) {
-    const d = m[1];
-    const t = m[2];
-    const dt = new Date(
-      Number(d.slice(0, 4)),
-      Number(d.slice(4, 6)) - 1,
-      Number(d.slice(6, 8)),
-      Number(t.slice(0, 2)),
-      Number(t.slice(2, 4)),
-      Number(t.slice(4, 6))
-    );
-
-    if (!Number.isNaN(dt.getTime())) {
-      return `${idx + 1}. ${dt.toLocaleString()}`;
-    }
-  }
-
-  const fallback = new Date(s);
-  if (!Number.isNaN(fallback.getTime())) {
-    return `${idx + 1}. ${fallback.toLocaleString()}`;
-  }
-
-  return `${idx + 1}. Run ${idx + 1}`;
-}
-
 // Build chart datasets from CSV text for a given output type.
 // We use flexible column detection to survive schema drift.
 function buildOverlaySeriesFromCsvText(
@@ -679,10 +639,6 @@ export default function SimulationDashboard({
   useEffect(() => {
     console.log("🧩 SimulationDashboard loaded (with scenario transforms)");
   }, []);
-
-  useEffect(() => {
-    console.log("🧪 [SimulationDashboard] kpis prop:", kpis);
-  }, [kpis]);
 
   // 📥 Load Saved Scenarios on Mount
   useEffect(() => {
@@ -1255,28 +1211,32 @@ setOverlayChartData(overlay);
       console.log("✅ demand.csv transformed");
     }
 
-    if (scenarioData?.disruptionScenarios?.length) {
-      const scenarioRows = scenarioData.disruptionScenarios.map((scenario) => ({
-        start_date: scenario.startDate || scenario.start_date || "2025-01-01",
-        end_date: scenario.endDate || scenario.end_date || "2025-01-10",
-        facility: scenario.facility || "ScenarioFacility",
-        severity:
-          scenario.severity !== undefined && scenario.severity !== null && scenario.severity !== ""
-            ? scenario.severity
-            : 100,
-      }));
+    if (
+      isValidCsvText(originalDisruptionsText) &&
+      scenarioData?.disruptionScenarios?.length
+    ) {
+      const parsed = Papa.parse(originalDisruptionsText, { header: true, skipEmptyLines: true });
+      const rows = parsed.data || [];
 
-      transformedDisruptions = Papa.unparse(scenarioRows, {
-        columns: ["start_date", "end_date", "facility", "severity"],
+      scenarioData.disruptionScenarios.forEach((scenario) => {
+        rows.push({
+          sku: scenario.sku || "SCENARIO_SKU",
+          facility: scenario.facility || "ScenarioFacility",
+          start_date: scenario.startDate || "2025-01-01",
+          end_date: scenario.endDate || "2025-01-10",
+          severity: scenario.severity || "High",
+          type: scenario.type || "ScenarioInjection",
+        });
       });
 
-      console.log("✅ disruptions.csv replaced from Scenario Builder");
+      transformedDisruptions = Papa.unparse(rows);
+      console.log("✅ disruptions.csv appended");
+      // 🔎 Verify we actually appended at least 1 disruption row (not just headers)
       try {
         const txt = String(transformedDisruptions || "");
         const lines = txt.split(/\r?\n/).filter(Boolean);
         console.log("🧪 [Verify] disruptions total lines:", lines.length);
-        console.log("🧪 [Verify] disruptions header:", lines[0] || "(none)");
-        console.log("🧪 [Verify] disruptions first row:", lines[1] || "(no rows written)");
+        console.log("🧪 [Verify] disruptions last row:", lines[lines.length - 1] || "(none)");
       } catch (e) {
         console.warn("⚠️ [Verify] disruptions check failed:", e);
       }
@@ -1490,24 +1450,6 @@ setOverlayChartData(overlay);
                   Incremental cost from mitigation actions.
                 </p>
               </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Inventory Buffer</p>
-                <p className="text-lg font-semibold text-emerald-300">
-                  {String(kpis?.inventoryBuffer || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Days of demand coverage from average inventory.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Time to Recovery</p>
-                <p className="text-lg font-semibold text-violet-300">
-                  {String(kpis?.timeToRecovery || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Time span from first to last disruption occurrence.
-                </p>
-              </div>
             </div>
             <div className="mt-3 text-[10px] text-slate-300">
               <p>
@@ -1549,26 +1491,22 @@ setOverlayChartData(overlay);
               className="text-xs font-semibold px-3 py-1 rounded-full"
               style={{
                 backgroundColor:
-                  scenarioImpactSummary?.networkHealth === "healthy"
+                  (scenarioImpactSummary?.fillRate ?? 0) >= 99
                     ? "rgba(156, 247, 0, 0.12)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "rgba(239, 68, 68, 0.14)"
                     : "rgba(255, 178, 0, 0.12)",
                 color:
-                  scenarioImpactSummary?.networkHealth === "healthy"
+                  (scenarioImpactSummary?.fillRate ?? 0) >= 99
                     ? "#9CF700"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "#f87171"
                     : "#FFB200",
                 border:
-                  scenarioImpactSummary?.networkHealth === "healthy"
+                  (scenarioImpactSummary?.fillRate ?? 0) >= 99
                     ? "1px solid rgba(156, 247, 0, 0.35)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "1px solid rgba(239, 68, 68, 0.35)"
                     : "1px solid rgba(255, 178, 0, 0.35)",
               }}
             >
-              {scenarioImpactSummary?.networkHealthLabel || "🟠 Network Under Stress"}
+              {(scenarioImpactSummary?.fillRate ?? 0) >= 99
+                ? "Healthy Network"
+                : "Disruption Detected"}
             </div>
           </div>
 
@@ -1587,7 +1525,7 @@ setOverlayChartData(overlay);
             </div>
 
             <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4">
-              <p className="text-xs text-slate-300 mb-3">Key Outcome Performance Metrics</p>
+              <p className="text-xs text-slate-300 mb-3">Key Outcome Metrics</p>
 
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
@@ -2038,7 +1976,7 @@ setOverlayChartData(overlay);
             const selectStyles = {
               control: (base) => ({
                 ...base,
-                backgroundColor: "#e5e7eb",
+                backgroundColor: "#f3f4f6",
                 borderColor: "#cbd5e1",
                 color: "#111827",
                 boxShadow: "none",
@@ -2121,9 +2059,9 @@ setOverlayChartData(overlay);
                     />
                   </div>
 
-                  {/* Performance Metric */}
+                  {/* Metric */}
                   <div>
-                    <p className="text-xs text-white font-semibold mb-1">Performance Metric</p>
+                    <p className="text-xs text-white font-semibold mb-1">Metric</p>
                     <Select
                       options={outputTypes}
                       onChange={handleOutputTypeChange}
@@ -2153,7 +2091,7 @@ setOverlayChartData(overlay);
                 {/* RUN COMPARISON SELECTORS */}
                 <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4 mb-4">
                   <h3 className="text-xs font-semibold text-slate-200 mb-2">
-                    🔀 Compare Simulation Runs
+                    🔀 Compare Simulation Runs (Overlay Mode)
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2165,7 +2103,9 @@ setOverlayChartData(overlay);
                       <Select
                         options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
                           value: idx,
-                          label: formatRunLabel(s, idx),
+                          label: `${idx + 1}. ${new Date(
+                            s.timestamp
+                          ).toLocaleString()}`,
                         }))}
                         onChange={(opt) =>
                           setScenarioData((d) => ({
@@ -2187,7 +2127,9 @@ setOverlayChartData(overlay);
                       <Select
                         options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
                           value: idx,
-                          label: formatRunLabel(s, idx),
+                          label: `${idx + 1}. ${new Date(
+                            s.timestamp
+                          ).toLocaleString()}`,
                         }))}
                         onChange={(opt) =>
                           setScenarioData((d) => ({

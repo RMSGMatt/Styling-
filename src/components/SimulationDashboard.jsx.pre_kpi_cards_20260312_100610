@@ -678,11 +678,8 @@ export default function SimulationDashboard({
 
   useEffect(() => {
     console.log("🧩 SimulationDashboard loaded (with scenario transforms)");
+  console.log("🧪 [SimulationDashboard] kpis prop:", kpis);
   }, []);
-
-  useEffect(() => {
-    console.log("🧪 [SimulationDashboard] kpis prop:", kpis);
-  }, [kpis]);
 
   // 📥 Load Saved Scenarios on Mount
   useEffect(() => {
@@ -1488,24 +1485,6 @@ setOverlayChartData(overlay);
                 </p>
                 <p className="text-[10px] text-slate-300 mt-1">
                   Incremental cost from mitigation actions.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Inventory Buffer</p>
-                <p className="text-lg font-semibold text-emerald-300">
-                  {String(kpis?.inventoryBuffer || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Days of demand coverage from average inventory.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Time to Recovery</p>
-                <p className="text-lg font-semibold text-violet-300">
-                  {String(kpis?.timeToRecovery || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Time span from first to last disruption occurrence.
                 </p>
               </div>
             </div>

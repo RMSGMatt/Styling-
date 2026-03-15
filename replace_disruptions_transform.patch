@@ -1,0 +1,60 @@
+*** Begin Patch
+*** Update File: src/components/SimulationDashboard.jsx
+@@
+-    if (
+-      isValidCsvText(originalDisruptionsText) &&
+-      scenarioData?.disruptionScenarios?.length
+-    ) {
+-      const parsed = Papa.parse(originalDisruptionsText, { header: true, skipEmptyLines: true });
+-      const rows = parsed.data || [];
+-
+-      scenarioData.disruptionScenarios.forEach((scenario) => {
+-        rows.push({
+-          sku: scenario.sku || "SCENARIO_SKU",
+-          facility: scenario.facility || "ScenarioFacility",
+-          start_date: scenario.startDate || "2025-01-01",
+-          end_date: scenario.endDate || "2025-01-10",
+-          severity: scenario.severity || "High",
+-          type: scenario.type || "ScenarioInjection",
+-        });
+-      });
+-
+-      transformedDisruptions = Papa.unparse(rows);
+-      console.log("✅ disruptions.csv appended");
+-      // 🔎 Verify we actually appended at least 1 disruption row (not just headers)
+-      try {
+-        const txt = String(transformedDisruptions || "");
+-        const lines = txt.split(/\r?\n/).filter(Boolean);
+-        console.log("🧪 [Verify] disruptions total lines:", lines.length);
+-        console.log("🧪 [Verify] disruptions last row:", lines[lines.length - 1] || "(none)");
+-      } catch (e) {
+-        console.warn("⚠️ [Verify] disruptions check failed:", e);
+-      }
+-    }
++    if (scenarioData?.disruptionScenarios?.length) {
++      const scenarioRows = scenarioData.disruptionScenarios.map((scenario) => ({
++        start_date: scenario.startDate || scenario.start_date || "2025-01-01",
++        end_date: scenario.endDate || scenario.end_date || "2025-01-10",
++        facility: scenario.facility || "ScenarioFacility",
++        severity:
++          scenario.severity !== undefined && scenario.severity !== null && scenario.severity !== ""
++            ? scenario.severity
++            : 100,
++      }));
++
++      transformedDisruptions = Papa.unparse(scenarioRows, {
++        columns: ["start_date", "end_date", "facility", "severity"],
++      });
++
++      console.log("✅ disruptions.csv replaced from Scenario Builder");
++      try {
++        const txt = String(transformedDisruptions || "");
++        const lines = txt.split(/\r?\n/).filter(Boolean);
++        console.log("🧪 [Verify] disruptions total lines:", lines.length);
++        console.log("🧪 [Verify] disruptions header:", lines[0] || "(none)");
++        console.log("🧪 [Verify] disruptions first row:", lines[1] || "(no rows written)");
++      } catch (e) {
++        console.warn("⚠️ [Verify] disruptions check failed:", e);
++      }
++    }
+*** End Patch

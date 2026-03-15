@@ -184,85 +184,6 @@ function pickFirstKey(obj, candidates) {
   return null;
 }
 
-
-function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], productionRows = []) {
-  const custRows = (flowRows || []).filter((r) => {
-    const ft = String(r.flow_type || r.FlowType || r.type || "").trim().toLowerCase();
-    return ft === "customer_ship" || ft === "customer ship" || ft === "customership";
-  });
-
-  const demand = custRows.reduce((sum, r) => {
-    const v = Number(r.demand ?? r.Demand ?? 0);
-    return sum + (Number.isFinite(v) ? v : 0);
-  }, 0);
-
-  const shipped = custRows.reduce((sum, r) => {
-    const v = Number(r.flow ?? r.Flow ?? 0);
-    return sum + (Number.isFinite(v) ? v : 0);
-  }, 0);
-
-  const fillRate = demand > 0 ? (shipped / demand) * 100 : 0;
-
-  const byReason = (occurrenceRows || []).reduce((acc, r) => {
-    const reason = String(r.reason || r.Reason || "UNKNOWN").trim();
-    const qty = Number(r.unfulfilled ?? r.Unfulfilled ?? 0);
-    acc[reason] = (acc[reason] || 0) + (Number.isFinite(qty) ? qty : 0);
-    return acc;
-  }, {});
-
-  const lateDemand = byReason["LATE_CUSTOMER_DEMAND"] || 0;
-  const missingComponents = byReason["MISSING_COMPONENTS"] || 0;
-
-  const totalProduction = (productionRows || []).reduce((sum, r) => {
-    const v = Number(r.produced ?? r.Produced ?? 0);
-    return sum + (Number.isFinite(v) ? v : 0);
-  }, 0);
-
-  let headline = "Simulation completed.";
-  let narrative = "Review KPI and chart outputs for scenario impact.";
-
-  if (fillRate >= 99 && lateDemand === 0) {
-    headline = "Supply chain operated normally.";
-    narrative =
-      "Demand was fulfilled without meaningful service degradation. Production and shipment flow remained stable across the network.";
-  } else if (fillRate < 90 || lateDemand > 0 || missingComponents > 0) {
-    headline = "Component shortage disrupted production.";
-    narrative =
-      "Upstream material constraints limited output, which propagated downstream into late customer demand and lower service levels.";
-  } else {
-    headline = "Customer service degradation detected.";
-    narrative =
-      "Demand was not fully met on time, indicating backlog growth and downstream service pressure.";
-  }
-
-  let networkHealth = "healthy";
-  let networkHealthLabel = "🟢 Healthy Network";
-
-  if (fillRate >= 99 && lateDemand === 0) {
-    networkHealth = "healthy";
-    networkHealthLabel = "🟢 Healthy Network";
-  } else if (fillRate < 90) {
-    networkHealth = "critical";
-    networkHealthLabel = "🔴 Critical Supply Disruption";
-  } else {
-    networkHealth = "stress";
-    networkHealthLabel = "🟠 Network Under Stress";
-  }
-
-  return {
-    demand,
-    shipped,
-    fillRate,
-    lateDemand,
-    missingComponents,
-    totalProduction,
-    headline,
-    narrative,
-    networkHealth,
-    networkHealthLabel,
-  };
-}
-
 async function fetchCsvRows(url) {
   if (!url) return [];
   const response = await axios.get(url, { responseType: "text" });
@@ -298,7 +219,6 @@ export default function App() {
   const [simulationHistory, setSimulationHistory] = useState([]);
   const [summaryStats, setSummaryStats] = useState({});
   const [kpis, setKpis] = useState({});
-  const [scenarioImpactSummary, setScenarioImpactSummary] = useState(null);
 
   const [disruptionImpactData, setDisruptionImpactData] = useState([]);
   const [projectedImpactData, setProjectedImpactData] = useState([]);
@@ -821,20 +741,6 @@ export default function App() {
           allKpis.inventoryTurns = "--x";
         }
 
-        // ----- INVENTORY BUFFER INDEX (days of demand coverage) -----
-        try {
-          const avgDailyDemand = invUniqueDays > 0 ? totalDemand / Math.max(invUniqueDays, 1) : 0;
-          if (avgInventoryNum > 0 && avgDailyDemand > 0) {
-            const ibiDays = avgInventoryNum / avgDailyDemand;
-            allKpis.inventoryBuffer = `${ibiDays.toFixed(1)} days`;
-          } else {
-            allKpis.inventoryBuffer = "--";
-          }
-        } catch (e) {
-          console.warn("⚠️ [KPI] inventoryBuffer calc failed:", e);
-          allKpis.inventoryBuffer = "--";
-        }
-
         console.log("📦 [KPI] Service truth:", {
           totalDemand,
           fulfilledCustomerShip,
@@ -885,7 +791,6 @@ export default function App() {
         const sample = occRows[0] || {};
         const skuKey = pickFirstKey(sample, ["sku"]) || "sku";
         const facKey = pickFirstKey(sample, ["facility", "facility_id", "location"]) || "facility";
-        const dateKey = pickFirstKey(sample, ["date", "Date", "day", "Day"]) || "date";
 
         const filtered = occRows.filter((r) => {
           const sku = normalizeSku(r[skuKey] || r.sku);
@@ -896,53 +801,6 @@ export default function App() {
         });
 
         allKpis.occurrenceCount = `${filtered.length}`;
-
-        // ----- TIME TO RECOVERY (occurrence-span based) -----
-        try {
-          const occDates = filtered
-            .map((r) => r[dateKey] || r.date || r.Date || r.day || r.Day)
-            .filter(Boolean)
-            .map((d) => new Date(d))
-            .filter((d) => !Number.isNaN(d.getTime()));
-
-          if (occDates.length > 0) {
-            const first = new Date(Math.min(...occDates.map((d) => d.getTime())));
-            const last = new Date(Math.max(...occDates.map((d) => d.getTime())));
-            const diffDays = Math.round((last - first) / (1000 * 60 * 60 * 24));
-            allKpis.timeToRecovery = `${diffDays} days`;
-          } else {
-            allKpis.timeToRecovery = "--";
-          }
-        } catch (e) {
-          console.warn("⚠️ [KPI] timeToRecovery calc failed:", e);
-          allKpis.timeToRecovery = "--";
-        }
-      }
-
-      // ----- SCENARIO IMPACT SUMMARY -----
-      try {
-        const flowRowsForSummary = urls.flow_output_file_url
-          ? await fetchCsvRows(urls.flow_output_file_url)
-          : [];
-
-        const occurrenceRowsForSummary = urls.occurrence_output_file_url
-          ? await fetchCsvRows(urls.occurrence_output_file_url)
-          : [];
-
-        const productionRowsForSummary = urls.production_output_file_url
-          ? await fetchCsvRows(urls.production_output_file_url)
-          : [];
-
-        const summary = buildScenarioImpactSummary(
-          flowRowsForSummary,
-          occurrenceRowsForSummary,
-          productionRowsForSummary
-        );
-
-        setScenarioImpactSummary(summary);
-      } catch (e) {
-        console.warn("⚠️ Failed to build scenario impact summary:", e);
-        setScenarioImpactSummary(null);
       }
 
       console.log("KPI_DEBUG_DUMP", allKpis);
@@ -1346,7 +1204,6 @@ export default function App() {
           setSelectedOutputType={setSelectedOutputType}
           chartData={chartData}
           summaryStats={summaryStats}
-          scenarioImpactSummary={scenarioImpactSummary}
           simulationHistory={simulationHistory}
           files={files}
           kpis={kpis}
