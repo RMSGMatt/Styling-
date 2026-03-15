@@ -1410,258 +1410,6 @@ setOverlayChartData(overlay);
 
       {/* Main Layout */}
       <main className="flex-1 max-w-7xl mx-auto px-4 py-4 space-y-6">
-        {/* Top row: map + KPI panel */}
-        <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Map */}
-          <div
-            className="lg:col-span-3 rounded-2xl p-4 shadow-xl border"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(5,25,20,0.98), rgba(7,46,34,0.98))",
-              borderColor: "#123528",
-            }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold flex items-center gap-2 text-slate-50">
-                <span style={{ color: "#9CF700" }}>🌐 Network Map</span>
-                <span className="text-xs text-slate-300">
-                  Facilities & live incident overlays
-                </span>
-              </h2>
-            </div>
-            <div className="h-64 rounded-xl overflow-hidden border border-slate-800/80 bg-slate-950/60">
-              <MapView
-                locationsUrl={locationsUrl}
-                selectedFacility={selectedFacility}
-                onFacilityClick={handleFacilityClick}
-              />
-            </div>
-          </div>
-
-          {/* KPI Panel */}
-          <div
-            className="lg:col-span-2 rounded-2xl p-4 flex flex-col border shadow-xl"
-            style={{
-              background:
-                "linear-gradient(150deg, rgba(5,23,18,0.98), rgba(6,37,26,0.98))",
-              borderColor: "#123528",
-            }}
-          >
-            <h2 className="text-sm font-semibold text-slate-50 mb-2">
-              📊 Operational Performance
-            </h2>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">On-Time Fulfillment</p>
-                <p
-                  className="text-lg font-semibold"
-                  style={{ color: "#9CF700" }}
-                >
-                  {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Share of demand met on requested date.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Inventory Turns</p>
-                <p className="text-lg font-semibold text-sky-400">
-                  {String(kpis?.inventoryTurns || "--x")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Average annualized turns for selected scope.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Backorder Rate</p>
-                <p className="text-lg font-semibold text-rose-400">
-                  {formatPercent(kpis?.backorderRate, { zeroIsDash: false, digits: 1 })} • Vol: {formatNumber(kpis?.backorderVolume, { zeroIsDash: true, digits: 0 })}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Portion of demand missed or delayed.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Expedite Cost</p>
-                <p className="text-lg font-semibold text-amber-400">
-                  {formatCurrency(kpis?.expediteCost, { zeroIsDash: true, digits: 0 })}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Incremental cost from mitigation actions.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Inventory Buffer</p>
-                <p className="text-lg font-semibold text-emerald-300">
-                  {String(kpis?.inventoryBuffer || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Days of demand coverage from average inventory.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Time to Recovery</p>
-                <p className="text-lg font-semibold text-violet-300">
-                  {String(kpis?.timeToRecovery || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Time span from first to last disruption occurrence.
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 text-[10px] text-slate-300">
-              <p>
-                <span
-                  className="font-semibold"
-                  style={{ color: "#9CF700" }}
-                >
-                  Tip:
-                </span>{" "}
-                Use the SKU and output filters below to see how KPIs move by
-                product or output type.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ===== Scenario Impact Summary ============================== */}
-        <section
-          className="rounded-2xl p-5 shadow-xl border"
-          style={{
-            background:
-              "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(6,36,27,0.98))",
-            borderColor: "#123528",
-          }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-50">
-                ⚠️ Disruption Impact Summary
-              </h2>
-              <p className="text-[11px] mt-1 font-semibold" style={{ color: "#9CF700" }}>
-                Scenario: {scenarioData?.name?.trim() ? scenarioData.name : "Baseline / Healthy Network"}
-              </p>
-              <p className="text-xs text-slate-300 mt-1">
-                Plain-language interpretation of the latest simulation run.
-              </p>
-            </div>
-            <div
-              className="text-xs font-semibold px-3 py-1 rounded-full"
-              style={{
-                backgroundColor:
-                  scenarioImpactSummary?.networkHealth === "healthy"
-                    ? "rgba(156, 247, 0, 0.12)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "rgba(239, 68, 68, 0.14)"
-                    : "rgba(255, 178, 0, 0.12)",
-                color:
-                  scenarioImpactSummary?.networkHealth === "healthy"
-                    ? "#9CF700"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "#f87171"
-                    : "#FFB200",
-                border:
-                  scenarioImpactSummary?.networkHealth === "healthy"
-                    ? "1px solid rgba(156, 247, 0, 0.35)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "1px solid rgba(239, 68, 68, 0.35)"
-                    : "1px solid rgba(255, 178, 0, 0.35)",
-              }}
-            >
-              {scenarioImpactSummary?.networkHealthLabel || "🟠 Network Under Stress"}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 bg-slate-900/50 border border-slate-700/80 rounded-xl p-4">
-              <p
-                className="text-base font-semibold mb-2"
-                style={{ color: "#E8FFE8" }}
-              >
-                {scenarioImpactSummary?.headline || "No simulation summary available yet."}
-              </p>
-              <p className="text-sm text-slate-300 leading-6">
-                {scenarioImpactSummary?.narrative ||
-                  "Run a simulation to generate a scenario-level interpretation."}
-              </p>
-            </div>
-
-            <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4">
-              <p className="text-xs text-slate-300 mb-3">Key Outcome Performance Metrics</p>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Demand</span>
-                  <span className="text-slate-50 font-semibold">
-                    {formatNumber(scenarioImpactSummary?.demand, {
-                      zeroIsDash: false,
-                      digits: 0,
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Shipped</span>
-                  <span className="text-slate-50 font-semibold">
-                    {formatNumber(scenarioImpactSummary?.shipped, {
-                      zeroIsDash: false,
-                      digits: 0,
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Fill Rate</span>
-                  <span
-                    className="font-semibold"
-                    style={{
-                      color:
-                        (scenarioImpactSummary?.fillRate ?? 0) >= 99
-                          ? "#9CF700"
-                          : "#FFB200",
-                    }}
-                  >
-                    {formatPercent(scenarioImpactSummary?.fillRate, {
-                      zeroIsDash: false,
-                      digits: 1,
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Late Demand</span>
-                  <span className="text-rose-300 font-semibold">
-                    {formatNumber(scenarioImpactSummary?.lateDemand, {
-                      zeroIsDash: true,
-                      digits: 0,
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Missing Components</span>
-                  <span className="text-amber-300 font-semibold">
-                    {formatNumber(scenarioImpactSummary?.missingComponents, {
-                      zeroIsDash: true,
-                      digits: 0,
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-300">Production</span>
-                  <span className="text-sky-300 font-semibold">
-                    {formatNumber(scenarioImpactSummary?.totalProduction, {
-                      zeroIsDash: true,
-                      digits: 0,
-                    })}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Scenario and Inputs */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Scenario Builder */}
@@ -1992,6 +1740,258 @@ setOverlayChartData(overlay);
                 ⚠️ All six input files must be uploaded before simulation.
               </p>
             )}
+          </div>
+        </section>
+
+{/* Top row: map + KPI panel */}
+        <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          {/* Map */}
+          <div
+            className="lg:col-span-3 rounded-2xl p-4 shadow-xl border"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(5,25,20,0.98), rgba(7,46,34,0.98))",
+              borderColor: "#123528",
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold flex items-center gap-2 text-slate-50">
+                <span style={{ color: "#9CF700" }}>🌐 Network Map</span>
+                <span className="text-xs text-slate-300">
+                  Facilities & live incident overlays
+                </span>
+              </h2>
+            </div>
+            <div className="h-64 rounded-xl overflow-hidden border border-slate-800/80 bg-slate-950/60">
+              <MapView
+                locationsUrl={locationsUrl}
+                selectedFacility={selectedFacility}
+                onFacilityClick={handleFacilityClick}
+              />
+            </div>
+          </div>
+
+          {/* KPI Panel */}
+          <div
+            className="lg:col-span-2 rounded-2xl p-4 flex flex-col border shadow-xl"
+            style={{
+              background:
+                "linear-gradient(150deg, rgba(5,23,18,0.98), rgba(6,37,26,0.98))",
+              borderColor: "#123528",
+            }}
+          >
+            <h2 className="text-sm font-semibold text-slate-50 mb-2">
+              📊 Operational Performance
+            </h2>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                <p className="text-slate-300 mb-1">On-Time Fulfillment</p>
+                <p
+                  className="text-lg font-semibold"
+                  style={{ color: "#9CF700" }}
+                >
+                  {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
+                </p>
+                <p className="text-[10px] text-slate-300 mt-1">
+                  Share of demand met on requested date.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                <p className="text-slate-300 mb-1">Inventory Turns</p>
+                <p className="text-lg font-semibold text-sky-400">
+                  {String(kpis?.inventoryTurns || "--x")}
+                </p>
+                <p className="text-[10px] text-slate-300 mt-1">
+                  Average annualized turns for selected scope.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                <p className="text-slate-300 mb-1">Backorder Rate</p>
+                <p className="text-lg font-semibold text-rose-400">
+                  {formatPercent(kpis?.backorderRate, { zeroIsDash: false, digits: 1 })} • Vol: {formatNumber(kpis?.backorderVolume, { zeroIsDash: true, digits: 0 })}
+                </p>
+                <p className="text-[10px] text-slate-300 mt-1">
+                  Portion of demand missed or delayed.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                <p className="text-slate-300 mb-1">Expedite Cost</p>
+                <p className="text-lg font-semibold text-amber-400">
+                  {formatCurrency(kpis?.expediteCost, { zeroIsDash: true, digits: 0 })}
+                </p>
+                <p className="text-[10px] text-slate-300 mt-1">
+                  Incremental cost from mitigation actions.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                <p className="text-slate-300 mb-1">Inventory Buffer</p>
+                <p className="text-lg font-semibold text-emerald-300">
+                  {String(kpis?.inventoryBuffer || "--")}
+                </p>
+                <p className="text-[10px] text-slate-300 mt-1">
+                  Days of demand coverage from average inventory.
+                </p>
+              </div>
+              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                <p className="text-slate-300 mb-1">Time to Recovery</p>
+                <p className="text-lg font-semibold text-violet-300">
+                  {String(kpis?.timeToRecovery || "--")}
+                </p>
+                <p className="text-[10px] text-slate-300 mt-1">
+                  Time span from first to last disruption occurrence.
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 text-[10px] text-slate-300">
+              <p>
+                <span
+                  className="font-semibold"
+                  style={{ color: "#9CF700" }}
+                >
+                  Tip:
+                </span>{" "}
+                Use the SKU and output filters below to see how KPIs move by
+                product or output type.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== Scenario Impact Summary ============================== */}
+        <section
+          className="rounded-2xl p-5 shadow-xl border"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(6,36,27,0.98))",
+            borderColor: "#123528",
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-50">
+                ⚠️ Disruption Impact Summary
+              </h2>
+              <p className="text-[11px] mt-1 font-semibold" style={{ color: "#9CF700" }}>
+                Scenario: {scenarioData?.name?.trim() ? scenarioData.name : "Baseline / Healthy Network"}
+              </p>
+              <p className="text-xs text-slate-300 mt-1">
+                Plain-language interpretation of the latest simulation run.
+              </p>
+            </div>
+            <div
+              className="text-xs font-semibold px-3 py-1 rounded-full"
+              style={{
+                backgroundColor:
+                  scenarioImpactSummary?.networkHealth === "healthy"
+                    ? "rgba(156, 247, 0, 0.12)"
+                    : scenarioImpactSummary?.networkHealth === "critical"
+                    ? "rgba(239, 68, 68, 0.14)"
+                    : "rgba(255, 178, 0, 0.12)",
+                color:
+                  scenarioImpactSummary?.networkHealth === "healthy"
+                    ? "#9CF700"
+                    : scenarioImpactSummary?.networkHealth === "critical"
+                    ? "#f87171"
+                    : "#FFB200",
+                border:
+                  scenarioImpactSummary?.networkHealth === "healthy"
+                    ? "1px solid rgba(156, 247, 0, 0.35)"
+                    : scenarioImpactSummary?.networkHealth === "critical"
+                    ? "1px solid rgba(239, 68, 68, 0.35)"
+                    : "1px solid rgba(255, 178, 0, 0.35)",
+              }}
+            >
+              {scenarioImpactSummary?.networkHealthLabel || "🟠 Network Under Stress"}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 bg-slate-900/50 border border-slate-700/80 rounded-xl p-4">
+              <p
+                className="text-base font-semibold mb-2"
+                style={{ color: "#E8FFE8" }}
+              >
+                {scenarioImpactSummary?.headline || "No simulation summary available yet."}
+              </p>
+              <p className="text-sm text-slate-300 leading-6">
+                {scenarioImpactSummary?.narrative ||
+                  "Run a simulation to generate a scenario-level interpretation."}
+              </p>
+            </div>
+
+            <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4">
+              <p className="text-xs text-slate-300 mb-3">Key Outcome Performance Metrics</p>
+
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Demand</span>
+                  <span className="text-slate-50 font-semibold">
+                    {formatNumber(scenarioImpactSummary?.demand, {
+                      zeroIsDash: false,
+                      digits: 0,
+                    })}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Shipped</span>
+                  <span className="text-slate-50 font-semibold">
+                    {formatNumber(scenarioImpactSummary?.shipped, {
+                      zeroIsDash: false,
+                      digits: 0,
+                    })}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Fill Rate</span>
+                  <span
+                    className="font-semibold"
+                    style={{
+                      color:
+                        (scenarioImpactSummary?.fillRate ?? 0) >= 99
+                          ? "#9CF700"
+                          : "#FFB200",
+                    }}
+                  >
+                    {formatPercent(scenarioImpactSummary?.fillRate, {
+                      zeroIsDash: false,
+                      digits: 1,
+                    })}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Late Demand</span>
+                  <span className="text-rose-300 font-semibold">
+                    {formatNumber(scenarioImpactSummary?.lateDemand, {
+                      zeroIsDash: true,
+                      digits: 0,
+                    })}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Missing Components</span>
+                  <span className="text-amber-300 font-semibold">
+                    {formatNumber(scenarioImpactSummary?.missingComponents, {
+                      zeroIsDash: true,
+                      digits: 0,
+                    })}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Production</span>
+                  <span className="text-sky-300 font-semibold">
+                    {formatNumber(scenarioImpactSummary?.totalProduction, {
+                      zeroIsDash: true,
+                      digits: 0,
+                    })}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
