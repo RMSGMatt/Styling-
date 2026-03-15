@@ -1410,9 +1410,9 @@ setOverlayChartData(overlay);
 
       {/* Main Layout */}
       <main className="flex-1 max-w-7xl mx-auto px-4 py-4 space-y-6">
-        {/* Top row: map + KPI panel */}
+                {/* Top row: map + inputs */}
         <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Map */}
+{/* Map */}
           <div
             className="lg:col-span-3 rounded-2xl p-4 shadow-xl border"
             style={{
@@ -1438,9 +1438,139 @@ setOverlayChartData(overlay);
             </div>
           </div>
 
-          {/* KPI Panel */}
+{/* Inputs + Run Button */}
           <div
-            className="lg:col-span-2 rounded-2xl p-4 flex flex-col border shadow-xl"
+            className="lg:col-span-2 rounded-2xl p-4 flex flex-col border"
+            style={{
+              background:
+                "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))",
+              borderColor: "#143629",
+            }}
+          >
+            <h2 className="text-sm font-semibold text-slate-50 mb-2">
+              📂 Simulation Inputs
+            </h2>
+            <div className="space-y-2 text-xs text-slate-300">
+              <div>
+                <p className="text-slate-300 mb-1">Demand (CSV)</p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) =>
+                    handleFileChange("demand", e.target.files[0])
+                  }
+                  className="text-slate-300 text-xs"
+                />
+              </div>
+
+              <div>
+                <p className="text-slate-300 mb-1">Disruptions (CSV)</p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) =>
+                    handleFileChange("disruptions", e.target.files[0])
+                  }
+                  className="text-slate-300 text-xs"
+                />
+              </div>
+
+              <div>
+                <p className="text-slate-300 mb-1">Locations (CSV)</p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) =>
+                    handleFileChange("locations", e.target.files[0])
+                  }
+                  className="text-slate-300 text-xs"
+                />
+              </div>
+
+              <div>
+                <p className="text-slate-300 mb-1">Processes (CSV)</p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) =>
+                    handleFileChange("processes", e.target.files[0])
+                  }
+                  className="text-slate-300 text-xs"
+                />
+              </div>
+
+              <div>
+                <p className="text-slate-300 mb-1">BOM (CSV)</p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) =>
+                    handleFileChange("bom", e.target.files[0])
+                  }
+                  className="text-slate-300 text-xs"
+                />
+              </div>
+
+              <div>
+                <p className="text-slate-300 mb-1">
+                  Location Materials (CSV)
+                </p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) =>
+                    handleFileChange(
+                      "locationMaterials",
+                      e.target.files[0]
+                    )
+                  }
+                  className="text-slate-300 text-xs"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                const activeScenario =
+                  scenarioData && Object.keys(scenarioData).length > 0
+                    ? scenarioData
+                    : null;
+                // We ignore the arg and just rely on scenarioData in closure,
+                // but this keeps your intent explicit.
+                handleRunSimulationWithScenario(activeScenario);
+              }}
+              disabled={isSimulateDisabled}
+              className="mt-4 w-full py-2 rounded-xl text-sm font-semibold transition shadow-md"
+              style={
+                isSimulateDisabled
+                  ? {
+                      backgroundColor: "rgba(15, 23, 42, 0.8)",
+                      color: "#64748b",
+                      cursor: "not-allowed",
+                    }
+                  : {
+                      background:
+                        "linear-gradient(90deg, #9CF700, #22c55e)",
+                      color: "#020617",
+                    }
+              }
+            >
+              {statusLabel}
+            </button>
+
+            {!isSimulationReady && (
+              <p className="text-[11px] text-rose-400 mt-2">
+                ⚠️ All six input files must be uploaded before simulation.
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* KPI row */}
+        <section className="grid grid-cols-1 gap-4">
+{/* KPI Panel */}
+          <div
+            className="rounded-2xl p-4 flex flex-col border shadow-xl"
             style={{
               background:
                 "linear-gradient(150deg, rgba(5,23,18,0.98), rgba(6,37,26,0.98))",
@@ -1524,7 +1654,7 @@ setOverlayChartData(overlay);
           </div>
         </section>
 
-        {/* ===== Scenario Impact Summary ============================== */}
+{/* ===== Scenario Impact Summary ============================== */}
         <section
           className="rounded-2xl p-5 shadow-xl border"
           style={{
@@ -1662,11 +1792,11 @@ setOverlayChartData(overlay);
           </div>
         </section>
 
-        {/* Scenario and Inputs */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Scenario Builder */}
+                {/* Scenario Builder */}
+        <section className="grid grid-cols-1 gap-4">
+{/* Scenario Builder */}
           <div
-            className="lg:col-span-2 rounded-2xl p-4 border scenario-builder-panel"
+            className="rounded-2xl p-4 border scenario-builder-panel"
             style={{
               background:
                 "linear-gradient(140deg, rgba(4,24,18,0.98), rgba(5,36,26,0.98))",
@@ -1866,136 +1996,9 @@ setOverlayChartData(overlay);
 
             </div>
           </div>
-
-          {/* Inputs + Run Button */}
-          <div
-            className="rounded-2xl p-4 flex flex-col border"
-            style={{
-              background:
-                "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))",
-              borderColor: "#143629",
-            }}
-          >
-            <h2 className="text-sm font-semibold text-slate-50 mb-2">
-              📂 Simulation Inputs
-            </h2>
-            <div className="space-y-2 text-xs text-slate-300">
-              <div>
-                <p className="text-slate-300 mb-1">Demand (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("demand", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <p className="text-slate-300 mb-1">Disruptions (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("disruptions", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <p className="text-slate-300 mb-1">Locations (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("locations", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <p className="text-slate-300 mb-1">Processes (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("processes", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <p className="text-slate-300 mb-1">BOM (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("bom", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <p className="text-slate-300 mb-1">
-                  Location Materials (CSV)
-                </p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange(
-                      "locationMaterials",
-                      e.target.files[0]
-                    )
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                const activeScenario =
-                  scenarioData && Object.keys(scenarioData).length > 0
-                    ? scenarioData
-                    : null;
-                // We ignore the arg and just rely on scenarioData in closure,
-                // but this keeps your intent explicit.
-                handleRunSimulationWithScenario(activeScenario);
-              }}
-              disabled={isSimulateDisabled}
-              className="mt-4 w-full py-2 rounded-xl text-sm font-semibold transition shadow-md"
-              style={
-                isSimulateDisabled
-                  ? {
-                      backgroundColor: "rgba(15, 23, 42, 0.8)",
-                      color: "#64748b",
-                      cursor: "not-allowed",
-                    }
-                  : {
-                      background:
-                        "linear-gradient(90deg, #9CF700, #22c55e)",
-                      color: "#020617",
-                    }
-              }
-            >
-              {statusLabel}
-            </button>
-
-            {!isSimulationReady && (
-              <p className="text-[11px] text-rose-400 mt-2">
-                ⚠️ All six input files must be uploaded before simulation.
-              </p>
-            )}
-          </div>
         </section>
 
-        {/* ===== Disruption Panels ====================================== */}
+{/* ===== Disruption Panels ====================================== */}
         <DisruptionPanels
           disruptionImpactData={disruptionImpactData}
           runoutRiskData={runoutRiskData}
