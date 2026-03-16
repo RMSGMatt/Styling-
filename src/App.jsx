@@ -220,19 +220,63 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
 
   let headline = "Simulation completed.";
   let narrative = "Review KPI and chart outputs for scenario impact.";
+  let countermeasures = [];
+
+  const impactedFacilities = new Set(
+    (occurrenceRows || [])
+      .map((r) => upper(r.facility || r.Facility || r.location || r.Location || ""))
+      .filter(Boolean)
+  ).size;
 
   if (fillRate >= 99 && lateDemand === 0) {
-    headline = "Supply chain operated normally.";
+    headline =
+      missingComponents > 0
+        ? "Supply chain remained stable despite upstream material constraints."
+        : "Supply chain remained stable under current conditions.";
     narrative =
-      "Demand was fulfilled without meaningful service degradation. Production and shipment flow remained stable across the network.";
-  } else if (fillRate < 90 || lateDemand > 0 || missingComponents > 0) {
-    headline = "Component shortage disrupted production.";
+      missingComponents > 0
+        ? `The network fulfilled ${shipped.toLocaleString()} units against ${demand.toLocaleString()} units of demand with no meaningful service degradation. Although ${missingComponents.toLocaleString()} missing component events were recorded across ${impactedFacilities || 0} impacted facilities, mitigation actions were sufficient to preserve downstream service and maintain production continuity.`
+        : `The network fulfilled ${shipped.toLocaleString()} units against ${demand.toLocaleString()} units of demand with no meaningful service degradation. Production flow remained stable, backlog did not accumulate materially, and no major component constraints were detected across the selected scope.`;
+    countermeasures = missingComponents > 0
+      ? [
+          "Maintain current mitigation measures that are preserving service performance.",
+          "Continue monitoring constrained materials for any further escalation in supply risk.",
+          "Review whether targeted safety stock increases could reduce future exposure to the same component constraint.",
+        ]
+      : [
+          "Maintain current sourcing and replenishment policies.",
+          "Monitor live incident feeds for early-warning changes in supply conditions.",
+          "Preserve baseline safety stock settings and continue routine network surveillance.",
+        ];
+  } else if (lateDemand > 0 || fillRate < 95) {
+    headline = missingComponents > 0
+      ? "Component shortages constrained production and reduced service."
+      : "Customer service degradation increased backlog across the network.";
     narrative =
-      "Upstream material constraints limited output, which propagated downstream into late customer demand and lower service levels.";
+      missingComponents > 0
+        ? `Upstream material shortages prevented full production execution, contributing to ${missingComponents.toLocaleString()} missing component events and ${lateDemand.toLocaleString()} units of late demand. As the disruption propagated across ${impactedFacilities || 0} impacted facilities, fill rate fell to ${fillRate.toFixed(1)}%, indicating that mitigation actions were not sufficient to fully protect downstream service.`
+        : `The model indicates that shipment performance fell below demand requirements, with ${lateDemand.toLocaleString()} units pushed late and overall fill rate reduced to ${fillRate.toFixed(1)}%. While production continued, the network was unable to fully convert available supply into on-time fulfillment, signaling downstream service pressure and recovery risk.`;
+    countermeasures = missingComponents > 0
+      ? [
+          "Expedite constrained components from alternate or backup suppliers.",
+          "Temporarily prioritize high-value or customer-critical demand to protect service levels.",
+          "Increase safety stock buffers for the affected material at impacted facilities.",
+          "Evaluate production reallocation across available plants to reduce downstream backlog.",
+        ]
+      : [
+          "Re-prioritize customer allocation to stabilize on-time delivery performance.",
+          "Increase short-term replenishment frequency for constrained downstream nodes.",
+          "Review fulfillment sequencing rules to reduce avoidable backlog accumulation.",
+        ];
   } else {
-    headline = "Customer service degradation detected.";
+    headline = "Network performance weakened but remained partially resilient.";
     narrative =
-      "Demand was not fully met on time, indicating backlog growth and downstream service pressure.";
+      `Demand was not fully met at target service levels, but the network maintained partial continuity through available production and shipment flows. Performance degradation was measurable, though not severe enough to represent a full operational breakdown in the selected scenario.`;
+    countermeasures = [
+      "Tighten monitoring on the affected lanes and facilities.",
+      "Review inventory positioning to improve resilience against additional variability.",
+      "Prepare targeted mitigation actions in case service conditions deteriorate further.",
+    ];
   }
 
   let networkHealth = "healthy";
@@ -260,6 +304,7 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
     narrative,
     networkHealth,
     networkHealthLabel,
+    countermeasures,
   };
 }
 

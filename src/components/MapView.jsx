@@ -654,13 +654,7 @@ export default function MapView({
     <div className="w-full">
       {/* Control strip */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-        <div className="text-xs text-gray-600">
-          <span className="font-semibold text-[#1D625B]">Map Feeds:</span>{" "}
-          Facilities, USGS Earthquakes, NOAA, GDACS, Live Incidents{" "}
-          {lastUpdated ? (
-            <span className="text-gray-400">• Updated {lastUpdated}</span>
-          ) : null}
-        </div>
+
 
         <div className="flex flex-wrap gap-2">
           <button
