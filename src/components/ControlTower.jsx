@@ -95,7 +95,7 @@ function UpgradeCtaCard({ plan, onUpgrade }) {
 const GLOBAL_LOCATIONS_URL =
   "https://supply-chain-simulation-files.s3.us-east-2.amazonaws.com/locations.csv";
 
-function KpiCard({ value, label, risk, trend }) {
+function KpiCard({ value, label, risk, trend, deltaText }) {
   const trendLabels = { up: "Improving", down: "Declining", neutral: "Stable" };
   const trendColors = {
     up: "bg-green-100 text-green-700",
@@ -129,8 +129,13 @@ function KpiCard({ value, label, risk, trend }) {
         <span>{icon}</span>
         <span>{label}</span>
       </div>
+      {deltaText && (
+        <div className="mt-2 text-xs font-medium text-gray-500">
+          {deltaText}
+        </div>
+      )}
       <div
-        className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full ${trendColors[trend]}`}
+        className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full ${trendColors[trend]}` }
         title={`Trend: ${trendLabels[trend]}`}
       >
         {trendLabels[trend]}
@@ -335,18 +340,141 @@ export default function ControlTower({
   }, [kpiRange]);
 
   const kpiMeta = [
-    { key: "totalFacilities", label: "Total Facilities", trend: "up" },
-    { key: "activeIncidents", label: "Active Incidents", trend: "down", risk: "high" },
-    { key: "shipments", label: "Shipments", trend: "neutral" },
-    { key: "disruptionPercent", label: "Disruption %", trend: "up", risk: "high" },
-    { key: "serviceLevel", label: "Service Level", trend: "up" },
-    { key: "avgLeadTime", label: "Avg Lead Time (days)", trend: "down" },
-    { key: "revenueAtRisk", label: "Revenue at Risk", trend: "up" },
-    { key: "backorders", label: "Backorder Volume", trend: "down", risk: "high" },
-    { key: "capacityUtilization", label: "Capacity Utilization", trend: "up" },
-    { key: "supplierOnTime", label: "Supplier On-Time Rate", trend: "up" },
-    { key: "expeditedOrders", label: "Expedited Orders", trend: "down" },
-    { key: "cycleTime", label: "Order Cycle Time (days)", trend: "neutral" },
+    {
+      key: "totalFacilities",
+      label: "Total Facilities",
+      trend: "up",
+      delta: {
+        day: "Network scope unchanged vs yesterday",
+        week: "Network scope unchanged vs last week",
+        month: "Network scope unchanged vs last month",
+        ytd: "Network scope unchanged vs start of year",
+      },
+    },
+    {
+      key: "activeIncidents",
+      label: "Active Incidents",
+      trend: "down",
+      risk: "high",
+      delta: {
+        day: "↓ 3 vs yesterday",
+        week: "↓ 4 vs last week",
+        month: "↓ 7 vs last month",
+        ytd: "↓ 13 vs start of year",
+      },
+    },
+    {
+      key: "shipments",
+      label: "Shipments",
+      trend: "neutral",
+      delta: {
+        day: "Flat vs yesterday",
+        week: "↑ 4% vs last week",
+        month: "↑ 7% vs last month",
+        ytd: "↑ 12% vs start of year",
+      },
+    },
+    {
+      key: "disruptionPercent",
+      label: "Disruption %",
+      trend: "up",
+      risk: "high",
+      delta: {
+        day: "↑ 0.1 pts vs yesterday",
+        week: "Flat vs last week",
+        month: "↑ 0.2 pts vs last month",
+        ytd: "↓ 0.3 pts vs start of year",
+      },
+    },
+    {
+      key: "serviceLevel",
+      label: "Service Level",
+      trend: "up",
+      delta: {
+        day: "↑ 0.2 pts vs yesterday",
+        week: "↑ 0.1 pts vs last week",
+        month: "↑ 0.4 pts vs last month",
+        ytd: "↑ 0.9 pts vs start of year",
+      },
+    },
+    {
+      key: "avgLeadTime",
+      label: "Avg Lead Time (days)",
+      trend: "down",
+      delta: {
+        day: "↓ 0.1 days vs yesterday",
+        week: "↓ 0.1 days vs last week",
+        month: "↓ 0.3 days vs last month",
+        ytd: "↓ 0.6 days vs start of year",
+      },
+    },
+    {
+      key: "revenueAtRisk",
+      label: "Revenue at Risk",
+      trend: "up",
+      delta: {
+        day: "↓ $0.2M vs yesterday",
+        week: "↓ $0.2M vs last week",
+        month: "↓ $0.5M vs last month",
+        ytd: "↓ $0.9M vs start of year",
+      },
+    },
+    {
+      key: "backorders",
+      label: "Backorder Volume",
+      trend: "down",
+      risk: "high",
+      delta: {
+        day: "↓ 50 vs yesterday",
+        week: "↓ 80 vs last week",
+        month: "↓ 130 vs last month",
+        ytd: "↓ 270 vs start of year",
+      },
+    },
+    {
+      key: "capacityUtilization",
+      label: "Capacity Utilization",
+      trend: "up",
+      delta: {
+        day: "↑ 0.4 pts vs yesterday",
+        week: "↑ 1.5 pts vs last week",
+        month: "↑ 2.5 pts vs last month",
+        ytd: "↑ 3.2 pts vs start of year",
+      },
+    },
+    {
+      key: "supplierOnTime",
+      label: "Supplier On-Time Rate",
+      trend: "up",
+      delta: {
+        day: "↑ 0.2 pts vs yesterday",
+        week: "↑ 0.7 pts vs last week",
+        month: "↑ 1.1 pts vs last month",
+        ytd: "↑ 1.9 pts vs start of year",
+      },
+    },
+    {
+      key: "expeditedOrders",
+      label: "Expedited Orders",
+      trend: "down",
+      delta: {
+        day: "↓ 0.1 pts vs yesterday",
+        week: "↓ 0.2 pts vs last week",
+        month: "↓ 0.5 pts vs last month",
+        ytd: "↓ 0.9 pts vs start of year",
+      },
+    },
+    {
+      key: "cycleTime",
+      label: "Order Cycle Time (days)",
+      trend: "neutral",
+      delta: {
+        day: "Flat vs yesterday",
+        week: "↓ 0.3 days vs last week",
+        month: "↓ 0.6 days vs last month",
+        ytd: "↓ 1.5 days vs start of year",
+      },
+    },
   ];
 
   const executiveKpiKeys = [
@@ -647,6 +775,7 @@ export default function ControlTower({
                           label={kpiMeta.find((k) => k.key === key)?.label}
                           trend={kpiMeta.find((k) => k.key === key)?.trend}
                           risk={kpiMeta.find((k) => k.key === key)?.risk}
+                          deltaText={kpiMeta.find((k) => k.key === key)?.delta?.[kpiRange]}
                         />
                       ))}
                     </div>
