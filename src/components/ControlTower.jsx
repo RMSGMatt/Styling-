@@ -259,8 +259,8 @@ export default function ControlTower({
   const toggleKpiSection = (section) =>
     setKpiSectionVisibility((prev) => ({ ...prev, [section]: !prev[section] }));
 
-  const [chartType1, setChartType1] = useState("shipments");
-  const [chartType2, setChartType2] = useState("utilization");
+  const [chartType1, setChartType1] = useState("revenue");
+  const [chartType2, setChartType2] = useState("onTime");
 
   const chartOptions = [
     { value: "shipments", label: "📦 Shipments by Category" },
@@ -347,6 +347,15 @@ export default function ControlTower({
     { key: "supplierOnTime", label: "Supplier On-Time Rate", trend: "up" },
     { key: "expeditedOrders", label: "Expedited Orders", trend: "down" },
     { key: "cycleTime", label: "Order Cycle Time (days)", trend: "neutral" },
+  ];
+
+  const executiveKpiKeys = [
+    "activeIncidents",
+    "serviceLevel",
+    "revenueAtRisk",
+    "backorders",
+    "avgLeadTime",
+    "supplierOnTime",
   ];
 
   const renderChart = (type) => {
@@ -568,11 +577,30 @@ export default function ControlTower({
                 </div>
               )}
 
-              <section className="h-96 mb-6 rounded overflow-hidden shadow border border-gray-300">
-                <MapView
-                  locationsUrl={simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
-                  onFacilitySelect={handleFacilitySelect}
-                />
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div className="lg:col-span-2 h-96 rounded overflow-hidden shadow border border-gray-300">
+                  <MapView
+                    locationsUrl={simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
+                    onFacilitySelect={handleFacilitySelect}
+                  />
+                </div>
+
+                <div className="bg-white rounded-xl shadow border border-gray-200 p-4">
+                  <h2 className="text-lg font-bold text-[#1D625B] mb-2">
+                    Network Health Summary
+                  </h2>
+
+                  <div className="text-sm text-gray-600 mb-3">
+                    Executive overview of current supply chain performance and disruption exposure.
+                  </div>
+
+                  <ul className="space-y-2 text-sm text-gray-700">
+                    <li>• {businessKpis?.activeIncidents} active disruption incidents across monitored regions</li>
+                    <li>• Service level currently {businessKpis?.serviceLevel}</li>
+                    <li>• Revenue exposure estimated at {businessKpis?.revenueAtRisk}</li>
+                    <li>• Backorders currently {businessKpis?.backorders}</li>
+                  </ul>
+                </div>
               </section>
 
               <div className="flex justify-end mb-4">
@@ -593,8 +621,38 @@ export default function ControlTower({
                 </div>
               </div>
 
+              <div className="text-xs text-gray-500 mb-3">
+                Last updated: {new Date().toLocaleString()}
+              </div>
+
               {businessKpis && (
-                <section className="space-y-8 mb-6">
+                <>
+                  <section className="mb-6">
+                    <div className="flex items-end justify-between mb-3">
+                      <div>
+                        <h2 className="text-xl font-semibold text-[#1D625B]">
+                          Executive KPIs
+                        </h2>
+                        <div className="text-sm text-gray-500">
+                          Highest-signal network metrics for leadership review
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {executiveKpiKeys.map((key) => (
+                        <KpiCard
+                          key={key}
+                          value={businessKpis[key]}
+                          label={kpiMeta.find((k) => k.key === key)?.label}
+                          trend={kpiMeta.find((k) => k.key === key)?.trend}
+                          risk={kpiMeta.find((k) => k.key === key)?.risk}
+                        />
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="space-y-8 mb-6">
                   <div>
                     <div
                       className="flex items-center justify-between cursor-pointer group"
@@ -696,6 +754,7 @@ export default function ControlTower({
                     </div>
                   </div>
                 </section>
+                </>
               )}
 
               <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
