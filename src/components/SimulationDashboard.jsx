@@ -100,6 +100,21 @@ function formatCurrency(v, opts) {
   });
 }
 
+function formatCurrencyCompact(v, opts) {
+  const o = opts || {};
+  const zeroIsDash = (o.zeroIsDash !== undefined) ? !!o.zeroIsDash : false;
+
+  const n = _toNumberLoose(v);
+  if (!Number.isFinite(n)) return "--";
+  if (zeroIsDash && n === 0) return "--";
+
+  const abs = Math.abs(n);
+
+  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
 
 // Small helper for fallbacks so panels don't explode on "missing" data
 function safeArray(input) {
@@ -348,11 +363,17 @@ const totalRevenueAtRisk = impactRows.reduce((sum, row) => {
   return sum + (Number.isFinite(value) ? value : 0);
 }, 0);
 
-// 3️⃣ Convert to millions for the UI tile
-const revenueAtRiskMillions =
-  Number.isFinite(totalRevenueAtRisk) && totalRevenueAtRisk > 0
-    ? totalRevenueAtRisk / 1_000_000
-    : 0;
+// 3️⃣ Prefer KPI-based revenue exposure from App.jsx, then fall back to panel-derived estimate
+const revenueExposureDisplayValue = (() => {
+  const kpiValue = _toNumberLoose(
+    kpis?.estimatedRevenueExposure ??
+    kpis?.revenueExposure
+  );
+
+  if (Number.isFinite(kpiValue) && kpiValue > 0) return kpiValue;
+
+  return Number.isFinite(totalRevenueAtRisk) ? totalRevenueAtRisk : 0;
+})();
 
   const riskDistribution = impactRows.reduce(
   (acc, row) => {
@@ -504,9 +525,7 @@ const revenueAtRiskMillions =
               className="text-xl font-semibold"
               style={{ color: "#9CF700" }}
             >
-              {revenueAtRiskMillions > 0
-                ? `$${revenueAtRiskMillions.toFixed(1)}M`
-                : "$0.0M"}
+              {formatCurrencyCompact(revenueExposureDisplayValue, { zeroIsDash: false })}
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
@@ -593,7 +612,7 @@ const revenueAtRiskMillions =
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-            <p className="text-xs text-slate-300">On-Time Fulfillment</p>
+            <p className="text-xs text-slate-300">Demand Fulfillment</p>
             <p className="text-xl font-semibold text-sky-400">
               {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
             </p>
@@ -1654,7 +1673,7 @@ setOverlayChartData(overlay);
                 </p>
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                   <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                    <p className="text-slate-300 mb-1">On-Time Fulfillment</p>
+                    <p className="text-slate-300 mb-1">Demand Fulfillment</p>
                     <p
                       className="text-xl font-semibold"
                       style={{ color: "#9CF700" }}
@@ -1662,7 +1681,7 @@ setOverlayChartData(overlay);
                       {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
                     </p>
                     <p className="text-[10px] text-slate-300 mt-1">
-                      Share of demand met on requested date.
+                      Share of scoped demand fulfilled across the run.
                     </p>
                   </div>
 
@@ -1759,6 +1778,7 @@ setOverlayChartData(overlay);
               </p>
             </div>
           </div>
+
         </section>
 
 {/* ===== Scenario Impact Summary ============================== */}
@@ -1951,6 +1971,87 @@ setOverlayChartData(overlay);
                       digits: 0,
                     })}
                   </span>
+                </div>
+              </div>
+
+              <div className="bg-slate-900/40 border border-slate-700/80 rounded-xl p-4 mt-4">
+                <p className="text-xs font-semibold text-slate-50 mb-2">
+                  Decision Snapshot
+                </p>
+
+                <div className="space-y-2 text-xs text-slate-300">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-400">Primary Constraint</span>
+                    <span className="text-amber-300 font-semibold">
+                      {(scenarioImpactSummary?.missingComponents ?? 0) > 0
+                        ? "Missing Components"
+                        : "Service Continuity"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-400">Operational Risk</span>
+                    <span
+                      className="font-semibold"
+                      style={{
+                        color:
+                          scenarioImpactSummary?.networkHealth === "critical"
+                            ? "#f87171"
+                            : scenarioImpactSummary?.networkHealth === "stress"
+                            ? "#FFB200"
+                            : "#9CF700",
+                      }}
+                    >
+                      {scenarioImpactSummary?.networkHealthLabel || "Healthy Network"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-400">Immediate Priority</span>
+                    <span className="text-emerald-300 font-semibold text-right">
+                      {(scenarioImpactSummary?.lateDemand ?? 0) > 0
+                        ? "Protect downstream service"
+                        : "Maintain current network stability"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-700/60">
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
+                    style={{
+                      borderColor: "rgba(34, 197, 94, 0.35)",
+                      backgroundColor: "rgba(34, 197, 94, 0.12)",
+                      color: "#bbf7d0",
+                    }}
+                  >
+                    Save Insight
+                  </button>
+
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
+                    style={{
+                      borderColor: "rgba(148, 163, 184, 0.28)",
+                      backgroundColor: "rgba(2, 6, 23, 0.45)",
+                      color: "#E2E8F0",
+                    }}
+                  >
+                    Export Summary
+                  </button>
+
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
+                    style={{
+                      borderColor: "rgba(148, 163, 184, 0.28)",
+                      backgroundColor: "rgba(2, 6, 23, 0.45)",
+                      color: "#E2E8F0",
+                    }}
+                  >
+                    Share Insight
+                  </button>
                 </div>
               </div>
             </div>
