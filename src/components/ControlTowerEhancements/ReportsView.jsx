@@ -35,6 +35,29 @@ export default function ReportsView({ simulationHistory }) {
   const latestTs = latestRun?.timestamp ? formatTimestamp(latestRun.timestamp) : "—";
   const latestStatus = latestRun?.status || "done";
 
+  const activeScenarioName = (() => {
+    try {
+      return localStorage.getItem("currentScenarioName") || "No active scenario";
+    } catch {
+      return "No active scenario";
+    }
+  })();
+
+  const latestOutputs = latestRun ? getOutputs(latestRun) : {};
+  const latestBundleUrl =
+    latestOutputs?.report_bundle_url ||
+    latestOutputs?.bundle_url ||
+    latestRun?.report_bundle_url ||
+    latestRun?.bundle_url ||
+    null;
+
+  const latestExecutiveReportUrl =
+    latestOutputs?.executive_report_url ||
+    latestOutputs?.executiveReportUrl ||
+    latestRun?.executive_report_url ||
+    latestRun?.executiveReportUrl ||
+    null;
+
   const statusStyles = (status) => {
     const s = String(status || "").toLowerCase();
     if (s.includes("error") || s.includes("fail")) {
@@ -76,6 +99,20 @@ export default function ReportsView({ simulationHistory }) {
     <div className="px-3 py-2 rounded-xl bg-white/10 border border-white/20">
       <div className="text-[11px] uppercase tracking-wide opacity-90">{label}</div>
       <div className="text-sm font-semibold">{value}</div>
+    </div>
+  );
+
+  const ReadinessChip = ({ label, ready }) => (
+    <div
+      className={
+        "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border " +
+        (ready
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : "bg-gray-50 text-gray-500 border-gray-200")
+      }
+    >
+      <span>{ready ? "✅" : "—"}</span>
+      <span>{label}</span>
     </div>
   );
 
@@ -126,6 +163,99 @@ export default function ReportsView({ simulationHistory }) {
         </div>
       </div>
 
+      {/* Executive Reporting Center */}
+      {hasReports && (
+        <section className="bg-white border border-[#E5ECE7] rounded-3xl shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-[#E5ECE7] flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs uppercase tracking-widest text-gray-400">
+                  Executive Reporting Center
+                </div>
+                <h2 className="text-2xl font-bold text-[#1D625B] mt-2">
+                  Latest Run Summary
+                </h2>
+                <p className="text-sm text-gray-600 mt-2 max-w-2xl">
+                  Generate executive-ready reporting from the latest simulation run, then download the full report pack or supporting datasets.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                <div className="rounded-2xl border border-[#E5ECE7] bg-[#F9FAF9] px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400">Latest Run</div>
+                  <div className="text-sm font-semibold text-[#1D625B] mt-1">{latestTs}</div>
+                </div>
+                <div className="rounded-2xl border border-[#E5ECE7] bg-[#F9FAF9] px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400">Run Status</div>
+                  <div className="text-sm font-semibold text-[#1D625B] mt-1">{latestStatus}</div>
+                </div>
+                <div className="rounded-2xl border border-[#E5ECE7] bg-[#F9FAF9] px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400">Active Scenario</div>
+                  <div className="text-sm font-semibold text-[#1D625B] mt-1">{activeScenarioName}</div>
+                </div>
+                <div className="rounded-2xl border border-[#E5ECE7] bg-[#F9FAF9] px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400">Executive Report</div>
+                  <div className="text-sm font-semibold text-[#1D625B] mt-1">
+                    {latestExecutiveReportUrl ? "Available" : "Not generated"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <ReadinessChip label="Full Pack Ready" ready={!!latestBundleUrl} />
+                <ReadinessChip label="Executive Report Ready" ready={!!latestExecutiveReportUrl} />
+                <ReadinessChip label="Latest Run Loaded" ready={!!latestRun} />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row xl:flex-col gap-3 xl:min-w-[260px]">
+              {latestExecutiveReportUrl ? (
+                <a
+                  href={latestExecutiveReportUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-[#1D625B] hover:bg-[#174F47] text-white font-semibold px-5 py-3 rounded-xl shadow-sm transition"
+                >
+                  📘 Open Executive Report
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center gap-2 bg-[#1D625B] hover:bg-[#174F47] text-white font-semibold px-5 py-3 rounded-xl shadow-sm transition"
+                >
+                  ✨ Generate Executive Report
+                </button>
+              )}
+
+              {latestBundleUrl ? (
+                <a
+                  href={latestBundleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-white border border-[#D8E5DD] text-[#1D625B] hover:bg-[#F2F6F3] font-semibold px-5 py-3 rounded-xl shadow-sm transition"
+                >
+                  ⬇️ Download Latest Full Pack
+                </a>
+              ) : (
+                <div className="inline-flex items-center justify-center gap-2 bg-white border border-dashed border-[#D8E5DD] text-gray-400 font-semibold px-5 py-3 rounded-xl">
+                  Full Pack Not Available
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="px-6 py-4 bg-[#F9FAF9] border-t border-[#E5ECE7] flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="text-sm text-gray-600">
+              <span className="font-semibold text-[#1D625B]">Scenario context:</span>{" "}
+              {activeScenarioName}
+            </div>
+            <div className="text-xs text-gray-500">
+              Reporting center reflects the latest available simulation artifacts and executive-report readiness.
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Content */}
       {hasReports ? (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -168,7 +298,12 @@ export default function ReportsView({ simulationHistory }) {
             return (
               <div
                 key={idx}
-                className="bg-white border border-[#E5ECE7] rounded-3xl shadow-sm hover:shadow-md transition-all overflow-hidden"
+                className={
+                  "bg-white border rounded-3xl shadow-sm hover:shadow-md transition-all overflow-hidden " +
+                  (idx === 0
+                    ? "border-[#1D625B] ring-1 ring-[#1D625B]/10"
+                    : "border-[#E5ECE7]")
+                }
               >
                 {/* Card Header */}
                 <div className="p-6 border-b border-[#E5ECE7] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -176,10 +311,15 @@ export default function ReportsView({ simulationHistory }) {
                     <div className="text-xs uppercase tracking-widest text-gray-400">
                       Report Pack
                     </div>
-                    <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
                       <h2 className="text-xl font-bold text-[#1D625B]">
                         Run {idx + 1}
                       </h2>
+                      {idx === 0 && (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full border bg-[#F2F6F3] text-[#1D625B] border-[#D8E5DD]">
+                          Latest Run
+                        </span>
+                      )}
                       <span
                         className={
                           "text-xs font-semibold px-2.5 py-1 rounded-full border " +
@@ -190,6 +330,11 @@ export default function ReportsView({ simulationHistory }) {
                       </span>
                     </div>
                     <div className="text-sm text-gray-600 mt-1">{timestamp}</div>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <ReadinessChip label="Full Pack" ready={!!bundleUrl} />
+                      <ReadinessChip label="Core Outputs" ready={!!anyCore} />
+                      <ReadinessChip label="Insights" ready={!!anyInsights} />
+                    </div>
                   </div>
 
                   {/* Primary CTA */}
