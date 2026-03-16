@@ -868,6 +868,16 @@ export default function App() {
           return sum + quantity * cpu;
         }, 0);
 
+        const customerShipRowsForCost = filtered.filter((r) => {
+          const ft = lower(r.flow_type || r.FlowType || r.type || "");
+          return ft === "customer_ship" || ft === "customer ship" || ft === "customership";
+        });
+
+        const shippedUnits = customerShipRowsForCost.reduce((sum, r) => {
+          const quantity = toNum(r[qtyKey] ?? r.flow ?? r.Flow ?? r.quantity ?? r.Quantity ?? r.shipped ?? r.Shipped);
+          return sum + quantity;
+        }, 0);
+
         const expediteCount = filtered.filter((r) => {
           const v = lower(r[expKey]);
           return v === "true" || v === "1" || v === "yes";
@@ -875,7 +885,14 @@ export default function App() {
 
         const expediteRatio = filtered.length ? (100 * expediteCount) / filtered.length : 0;
 
-        allKpis.costToServe = `$${totalCost.toFixed(0)}`;
+        allKpis.costToServe = shippedUnits > 0
+          ? new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(totalCost / shippedUnits)
+          : "--";
         allKpis.expediteRatio = `${expediteRatio.toFixed(1)}%`;
       }
 

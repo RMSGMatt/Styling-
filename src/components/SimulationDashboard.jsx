@@ -1421,15 +1421,20 @@ setOverlayChartData(overlay);
               borderColor: "#123528",
             }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold flex items-center gap-2 text-slate-50">
-                <span style={{ color: "#9CF700" }}>🌐 Network Map</span>
-                <span className="text-xs text-slate-300">
-                  Facilities & live incident overlays
-                </span>
-              </h2>
-            </div>
-            <div className="h-64 rounded-xl overflow-hidden border border-slate-800/80 bg-slate-950/60">
+            
+            
+<div className="flex items-center justify-between mb-3">
+  <h2 className="text-sm font-semibold flex items-center gap-2 text-slate-50">
+    <span style={{ color: "#9CF700" }}>🌐 Network Map</span>
+  </h2>
+
+  <div className="text-[11px] text-slate-400">
+    Updated {new Date().toLocaleTimeString()}
+  </div>
+</div>
+
+
+            <div className="h-[26rem] rounded-2xl overflow-hidden border border-slate-700/70 bg-slate-950/80 shadow-inner">
               <MapView
                 locationsUrl={locationsUrl}
                 selectedFacility={selectedFacility}
@@ -1439,131 +1444,104 @@ setOverlayChartData(overlay);
           </div>
 
 {/* Inputs + Run Button */}
-          <div
-            className="lg:col-span-2 rounded-2xl p-4 flex flex-col border"
+<div
+  className="lg:col-span-2 rounded-2xl p-4 border"
+  style={{
+    background:
+      "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))",
+    borderColor: "#143629",
+  }}
+>
+
+  <h2 className="text-sm font-semibold text-slate-50 mb-3">
+    📂 Simulation Inputs
+  </h2>
+
+  <div className="divide-y divide-slate-700/40 text-xs">
+
+    {[
+      ["Demand", "demand"],
+      ["Disruptions", "disruptions"],
+      ["Locations", "locations"],
+      ["Processes", "processes"],
+      ["BOM", "bom"],
+      ["Location Materials", "locationMaterials"]
+    ].map(([label, key]) => (
+      <div key={key} className="flex items-center justify-between py-2">
+
+        <div className="flex flex-col">
+          <span className="text-slate-200">{label}</span>
+          <span
+            className="text-[11px]"
             style={{
-              background:
-                "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))",
-              borderColor: "#143629",
+              color: files[key] ? "#9CF700" : "#94a3b8",
+              fontWeight: files[key] ? "500" : "400"
             }}
           >
-            <h2 className="text-sm font-semibold text-slate-50 mb-2">
-              📂 Simulation Inputs
-            </h2>
-            <div className="space-y-2 text-xs text-slate-300">
-              <div>
-                <p className="text-slate-300 mb-1">Demand (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("demand", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
+            {files[key] ? `✓ ${files[key].name}` : "No file selected"}
+          </span>
+        </div>
 
-              <div>
-                <p className="text-slate-300 mb-1">Disruptions (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("disruptions", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
+        <div>
+          <input
+            id={`upload-${key}`}
+            type="file"
+            accept=".csv"
+            onChange={(e) => handleFileChange(key, e.target.files[0])}
+            className="hidden"
+          />
 
-              <div>
-                <p className="text-slate-300 mb-1">Locations (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("locations", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
+          <label
+            htmlFor={`upload-${key}`}
+            className="cursor-pointer px-3 py-1 rounded-md text-[11px] border text-slate-200 hover:bg-slate-800/70 transition"
+            style={{
+              borderColor: "#355e52",
+              backgroundColor: "rgba(2,6,23,0.55)",
+            }}
+          >
+            Upload
+          </label>
+        </div>
 
-              <div>
-                <p className="text-slate-300 mb-1">Processes (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("processes", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
+      </div>
+    ))}
 
-              <div>
-                <p className="text-slate-300 mb-1">BOM (CSV)</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange("bom", e.target.files[0])
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
+  </div>
 
-              <div>
-                <p className="text-slate-300 mb-1">
-                  Location Materials (CSV)
-                </p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) =>
-                    handleFileChange(
-                      "locationMaterials",
-                      e.target.files[0]
-                    )
-                  }
-                  className="text-slate-300 text-xs"
-                />
-              </div>
-            </div>
+  <button
+    onClick={() => {
+      const activeScenario =
+        scenarioData && Object.keys(scenarioData).length > 0
+          ? scenarioData
+          : null;
+      handleRunSimulationWithScenario(activeScenario);
+    }}
+    disabled={isSimulateDisabled}
+    className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition"
+    style={
+      isSimulateDisabled
+        ? {
+            backgroundColor: "rgba(15, 23, 42, 0.8)",
+            color: "#64748b",
+            cursor: "not-allowed",
+          }
+        : {
+            background: "linear-gradient(90deg,#9CF700,#22c55e)",
+            color: "#020617",
+          }
+    }
+  >
+    {statusLabel}
+  </button>
 
-            <button
-              onClick={() => {
-                const activeScenario =
-                  scenarioData && Object.keys(scenarioData).length > 0
-                    ? scenarioData
-                    : null;
-                // We ignore the arg and just rely on scenarioData in closure,
-                // but this keeps your intent explicit.
-                handleRunSimulationWithScenario(activeScenario);
-              }}
-              disabled={isSimulateDisabled}
-              className="mt-4 w-full py-2 rounded-xl text-sm font-semibold transition shadow-md"
-              style={
-                isSimulateDisabled
-                  ? {
-                      backgroundColor: "rgba(15, 23, 42, 0.8)",
-                      color: "#64748b",
-                      cursor: "not-allowed",
-                    }
-                  : {
-                      background:
-                        "linear-gradient(90deg, #9CF700, #22c55e)",
-                      color: "#020617",
-                    }
-              }
-            >
-              {statusLabel}
-            </button>
+  {!isSimulationReady && (
+    <p className="text-[11px] text-amber-300 mt-2">
+      ⚠ Upload all six required files before running the simulation.
+    </p>
+  )}
 
-            {!isSimulationReady && (
-              <p className="text-[11px] text-rose-400 mt-2">
-                ⚠️ All six input files must be uploaded before simulation.
-              </p>
-            )}
-          </div>
+</div>
+
         </section>
 
         {/* KPI row */}
@@ -1578,67 +1556,107 @@ setOverlayChartData(overlay);
             }}
           >
             <h2 className="text-sm font-semibold text-slate-50 mb-2">
-              📊 Operational Performance
+              📊 Operational Efficiency
             </h2>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">On-Time Fulfillment</p>
-                <p
-                  className="text-lg font-semibold"
-                  style={{ color: "#9CF700" }}
-                >
-                  {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
+            <div className="space-y-4 text-xs">
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">
+                  Executive Signals
                 </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Share of demand met on requested date.
-                </p>
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <p className="text-slate-300 mb-1">On-Time Fulfillment</p>
+                    <p
+                      className="text-xl font-semibold"
+                      style={{ color: "#9CF700" }}
+                    >
+                      {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
+                    </p>
+                    <p className="text-[10px] text-slate-300 mt-1">
+                      Share of demand met on requested date.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <p className="text-slate-300 mb-1">Backorder Rate</p>
+                    <p className="text-lg font-semibold text-rose-400">
+                      {formatPercent(kpis?.backorderRate, { zeroIsDash: false, digits: 1 })}
+                    </p>
+                    <p className="text-[10px] text-slate-300 mt-1">
+                      Vol: {formatNumber(kpis?.backorderVolume, { zeroIsDash: true, digits: 0 })}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <p className="text-slate-300 mb-1">Time to Recovery</p>
+                    <p className="text-lg font-semibold text-violet-300">
+                      {String(kpis?.timeToRecovery || "--")}
+                    </p>
+                    <p className="text-[10px] text-slate-300 mt-1">
+                      Span from first to last disruption occurrence.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <p className="text-slate-300 mb-1">Impacted Facilities</p>
+                    <p className="text-lg font-semibold text-amber-300">
+                      {formatNumber(kpis?.impactedFacilities, { zeroIsDash: false, digits: 0 })}
+                    </p>
+                    <p className="text-[10px] text-slate-300 mt-1">
+                      Facilities affected in the selected scope.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Inventory Turns</p>
-                <p className="text-lg font-semibold text-sky-400">
-                  {String(kpis?.inventoryTurns || "--x")}
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">
+                  Operational Performance
                 </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Average annualized turns for selected scope.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Backorder Rate</p>
-                <p className="text-lg font-semibold text-rose-400">
-                  {formatPercent(kpis?.backorderRate, { zeroIsDash: false, digits: 1 })} • Vol: {formatNumber(kpis?.backorderVolume, { zeroIsDash: true, digits: 0 })}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Portion of demand missed or delayed.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Expedite Cost</p>
-                <p className="text-lg font-semibold text-amber-400">
-                  {formatCurrency(kpis?.expediteCost, { zeroIsDash: true, digits: 0 })}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Incremental cost from mitigation actions.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Inventory Buffer</p>
-                <p className="text-lg font-semibold text-emerald-300">
-                  {String(kpis?.inventoryBuffer || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Days of demand coverage from average inventory.
-                </p>
-              </div>
-              <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                <p className="text-slate-300 mb-1">Time to Recovery</p>
-                <p className="text-lg font-semibold text-violet-300">
-                  {String(kpis?.timeToRecovery || "--")}
-                </p>
-                <p className="text-[10px] text-slate-300 mt-1">
-                  Time span from first to last disruption occurrence.
-                </p>
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <p className="text-slate-300 mb-1">Inventory Turns</p>
+                    <p className="text-lg font-semibold text-sky-400">
+                      {String(kpis?.inventoryTurns || "--x")}
+                    </p>
+                    <p className="text-[10px] text-slate-300 mt-1">
+                      Annualized throughput relative to average inventory.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <p className="text-slate-300 mb-1">Inventory Buffer</p>
+                    <p className="text-lg font-semibold text-emerald-300">
+                      {String(kpis?.inventoryBuffer || "--")}
+                    </p>
+                    <p className="text-[10px] text-slate-300 mt-1">
+                      Days of demand coverage from average inventory.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <p className="text-slate-300 mb-1">Total Production</p>
+                    <p className="text-lg font-semibold text-cyan-300">
+                      {formatNumber(kpis?.totalProduction, { zeroIsDash: false, digits: 0 })}
+                    </p>
+                    <p className="text-[10px] text-slate-300 mt-1">
+                      Aggregate units produced in selected scope.
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
+                    <p className="text-slate-300 mb-1">Cost per Unit Shipped</p>
+                    <p className="text-lg font-semibold text-amber-400">
+                      {String(kpis?.costToServe || "--")}
+                    </p>
+                    <p className="text-[10px] text-slate-300 mt-1">
+                      Estimated logistics and service cost across flow rows.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
+
             <div className="mt-3 text-[10px] text-slate-300">
               <p>
                 <span
