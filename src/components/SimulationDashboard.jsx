@@ -1686,7 +1686,17 @@ setOverlayChartData(overlay);
               <h2 className="text-sm font-semibold text-slate-50">
                 ⚠️ Disruption Impact Summary
               </h2>
-              <p className="text-[11px] mt-1 font-semibold" style={{ color: "#9CF700" }}>
+              <p
+                className="text-[11px] mt-1 font-semibold"
+                style={{
+                  color:
+                    scenarioImpactSummary?.networkHealth === "critical"
+                      ? "#f87171"
+                      : scenarioImpactSummary?.networkHealth === "stress"
+                      ? "#FFB200"
+                      : "#9CF700",
+                }}
+              >
                 Scenario: {scenarioData?.name?.trim() ? scenarioData.name : "Baseline / Healthy Network"}
               </p>
               <p className="text-xs text-slate-300 mt-1">
@@ -1721,17 +1731,65 @@ setOverlayChartData(overlay);
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 bg-slate-900/50 border border-slate-700/80 rounded-xl p-4">
+            <div className="lg:col-span-2 bg-slate-900/50 border border-slate-700/80 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{
+                    backgroundColor:
+                      scenarioImpactSummary?.networkHealth === "healthy"
+                        ? "#9CF700"
+                        : scenarioImpactSummary?.networkHealth === "critical"
+                        ? "#f87171"
+                        : "#FFB200",
+                  }}
+                />
+                <p className="text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                  Executive Insight
+                </p>
+              </div>
+
               <p
-                className="text-base font-semibold mb-2"
+                className="text-[1.75rem] leading-tight font-semibold mb-3"
                 style={{ color: "#E8FFE8" }}
               >
                 {scenarioImpactSummary?.headline || "No simulation summary available yet."}
               </p>
-              <p className="text-sm text-slate-300 leading-6">
+
+              <p className="text-sm text-slate-300 leading-7">
                 {scenarioImpactSummary?.narrative ||
                   "Run a simulation to generate a scenario-level interpretation."}
               </p>
+
+              <div
+                className="mt-5 rounded-xl border p-4"
+                style={{
+                  background: "linear-gradient(180deg, rgba(2, 6, 23, 0.55), rgba(2, 6, 23, 0.35))",
+                  borderColor: "rgba(71, 85, 105, 0.45)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-emerald-300">✅</span>
+                  <p className="text-sm font-semibold text-slate-100">
+                    Suggested Countermeasures
+                  </p>
+                </div>
+
+                {scenarioImpactSummary?.countermeasures?.length ? (
+                  <ul className="space-y-2 text-sm text-slate-300">
+                    {scenarioImpactSummary.countermeasures.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-[#9CF700] mt-[2px]">•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    No countermeasures generated yet for this scenario.
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4">
