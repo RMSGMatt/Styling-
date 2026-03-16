@@ -119,18 +119,18 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-[#e8f8f5] p-4 rounded-xl shadow-sm relative transition duration-200 ease-in-out transform hover:-translate-y-1 hover:shadow-lg ${riskClass}`}
+      className={`bg-gradient-to-br from-white to-[#e8f8f5] p-3.5 rounded-xl shadow-sm relative transition duration-200 ease-in-out transform hover:-translate-y-1 hover:shadow-lg ${riskClass}`}
       title={`${label} - Click for details`}
     >
-      <div className="text-2xl font-extrabold text-[#1D625B]" title={`Current value: ${value}`}>
+      <div className="text-[1.65rem] leading-none font-extrabold text-[#1D625B]" title={`Current value: ${value}`}>
         {value}
       </div>
-      <div className="text-sm text-gray-600 flex items-center gap-1" title={`Metric: ${label}`}>
+      <div className="text-[13px] text-gray-600 flex items-center gap-1 mt-1" title={`Metric: ${label}`}>
         <span>{icon}</span>
         <span>{label}</span>
       </div>
       {deltaText && (
-        <div className="mt-2 text-xs font-medium text-gray-500">
+        <div className="mt-1.5 text-[11px] font-medium text-gray-500">
           {deltaText}
         </div>
       )}
@@ -268,7 +268,7 @@ export default function ControlTower({
   const [chartType2, setChartType2] = useState("onTime");
 
   const chartOptions = [
-    { value: "shipments", label: "📦 Shipments by Category" },
+    { value: "shipments", label: "📦 Outbound Shipments" },
     { value: "utilization", label: "🏭 Facility Utilization" },
     { value: "inventory", label: "📦 Inventory Levels" },
     { value: "leadTime", label: "📈 Lead Time Trends" },
@@ -380,7 +380,7 @@ export default function ControlTower({
   const kpiMeta = [
     {
       key: "totalFacilities",
-      label: "Total Facilities",
+      label: "Network Facilities",
       trend: "up",
       delta: {
         day: "Network scope unchanged vs yesterday",
@@ -403,7 +403,7 @@ export default function ControlTower({
     },
     {
       key: "shipments",
-      label: "Shipments",
+      label: "Outbound Shipments",
       trend: "neutral",
       delta: {
         day: "Flat vs yesterday",
@@ -524,44 +524,51 @@ export default function ControlTower({
     "supplierOnTime",
   ];
 
+  const networkContext = {
+    monitoredRegions: 12,
+    activeFeeds: ["USGS", "NOAA", "GDACS", "Internal Alerts"],
+    refreshCadence: "15 min",
+    timezoneLabel: "ET",
+  };
+
   const renderChart = (type) => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
     const chartConfigs = {
-      shipments: { type: Bar, data: [2, 3, 5, 4, 3, 2, 2, 1], label: "Shipments", color: "#1D625B" },
+      shipments: { type: Bar, data: [2, 3, 5, 4, 3, 4, 2, 1], label: "Outbound Shipments", color: "#1D625B" },
       utilization: {
         type: Line,
         data: [
-          { label: "East", data: [60, 75, 90, 85, 80, 95, 100, 110], color: "#1D625B" },
-          { label: "West", data: [40, 55, 60, 65, 60, 70, 80, 90], color: "#F59E0B" },
+          { label: "East", data: [61, 74, 92, 86, 81, 96, 98, 108], color: "#1D625B" },
+          { label: "West", data: [42, 56, 61, 66, 62, 71, 79, 88], color: "#F59E0B" },
         ],
       },
       inventory: {
         type: Bar,
-        data: [100, 90, 80, 85, 75, 70, 65, 60],
+        data: [100, 92, 81, 86, 77, 71, 67, 62],
         label: "Inventory",
         color: "#3B82F6",
       },
       leadTime: {
         type: Line,
-        data: [6, 5.9, 5.7, 5.6, 5.5, 5.3, 5.2, 5.1],
+        data: [6.0, 5.9, 5.7, 5.8, 5.5, 5.4, 5.2, 5.1],
         label: "Lead Time (days)",
         color: "#10B981",
       },
       revenue: {
         type: Bar,
-        data: [4.8, 4.6, 4.5, 4.3, 4.2, 4.0, 3.9, 3.8],
+        data: [4.8, 4.7, 4.5, 4.4, 4.1, 4.0, 3.9, 3.85],
         label: "Revenue at Risk ($M)",
         color: "#EF4444",
       },
       onTime: {
         type: Line,
-        data: [91.2, 91.5, 92, 92.4, 92.7, 93, 93.1, 93.3],
+        data: [91.2, 91.4, 92.0, 92.3, 92.7, 92.9, 93.1, 93.2],
         label: "On-Time Rate (%)",
         color: "#6366F1",
       },
       expedite: {
         type: Bar,
-        data: [5.1, 5.0, 4.9, 4.7, 4.6, 4.4, 4.3, 4.2],
+        data: [5.1, 5.0, 4.85, 4.7, 4.65, 4.45, 4.35, 4.2],
         label: "Expedited Orders (%)",
         color: "#F59E0B",
       },
@@ -772,6 +779,33 @@ export default function ControlTower({
                     <li>• Revenue exposure estimated at {businessKpis?.revenueAtRisk}</li>
                     <li>• Backorders currently {businessKpis?.backorders}</li>
                   </ul>
+                </div>
+              </section>
+
+              <section className="mb-5">
+                <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Regions Monitored</div>
+                      <div className="font-semibold text-gray-800">{networkContext.monitoredRegions}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Active Feeds</div>
+                      <div className="font-semibold text-gray-800">{networkContext.activeFeeds.join(" • ")}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Network Scope</div>
+                      <div className="font-semibold text-gray-800">{businessKpis?.totalFacilities || "—"} facilities</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Refresh Cadence</div>
+                      <div className="font-semibold text-gray-800">{networkContext.refreshCadence}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Last Refresh</div>
+                      <div className="font-semibold text-gray-800">{new Date().toLocaleTimeString()} {networkContext.timezoneLabel}</div>
+                    </div>
+                  </div>
                 </div>
               </section>
 
