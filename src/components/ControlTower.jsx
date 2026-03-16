@@ -277,6 +277,44 @@ export default function ControlTower({
     { value: "expedite", label: "⚡ Expedited Orders" },
   ];
 
+  const chartMeta = {
+    shipments: {
+      title: "Outbound Throughput Trend",
+      subtitle: "Network shipment activity across the selected horizon",
+      footer: "Basis: monitored outbound volume",
+    },
+    utilization: {
+      title: "Facility Utilization Trend",
+      subtitle: "Capacity pressure across key operating regions",
+      footer: "Basis: blended facility utilization",
+    },
+    inventory: {
+      title: "Inventory Position Trend",
+      subtitle: "Overall inventory movement across the network",
+      footer: "Basis: monitored inventory levels",
+    },
+    leadTime: {
+      title: "Lead Time Trend",
+      subtitle: "Transit and supplier response timing over time",
+      footer: "Basis: average end-to-end lead time",
+    },
+    revenue: {
+      title: "Revenue at Risk Trend",
+      subtitle: "Estimated business exposure from current network conditions",
+      footer: "Basis: exposure estimate from monitored disruptions",
+    },
+    onTime: {
+      title: "Supplier Reliability Trend",
+      subtitle: "Inbound supplier on-time performance over time",
+      footer: "Basis: supplier on-time delivery rate",
+    },
+    expedite: {
+      title: "Expedite Pressure Trend",
+      subtitle: "Operational stress indicated by expedited order activity",
+      footer: "Basis: expedited order share",
+    },
+  };
+
   useEffect(() => {
     const mockData = {
       day: {
@@ -554,7 +592,13 @@ export default function ControlTower({
     return (
       <ChartComponent
         data={{ labels: months, datasets: dataset }}
-        options={{ responsive: true, plugins: { legend: { position: "top" } } }}
+        options={{
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "top" },
+          },
+        }}
       />
     );
   };
@@ -888,14 +932,40 @@ export default function ControlTower({
 
               <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[chartType1, chartType2].map((type, i) => (
-                  <div key={i} className="bg-white p-4 rounded shadow">
-                    <Select
-                      options={chartOptions}
-                      value={chartOptions.find((opt) => opt.value === type)}
-                      onChange={(sel) => (i === 0 ? setChartType1(sel.value) : setChartType2(sel.value))}
-                      className="mb-2"
-                    />
-                    {renderChart(type)}
+                  <div
+                    key={i}
+                    className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden"
+                  >
+                    <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                          <div className="text-base font-semibold text-[#1D625B]">
+                            {chartMeta[type]?.title || "Trend View"}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {chartMeta[type]?.subtitle || "Operational performance trend"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Select
+                        options={chartOptions}
+                        value={chartOptions.find((opt) => opt.value === type)}
+                        onChange={(sel) => (i === 0 ? setChartType1(sel.value) : setChartType2(sel.value))}
+                        className="mb-0"
+                      />
+                    </div>
+
+                    <div className="p-4">
+                      <div className="h-[320px]">
+                        {renderChart(type)}
+                      </div>
+                    </div>
+
+                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex items-center justify-between">
+                      <span>{chartMeta[type]?.footer || "Basis: monitored performance"}</span>
+                      <span>Period: Jan–Aug</span>
+                    </div>
                   </div>
                 ))}
               </section>
