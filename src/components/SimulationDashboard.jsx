@@ -413,17 +413,57 @@ const revenueAtRiskMillions =
         .toLowerCase();
       return risk.includes("high");
     })
-    .map((r) => r.sku || r.SKU || "Unknown SKU");
+    .map((r) => (r.sku || r.SKU || "Unknown SKU").toString().trim());
 
   const uniqueHighRiskSkus = [...new Set(highRiskSkus)];
 
-  const candidateActions = counterRows.slice(0, 3).map((row) => ({
-    sku: row.sku || row.SKU || "Unknown SKU",
-    action:
-      row.recommended_action || row.Action || "Review mitigation plan",
-    expectedImpact:
-      row.expected_impact || row.ExpectedImpact || "Stabilize supply",
-  }));
+  const uniqueRunoutRiskSkus = [
+    ...new Set(
+      runoutRows
+        .map((r) => (r.sku || r.SKU || "").toString().trim())
+        .filter(Boolean)
+    ),
+  ];
+
+  const candidateActions = [];
+  const seenActionKeys = new Set();
+
+  for (const row of runoutRows) {
+    const sku = (row.sku || row.SKU || "Unknown SKU").toString().trim();
+    const facility = (row.facility || row.Facility || "Unknown facility").toString().trim();
+    const risk = (row.risk_level || row.RiskLevel || "Medium").toString().trim();
+    const riskLower = risk.toLowerCase();
+
+    let action = "Review mitigation plan";
+    let expectedImpact = "Reduce runout risk";
+
+    if (riskLower.includes("high")) {
+      action = `Expedite supply for ${facility}`;
+      expectedImpact = "Protect service";
+    } else if (riskLower.includes("low")) {
+      action = `Monitor and rebalance inventory at ${facility}`;
+      expectedImpact = "Stabilize supply";
+    } else {
+      action = `Evaluate alternate sourcing for ${facility}`;
+      expectedImpact = "Improve resilience";
+    }
+
+    const dedupeKey = `${sku}__${facility}__${action}`;
+    if (seenActionKeys.has(dedupeKey)) continue;
+    seenActionKeys.add(dedupeKey);
+
+    candidateActions.push({
+      sku,
+      facility,
+      risk,
+      action,
+      expectedImpact,
+    });
+
+    if (candidateActions.length >= 3) break;
+  }
+
+  const uniqueRecommendedActions = candidateActions.map((row) => row.action);
 
   return (
     <section className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -438,7 +478,7 @@ const revenueAtRiskMillions =
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-50 flex items-center gap-2">
-            <span style={{ color: "#FFB200" }}>🔎 Network Disruption Analysis</span>
+            <span style={{ color: "#FFB200" }}>🔎 Disruption Signals</span>
           </h3>
           <span className="text-xs text-slate-300">
             Powered by latest simulation run
@@ -447,7 +487,7 @@ const revenueAtRiskMillions =
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-            <p className="text-xs text-slate-300">Disruption Events</p>
+            <p className="text-xs text-slate-300">Disruption Records</p>
             <p className="text-xl font-semibold text-slate-50">
               {totalEvents || 0}
             </p>
@@ -459,7 +499,7 @@ const revenueAtRiskMillions =
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-            <p className="text-xs text-slate-300">Revenue at Risk</p>
+            <p className="text-xs text-slate-300">Estimated Revenue Exposure</p>
             <p
               className="text-xl font-semibold"
               style={{ color: "#9CF700" }}
@@ -533,7 +573,7 @@ const revenueAtRiskMillions =
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-50 flex items-center gap-2">
             <span className="text-emerald-300">
-              🛡️ Material Risk & Mitigation
+              🛡️ Material Risk & Actions
             </span>
           </h3>
           <span className="text-xs text-slate-300">Scenario-aware outputs</span>
@@ -543,13 +583,13 @@ const revenueAtRiskMillions =
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
             <p className="text-xs text-slate-300">SKUs at Runout Risk</p>
             <p className="text-xl font-semibold text-rose-400">
-              {runoutRows.length}
+              {uniqueRunoutRiskSkus.length}
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-            <p className="text-xs text-slate-300">Countermeasure Actions</p>
+            <p className="text-xs text-slate-300">Recommended Actions</p>
             <p className="text-xl font-semibold text-emerald-400">
-              {counterRows.length}
+              {uniqueRecommendedActions.length}
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
@@ -560,7 +600,7 @@ const revenueAtRiskMillions =
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+        <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.35fr] gap-4 text-xs text-slate-300">
           <div className="bg-slate-900/40 border border-slate-700/80 rounded-xl p-3">
             <p className="font-semibold mb-2 text-slate-50">
               🔍 Highest Runout Risk (Top 3)
@@ -568,7 +608,7 @@ const revenueAtRiskMillions =
             {runoutRows.length === 0 ? (
               <p className="text-slate-300">No SKUs flagged for runout.</p>
             ) : (
-              <ul className="space-y-1">
+              <ul className="space-y-2 leading-6">
                 {runoutRows.slice(0, 3).map((row, idx) => (
                   <li key={idx}>
                     <span className="font-semibold">
@@ -596,7 +636,8 @@ const revenueAtRiskMillions =
               <ul className="space-y-1">
                 {candidateActions.map((row, idx) => (
                   <li key={idx}>
-                    <span className="font-semibold">{row.sku}</span>:{" "}
+                    <span className="font-semibold">{row.sku}</span>{" "}
+                    <span className="text-slate-400">@ {row.facility}</span>:{" "}
                     {row.action}{" "}
                     <span className="text-emerald-300">
                       ({row.expectedImpact})
@@ -650,6 +691,8 @@ export default function SimulationDashboard({
 }) {
 
   const [projectedSlider, setProjectedSlider] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const runsPerPage = 5;
   // 🧠 Scenario State
   const [scenarioJson, setScenarioJson] = useState(null);
   const [savedScenarios, setSavedScenarios] = useState([]);
@@ -1357,6 +1400,16 @@ setOverlayChartData(overlay);
 
   const latestSimulation = simulationHistory?.[0];
 
+  const totalHistoryPages = Math.max(
+    1,
+    Math.ceil((Array.isArray(simulationHistory) ? simulationHistory.length : 0) / runsPerPage)
+  );
+
+  const pagedSimulationHistory = (Array.isArray(simulationHistory) ? simulationHistory : []).slice(
+    (historyPage - 1) * runsPerPage,
+    historyPage * runsPerPage
+  );
+
   return (
     <div
       className="min-h-screen text-slate-50 flex flex-col"
@@ -1453,9 +1506,28 @@ setOverlayChartData(overlay);
   }}
 >
 
-  <h2 className="text-sm font-semibold text-slate-50 mb-3">
-    📂 Simulation Inputs
-  </h2>
+  <div className="flex items-center justify-between mb-3">
+    <h2 className="text-sm font-semibold text-slate-50">
+      📂 Simulation Inputs
+    </h2>
+
+    <button
+      type="button"
+      onClick={() => {
+        ["demand", "disruptions", "locations", "processes", "bom", "locationMaterials"].forEach((key) =>
+          handleFileChange(key, null)
+        );
+      }}
+      className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition"
+      style={{
+        borderColor: "#355e52",
+        color: "#E2E8F0",
+        backgroundColor: "rgba(2, 6, 23, 0.45)",
+      }}
+    >
+      Clear All
+    </button>
+  </div>
 
   <div className="divide-y divide-slate-700/40 text-xs">
 
@@ -1482,8 +1554,9 @@ setOverlayChartData(overlay);
           </span>
         </div>
 
-        <div>
+        <div className="flex items-center gap-2">
           <input
+            key={`upload-${key}-${files[key]?.name || "empty"}`}
             id={`upload-${key}`}
             type="file"
             accept=".csv"
@@ -1501,6 +1574,22 @@ setOverlayChartData(overlay);
           >
             Upload
           </label>
+
+          {files[key] ? (
+            <button
+              type="button"
+              onClick={() => handleFileChange(key, null)}
+              className="h-7 w-7 rounded-md text-[12px] font-bold border transition"
+              style={{
+                borderColor: "rgba(248, 113, 113, 0.45)",
+                color: "#fca5a5",
+                backgroundColor: "rgba(127, 29, 29, 0.18)",
+              }}
+              title={`Clear ${label}`}
+            >
+              ×
+            </button>
+          ) : null}
         </div>
 
       </div>
@@ -2382,7 +2471,7 @@ setOverlayChartData(overlay);
             </p>
           ) : (
             <div className="space-y-4">
-              {(Array.isArray(simulationHistory) ? simulationHistory : []).map((sim, idx) => (
+              {pagedSimulationHistory.map((sim, idx) => (
                 <div
                   key={idx}
                   className="bg-slate-900/60 border border-slate-700/80 rounded-xl p-4"
@@ -2487,6 +2576,42 @@ setOverlayChartData(overlay);
                   </div>
                 </div>
               ))}
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                  disabled={historyPage === 1}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition"
+                  style={{
+                    borderColor: historyPage === 1 ? "rgba(71, 85, 105, 0.35)" : "#355e52",
+                    color: historyPage === 1 ? "#64748b" : "#E2E8F0",
+                    backgroundColor: "rgba(2, 6, 23, 0.45)",
+                    cursor: historyPage === 1 ? "not-allowed" : "pointer",
+                  }}
+                >
+                  ← Previous
+                </button>
+
+                <p className="text-xs text-slate-400">
+                  Page {historyPage} of {totalHistoryPages}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))}
+                  disabled={historyPage === totalHistoryPages}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition"
+                  style={{
+                    borderColor: historyPage === totalHistoryPages ? "rgba(71, 85, 105, 0.35)" : "#355e52",
+                    color: historyPage === totalHistoryPages ? "#64748b" : "#E2E8F0",
+                    backgroundColor: "rgba(2, 6, 23, 0.45)",
+                    cursor: historyPage === totalHistoryPages ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Next →
+                </button>
+              </div>
             </div>
           )}
         </section>
