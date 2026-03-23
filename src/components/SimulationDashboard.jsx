@@ -614,7 +614,7 @@ const revenueExposureDisplayValue = (() => {
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
             <p className="text-xs text-slate-300">Demand Fulfillment</p>
             <p className="text-xl font-semibold text-sky-400">
-              {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
+              {formatPercent(execOnTimePct, { zeroIsDash: false, digits: 1 })}
             </p>
           </div>
         </div>
@@ -882,6 +882,53 @@ export default function SimulationDashboard({
   const [projectedSlider, setProjectedSlider] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
   const runsPerPage = 5;
+
+  // Executive KPI aliases: normalize App.jsx and legacy KPI keys
+  const execOnTimePct = Number(
+    _toNumberLoose(
+      kpis?.onTimeFulfillment ??
+      kpis?.onTimeFill ??
+      kpis?.demandFulfillment
+    ) || 0
+  );
+
+  const execLateUnits = Number(
+    _toNumberLoose(
+      kpis?.lateFulfilledUnits ??
+      kpis?.unitsAtRisk ??
+      kpis?.unfulfilledQty ??
+      kpis?.missedDemandQty
+    ) || 0
+  );
+
+  const execPeakBacklog = Number(
+    _toNumberLoose(
+      kpis?.peakBacklogUnits ??
+      kpis?.peakBacklog ??
+      kpis?.backorderVolume
+    ) || 0
+  );
+
+  const execTtrDays = Number(
+    _toNumberLoose(
+      kpis?.timeToRecoverDays ??
+      kpis?.ttrDays ??
+      kpis?.avgTimeToRecovery
+    ) || 0
+  );
+
+  const execMissedServiceDays = Number(
+    _toNumberLoose(
+      kpis?.missedServiceDays ??
+      kpis?.daysWithMissedService
+    ) || 0
+  );
+
+  const execRevenueExposure =
+    kpis?.revenueExposure ??
+    kpis?.estimatedRevenueExposure ??
+    null;
+
   // 🧠 Scenario State
   const [scenarioJson, setScenarioJson] = useState(null);
   const [savedScenarios, setSavedScenarios] = useState([]);
@@ -994,13 +1041,13 @@ export default function SimulationDashboard({
       key: "unitsAtRisk",
       title: "Units at Risk",
       subtitle: "Demand exposed to disruption pressure",
-      value: kpis?.unitsAtRisk ?? 0,
+      value: kpis?.lateFulfilledUnits ?? 0,
     },
     {
       key: "peakBacklog",
       title: "Peak Backlog",
       subtitle: "Maximum queued unmet demand",
-      value: kpis?.peakBacklog ?? 0,
+      value: kpis?.peakBacklogUnits ?? 0,
     },
     {
       key: "missedServiceDays",
@@ -1012,7 +1059,7 @@ export default function SimulationDashboard({
       key: "ttrDays",
       title: "TTR",
       subtitle: "Time to recover after disruption",
-      value: kpis?.ttrDays ?? 0,
+      value: kpis?.timeToRecoverDays ?? 0,
     },
     {
       key: "ttsDays",
@@ -1026,23 +1073,23 @@ export default function SimulationDashboard({
     {
       label: "On-Time Fill",
       healthy: "100.00%",
-      stressed: `${Number(kpis?.onTimeFill ?? 0).toFixed(2)}%`,
-      delta: `${(Number(kpis?.onTimeFill ?? 0) - 100).toFixed(2)}%`,
-      direction: Number(kpis?.onTimeFill ?? 0) < 100 ? "down" : "flat",
+      stressed: `${execOnTimePct.toFixed(2)}%`,
+      delta: `${(execOnTimePct - 100).toFixed(2)}%`,
+      direction: execOnTimePct < 100 ? "down" : "flat",
     },
     {
       label: "Units at Risk",
       healthy: "0",
-      stressed: Number(kpis?.unitsAtRisk ?? 0).toLocaleString(),
-      delta: `+${Number(kpis?.unitsAtRisk ?? 0).toLocaleString()}`,
-      direction: Number(kpis?.unitsAtRisk ?? 0) > 0 ? "up" : "flat",
+      stressed: execLateUnits.toLocaleString(),
+      delta: `+${execLateUnits.toLocaleString()}`,
+      direction: Number(kpis?.lateFulfilledUnits ?? 0) > 0 ? "up" : "flat",
     },
     {
       label: "Peak Backlog",
       healthy: "0",
-      stressed: Number(kpis?.peakBacklog ?? 0).toLocaleString(),
-      delta: `+${Number(kpis?.peakBacklog ?? 0).toLocaleString()}`,
-      direction: Number(kpis?.peakBacklog ?? 0) > 0 ? "up" : "flat",
+      stressed: execPeakBacklog.toLocaleString(),
+      delta: `+${execPeakBacklog.toLocaleString()}`,
+      direction: Number(kpis?.peakBacklogUnits ?? 0) > 0 ? "up" : "flat",
     },
     {
       label: "Missed Service Days",
@@ -1054,9 +1101,9 @@ export default function SimulationDashboard({
     {
       label: "TTR",
       healthy: "0 days",
-      stressed: `${Number(kpis?.ttrDays ?? 0)} day${Number(kpis?.ttrDays ?? 0) === 1 ? "" : "s"}`,
-      delta: `+${Number(kpis?.ttrDays ?? 0)} day${Number(kpis?.ttrDays ?? 0) === 1 ? "" : "s"}`,
-      direction: Number(kpis?.ttrDays ?? 0) > 0 ? "up" : "flat",
+      stressed: `${execTtrDays} day${execTtrDays === 1 ? "" : "s"}`,
+      delta: `+${execTtrDays} day${execTtrDays === 1 ? "" : "s"}`,
+      direction: execTtrDays > 0 ? "up" : "flat",
     },
   ];
 
@@ -1939,11 +1986,11 @@ setOverlayChartData(overlay);
                   className="rounded-2xl border p-3 mb-3"
                   style={{
                     background:
-                      (Number(kpis?.peakBacklog || 0) > 0 || Number(kpis?.missedServiceDays || 0) > 0)
+                      (Number(kpis?.peakBacklogUnits || 0) > 0 || execMissedServiceDays > 0)
                         ? "rgba(239,68,68,0.08)"
                         : "rgba(34,197,94,0.08)",
                     borderColor:
-                      (Number(kpis?.peakBacklog || 0) > 0 || Number(kpis?.missedServiceDays || 0) > 0)
+                      (Number(kpis?.peakBacklogUnits || 0) > 0 || execMissedServiceDays > 0)
                         ? "rgba(239,68,68,0.24)"
                         : "rgba(34,197,94,0.24)",
                   }}
@@ -1952,8 +1999,8 @@ setOverlayChartData(overlay);
                     Scenario Readout
                   </p>
                   <p className="text-sm text-slate-100 leading-relaxed">
-                    {(Number(kpis?.peakBacklog || 0) > 0 || Number(kpis?.missedServiceDays || 0) > 0)
-                      ? `100% final fulfillment masks the fact that the network absorbed ${Number(kpis?.unitsAtRisk || 0).toLocaleString()} units at risk, ${Number(kpis?.missedServiceDays || 0)} missed service day${Number(kpis?.missedServiceDays || 0) === 1 ? "" : "s"}, and ${Number(kpis?.ttrDays || 0)} day${Number(kpis?.ttrDays || 0) === 1 ? "" : "s"} to recover.`
+                    {(Number(kpis?.peakBacklogUnits || 0) > 0 || execMissedServiceDays > 0)
+                      ? `Service failure hidden behind 100% fulfillment. Only ${formatPercent(execOnTimePct, { zeroIsDash: false, digits: 1 })} of demand was met on time, with ${formatNumber(execLateUnits)} units delivered late and a ${formatNumber(kpis?.timeToRecoverDays || 0, { zeroIsDash: false })}-day recovery period.`
                       : "Network remained stable with no service misses, no backlog, and full on-time fulfillment."}
                   </p>
                 </div>
@@ -1970,7 +2017,7 @@ setOverlayChartData(overlay);
                       Hidden Cost of Recovery
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      What 100% final fill does not show
+                      What your KPI dashboard misses
                     </p>
                   </div>
 
@@ -1981,7 +2028,7 @@ setOverlayChartData(overlay);
                       </p>
                       <p className="text-lg font-semibold text-rose-300">
                         {formatCurrency(
-                          kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? null,
+                          execRevenueExposure,
                           { zeroIsDash: true, digits: 0 }
                         )}
                       </p>
@@ -1995,7 +2042,7 @@ setOverlayChartData(overlay);
                         Units at Risk
                       </p>
                       <p className="text-lg font-semibold text-amber-300">
-                        {Number(kpis?.unitsAtRisk ?? 0).toLocaleString()}
+                        {execLateUnits.toLocaleString()}
                       </p>
                       <p className="text-[10px] text-slate-400 mt-1">
                         Demand exposed before the network stabilized.
@@ -2007,7 +2054,7 @@ setOverlayChartData(overlay);
                         Peak Backlog
                       </p>
                       <p className="text-lg font-semibold text-orange-300">
-                        {Number(kpis?.peakBacklog ?? 0).toLocaleString()}
+                        {execPeakBacklog.toLocaleString()}
                       </p>
                       <p className="text-[10px] text-slate-400 mt-1">
                         Maximum queued unmet demand during recovery.
@@ -2019,7 +2066,7 @@ setOverlayChartData(overlay);
                         Recovery Window
                       </p>
                       <p className="text-lg font-semibold text-violet-300">
-                        {Number(kpis?.ttrDays ?? 0)} day{Number(kpis?.ttrDays ?? 0) === 1 ? "" : "s"}
+                        {execTtrDays} day{execTtrDays === 1 ? "" : "s"}
                       </p>
                       <p className="text-[10px] text-slate-400 mt-1">
                         Time required to work back to operational stability.
@@ -2042,6 +2089,15 @@ setOverlayChartData(overlay);
                     <p className="text-[10px] text-slate-400">
                       Immediate scenario delta
                     </p>
+                    <div className="mt-3 text-sm text-slate-300">
+                      <span className="font-semibold text-emerald-400">
+                        On-Time: {formatPercent(execOnTimePct, { zeroIsDash: false, digits: 1 })}
+                      </span>
+                      {" | "}
+                      <span className="font-semibold text-rose-400">
+                        Late: {formatPercent(Math.max(0, 100 - execOnTimePct), { zeroIsDash: false, digits: 1 })}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -2305,19 +2361,19 @@ setOverlayChartData(overlay);
                 {scenarioImpactSummary?.narrative ? (
                   <>
                     {scenarioImpactSummary.narrative}
-                    {(Number(kpis?.unitsAtRisk ?? 0) > 0 ||
+                    {(Number(kpis?.lateFulfilledUnits ?? 0) > 0 ||
                       Number(kpis?.missedServiceDays ?? 0) > 0) && (
                       <span>
                         {" "}
                         This scenario also resulted in{" "}
                         <strong style={{ color: "#fca5a5" }}>
-                          {Number(kpis?.unitsAtRisk ?? 0).toLocaleString()} units at risk
+                          {execLateUnits.toLocaleString()} units at risk
                         </strong>,{" "}
                         <strong style={{ color: "#fca5a5" }}>
                           {Number(kpis?.missedServiceDays ?? 0)} missed service day{Number(kpis?.missedServiceDays ?? 0) === 1 ? "" : "s"}
                         </strong>, and a{" "}
                         <strong style={{ color: "#fca5a5" }}>
-                          {Number(kpis?.ttrDays ?? 0)} day recovery window
+                          {execTtrDays} day recovery window
                         </strong>{" "}
                         despite full final fulfillment.
                       </span>
