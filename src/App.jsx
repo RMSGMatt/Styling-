@@ -1041,7 +1041,79 @@ export default function App() {
           allKpis.inventoryBuffer = allKpis.estimatedDaysCoverage;
         }
 
-        console.log("📦 [KPI] Service truth:", {
+        
+        // 🔥 CORRECTED SERVICE TRUTH (date-aware)
+        let onTimeFulfilled = 0;
+        let lateFulfilled = 0;
+        let runningBacklog = 0;
+        let peakBacklog = 0;
+        let missedDays = 0;
+
+        const demandByDate = {};
+        const shipByDate = {};
+
+        flowRows.forEach((r) => {
+          const d = r.date;
+          const demand = Number(r.demand || 0);
+          const shipped = Number(r.flow || 0);
+
+          demandByDate[d] = (demandByDate[d] || 0) + demand;
+          shipByDate[d] = (shipByDate[d] || 0) + shipped;
+        });
+
+        const orderedDates = Object.keys(demandByDate).sort();
+
+        orderedDates.forEach((d) => {
+          const demand = demandByDate[d] || 0;
+          const shipped = shipByDate[d] || 0;
+
+          const onTime = Math.min(shipped, demand);
+          const late = Math.max(0, shipped - demand);
+
+          onTimeFulfilled += onTime;
+          lateFulfilled += late;
+
+          runningBacklog += demand - onTime;
+
+          if (runningBacklog > peakBacklog) peakBacklog = runningBacklog;
+          if (demand > onTime) missedDays += 1;
+
+          if (late > 0) {
+            runningBacklog = Math.max(0, runningBacklog - late);
+          }
+        });
+
+        const correctedOnTimePct =
+          totalDemand > 0 ? (onTimeFulfilled / totalDemand) * 100 : 0;
+
+        // 🔥 OVERRIDE KPIs WITH CORRECT VALUES
+        allKpis.onTimeFulfillment = correctedOnTimePct;
+        allKpis.lateFulfilledUnits = lateFulfilled;
+        allKpis.peakBacklogUnits = peakBacklog;
+        allKpis.missedServiceDays = missedDays;
+// 🔥 OVERRIDE serviceTruth WITH CORRECT VALUES
+      const serviceTruth = {
+        totalDemand,
+        onTimeFillRatePct: correctedOnTimePct,
+        lateFulfilledUnits: Math.max(
+          0,
+          Number(fulfilledCustomerShip || 0) - Number(onTimeFulfilled || 0)
+        ),
+        peakBacklogUnits: peakBacklog,
+        daysWithMissedService: missedDays,
+      };
+
+      allKpis.serviceTruth = serviceTruth;
+        allKpis.onTimeFulfillment = Number(serviceTruth?.onTimeFillRatePct || 0);
+        allKpis.lateFulfilledUnits = Number(serviceTruth?.lateFulfilledUnits || 0);
+        allKpis.unitsAtRisk = Number(serviceTruth?.lateFulfilledUnits || 0);
+        allKpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
+        allKpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
+        allKpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
+console.log("📦 [KPI] Service truth JSON:", JSON.stringify(serviceTruth, null, 2));
+
+      // OLD LOG BELOW (for reference)
+      console.log("📦 [KPI] Service truth (legacy):", {
           totalDemand,
           fulfilledCustomerShip,
           missedDemandQty,
@@ -1175,8 +1247,110 @@ export default function App() {
         setScenarioImpactSummary(null);
       }
 
-      console.log("KPI_DEBUG_DUMP", allKpis);
-      setKpis({ ...allKpis });
+      
+      const toNumber = (v) => {
+        if (v == null || v === "") return 0;
+        if (typeof v === "number") return v;
+        if (typeof v === "string") {
+          const cleaned = v.replace(/[$,%]/g, "");
+          const n = parseFloat(cleaned);
+          return Number.isFinite(n) ? n : 0;
+        }
+        return 0;
+      };
+
+console.log("KPI_DEBUG_DUMP", allKpis);
+
+      const serviceTruth =
+        allKpis?.serviceTruth ??
+        allKpis?.service_truth ??
+        {};
+
+      const normalizedServiceKpis = {
+        fillRatePct: Number(
+          serviceTruth?.fillRatePct ??
+          toNumber(allKpis?.demandFulfillment) ??
+          0
+        ),
+        onTimeFulfillment: Number(
+          serviceTruth?.onTimeFillRatePct ??
+          serviceTruth?.onTimeFillPct ??
+          toNumber(allKpis?.onTimeFulfillment) ??
+          toNumber(allKpis?.onTimeFill) ??
+          toNumber(allKpis?.demandFulfillment) ??
+          0
+        ),
+        lateFulfilledUnits: Number(
+          serviceTruth?.lateFulfilledUnits ?? 0
+        ),
+        peakBacklogUnits: Number(
+          serviceTruth?.peakBacklogUnits ??
+          serviceTruth?.peakBacklog ??
+          serviceTruth?.backorderVolume ??
+          allKpis?.peakBacklogUnits ??
+          allKpis?.peakBacklog ??
+          0
+        ),
+        missedServiceDays: Number(
+          serviceTruth?.daysWithMissedService ??
+          serviceTruth?.missedServiceDays ??
+          allKpis?.missedServiceDays ??
+          0
+        ),
+        timeToRecoverDays: Number(
+          serviceTruth?.timeToRecoverDays ??
+          serviceTruth?.avgTimeToRecovery ??
+          allKpis?.timeToRecoverDays ??
+          allKpis?.ttrDays ??
+          allKpis?.avgTimeToRecovery ??
+          0
+        ),
+        timeToSurviveDays: Number(
+          serviceTruth?.timeToSurviveDays ??
+          serviceTruth?.ttsDays ??
+          allKpis?.timeToSurviveDays ??
+          allKpis?.ttsDays ??
+          0
+        ),
+        unitsAtRisk: Number(
+          allKpis?.lateFulfilledUnits ?? 0
+        ),
+        peakBacklog: Number(
+          serviceTruth?.peakBacklogUnits ??
+          serviceTruth?.peakBacklog ??
+          serviceTruth?.backorderVolume ??
+          allKpis?.peakBacklog ??
+          0
+        ),
+        ttrDays: Number(
+          serviceTruth?.timeToRecoverDays ??
+          serviceTruth?.avgTimeToRecovery ??
+          allKpis?.ttrDays ??
+          allKpis?.avgTimeToRecovery ??
+          0
+        ),
+        ttsDays: Number(
+          serviceTruth?.timeToSurviveDays ??
+          serviceTruth?.ttsDays ??
+          allKpis?.ttsDays ??
+          0
+        ),
+      };
+
+      const finalKpis = {
+        ...allKpis,
+        ...normalizedServiceKpis,
+      };
+
+      
+      // 🔥 FINAL OVERRIDE — force correct service KPIs
+      finalKpis.lateFulfilledUnits = Number(serviceTruth?.lateFulfilledUnits || 0);
+      finalKpis.unitsAtRisk = Number(serviceTruth?.lateFulfilledUnits || 0);
+      finalKpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
+      finalKpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
+      finalKpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
+console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
+      setKpis(finalKpis);
     } catch (err) {
       console.error("❌ [KPI] Failed KPI pipeline:", err);
     }

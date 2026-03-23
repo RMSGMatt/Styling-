@@ -68,3 +68,8 @@ scenario.json
 # local scenario scratch
 scenario.json
 scenario.json
+
+# temp backups
+*.bak
+*.pre_*
+backups/

@@ -403,6 +403,12 @@ export default function Reports() {
     ? execReport.narrative.sections
     : [];
 
+  console.log("📘 [Reports] execReport payload:", execReport);
+  console.log("📘 [Reports] execReport.metrics:", execReport?.metrics);
+  console.log("📘 [Reports] execReport.metrics JSON:", JSON.stringify(execReport?.metrics, null, 2));
+  console.log("📘 [Reports] execReport.kpis JSON:", JSON.stringify(execReport?.metrics?.kpis, null, 2));
+  console.log("📘 [Reports] raw bbi:", execReport?.metrics?.bbi);
+
   const KPIBox = ({ label, value, hint }) => (
     <div className="rounded-2xl border border-[#E5ECE7] bg-white p-4 shadow-sm">
       <div className="text-[11px] uppercase tracking-widest text-gray-400">
@@ -419,12 +425,33 @@ export default function Reports() {
     return x.toLocaleString(undefined, { maximumFractionDigits: decimals });
   };
 
-  // ✅ inputs are fractions (0–1). Multiply by 100 for display.
+  // Accept either fractions (0-1) or already-percent values (0-100)
   const formatPercent = (n, decimals = 1) => {
     const x = Number(n);
     if (!Number.isFinite(x)) return "—";
-    return `${(x * 100).toFixed(decimals)}%`;
+    const pct = x <= 1 ? x * 100 : x;
+    return `${pct.toFixed(decimals)}%`;
   };
+
+  const derivedBbi = (() => {
+    const fulfillment = Number(kpis?.onTimeFulfillment);
+    const backlogRate = Number(kpis?.backorderRate);
+
+    if (!Number.isFinite(fulfillment) || !Number.isFinite(backlogRate)) return null;
+
+    const fulfillmentPct = fulfillment <= 1 ? fulfillment * 100 : fulfillment;
+    const backlogPct = backlogRate <= 1 ? backlogRate * 100 : backlogRate;
+
+    const score = (0.6 * fulfillmentPct) + (0.4 * (100 - backlogPct));
+    return Math.max(0, Math.min(100, score));
+  })();
+
+  const displayBbi =
+    Number(bbi) > 0
+      ? Number(bbi)
+      : Number.isFinite(derivedBbi)
+      ? derivedBbi
+      : null;
 
   const execLocked = showExecUpgrade === true;
 
@@ -643,20 +670,24 @@ export default function Reports() {
                 <KPIBox
                   label="BBI"
                   value={
-                    bbi === null || bbi === undefined
-                      ? "—"
-                      : `${formatNumber(bbi, 1)}/100`
+                    displayBbi === null || displayBbi === undefined
+                      ? "Pending"
+                      : `${formatNumber(displayBbi, 1)}/100`
                   }
-                  hint="Business Balance Index"
+                  hint={
+                    Number(bbi) > 0
+                      ? "Business Balance Index"
+                      : "Temporary frontend fallback until backend BBI is wired"
+                  }
                 />
                 <KPIBox
-                  label="On-time Fulfillment"
+                  label="Demand Fulfillment"
                   value={formatPercent(kpis.onTimeFulfillment, 1)}
-                  hint="(Proxy until demand totals are wired)"
+                  hint="Share of demand fulfilled across the run"
                 />
                 <KPIBox
                   label="Unfulfilled Qty"
-                  value={formatNumber(kpis.unfulfilledQty, 0)}
+                  value={formatNumber(kpis.unfulfilledQty ?? kpis.occurrenceUnfulfilledUnits, 0)}
                   hint="Shortfall signal"
                 />
                 <KPIBox
