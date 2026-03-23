@@ -185,6 +185,13 @@ function pickFirstKey(obj, candidates) {
 }
 
 
+const SKU_VALUE_MAP = {
+  FG1: 120,
+  C1: 40,
+};
+
+const DEFAULT_SKU_VALUE = 75;
+
 function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], productionRows = []) {
   const custRows = (flowRows || []).filter((r) => {
     const ft = String(r.flow_type || r.FlowType || r.type || "").trim().toLowerCase();
@@ -534,12 +541,27 @@ export default function App() {
         urls?.[`${outputType}.csv`] ||
         Object.values(urls || {})[0];
 
+      console.log("📊 [Chart] chosen url", {
+        outputType,
+        url,
+        urlKeys: Object.keys(urls || {}),
+        selectedFacility,
+        skuFilterRaw,
+      });
+
       if (!url) {
         console.warn("⚠️ [Chart] No CSV URL for type:", outputType);
         return;
       }
 
       const results = await fetchCsvRows(url);
+
+      console.log("📊 [Chart] csv rows loaded", {
+        outputType,
+        rowCount: results.length,
+        sample: results[0],
+      });
+
       if (!results.length) {
         console.warn("⚠️ [Chart] CSV empty:", url);
         return;
@@ -592,6 +614,17 @@ export default function App() {
         return skuMatch && facilityMatch;
       });
 
+      console.log("📊 [Chart] filtered rows", {
+        outputType,
+        filteredCount: filtered.length,
+        skuFilter,
+        selectedFacility,
+        dateKey,
+        skuKey,
+        valueKey,
+        sampleFiltered: filtered[0],
+      });
+
       const dateSet = [...new Set(filtered.map((r) => r[dateKey]))].filter(Boolean).sort();
 
       const skuGroups = {};
@@ -611,6 +644,32 @@ export default function App() {
         borderWidth: 2,
         tension: 0.25,
       }));
+
+      console.log("📊 [Chart] final datasets", {
+        outputType,
+        labelsCount: dateSet.length,
+        datasetCount: datasets.length,
+        firstDataset: datasets[0],
+      });
+
+      if (outputType === "inventory") {
+        console.log(
+          "🧪 [Inventory Debug JSON]",
+          JSON.stringify(
+            {
+              dateKey,
+              skuKey,
+              valueKey,
+              sampleRow: results[0],
+              firstFilteredRow: filtered[0],
+              firstDatasetLabel: datasets[0]?.label,
+              firstDatasetData: datasets[0]?.data?.slice(0, 10),
+            },
+            null,
+            2
+          )
+        );
+      }
 
       setChartData({ labels: dateSet, datasets });
 
@@ -799,6 +858,21 @@ export default function App() {
 
         const totalDemand = scopedDemandRows.reduce((sum, r) => sum + toNum(r[demandQtyKey]), 0);
 
+        const demandBySku = scopedDemandRows.reduce((acc, r) => {
+          const sku = normalizeSku(r[demandSkuKey] || r.sku || r.SKU);
+          const qty = toNum(r[demandQtyKey]);
+          if (!sku) return acc;
+          acc[sku] = (acc[sku] || 0) + qty;
+          return acc;
+        }, {});
+
+        const demandMixBySku = Object.fromEntries(
+          Object.entries(demandBySku).map(([sku, qty]) => [
+            sku,
+            totalDemand > 0 ? qty / totalDemand : 0,
+          ])
+        );
+
         const demandFacilities = new Set(
           scopedDemandRows
             .map((r) =>
@@ -849,21 +923,105 @@ export default function App() {
             ? toNum(customerShipRows[customerShipRows.length - 1].backlogOut)
             : Math.max(0, totalDemand - fulfilledCustomerShip);
 
-        const otfFrac = totalDemand > 0 ? fulfilledCustomerShip / totalDemand : 0;
+        const fulfillmentFracRaw = totalDemand > 0 ? fulfilledCustomerShip / totalDemand : 0;
+        const fulfillmentFrac = Math.max(0, Math.min(1, fulfillmentFracRaw));
         const backorderVolume = Math.max(0, latestBacklogOut);
         const backorderRateFrac = totalDemand > 0 ? backorderVolume / totalDemand : 0;
+        const missedDemandQty = Math.max(0, totalDemand - fulfilledCustomerShip);
 
-        allKpis.onTimeFulfillment = `${(100 * otfFrac).toFixed(1)}%`;
-        allKpis.backorderRate = `${(100 * backorderRateFrac).toFixed(1)}%`;
+        allKpis.demandFulfillment = `${(100 * fulfillmentFrac).toFixed(1)}%`;
+        allKpis.endingBacklogRate = `${(100 * backorderRateFrac).toFixed(1)}%`;
         allKpis.backorderVolume = `${Math.round(backorderVolume)}`;
+
+        // Canonical decision-engine KPI fields (numeric where possible)
+        allKpis.onTimeFill = Number((100 * fulfillmentFrac).toFixed(2));
+        allKpis.peakBacklog = Math.round(backorderVolume);
+        allKpis.unitsAtRisk = Math.round(backorderVolume);
+
+        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+        const datedCustomerShipRows = customerShipRows.filter((r) => {
+          const dt = new Date(r.date);
+          return r.date && !Number.isNaN(dt.getTime());
+        });
+
+        const impactedRows = datedCustomerShipRows.filter((r) => toNum(r.backlogOut) > 0);
+
+        const firstObservedDate =
+          datedCustomerShipRows.length > 0
+            ? new Date(datedCustomerShipRows[0].date)
+            : null;
+
+        const lastObservedDate =
+          datedCustomerShipRows.length > 0
+            ? new Date(datedCustomerShipRows[datedCustomerShipRows.length - 1].date)
+            : null;
+
+        const firstImpactDate =
+          impactedRows.length > 0
+            ? new Date(impactedRows[0].date)
+            : null;
+
+        const recoveryRow =
+          firstImpactDate
+            ? datedCustomerShipRows.find((r) => {
+                const dt = new Date(r.date);
+                return dt >= firstImpactDate && toNum(r.backlogOut) <= 0;
+              })
+            : null;
+
+        const recoveryDate =
+          recoveryRow?.date
+            ? new Date(recoveryRow.date)
+            : lastObservedDate;
+
+        const missedServiceDays = impactedRows.length;
+
+        const ttsDays =
+          firstObservedDate && firstImpactDate
+            ? Math.max(0, Math.round((firstImpactDate - firstObservedDate) / MS_PER_DAY))
+            : 0;
+
+        const ttrDays =
+          firstImpactDate && recoveryDate
+            ? Math.max(0, Math.round((recoveryDate - firstImpactDate) / MS_PER_DAY))
+            : 0;
+
+        allKpis.missedServiceDays = missedServiceDays;
+        allKpis.ttsDays = ttsDays;
+        allKpis.ttrDays = ttrDays;
+
+        // Backward-compatible aliases for existing UI
+        allKpis.onTimeFulfillment = allKpis.demandFulfillment;
+        allKpis.backorderRate = allKpis.endingBacklogRate;
+
+        const estimatedRevenueExposure = missedDemandQty > 0
+          ? Object.entries(demandMixBySku).reduce((sum, [sku, share]) => {
+              const unitValue = SKU_VALUE_MAP[sku] || DEFAULT_SKU_VALUE;
+              return sum + missedDemandQty * share * unitValue;
+            }, 0)
+          : 0;
+
+        const endingBacklogExposure = backorderVolume > 0
+          ? Object.entries(demandMixBySku).reduce((sum, [sku, share]) => {
+              const unitValue = SKU_VALUE_MAP[sku] || DEFAULT_SKU_VALUE;
+              return sum + backorderVolume * share * unitValue;
+            }, 0)
+          : 0;
+
+        allKpis.estimatedRevenueExposure = estimatedRevenueExposure;
+        allKpis.endingBacklogExposure = endingBacklogExposure;
+        allKpis.revenueExposure = allKpis.estimatedRevenueExposure;
 
         if (avgInventoryNum > 0 && invUniqueDays > 0) {
           const annualFactor = 365 / Math.max(invUniqueDays, 1);
           const annualizedThroughput = fulfilledCustomerShip * annualFactor;
           const turns = annualizedThroughput / avgInventoryNum;
-          allKpis.inventoryTurns = `${turns.toFixed(1)}x`;
+          allKpis.estimatedInventoryTurns = `${turns.toFixed(1)}x`;
+          allKpis.inventoryTurns = allKpis.estimatedInventoryTurns;
         } else {
-          allKpis.inventoryTurns = "--x";
+          allKpis.estimatedInventoryTurns = "N/A";
+          allKpis.inventoryTurns = allKpis.estimatedInventoryTurns;
         }
 
         // ----- INVENTORY BUFFER INDEX (days of demand coverage) -----
@@ -871,20 +1029,27 @@ export default function App() {
           const avgDailyDemand = invUniqueDays > 0 ? totalDemand / Math.max(invUniqueDays, 1) : 0;
           if (avgInventoryNum > 0 && avgDailyDemand > 0) {
             const ibiDays = avgInventoryNum / avgDailyDemand;
-            allKpis.inventoryBuffer = `${ibiDays.toFixed(1)} days`;
+            allKpis.estimatedDaysCoverage = `${ibiDays.toFixed(1)} days`;
+            allKpis.inventoryBuffer = allKpis.estimatedDaysCoverage;
           } else {
-            allKpis.inventoryBuffer = "--";
+            allKpis.estimatedDaysCoverage = "N/A";
+            allKpis.inventoryBuffer = allKpis.estimatedDaysCoverage;
           }
         } catch (e) {
           console.warn("⚠️ [KPI] inventoryBuffer calc failed:", e);
-          allKpis.inventoryBuffer = "--";
+          allKpis.estimatedDaysCoverage = "N/A";
+          allKpis.inventoryBuffer = allKpis.estimatedDaysCoverage;
         }
 
         console.log("📦 [KPI] Service truth:", {
           totalDemand,
           fulfilledCustomerShip,
+          missedDemandQty,
           backorderVolume,
-          otfPercent: (100 * otfFrac).toFixed(1),
+          estimatedRevenueExposure,
+          endingBacklogExposure,
+          fulfillmentPercentRaw: (100 * fulfillmentFracRaw).toFixed(1),
+          fulfillmentPercentClamped: (100 * fulfillmentFrac).toFixed(1),
           customerShipRowCount: customerShipRows.length,
           demandFacilities: Array.from(demandFacilities),
         });
@@ -972,12 +1137,15 @@ export default function App() {
             const last = new Date(Math.max(...occDates.map((d) => d.getTime())));
             const diffDays = Math.round((last - first) / (1000 * 60 * 60 * 24));
             allKpis.timeToRecovery = `${diffDays} days`;
+            if (typeof allKpis.ttrDays !== "number" || Number.isNaN(allKpis.ttrDays)) {
+              allKpis.ttrDays = diffDays;
+            }
           } else {
-            allKpis.timeToRecovery = "--";
+            allKpis.timeToRecovery = "N/A";
           }
         } catch (e) {
           console.warn("⚠️ [KPI] timeToRecovery calc failed:", e);
-          allKpis.timeToRecovery = "--";
+          allKpis.timeToRecovery = "N/A";
         }
       }
 
@@ -1140,6 +1308,7 @@ export default function App() {
 
       // Commit urls to state
       setPostRunPhase("seeding");
+      console.log("🧪 [setOutputUrls normalizedUrls]", normalizedUrls);
       setOutputUrls(normalizedUrls);
 
       // Save run locally immediately (so history is never empty)

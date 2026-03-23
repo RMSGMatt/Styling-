@@ -675,6 +675,176 @@ const revenueExposureDisplayValue = (() => {
 // ======================================================================
 // 🧪 Main Simulation Dashboard
 // ======================================================================
+
+function getDecisionKpiSeverity(key, value) {
+  const n = Number(value || 0);
+
+  switch (key) {
+    case "onTimeFill":
+      if (n >= 95) return "good";
+      if (n >= 80) return "warning";
+      return "critical";
+
+    case "unitsAtRisk":
+    case "peakBacklog":
+      if (n <= 0) return "good";
+      if (n <= 100) return "warning";
+      return "critical";
+
+    case "missedServiceDays":
+      if (n <= 0) return "good";
+      if (n <= 2) return "warning";
+      return "critical";
+
+    case "ttrDays":
+      if (n <= 1) return "good";
+      if (n <= 5) return "warning";
+      return "critical";
+
+    case "ttsDays":
+      if (n <= 0) return "good";
+      if (n <= 2) return "warning";
+      return "critical";
+
+    default:
+      return "neutral";
+  }
+}
+
+function getDecisionKpiStyles(severity) {
+  switch (severity) {
+    case "good":
+      return {
+        bg: "rgba(34,197,94,0.10)",
+        border: "rgba(34,197,94,0.28)",
+        value: "#166534",
+        pillBg: "rgba(34,197,94,0.16)",
+        pillText: "#166534",
+      };
+
+    case "warning":
+      return {
+        bg: "rgba(245,158,11,0.10)",
+        border: "rgba(245,158,11,0.30)",
+        value: "#92400e",
+        pillBg: "rgba(245,158,11,0.16)",
+        pillText: "#92400e",
+      };
+
+    case "critical":
+      return {
+        bg: "rgba(239,68,68,0.10)",
+        border: "rgba(239,68,68,0.30)",
+        value: "#991b1b",
+        pillBg: "rgba(239,68,68,0.16)",
+        pillText: "#991b1b",
+      };
+
+    default:
+      return {
+        bg: "rgba(148,163,184,0.10)",
+        border: "rgba(148,163,184,0.24)",
+        value: "#334155",
+        pillBg: "rgba(148,163,184,0.16)",
+        pillText: "#334155",
+      };
+  }
+}
+
+function getDecisionKpiIcon(key, severity) {
+  if (severity === "critical") {
+    switch (key) {
+      case "onTimeFill":
+        return "🚨";
+      case "unitsAtRisk":
+        return "⚠️";
+      case "peakBacklog":
+        return "📦";
+      case "missedServiceDays":
+        return "⛔";
+      case "ttrDays":
+        return "🛠️";
+      case "ttsDays":
+        return "🔍";
+      default:
+        return "⚠️";
+    }
+  }
+
+  if (severity === "warning") {
+    switch (key) {
+      case "onTimeFill":
+        return "🟠";
+      case "unitsAtRisk":
+        return "⚠️";
+      case "peakBacklog":
+        return "📦";
+      case "missedServiceDays":
+        return "📅";
+      case "ttrDays":
+        return "🧭";
+      case "ttsDays":
+        return "👀";
+      default:
+        return "🟠";
+    }
+  }
+
+  return "✅";
+}
+
+function getDecisionKpiStatus(key, value) {
+  const n = Number(value || 0);
+
+  switch (key) {
+    case "onTimeFill":
+      if (n >= 95) return "Stable";
+      if (n >= 80) return "Degrading";
+      return "Service Risk";
+
+    case "unitsAtRisk":
+      if (n <= 0) return "Protected";
+      if (n <= 100) return "Exposed";
+      return "Critical";
+
+    case "peakBacklog":
+      if (n <= 0) return "Clear";
+      if (n <= 100) return "Building";
+      return "Severe";
+
+    case "missedServiceDays":
+      if (n <= 0) return "No Misses";
+      if (n <= 2) return "Minor Miss";
+      return "Customer Impact";
+
+    case "ttrDays":
+      if (n <= 1) return "Fast Recovery";
+      if (n <= 5) return "Delayed";
+      return "Slow Recovery";
+
+    case "ttsDays":
+      if (n <= 0) return "No Delay";
+      if (n <= 2) return "Emerging";
+      return "Vulnerable";
+
+    default:
+      return "Normal";
+  }
+}
+
+function formatDecisionKpiValue(key, value) {
+  const n = Number(value || 0);
+
+  if (key === "onTimeFill") return `${n.toFixed(2)}%`;
+
+  if (key === "ttrDays" || key === "ttsDays" || key === "missedServiceDays") {
+    return `${n} day${n === 1 ? "" : "s"}`;
+  }
+
+  return n.toLocaleString();
+}
+
+
 export default function SimulationDashboard({
   handleFileChange,
   handleSubmit,
@@ -813,6 +983,84 @@ export default function SimulationDashboard({
     setSelectedSku(values);
   };
 
+  const decisionKpis = [
+    {
+      key: "onTimeFill",
+      title: "On-Time Fill",
+      subtitle: "How much demand was fulfilled when needed",
+      value: kpis?.onTimeFill ?? 0,
+    },
+    {
+      key: "unitsAtRisk",
+      title: "Units at Risk",
+      subtitle: "Demand exposed to disruption pressure",
+      value: kpis?.unitsAtRisk ?? 0,
+    },
+    {
+      key: "peakBacklog",
+      title: "Peak Backlog",
+      subtitle: "Maximum queued unmet demand",
+      value: kpis?.peakBacklog ?? 0,
+    },
+    {
+      key: "missedServiceDays",
+      title: "Missed Service Days",
+      subtitle: "Days demand service was missed",
+      value: kpis?.missedServiceDays ?? 0,
+    },
+    {
+      key: "ttrDays",
+      title: "TTR",
+      subtitle: "Time to recover after disruption",
+      value: kpis?.ttrDays ?? 0,
+    },
+    {
+      key: "ttsDays",
+      title: "TTS",
+      subtitle: "Time to survive before impact",
+      value: kpis?.ttsDays ?? 0,
+    },
+  ];
+
+  const comparisonMetrics = [
+    {
+      label: "On-Time Fill",
+      healthy: "100.00%",
+      stressed: `${Number(kpis?.onTimeFill ?? 0).toFixed(2)}%`,
+      delta: `${(Number(kpis?.onTimeFill ?? 0) - 100).toFixed(2)}%`,
+      direction: Number(kpis?.onTimeFill ?? 0) < 100 ? "down" : "flat",
+    },
+    {
+      label: "Units at Risk",
+      healthy: "0",
+      stressed: Number(kpis?.unitsAtRisk ?? 0).toLocaleString(),
+      delta: `+${Number(kpis?.unitsAtRisk ?? 0).toLocaleString()}`,
+      direction: Number(kpis?.unitsAtRisk ?? 0) > 0 ? "up" : "flat",
+    },
+    {
+      label: "Peak Backlog",
+      healthy: "0",
+      stressed: Number(kpis?.peakBacklog ?? 0).toLocaleString(),
+      delta: `+${Number(kpis?.peakBacklog ?? 0).toLocaleString()}`,
+      direction: Number(kpis?.peakBacklog ?? 0) > 0 ? "up" : "flat",
+    },
+    {
+      label: "Missed Service Days",
+      healthy: "0",
+      stressed: String(Number(kpis?.missedServiceDays ?? 0)),
+      delta: `+${Number(kpis?.missedServiceDays ?? 0)}`,
+      direction: Number(kpis?.missedServiceDays ?? 0) > 0 ? "up" : "flat",
+    },
+    {
+      label: "TTR",
+      healthy: "0 days",
+      stressed: `${Number(kpis?.ttrDays ?? 0)} day${Number(kpis?.ttrDays ?? 0) === 1 ? "" : "s"}`,
+      delta: `+${Number(kpis?.ttrDays ?? 0)} day${Number(kpis?.ttrDays ?? 0) === 1 ? "" : "s"}`,
+      direction: Number(kpis?.ttrDays ?? 0) > 0 ? "up" : "flat",
+    },
+  ];
+
+
   const selectedSkuValue = useMemo(() => {
     if (!selectedSku || selectedSku === "ALL") return [];
     const values = Array.isArray(selectedSku) ? selectedSku : [selectedSku];
@@ -885,6 +1133,21 @@ export default function SimulationDashboard({
     }),
     []
   );
+
+  const isInventoryFlatline = useMemo(() => {
+    if (selectedOutputType !== "inventory") return false;
+
+    const datasets = chartData?.datasets || [];
+    if (!datasets.length) return false;
+
+    return datasets.every((ds) =>
+      Array.isArray(ds.data) &&
+      ds.data.every((v) => {
+        const n = Number(v ?? 0);
+        return Number.isFinite(n) && n === 0;
+      })
+    );
+  }, [selectedOutputType, chartData]);
 
   const derivedChartData = useMemo(() => {
     if (!chartData || !Array.isArray(chartData.datasets)) {
@@ -1671,49 +1934,222 @@ setOverlayChartData(overlay);
                 <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">
                   Executive Signals
                 </p>
-                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                    <p className="text-slate-300 mb-1">Demand Fulfillment</p>
-                    <p
-                      className="text-xl font-semibold"
-                      style={{ color: "#9CF700" }}
-                    >
-                      {formatPercent(kpis?.onTimeFulfillment, { zeroIsDash: false, digits: 1 })}
+
+                <div
+                  className="rounded-2xl border p-3 mb-3"
+                  style={{
+                    background:
+                      (Number(kpis?.peakBacklog || 0) > 0 || Number(kpis?.missedServiceDays || 0) > 0)
+                        ? "rgba(239,68,68,0.08)"
+                        : "rgba(34,197,94,0.08)",
+                    borderColor:
+                      (Number(kpis?.peakBacklog || 0) > 0 || Number(kpis?.missedServiceDays || 0) > 0)
+                        ? "rgba(239,68,68,0.24)"
+                        : "rgba(34,197,94,0.24)",
+                  }}
+                >
+                  <p className="text-[10px] uppercase tracking-wide text-slate-300 mb-1">
+                    Scenario Readout
+                  </p>
+                  <p className="text-sm text-slate-100 leading-relaxed">
+                    {(Number(kpis?.peakBacklog || 0) > 0 || Number(kpis?.missedServiceDays || 0) > 0)
+                      ? `100% final fulfillment masks the fact that the network absorbed ${Number(kpis?.unitsAtRisk || 0).toLocaleString()} units at risk, ${Number(kpis?.missedServiceDays || 0)} missed service day${Number(kpis?.missedServiceDays || 0) === 1 ? "" : "s"}, and ${Number(kpis?.ttrDays || 0)} day${Number(kpis?.ttrDays || 0) === 1 ? "" : "s"} to recover.`
+                      : "Network remained stable with no service misses, no backlog, and full on-time fulfillment."}
+                  </p>
+                </div>
+
+                <div
+                  className="rounded-2xl border p-3 mb-3"
+                  style={{
+                    background: "rgba(15,23,42,0.55)",
+                    borderColor: "rgba(148,163,184,0.20)",
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+                    <p className="text-[10px] uppercase tracking-wide text-slate-300">
+                      Hidden Cost of Recovery
                     </p>
-                    <p className="text-[10px] text-slate-300 mt-1">
-                      Share of scoped demand fulfilled across the run.
+                    <p className="text-[10px] text-slate-400">
+                      What 100% final fill does not show
                     </p>
                   </div>
 
-                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                    <p className="text-slate-300 mb-1">Backorder Rate</p>
-                    <p className="text-lg font-semibold text-rose-400">
-                      {formatPercent(kpis?.backorderRate, { zeroIsDash: false, digits: 1 })}
+                  <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                    <div className="rounded-xl border border-slate-700/70 bg-slate-900/50 p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
+                        Revenue at Risk
+                      </p>
+                      <p className="text-lg font-semibold text-rose-300">
+                        {formatCurrency(
+                          kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? null,
+                          { zeroIsDash: true, digits: 0 }
+                        )}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Estimated exposure tied to missed or delayed fulfillment.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-700/70 bg-slate-900/50 p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
+                        Units at Risk
+                      </p>
+                      <p className="text-lg font-semibold text-amber-300">
+                        {Number(kpis?.unitsAtRisk ?? 0).toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Demand exposed before the network stabilized.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-700/70 bg-slate-900/50 p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
+                        Peak Backlog
+                      </p>
+                      <p className="text-lg font-semibold text-orange-300">
+                        {Number(kpis?.peakBacklog ?? 0).toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Maximum queued unmet demand during recovery.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-700/70 bg-slate-900/50 p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
+                        Recovery Window
+                      </p>
+                      <p className="text-lg font-semibold text-violet-300">
+                        {Number(kpis?.ttrDays ?? 0)} day{Number(kpis?.ttrDays ?? 0) === 1 ? "" : "s"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Time required to work back to operational stability.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className="rounded-2xl border p-3 mb-3"
+                  style={{
+                    background: "rgba(2,6,23,0.45)",
+                    borderColor: "rgba(148,163,184,0.20)",
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+                    <p className="text-[10px] uppercase tracking-wide text-slate-300">
+                      Healthy vs Stressed
                     </p>
-                    <p className="text-[10px] text-slate-300 mt-1">
-                      Vol: {formatNumber(kpis?.backorderVolume, { zeroIsDash: true, digits: 0 })}
+                    <p className="text-[10px] text-slate-400">
+                      Immediate scenario delta
                     </p>
                   </div>
 
-                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                    <p className="text-slate-300 mb-1">Time to Recovery</p>
-                    <p className="text-lg font-semibold text-violet-300">
-                      {String(kpis?.timeToRecovery || "--")}
-                    </p>
-                    <p className="text-[10px] text-slate-300 mt-1">
-                      Span from first to last disruption occurrence.
-                    </p>
-                  </div>
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[680px]">
+                      <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr] gap-2 text-[10px] uppercase tracking-wide text-slate-400 mb-2 px-1">
+                        <div>Metric</div>
+                        <div>Healthy</div>
+                        <div>Stressed</div>
+                        <div>Delta</div>
+                      </div>
 
-                  <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
-                    <p className="text-slate-300 mb-1">Impacted Facilities</p>
-                    <p className="text-lg font-semibold text-amber-300">
-                      {formatNumber(kpis?.impactedFacilities, { zeroIsDash: false, digits: 0 })}
-                    </p>
-                    <p className="text-[10px] text-slate-300 mt-1">
-                      Facilities affected in the selected scope.
-                    </p>
+                      <div className="space-y-2">
+                        {comparisonMetrics.map((row) => (
+                          <div
+                            key={row.label}
+                            className="grid grid-cols-[1.4fr_1fr_1fr_1fr] gap-2 items-center rounded-xl border border-slate-700/60 bg-slate-900/50 px-3 py-2"
+                          >
+                            <div className="text-sm font-medium text-slate-100">
+                              {row.label}
+                            </div>
+                            <div className="text-sm text-emerald-300">
+                              {row.healthy}
+                            </div>
+                            <div className="text-sm text-slate-100">
+                              {row.stressed}
+                            </div>
+                            <div
+                              className="text-sm font-semibold"
+                              style={{
+                                color:
+                                  row.direction === "up"
+                                    ? "#fca5a5"
+                                    : row.direction === "down"
+                                    ? "#fca5a5"
+                                    : "#cbd5e1",
+                              }}
+                            >
+                              {row.direction === "up"
+                                ? `🔺 ${row.delta}`
+                                : row.direction === "down"
+                                ? `🔻 ${row.delta}`
+                                : `➖ ${row.delta}`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {decisionKpis.map((item) => {
+                    const severity = getDecisionKpiSeverity(item.key, item.value);
+                    const styles = getDecisionKpiStyles(severity);
+                    const icon = getDecisionKpiIcon(item.key, severity);
+                    const status = getDecisionKpiStatus(item.key, item.value);
+
+                    return (
+                      <div
+                        key={item.key}
+                        className="rounded-xl p-3 border shadow-sm"
+                        style={{
+                          backgroundColor: styles.bg,
+                          borderColor: styles.border,
+                          boxShadow:
+                            item.key === "unitsAtRisk" && severity === "critical"
+                              ? "0 0 0 1px rgba(239,68,68,0.35), 0 0 12px rgba(239,68,68,0.25)"
+                              : "none",
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-slate-200 mb-1 text-xs">{item.title}</p>
+                            <p
+                              className="text-xl font-semibold"
+                              style={{ color: styles.value }}
+                            >
+                              {formatDecisionKpiValue(item.key, item.value)}
+                            </p>
+                          </div>
+                          <div className="text-xl leading-none">{icon}</div>
+                        </div>
+
+                        <p className="text-[10px] text-slate-300 mt-2 min-h-[28px]">
+                          {item.subtitle}
+                        </p>
+
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <span
+                            className="inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold"
+                            style={{
+                              backgroundColor: styles.pillBg,
+                              color: styles.pillText,
+                            }}
+                          >
+                            {status}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {severity === "good"
+                              ? "Healthy"
+                              : severity === "warning"
+                              ? "Needs Attention"
+                              : "Immediate Action"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1866,8 +2302,40 @@ setOverlayChartData(overlay);
               </p>
 
               <p className="text-sm text-slate-300 leading-7">
-                {scenarioImpactSummary?.narrative ||
-                  "Run a simulation to generate a scenario-level interpretation."}
+                {scenarioImpactSummary?.narrative ? (
+                  <>
+                    {scenarioImpactSummary.narrative}
+                    {(Number(kpis?.unitsAtRisk ?? 0) > 0 ||
+                      Number(kpis?.missedServiceDays ?? 0) > 0) && (
+                      <span>
+                        {" "}
+                        This scenario also resulted in{" "}
+                        <strong style={{ color: "#fca5a5" }}>
+                          {Number(kpis?.unitsAtRisk ?? 0).toLocaleString()} units at risk
+                        </strong>,{" "}
+                        <strong style={{ color: "#fca5a5" }}>
+                          {Number(kpis?.missedServiceDays ?? 0)} missed service day{Number(kpis?.missedServiceDays ?? 0) === 1 ? "" : "s"}
+                        </strong>, and a{" "}
+                        <strong style={{ color: "#fca5a5" }}>
+                          {Number(kpis?.ttrDays ?? 0)} day recovery window
+                        </strong>{" "}
+                        despite full final fulfillment.
+                      </span>
+                    )}
+                    {selectedOutputType === "inventory" && isInventoryFlatline && (
+                      <span>
+                        {" "}
+                        Inventory remained at{" "}
+                        <strong style={{ color: "#fbbf24" }}>
+                          effectively zero buffer
+                        </strong>
+                        , indicating a just-in-time condition with limited shock absorption.
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  "Run a simulation to generate a scenario-level interpretation."
+                )}
               </p>
 
               <div
@@ -2330,16 +2798,11 @@ setOverlayChartData(overlay);
               }),
               placeholder: (base) => ({
                 ...base,
-                color: "#111827",
-                opacity: 1,
-                fontWeight: 500,
-                ...base,
                 color: "#374151",
+                opacity: 1,
                 fontWeight: 500,
               }),
               input: (base) => ({
-                ...base,
-                color: "#111827",
                 ...base,
                 color: "#111827",
               }),
@@ -2371,6 +2834,11 @@ setOverlayChartData(overlay);
                     <p className="text-xs text-slate-300 mt-1">
                       Explore how inventory, production, and service levels evolve across the network.
                     </p>
+                    {selectedOutputType === "inventory" && isInventoryFlatline && (
+                      <p className="text-xs mt-2" style={{ color: "#fbbf24" }}>
+                        Inventory is not accumulating in this run — the chart is showing a true zero-buffer operating condition.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -2478,6 +2946,30 @@ setOverlayChartData(overlay);
                 </div>
 
                 {/* CHART */}
+                {selectedOutputType === "inventory" && isInventoryFlatline && (
+                  <div
+                    className="rounded-2xl border p-4 mb-4"
+                    style={{
+                      background: "rgba(245,158,11,0.10)",
+                      borderColor: "rgba(245,158,11,0.30)",
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="text-xl">⚠️</div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-amber-300 mb-1">
+                          Zero Buffer Exposure
+                        </p>
+                        <p className="text-sm text-slate-100 leading-relaxed">
+                          Inventory is flat at zero across the selected period. This usually means the network is operating with
+                          no visible buffer, relying on immediate flow and perfect execution. In practice, that increases
+                          sensitivity to even short disruptions.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
 <div className="relative h-80 bg-slate-950/60 border border-slate-800 rounded-xl p-4">
   {/* 🔀 Overlay status */}
   {overlayLoading && (
