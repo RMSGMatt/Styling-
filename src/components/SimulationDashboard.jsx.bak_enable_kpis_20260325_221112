@@ -115,6 +115,7 @@ function formatCurrencyCompact(v, opts) {
   return `$${n.toFixed(0)}`;
 }
 
+
 // Small helper for fallbacks so panels don't explode on "missing" data
 function safeArray(input) {
   if (!input) return [];
@@ -462,6 +463,8 @@ const revenueExposureDisplayValue = (() => {
   },
   { high: 0, medium: 0, low: 0, unknown: 0 }
 );
+
+
 
   const firstImpactedFacility =
     impactRows[0]?.facility ||
@@ -886,6 +889,7 @@ function formatDecisionKpiValue(key, value) {
   return n.toLocaleString();
 }
 
+
 export default function SimulationDashboard({
   handleFileChange,
   handleSubmit,
@@ -933,6 +937,7 @@ export default function SimulationDashboard({
   const execTtrDays = Number(kpis?.timeToRecoverDays || 0);
   const execTtsDays = Number(kpis?.timeToSurviveDays || 0);
 
+
   // Unified executive KPI aliases (single source of truth for UI)
   const execFillRatePct = Number(
     _toNumberLoose(
@@ -940,6 +945,7 @@ export default function SimulationDashboard({
       kpis?.demandFulfillment
     ) || 0
   );
+
 
   // Executive KPI aliases: normalize App.jsx and legacy KPI keys
   
@@ -961,6 +967,7 @@ export default function SimulationDashboard({
   const [overlayChartData, setOverlayChartData] = useState(null);
   const [overlayLoading, setOverlayLoading] = useState(false);
   const [overlayError, setOverlayError] = useState(null);
+
 
   // 🧪 Ensure scenarioJson is initialized for saving/loading
   useEffect(() => {
@@ -1129,6 +1136,7 @@ export default function SimulationDashboard({
     },
   ];
 
+
   const selectedSkuValue = useMemo(() => {
     if (!selectedSku || selectedSku === "ALL") return [];
     const values = Array.isArray(selectedSku) ? selectedSku : [selectedSku];
@@ -1275,6 +1283,7 @@ export default function SimulationDashboard({
   compareUrl,
   sameUrl: baselineUrl === compareUrl,
 });
+
 
     if (!baselineUrl || !compareUrl) {
       setOverlayChartData(null);
@@ -1531,6 +1540,7 @@ setOverlayChartData(overlay);
     // must at least look like a CSV header
     return t.length > 5 && firstLine.includes(",");
   };
+
 
     const setFormFile = (fd, key, fileOrBlob, filename) => {
       // Prefer .set() to avoid duplicate keys (critical)
@@ -1834,6 +1844,7 @@ setOverlayChartData(overlay);
   </div>
 </div>
 
+
             <div className="h-[26rem] rounded-2xl overflow-hidden border border-slate-700/70 bg-slate-950/80 shadow-inner">
               <MapView
                 locationsUrl={locationsUrl}
@@ -2093,12 +2104,6 @@ setOverlayChartData(overlay);
                   </div>
                 </div>
 
-                <div className="mb-3">
-                  <h3 className="text-sm font-semibold text-slate-100">
-                    📊 What Changed vs Baseline
-                  </h3>
-                </div>
-
                 <div
                   className="rounded-2xl border p-3 mb-3"
                   style={{
@@ -2170,54 +2175,10 @@ setOverlayChartData(overlay);
                       </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="mb-2">
-                  <h3 className="text-sm font-semibold text-slate-100">
-                    ⚠️ Key Risks & Actions
-                  </h3>
-                </div>
-
+//                 </div>
+// 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {decisionKpis.map((item) => {
-                    const executiveLabelMap = {
-                      "On-Time Fill": "Service Level",
-                      "Units at Risk": "Demand at Risk",
-                      "Peak Backlog": "Unfulfilled Demand",
-                      "Hidden Cost of Recovery": "Recovery Cost Exposure",
-                      onTimeFill: "Service Level",
-                      unitsAtRisk: "Demand at Risk",
-                      peakBacklog: "Unfulfilled Demand",
-                      missedServiceDays: "Missed Service Days",
-                      ttr: "Time to Recover",
-                      tts: "Time to Survive",
-                      ttrTts: "Time to Recover / Survive",
-                      hiddenCostOfRecovery: "Recovery Cost Exposure",
-                    };
-
-                    const executiveInsightMap = {
-                      "On-Time Fill": "Protect service at the customer node",
-                      "Units at Risk": "Expedite constrained components",
-                      "Peak Backlog": "Reallocate production to reduce backlog",
-                      "Missed Service Days": "Prioritize recovery at the bottleneck",
-                      "TTR / TTS": "Shorten recovery at the critical constraint",
-                      "Hidden Cost of Recovery": "Quantify cost required to protect service",
-                      onTimeFill: "Protect service at the customer node",
-                      unitsAtRisk: "Expedite constrained components",
-                      peakBacklog: "Reallocate production to reduce backlog",
-                      missedServiceDays: "Prioritize recovery at the bottleneck",
-                      ttr: "Accelerate recovery at the bottleneck",
-                      tts: "Extend survivability before customer impact",
-                      ttrTts: "Shorten recovery at the critical constraint",
-                      hiddenCostOfRecovery: "Quantify cost required to protect service",
-                    };
-
-                    const sourceLabel = item.label || item.title || item.name || item.key || "";
-
-                    const executiveLabel = executiveLabelMap[sourceLabel] || sourceLabel;
-                    const executiveInsight =
-                      executiveInsightMap[sourceLabel] || "Focus mitigation on the binding constraint";
-
+                  {false && decisionKpis.map((item) => {
                     const severity = getDecisionKpiSeverity(item.key, item.value);
                     const styles = getDecisionKpiStyles(severity);
                     const icon = getDecisionKpiIcon(item.key, severity);
@@ -2238,9 +2199,7 @@ setOverlayChartData(overlay);
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300 mb-1">
-                              {executiveLabel}
-                            </p>
+                            <p className="text-slate-200 mb-1 text-xs">{item.title}</p>
                             <p
                               className="text-xl font-semibold"
                               style={{ color: styles.value }}
@@ -2265,8 +2224,12 @@ setOverlayChartData(overlay);
                           >
                             {status}
                           </span>
-                          <span className="text-[10px] text-slate-400 text-right max-w-[160px] leading-4">
-                            {executiveInsight}
+                          <span className="text-[10px] text-slate-400">
+                            {severity === "good"
+                              ? "Healthy"
+                              : severity === "warning"
+                              ? "Needs Attention"
+                              : "Immediate Action"}
                           </span>
                         </div>
                       </div>
@@ -2794,6 +2757,7 @@ setOverlayChartData(overlay);
   💾 Save
 </button>
 
+
 {/* 📂 Scenario Selector */}
 <select
   value={selectedScenarioId || ""}
@@ -3118,6 +3082,7 @@ setOverlayChartData(overlay);
 );
 })()}
 </section>
+
 
         {/* ===== Projected Disruption Impact (Slider) =================== */}
         <section

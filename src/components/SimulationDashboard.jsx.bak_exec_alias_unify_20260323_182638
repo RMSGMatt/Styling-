@@ -115,6 +115,7 @@ function formatCurrencyCompact(v, opts) {
   return `$${n.toFixed(0)}`;
 }
 
+
 // Small helper for fallbacks so panels don't explode on "missing" data
 function safeArray(input) {
   if (!input) return [];
@@ -298,7 +299,7 @@ function DisruptionPanels({
   const runoutRows = safeArray(runoutRiskData);
   const counterRows = safeArray(countermeasuresData);
 
-    // Local KPI aliases for DisruptionPanels scope
+  // Local KPI aliases for DisruptionPanels scope
   const execOnTimePct = Number(
     _toNumberLoose(
       kpis?.onTimeFulfillment ??
@@ -310,20 +311,17 @@ function DisruptionPanels({
   const execLateUnits = Number(
     _toNumberLoose(
       kpis?.lateFulfilledUnits ??
-      kpis?.unitsAtRisk
+      kpis?.unitsAtRisk ??
+      kpis?.unfulfilledQty ??
+      kpis?.missedDemandQty
     ) || 0
   );
 
   const execPeakBacklog = Number(
     _toNumberLoose(
       kpis?.peakBacklogUnits ??
-      kpis?.peakBacklog
-    ) || 0
-  );
-
-  const execMissedServiceDays = Number(
-    _toNumberLoose(
-      kpis?.missedServiceDays
+      kpis?.peakBacklog ??
+      kpis?.backorderVolume
     ) || 0
   );
 
@@ -335,15 +333,7 @@ function DisruptionPanels({
     ) || 0
   );
 
-  const execTtsDays = Number(
-    _toNumberLoose(
-      kpis?.timeToSurviveDays ??
-      kpis?.ttsDays
-    ) || 0
-  );
-
   const totalEvents = impactRows.length;
-
   const facilitiesImpacted = new Set(
     impactRows
       .map((row) => row.facility || row.Facility)
@@ -462,6 +452,8 @@ const revenueExposureDisplayValue = (() => {
   },
   { high: 0, medium: 0, low: 0, unknown: 0 }
 );
+
+
 
   const firstImpactedFacility =
     impactRows[0]?.facility ||
@@ -886,6 +878,7 @@ function formatDecisionKpiValue(key, value) {
   return n.toLocaleString();
 }
 
+
 export default function SimulationDashboard({
   handleFileChange,
   handleSubmit,
@@ -922,31 +915,49 @@ export default function SimulationDashboard({
 
   const [projectedSlider, setProjectedSlider] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
-  
   const runsPerPage = 5;
 
-  // ✅ SINGLE SOURCE OF TRUTH — EXEC KPIs
-  const execOnTimePct = Number(kpis?.onTimeFulfillment || 0);
-  const execLateUnits = Number(kpis?.lateFulfilledUnits || 0);
-  const execPeakBacklog = Number(kpis?.peakBacklogUnits || 0);
-  const execMissedServiceDays = Number(kpis?.missedServiceDays || 0);
-  const execTtrDays = Number(kpis?.timeToRecoverDays || 0);
-  const execTtsDays = Number(kpis?.timeToSurviveDays || 0);
-
-  // Unified executive KPI aliases (single source of truth for UI)
-  const execFillRatePct = Number(
+  // Executive KPI aliases: normalize App.jsx and legacy KPI keys
+  const execOnTimePct = Number(
     _toNumberLoose(
-      kpis?.fillRatePct ??
+      kpis?.onTimeFulfillment ??
+      kpis?.onTimeFill ??
       kpis?.demandFulfillment
     ) || 0
   );
 
-  // Executive KPI aliases: normalize App.jsx and legacy KPI keys
-  
-  
-  
-  
-  
+  const execLateUnits = Number(
+    _toNumberLoose(
+      kpis?.lateFulfilledUnits ??
+      kpis?.unitsAtRisk ??
+      kpis?.unfulfilledQty ??
+      kpis?.missedDemandQty
+    ) || 0
+  );
+
+  const execPeakBacklog = Number(
+    _toNumberLoose(
+      kpis?.peakBacklogUnits ??
+      kpis?.peakBacklog ??
+      kpis?.backorderVolume
+    ) || 0
+  );
+
+  const execTtrDays = Number(
+    _toNumberLoose(
+      kpis?.timeToRecoverDays ??
+      kpis?.ttrDays ??
+      kpis?.avgTimeToRecovery
+    ) || 0
+  );
+
+  const execMissedServiceDays = Number(
+    _toNumberLoose(
+      kpis?.missedServiceDays ??
+      kpis?.daysWithMissedService
+    ) || 0
+  );
+
   const execRevenueExposure =
     kpis?.revenueExposure ??
     kpis?.estimatedRevenueExposure ??
@@ -961,6 +972,7 @@ export default function SimulationDashboard({
   const [overlayChartData, setOverlayChartData] = useState(null);
   const [overlayLoading, setOverlayLoading] = useState(false);
   const [overlayError, setOverlayError] = useState(null);
+
 
   // 🧪 Ensure scenarioJson is initialized for saving/loading
   useEffect(() => {
@@ -1057,37 +1069,37 @@ export default function SimulationDashboard({
       key: "onTimeFill",
       title: "On-Time Fill",
       subtitle: "How much demand was fulfilled when needed",
-      value: execOnTimePct ?? 0,
+      value: kpis?.onTimeFill ?? 0,
     },
     {
       key: "unitsAtRisk",
       title: "Units at Risk",
       subtitle: "Demand exposed to disruption pressure",
-      value: execLateUnits ?? 0,
+      value: kpis?.lateFulfilledUnits ?? 0,
     },
     {
       key: "peakBacklog",
       title: "Peak Backlog",
       subtitle: "Maximum queued unmet demand",
-      value: execPeakBacklog ?? 0,
+      value: kpis?.peakBacklogUnits ?? 0,
     },
     {
       key: "missedServiceDays",
       title: "Missed Service Days",
       subtitle: "Days demand service was missed",
-      value: execMissedServiceDays ?? 0,
+      value: kpis?.missedServiceDays ?? 0,
     },
     {
       key: "ttrDays",
       title: "TTR",
       subtitle: "Time to recover after disruption",
-      value: execTtrDays ?? 0,
+      value: kpis?.timeToRecoverDays ?? 0,
     },
     {
       key: "ttsDays",
       title: "TTS",
       subtitle: "Time to survive before impact",
-      value: execTtsDays ?? 0,
+      value: kpis?.ttsDays ?? 0,
     },
   ];
 
@@ -1104,21 +1116,21 @@ export default function SimulationDashboard({
       healthy: "0",
       stressed: execLateUnits.toLocaleString(),
       delta: `+${execLateUnits.toLocaleString()}`,
-      direction: Number(execLateUnits ?? 0) > 0 ? "up" : "flat",
+      direction: Number(kpis?.lateFulfilledUnits ?? 0) > 0 ? "up" : "flat",
     },
     {
       label: "Peak Backlog",
       healthy: "0",
       stressed: execPeakBacklog.toLocaleString(),
       delta: `+${execPeakBacklog.toLocaleString()}`,
-      direction: Number(execPeakBacklog ?? 0) > 0 ? "up" : "flat",
+      direction: Number(kpis?.peakBacklogUnits ?? 0) > 0 ? "up" : "flat",
     },
     {
       label: "Missed Service Days",
       healthy: "0",
-      stressed: String(Number(execMissedServiceDays ?? 0)),
-      delta: `+${Number(execMissedServiceDays ?? 0)}`,
-      direction: Number(execMissedServiceDays ?? 0) > 0 ? "up" : "flat",
+      stressed: String(Number(kpis?.missedServiceDays ?? 0)),
+      delta: `+${Number(kpis?.missedServiceDays ?? 0)}`,
+      direction: Number(kpis?.missedServiceDays ?? 0) > 0 ? "up" : "flat",
     },
     {
       label: "TTR",
@@ -1128,6 +1140,7 @@ export default function SimulationDashboard({
       direction: execTtrDays > 0 ? "up" : "flat",
     },
   ];
+
 
   const selectedSkuValue = useMemo(() => {
     if (!selectedSku || selectedSku === "ALL") return [];
@@ -1275,6 +1288,7 @@ export default function SimulationDashboard({
   compareUrl,
   sameUrl: baselineUrl === compareUrl,
 });
+
 
     if (!baselineUrl || !compareUrl) {
       setOverlayChartData(null);
@@ -1531,6 +1545,7 @@ setOverlayChartData(overlay);
     // must at least look like a CSV header
     return t.length > 5 && firstLine.includes(",");
   };
+
 
     const setFormFile = (fd, key, fileOrBlob, filename) => {
       // Prefer .set() to avoid duplicate keys (critical)
@@ -1834,6 +1849,7 @@ setOverlayChartData(overlay);
   </div>
 </div>
 
+
             <div className="h-[26rem] rounded-2xl overflow-hidden border border-slate-700/70 bg-slate-950/80 shadow-inner">
               <MapView
                 locationsUrl={locationsUrl}
@@ -2004,11 +2020,11 @@ setOverlayChartData(overlay);
                   className="rounded-2xl border p-3 mb-3"
                   style={{
                     background:
-                      (Number(execPeakBacklog || 0) > 0 || execMissedServiceDays > 0)
+                      (Number(kpis?.peakBacklogUnits || 0) > 0 || execMissedServiceDays > 0)
                         ? "rgba(239,68,68,0.08)"
                         : "rgba(34,197,94,0.08)",
                     borderColor:
-                      (Number(execPeakBacklog || 0) > 0 || execMissedServiceDays > 0)
+                      (Number(kpis?.peakBacklogUnits || 0) > 0 || execMissedServiceDays > 0)
                         ? "rgba(239,68,68,0.24)"
                         : "rgba(34,197,94,0.24)",
                   }}
@@ -2017,8 +2033,8 @@ setOverlayChartData(overlay);
                     Scenario Readout
                   </p>
                   <p className="text-sm text-slate-100 leading-relaxed">
-                    {(Number(execPeakBacklog || 0) > 0 || execMissedServiceDays > 0)
-                      ? `Service failure hidden behind 100% fulfillment. Only ${formatPercent(execOnTimePct, { zeroIsDash: false, digits: 1 })} of demand was met on time, with ${formatNumber(execLateUnits)} units delivered late and a ${formatNumber(execTtrDays || 0, { zeroIsDash: false })}-day recovery period.`
+                    {(Number(kpis?.peakBacklogUnits || 0) > 0 || execMissedServiceDays > 0)
+                      ? `Service failure hidden behind 100% fulfillment. Only ${formatPercent(execOnTimePct, { zeroIsDash: false, digits: 1 })} of demand was met on time, with ${formatNumber(execLateUnits)} units delivered late and a ${formatNumber(kpis?.timeToRecoverDays || 0, { zeroIsDash: false })}-day recovery period.`
                       : "Network remained stable with no service misses, no backlog, and full on-time fulfillment."}
                   </p>
                 </div>
@@ -2091,12 +2107,6 @@ setOverlayChartData(overlay);
                       </p>
                     </div>
                   </div>
-                </div>
-
-                <div className="mb-3">
-                  <h3 className="text-sm font-semibold text-slate-100">
-                    📊 What Changed vs Baseline
-                  </h3>
                 </div>
 
                 <div
@@ -2172,52 +2182,8 @@ setOverlayChartData(overlay);
                   </div>
                 </div>
 
-                <div className="mb-2">
-                  <h3 className="text-sm font-semibold text-slate-100">
-                    ⚠️ Key Risks & Actions
-                  </h3>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {decisionKpis.map((item) => {
-                    const executiveLabelMap = {
-                      "On-Time Fill": "Service Level",
-                      "Units at Risk": "Demand at Risk",
-                      "Peak Backlog": "Unfulfilled Demand",
-                      "Hidden Cost of Recovery": "Recovery Cost Exposure",
-                      onTimeFill: "Service Level",
-                      unitsAtRisk: "Demand at Risk",
-                      peakBacklog: "Unfulfilled Demand",
-                      missedServiceDays: "Missed Service Days",
-                      ttr: "Time to Recover",
-                      tts: "Time to Survive",
-                      ttrTts: "Time to Recover / Survive",
-                      hiddenCostOfRecovery: "Recovery Cost Exposure",
-                    };
-
-                    const executiveInsightMap = {
-                      "On-Time Fill": "Protect service at the customer node",
-                      "Units at Risk": "Expedite constrained components",
-                      "Peak Backlog": "Reallocate production to reduce backlog",
-                      "Missed Service Days": "Prioritize recovery at the bottleneck",
-                      "TTR / TTS": "Shorten recovery at the critical constraint",
-                      "Hidden Cost of Recovery": "Quantify cost required to protect service",
-                      onTimeFill: "Protect service at the customer node",
-                      unitsAtRisk: "Expedite constrained components",
-                      peakBacklog: "Reallocate production to reduce backlog",
-                      missedServiceDays: "Prioritize recovery at the bottleneck",
-                      ttr: "Accelerate recovery at the bottleneck",
-                      tts: "Extend survivability before customer impact",
-                      ttrTts: "Shorten recovery at the critical constraint",
-                      hiddenCostOfRecovery: "Quantify cost required to protect service",
-                    };
-
-                    const sourceLabel = item.label || item.title || item.name || item.key || "";
-
-                    const executiveLabel = executiveLabelMap[sourceLabel] || sourceLabel;
-                    const executiveInsight =
-                      executiveInsightMap[sourceLabel] || "Focus mitigation on the binding constraint";
-
                     const severity = getDecisionKpiSeverity(item.key, item.value);
                     const styles = getDecisionKpiStyles(severity);
                     const icon = getDecisionKpiIcon(item.key, severity);
@@ -2238,9 +2204,7 @@ setOverlayChartData(overlay);
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300 mb-1">
-                              {executiveLabel}
-                            </p>
+                            <p className="text-slate-200 mb-1 text-xs">{item.title}</p>
                             <p
                               className="text-xl font-semibold"
                               style={{ color: styles.value }}
@@ -2265,8 +2229,12 @@ setOverlayChartData(overlay);
                           >
                             {status}
                           </span>
-                          <span className="text-[10px] text-slate-400 text-right max-w-[160px] leading-4">
-                            {executiveInsight}
+                          <span className="text-[10px] text-slate-400">
+                            {severity === "good"
+                              ? "Healthy"
+                              : severity === "warning"
+                              ? "Needs Attention"
+                              : "Immediate Action"}
                           </span>
                         </div>
                       </div>
@@ -2277,7 +2245,7 @@ setOverlayChartData(overlay);
 
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">
-                  Efficiency Signals
+                  Operational Performance
                 </p>
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                   <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
@@ -2369,9 +2337,6 @@ setOverlayChartData(overlay);
               <p className="text-xs text-slate-300 mt-1">
                 Plain-language interpretation of the latest simulation run.
               </p>
-              <p className="text-[11px] text-slate-400 mt-2">
-                These signals explain why the service risk above appeared and which constraints drove it.
-              </p>
             </div>
             <div
               className="text-xs font-semibold px-3 py-1 rounded-full"
@@ -2430,8 +2395,8 @@ setOverlayChartData(overlay);
                 {scenarioImpactSummary?.narrative ? (
                   <>
                     {scenarioImpactSummary.narrative}
-                    {(Number(execLateUnits ?? 0) > 0 ||
-                      Number(execMissedServiceDays ?? 0) > 0) && (
+                    {(Number(kpis?.lateFulfilledUnits ?? 0) > 0 ||
+                      Number(kpis?.missedServiceDays ?? 0) > 0) && (
                       <span>
                         {" "}
                         This scenario also resulted in{" "}
@@ -2439,7 +2404,7 @@ setOverlayChartData(overlay);
                           {execLateUnits.toLocaleString()} units at risk
                         </strong>,{" "}
                         <strong style={{ color: "#fca5a5" }}>
-                          {Number(execMissedServiceDays ?? 0)} missed service day{Number(execMissedServiceDays ?? 0) === 1 ? "" : "s"}
+                          {Number(kpis?.missedServiceDays ?? 0)} missed service day{Number(kpis?.missedServiceDays ?? 0) === 1 ? "" : "s"}
                         </strong>, and a{" "}
                         <strong style={{ color: "#fca5a5" }}>
                           {execTtrDays} day recovery window
@@ -2794,6 +2759,7 @@ setOverlayChartData(overlay);
   💾 Save
 </button>
 
+
 {/* 📂 Scenario Selector */}
 <select
   value={selectedScenarioId || ""}
@@ -3118,6 +3084,7 @@ setOverlayChartData(overlay);
 );
 })()}
 </section>
+
 
         {/* ===== Projected Disruption Impact (Slider) =================== */}
         <section
