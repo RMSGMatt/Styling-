@@ -77,7 +77,7 @@ function upsertLocalRun(entry) {
 }
 
 // Auto-build Executive Report after each simulation run
-async function buildExecutiveReportAfterSim(payload = {}) {
+async function buildExecutiveReportAfterSim() {
   try {
     const token =
       localStorage.getItem("access_token") ||
@@ -98,11 +98,7 @@ async function buildExecutiveReportAfterSim(payload = {}) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        source: "simulation",
-        timestamp: payload?.run_id || payload?.id || payload?.timestamp || null,
-        kpis: payload?.kpis || {},
-      }),
+      body: JSON.stringify({ source: "simulation" }),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -1517,11 +1513,7 @@ try {
         return merged;
       });
 
-      await buildExecutiveReportAfterSim({
-        run_id: normalizedUrls?.run_id || normalizedUrls?.id || normalizedUrls?.timestamp,
-        timestamp: normalizedUrls?.run_id || normalizedUrls?.id || normalizedUrls?.timestamp,
-        kpis: kpis || {},
-      });
+      await buildExecutiveReportAfterSim();
 
       // Reset facility selection
       setSelectedFacility(null);

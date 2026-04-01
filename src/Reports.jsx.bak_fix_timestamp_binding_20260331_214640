@@ -1,7 +1,28 @@
 
+const fetchExecutiveReportForRun = async (runId) => {
+  try {
+    setExecLoading(true);
 
+    const res = await fetch(`/api/executive-report/by-run/${runId}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    });
 
+    const data = await res.json();
 
+    if (!res.ok) throw new Error(data?.error || "Failed");
+
+    setExecReport(data);
+    setExecError("");
+
+  } catch (e) {
+    setExecError(e.message);
+    setExecReport(null);
+  } finally {
+    setExecLoading(false);
+  }
+};
 
 // src/Reports.jsx
 import React, { useEffect, useMemo, useState } from "react";
@@ -298,37 +319,6 @@ useEffect(() => {
   // Executive Report state
   // -----------------------------
   const [execReport, setExecReport] = useState(null);
-
-const fetchExecutiveReportForRun = async (runKey) => {
-  try {
-    setExecLoading(true);
-
-    const res = await fetch(`${API_BASE}/api/executive-report/build`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-      },
-      body: JSON.stringify({
-        timestamp: runKey,
-        force: true,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data?.error || "Failed");
-
-    if (data?.report) setExecReport(data.report);
-
-  } catch (e) {
-    setExecError(e.message);
-    setExecReport(null);
-  } finally {
-    setExecLoading(false);
-  }
-};
-
 const [selectedRun, setSelectedRun] = useState(null);
 
 
@@ -513,27 +503,8 @@ useEffect(() => {
 
 
 useEffect(() => {
-  if (selectedRun) {
-    window.__lastSelectedRun = selectedRun;
-    console.log("[Reports] selectedRun identity:", {
-      run_id: selectedRun?.run_id,
-      id: selectedRun?.id,
-      created_at: selectedRun?.created_at,
-      timestamp: selectedRun?.timestamp,
-    });
-  }
-
-  const runKey =
-    selectedRun?.run_id ||
-    selectedRun?.id ||
-    selectedRun?.timestamp ||
-    selectedRun?.created_at;
-
-  console.log("[Reports] normalized run key:", runKey);
-
-  if (!runKey) return;
-
-  fetchExecutiveReportForRun(runKey);
+  if (!selectedRun?.run_id) return;
+  fetchExecutiveReportForRun(selectedRun.run_id);
 }, [selectedRun]);
 
 const hasReports =

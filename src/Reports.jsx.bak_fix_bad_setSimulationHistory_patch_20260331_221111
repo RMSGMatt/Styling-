@@ -118,7 +118,12 @@ export default function Reports({ simulationHistory: incomingSimulationHistory =
       return Number.isNaN(ts) ? 0 : ts;
     };
 
-    setSimulationHistory((prev) => {
+    setSimulationHistory(
+  ($1 || []).map(r => ({
+    ...r,
+    run_id: r.run_id || r.id || r.timestamp || r.created_at
+  }))
+) => {
       const merged = [
         ...incomingSimulationHistory,
         ...(Array.isArray(prev) ? prev : []),

@@ -299,7 +299,7 @@ useEffect(() => {
   // -----------------------------
   const [execReport, setExecReport] = useState(null);
 
-const fetchExecutiveReportForRun = async (runKey) => {
+const fetchExecutiveReportForRun = async (timestamp) => {
   try {
     setExecLoading(true);
 
@@ -310,7 +310,7 @@ const fetchExecutiveReportForRun = async (runKey) => {
         ...authHeaders(),
       },
       body: JSON.stringify({
-        timestamp: runKey,
+        timestamp,
         force: true,
       }),
     });
@@ -523,17 +523,10 @@ useEffect(() => {
     });
   }
 
-  const runKey =
-    selectedRun?.run_id ||
-    selectedRun?.id ||
-    selectedRun?.timestamp ||
-    selectedRun?.created_at;
-
-  console.log("[Reports] normalized run key:", runKey);
-
-  if (!runKey) return;
-
-  fetchExecutiveReportForRun(runKey);
+  const ts = selectedRun?.created_at || selectedRun?.timestamp;
+  console.log("[Reports] timestamp sent to executive report build:", ts);
+  if (!ts) return;
+  fetchExecutiveReportForRun(ts);
 }, [selectedRun]);
 
 const hasReports =

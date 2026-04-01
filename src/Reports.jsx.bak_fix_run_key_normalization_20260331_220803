@@ -523,16 +523,9 @@ useEffect(() => {
     });
   }
 
-  const runKey =
-    selectedRun?.run_id ||
-    selectedRun?.id ||
-    selectedRun?.timestamp ||
-    selectedRun?.created_at;
-
-  console.log("[Reports] normalized run key:", runKey);
-
+  const runKey = selectedRun?.run_id || selectedRun?.id;
+  console.log("[Reports] run key sent to executive report build:", runKey);
   if (!runKey) return;
-
   fetchExecutiveReportForRun(runKey);
 }, [selectedRun]);
 
