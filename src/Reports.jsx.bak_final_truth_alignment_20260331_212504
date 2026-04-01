@@ -877,7 +877,7 @@ const hasReports =
                   <SectionTitle
                     icon="✨"
                     title="Highlights"
-                    subtitle="Top signals from the latest executive report (backend)"
+                    subtitle="Top signals from the latest run"
                   />
                   <div className="mt-4 space-y-2">
                     {highlights.length ? (
@@ -899,7 +899,7 @@ const hasReports =
                   <SectionTitle
                     icon="🧠"
                     title="Narrative"
-                    subtitle="Backend-generated narrative (not tied to selected run yet)"
+                    subtitle="Backend-generated sections for the Executive Report"
                   />
                   <div className="mt-4 space-y-3">
                     {sections.length ? (
@@ -927,23 +927,6 @@ const hasReports =
             </>
           ) : null}
         </div>
-      </div>
-
-            <div className="mt-4 mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        <div className="font-semibold">Executive Report Context</div>
-        <div className="mt-1">
-          The section above reflects the most recently generated backend executive report.
-        </div>
-        <div className="mt-1">
-          It is not yet dynamically linked to the selected run below.
-        </div>
-      </div>
-
-<div className="mb-3">
-        <h2 className="text-xl font-semibold text-[#1D625B]">Per-Run Report Packs</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Each card represents a specific simulation run.
-        </p>
       </div>
 
       {/* Simulation Report Packs */}

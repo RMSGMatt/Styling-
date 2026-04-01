@@ -129,76 +129,7 @@ export default function Reports({ simulationHistory: incomingSimulationHistory =
   // -----------------------------
   // Simulation History state
   // -----------------------------
-  
-const [simulationHistory, setSimulationHistory] = useState([]);
-
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("forc_local_runs_v1");
-      const localRuns = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(localRuns) || localRuns.length === 0) return;
-
-      const getRunKey = (r) =>
-        r?.run_id ||
-        r?.runId ||
-        r?.id ||
-        r?.created_at ||
-        r?.timestamp ||
-        JSON.stringify(r);
-
-      const getRunTime = (r) => {
-        const rawTs =
-          r?.created_at ||
-          r?.createdAt ||
-          r?.timestamp ||
-          r?.run_timestamp ||
-          r?.date ||
-          "";
-        const ts = Date.parse(rawTs);
-        return Number.isNaN(ts) ? 0 : ts;
-      };
-
-      setSimulationHistory((prev) => {
-        const merged = [
-          ...localRuns.map((r) => ({ ...r, _source: r?._source || "local" })),
-          ...(Array.isArray(prev) ? prev : []),
-        ];
-
-        return Array.from(
-          new Map(merged.map((r) => [getRunKey(r), r])).values()
-        ).sort((a, b) => getRunTime(b) - getRunTime(a));
-      });
-    } catch (e) {
-      console.warn("Failed to preload local runs in Reports:", e);
-    }
-  }, []);
-
-// 🔥 Inject latest run immediately (before backend fetch)
-useEffect(() => {
-  try {
-    const raw = localStorage.getItem("forc_latest_run");
-    if (!raw) return;
-
-    const latest = JSON.parse(raw);
-
-    setSimulationHistory((prev) => {
-      const arr = Array.isArray(prev) ? prev : [];
-
-      const exists = arr.some(
-        (r) =>
-          (r?.run_id || r?.id) === (latest?.run_id || latest?.id)
-      );
-
-      if (exists) return arr;
-
-      return [latest, ...arr];
-    });
-  } catch (e) {
-    console.warn("Failed to inject latest run", e);
-  }
-}, []);
-
+  const [simulationHistory, setSimulationHistory] = useState([]);
   const [simLoading, setSimLoading] = useState(true);
   const [simError, setSimError] = useState("");
   const [simLastRefreshedAt, setSimLastRefreshedAt] = useState(null);
@@ -243,25 +174,20 @@ useEffect(() => {
         ? data
         : [];
 
-      const local = Array.isArray(incomingSimulationHistory) ? incomingSimulationHistory : [];
+      const merged = [
+        ...(Array.isArray(incomingSimulationHistory) ? incomingSimulationHistory : []),
+        ...sims,
+      ];
 
       const getRunKey = (r) =>
         r?.run_id ||
         r?.runId ||
         r?.id ||
+        r?.createdAt ||
         r?.created_at ||
         r?.timestamp ||
+        r?.run_timestamp ||
         JSON.stringify(r);
-
-      const remoteFiltered = sims.filter((r) => {
-        const rid = getRunKey(r);
-        return !local.some((lr) => getRunKey(lr) === rid);
-      });
-
-      const merged = [
-        ...local,          // ALWAYS first (fresh run)
-        ...remoteFiltered  // only non-duplicates
-      ];
 
       const getRunTime = (r) => {
         const raw =
@@ -293,9 +219,6 @@ useEffect(() => {
   // Executive Report state
   // -----------------------------
   const [execReport, setExecReport] = useState(null);
-const [selectedRun, setSelectedRun] = useState(null);
-
-
   const [execLoading, setExecLoading] = useState(true);
   const [execError, setExecError] = useState("");
   const [execBuilding, setExecBuilding] = useState(false);
@@ -464,36 +387,8 @@ const [selectedRun, setSelectedRun] = useState(null);
   // -----------------------------
   // Existing Simulation Report helpers
   // -----------------------------
-  
-useEffect(() => {
-  if (!Array.isArray(simulationHistory) || simulationHistory.length === 0) return;
-
-  const latest = [...simulationHistory].sort((a, b) => {
-    return new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp);
-  })[0];
-
-  setSelectedRun(latest);
-}, [simulationHistory]);
-
-const hasReports =
+  const hasReports =
     Array.isArray(simulationHistory) && simulationHistory.length > 0;
-
-  console.log("[Reports] history count:", Array.isArray(simulationHistory) ? simulationHistory.length : "n/a");
-  console.log(
-    "[Reports] first 3 runs:",
-    Array.isArray(simulationHistory)
-      ? simulationHistory.slice(0, 3).map((r) => ({
-          run_id: r?.run_id,
-          runId: r?.runId,
-          id: r?.id,
-          createdAt: r?.createdAt,
-          created_at: r?.created_at,
-          timestamp: r?.timestamp,
-          run_timestamp: r?.run_timestamp,
-          date: r?.date,
-        }))
-      : []
-  );
 
   const getOutputs = (sim) => sim?.output_urls || sim?.outputUrls || sim?.outputURLs || {};
   const pickUrl = (outputs, snakeKey, camelKey) =>
@@ -877,7 +772,7 @@ const hasReports =
                   <SectionTitle
                     icon="✨"
                     title="Highlights"
-                    subtitle="Top signals from the latest executive report (backend)"
+                    subtitle="Top signals from the latest run"
                   />
                   <div className="mt-4 space-y-2">
                     {highlights.length ? (
@@ -899,7 +794,7 @@ const hasReports =
                   <SectionTitle
                     icon="🧠"
                     title="Narrative"
-                    subtitle="Backend-generated narrative (not tied to selected run yet)"
+                    subtitle="Backend-generated sections for the Executive Report"
                   />
                   <div className="mt-4 space-y-3">
                     {sections.length ? (
@@ -929,23 +824,6 @@ const hasReports =
         </div>
       </div>
 
-            <div className="mt-4 mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        <div className="font-semibold">Executive Report Context</div>
-        <div className="mt-1">
-          The section above reflects the most recently generated backend executive report.
-        </div>
-        <div className="mt-1">
-          It is not yet dynamically linked to the selected run below.
-        </div>
-      </div>
-
-<div className="mb-3">
-        <h2 className="text-xl font-semibold text-[#1D625B]">Per-Run Report Packs</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Each card represents a specific simulation run.
-        </p>
-      </div>
-
       {/* Simulation Report Packs */}
       {simError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 text-red-700 p-4 text-sm">
@@ -959,13 +837,7 @@ const hasReports =
         </div>
       ) : hasReports ? (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {[...simulationHistory]
-            .sort((a, b) => {
-              const ta = Date.parse(a?.created_at || a?.createdAt || a?.timestamp || 0);
-              const tb = Date.parse(b?.created_at || b?.createdAt || b?.timestamp || 0);
-              return tb - ta;
-            })
-            .map((sim, idx) => {
+          {simulationHistory.map((sim, idx) => {
             const outputs = getOutputs(sim);
 
             const flowUrl = pickUrl(outputs, "flow_output_file_url", "flow_output_file_url");
@@ -988,7 +860,7 @@ const hasReports =
               outputs?.report_bundle_url || outputs?.bundle_url || sim?.report_bundle_url || sim?.bundle_url || null;
 
             const status = sim?.status || "done";
-            const timestamp = formatTimestamp(sim?.created_at || sim?.createdAt || sim?.timestamp);
+            const timestamp = formatTimestamp(sim?.timestamp);
 
             const anyCore = flowUrl || inventoryUrl || productionUrl || occurrenceUrl;
             const anyInsights =
@@ -999,14 +871,7 @@ const hasReports =
             return (
               <div
                 key={idx}
-onClick={() => setSelectedRun(sim)}
-style={{ cursor: "pointer" }}
-                className={
-  "bg-white border rounded-3xl shadow-sm hover:shadow-md transition-all overflow-hidden " +
-  (selectedRun && (sim.run_id === selectedRun.run_id)
-    ? "border-green-500 ring-2 ring-green-300"
-    : "border-[#E5ECE7]")
-}
+                className="bg-white border border-[#E5ECE7] rounded-3xl shadow-sm hover:shadow-md transition-all overflow-hidden"
               >
                 {/* Card Header */}
                 <div className="p-6 border-b border-[#E5ECE7] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -1015,14 +880,9 @@ style={{ cursor: "pointer" }}
                       Report Pack
                     </div>
                     <div className="flex items-center gap-3 mt-2">
-                      <div>
-                        <h2 className="text-xl font-bold text-[#1D625B]">
-                          Run {idx + 1} {selectedRun && (sim.run_id === selectedRun.run_id) ? "— JUST RAN" : ""}
-                        </h2>
-                        <div className="text-xs text-gray-500 mt-1">
-                          ID: {sim?.run_id || sim?.id || "No run ID"}
-                        </div>
-                      </div>
+                      <h2 className="text-xl font-bold text-[#1D625B]">
+                        Run {idx + 1}
+                      </h2>
                       <span
                         className={
                           "text-xs font-semibold px-2.5 py-1 rounded-full border " +

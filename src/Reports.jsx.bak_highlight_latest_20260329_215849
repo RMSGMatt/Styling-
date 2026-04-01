@@ -293,9 +293,6 @@ useEffect(() => {
   // Executive Report state
   // -----------------------------
   const [execReport, setExecReport] = useState(null);
-const [selectedRun, setSelectedRun] = useState(null);
-
-
   const [execLoading, setExecLoading] = useState(true);
   const [execError, setExecError] = useState("");
   const [execBuilding, setExecBuilding] = useState(false);
@@ -464,18 +461,7 @@ const [selectedRun, setSelectedRun] = useState(null);
   // -----------------------------
   // Existing Simulation Report helpers
   // -----------------------------
-  
-useEffect(() => {
-  if (!Array.isArray(simulationHistory) || simulationHistory.length === 0) return;
-
-  const latest = [...simulationHistory].sort((a, b) => {
-    return new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp);
-  })[0];
-
-  setSelectedRun(latest);
-}, [simulationHistory]);
-
-const hasReports =
+  const hasReports =
     Array.isArray(simulationHistory) && simulationHistory.length > 0;
 
   console.log("[Reports] history count:", Array.isArray(simulationHistory) ? simulationHistory.length : "n/a");
@@ -877,7 +863,7 @@ const hasReports =
                   <SectionTitle
                     icon="✨"
                     title="Highlights"
-                    subtitle="Top signals from the latest executive report (backend)"
+                    subtitle="Top signals from the latest run"
                   />
                   <div className="mt-4 space-y-2">
                     {highlights.length ? (
@@ -899,7 +885,7 @@ const hasReports =
                   <SectionTitle
                     icon="🧠"
                     title="Narrative"
-                    subtitle="Backend-generated narrative (not tied to selected run yet)"
+                    subtitle="Backend-generated sections for the Executive Report"
                   />
                   <div className="mt-4 space-y-3">
                     {sections.length ? (
@@ -927,23 +913,6 @@ const hasReports =
             </>
           ) : null}
         </div>
-      </div>
-
-            <div className="mt-4 mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        <div className="font-semibold">Executive Report Context</div>
-        <div className="mt-1">
-          The section above reflects the most recently generated backend executive report.
-        </div>
-        <div className="mt-1">
-          It is not yet dynamically linked to the selected run below.
-        </div>
-      </div>
-
-<div className="mb-3">
-        <h2 className="text-xl font-semibold text-[#1D625B]">Per-Run Report Packs</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Each card represents a specific simulation run.
-        </p>
       </div>
 
       {/* Simulation Report Packs */}
@@ -999,14 +968,7 @@ const hasReports =
             return (
               <div
                 key={idx}
-onClick={() => setSelectedRun(sim)}
-style={{ cursor: "pointer" }}
-                className={
-  "bg-white border rounded-3xl shadow-sm hover:shadow-md transition-all overflow-hidden " +
-  (selectedRun && (sim.run_id === selectedRun.run_id)
-    ? "border-green-500 ring-2 ring-green-300"
-    : "border-[#E5ECE7]")
-}
+                className="bg-white border border-[#E5ECE7] rounded-3xl shadow-sm hover:shadow-md transition-all overflow-hidden"
               >
                 {/* Card Header */}
                 <div className="p-6 border-b border-[#E5ECE7] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -1017,7 +979,7 @@ style={{ cursor: "pointer" }}
                     <div className="flex items-center gap-3 mt-2">
                       <div>
                         <h2 className="text-xl font-bold text-[#1D625B]">
-                          Run {idx + 1} {selectedRun && (sim.run_id === selectedRun.run_id) ? "— JUST RAN" : ""}
+                          Run {idx + 1} {idx === 0 ? "(Latest)" : ""}
                         </h2>
                         <div className="text-xs text-gray-500 mt-1">
                           ID: {sim?.run_id || sim?.id || "No run ID"}

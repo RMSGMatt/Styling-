@@ -409,19 +409,14 @@ const totalRevenueAtRisk = impactRows.reduce((sum, row) => {
 
 // 3️⃣ Prefer KPI-based revenue exposure from App.jsx, then fall back to panel-derived estimate
 const revenueExposureDisplayValue = (() => {
-  const directRevenue =
-    Number(kpis?.estimatedRevenueExposure ?? kpis?.revenueExposure ?? 0);
+  const kpiValue = _toNumberLoose(
+    kpis?.estimatedRevenueExposure ??
+    kpis?.revenueExposure
+  );
 
-  if (directRevenue > 0) return directRevenue;
+  if (Number.isFinite(kpiValue) && kpiValue > 0) return kpiValue;
 
-  const unitsAtRisk =
-    Number(
-      kpis?.lateFulfilledUnits ??
-      kpis?.unitsAtRisk ??
-      0
-    );
-
-  return unitsAtRisk * 100;
+  return Number.isFinite(totalRevenueAtRisk) ? totalRevenueAtRisk : 0;
 })();
 
   const riskDistribution = impactRows.reduce(

@@ -1496,13 +1496,6 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
         _source: "local",
       };
       const nextLocal = upsertLocalRun(entry);
-
-// 🔥 FORCE latest run globally visible immediately
-try {
-  localStorage.setItem("forc_latest_run", JSON.stringify(entry));
-} catch (e) {
-  console.warn("Failed to persist latest run", e);
-}
       setSimulationHistory((prev) => {
         const prevArr = Array.isArray(prev) ? prev : [];
         // merge: prefer remote entries if present

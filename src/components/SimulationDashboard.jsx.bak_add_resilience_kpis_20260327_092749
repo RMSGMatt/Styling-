@@ -409,19 +409,14 @@ const totalRevenueAtRisk = impactRows.reduce((sum, row) => {
 
 // 3️⃣ Prefer KPI-based revenue exposure from App.jsx, then fall back to panel-derived estimate
 const revenueExposureDisplayValue = (() => {
-  const directRevenue =
-    Number(kpis?.estimatedRevenueExposure ?? kpis?.revenueExposure ?? 0);
+  const kpiValue = _toNumberLoose(
+    kpis?.estimatedRevenueExposure ??
+    kpis?.revenueExposure
+  );
 
-  if (directRevenue > 0) return directRevenue;
+  if (Number.isFinite(kpiValue) && kpiValue > 0) return kpiValue;
 
-  const unitsAtRisk =
-    Number(
-      kpis?.lateFulfilledUnits ??
-      kpis?.unitsAtRisk ??
-      0
-    );
-
-  return unitsAtRisk * 100;
+  return Number.isFinite(totalRevenueAtRisk) ? totalRevenueAtRisk : 0;
 })();
 
   const riskDistribution = impactRows.reduce(
@@ -569,7 +564,7 @@ const revenueExposureDisplayValue = (() => {
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
             <p className="text-xs text-slate-300">Estimated Revenue Exposure</p>
             <p
-              className="text-xl font-bold"
+              className="text-xl font-semibold"
               style={{ color: "#9CF700" }}
             >
               {formatCurrencyCompact(revenueExposureDisplayValue, { zeroIsDash: false })}
@@ -937,7 +932,6 @@ export default function SimulationDashboard({
   const execMissedServiceDays = Number(kpis?.missedServiceDays || 0);
   const execTtrDays = Number(kpis?.timeToRecoverDays || 0);
   const execTtsDays = Number(kpis?.timeToSurviveDays || 0);
-  
 
   // Unified executive KPI aliases (single source of truth for UI)
   const execFillRatePct = Number(
@@ -1058,77 +1052,11 @@ export default function SimulationDashboard({
     setSelectedSku(values);
   };
 
-  // --- Derived Resilience KPIs ---
-const recoveryGap =
-  Number(
-    (typeof execTtrDays !== "undefined" && execTtrDays) ||
-    kpis?.ttrDays ||
-    kpis?.ttr ||
-    0
-  ) -
-  Number(
-    (typeof execTtsDays !== "undefined" && execTtsDays) ||
-    kpis?.ttsDays ||
-    kpis?.tts ||
-    0
-  );
-
-const demandAtRiskUnits = Number(
-  (typeof execDemandAtRisk !== "undefined" && execDemandAtRisk) ||
-  (typeof execUnitsAtRisk !== "undefined" && execUnitsAtRisk) ||
-  kpis?.demandAtRisk ||
-  kpis?.unitsAtRisk ||
-  0
-);
-
-const revenueAtRisk =
-  demandAtRiskUnits * 100; // placeholder multiplier until unit-value mapping is wired
-
-const avgInventoryForBuffer = Number(kpis?.avgInventory || 0);
-
-  const revenueExposureDisplayValue = Number(
-    revenueAtRisk ??
-    kpis?.estimatedRevenueExposure ??
-    kpis?.revenueExposure ??
-    0
-  );
-const annualDemandForBuffer = Number(kpis?.totalDemand || 0);
-const dailyDemandForBuffer =
-  annualDemandForBuffer > 0 ? annualDemandForBuffer / 365 : 0;
-
-const bufferCoverageDays =
-  dailyDemandForBuffer > 0 ? avgInventoryForBuffer / dailyDemandForBuffer : 0;
-
-const bufferRiskValue = Number(
-  (execTtrDays || 0) - (bufferCoverageDays || 0)
-);
-
-const decisionKpis = [
-  {
-    key: "recoveryGap",
-    label: "Recovery Gap",
-    value: recoveryGap,
-    subtitle: "Recovery is slower than disruption impact — service failure risk",
-  },
-  {
-    key: "revenueAtRisk",
-    label: "Revenue at Risk",
-    value: revenueAtRisk,
-    subtitle: "Estimated revenue exposure from demand at risk",
-  },
-  {
-    key: "bufferRisk",
-    label: "Buffer Risk",
-    value: bufferCoverageDays,
-    subtitle: bufferCoverageDays < (execTtrDays || 0)
-  ? `Runs out ${(Number(execTtrDays || 0) - bufferCoverageDays).toFixed(1)} days before recovery`
-  : `Buffer exceeds recovery by ${(bufferCoverageDays - Number(execTtrDays || 0)).toFixed(1)} days`,
-  },
-
+  const decisionKpis = [
     {
       key: "onTimeFill",
       title: "On-Time Fill",
-      subtitle: "Demand fulfilled on time",
+      subtitle: "How much demand was fulfilled when needed",
       value: execOnTimePct ?? 0,
     },
     {
@@ -1140,7 +1068,7 @@ const decisionKpis = [
     {
       key: "peakBacklog",
       title: "Peak Backlog",
-      subtitle: "Maximum accumulated unmet demand",
+      subtitle: "Maximum queued unmet demand",
       value: execPeakBacklog ?? 0,
     },
     {
@@ -1152,13 +1080,13 @@ const decisionKpis = [
     {
       key: "ttrDays",
       title: "TTR",
-      subtitle: "Time required to restore full production after disruption",
+      subtitle: "Time to recover after disruption",
       value: execTtrDays ?? 0,
     },
     {
       key: "ttsDays",
       title: "TTS",
-      subtitle: "Time until customer impact occurs without intervention",
+      subtitle: "Time to survive before impact",
       value: execTtsDays ?? 0,
     },
   ];
@@ -2118,7 +2046,7 @@ setOverlayChartData(overlay);
                       </p>
                       <p className="text-lg font-semibold text-rose-300">
                         {formatCurrency(
-                          revenueExposureDisplayValue,
+                          execRevenueExposure,
                           { zeroIsDash: true, digits: 0 }
                         )}
                       </p>
@@ -2147,7 +2075,7 @@ setOverlayChartData(overlay);
                         {execPeakBacklog.toLocaleString()}
                       </p>
                       <p className="text-[10px] text-slate-400 mt-1">
-                        Maximum accumulated unmet demand during recovery.
+                        Maximum queued unmet demand during recovery.
                       </p>
                     </div>
 
@@ -2246,7 +2174,7 @@ setOverlayChartData(overlay);
 
                 <div className="mb-2">
                   <h3 className="text-sm font-semibold text-slate-100">
-                    ⚠️ Critical Risks & Required Actions
+                    ⚠️ Key Risks & Actions
                   </h3>
                 </div>
 
@@ -2265,9 +2193,6 @@ setOverlayChartData(overlay);
                       tts: "Time to Survive",
                       ttrTts: "Time to Recover / Survive",
                       hiddenCostOfRecovery: "Recovery Cost Exposure",
-                      recoveryGap: "Recovery Gap",
-                      revenueAtRisk: "Revenue at Risk",
-                      bufferRisk: "Buffer Risk",
                     };
 
                     const executiveInsightMap = {
@@ -2281,63 +2206,22 @@ setOverlayChartData(overlay);
                       unitsAtRisk: "Expedite constrained components",
                       peakBacklog: "Reallocate production to reduce backlog",
                       missedServiceDays: "Prioritize recovery at the bottleneck",
-                      ttr: "Accelerate recovery at constrained production nodes",
-                      tts: "Increase buffer to delay customer impact",
+                      ttr: "Accelerate recovery at the bottleneck",
+                      tts: "Extend survivability before customer impact",
                       ttrTts: "Shorten recovery at the critical constraint",
                       hiddenCostOfRecovery: "Quantify cost required to protect service",
-                      recoveryGap: "Recovery is slower than disruption impact",
-                      revenueAtRisk: "Financial exposure from current disruption",
-                      bufferRisk: "Structural gap: insufficient buffer or over-reliance on single-source supply",
                     };
 
                     const sourceLabel = item.label || item.title || item.name || item.key || "";
 
                     const executiveLabel = executiveLabelMap[sourceLabel] || sourceLabel;
                     const executiveInsight =
-                      executiveInsightMap[sourceLabel] || "Prioritize mitigation at the primary constraint";
+                      executiveInsightMap[sourceLabel] || "Focus mitigation on the binding constraint";
 
                     const severity = getDecisionKpiSeverity(item.key, item.value);
                     const styles = getDecisionKpiStyles(severity);
                     const icon = getDecisionKpiIcon(item.key, severity);
-
-                    const pillBg =
-                      item.key === "recoveryGap"
-                        ? "rgba(239, 68, 68, 0.18)"
-                        : item.key === "revenueAtRisk"
-                        ? "rgba(251, 191, 36, 0.18)"
-                        : item.key === "bufferRisk"
-                        ? (Number(item.value) < Number(execTtrDays || 0)
-                            ? "rgba(239, 68, 68, 0.18)"
-                            : Number(item.value) < Number(execTtrDays || 0) * 1.5
-                            ? "rgba(251, 191, 36, 0.18)"
-                            : "rgba(52, 211, 153, 0.18)")
-                        : styles.pillBg;
-
-                    const pillText =
-                      item.key === "recoveryGap"
-                        ? "#fca5a5"
-                        : item.key === "revenueAtRisk"
-                        ? "#fcd34d"
-                        : item.key === "bufferRisk"
-                        ? (Number(item.value) < Number(execTtrDays || 0)
-                            ? "#fca5a5"
-                            : Number(item.value) < Number(execTtrDays || 0) * 1.5
-                            ? "#fcd34d"
-                            : "#86efac")
-                        : styles.pillText;
-
-                    const status =
-                      item.key === "recoveryGap"
-                        ? (Number(item.value) > 0 ? "Recovery Risk" : "Resilient")
-                        : item.key === "revenueAtRisk"
-                        ? (Number(item.value) > 0 ? "Revenue Exposure" : "Low Risk")
-                        : item.key === "bufferRisk"
-                        ? (Number(item.value) < Number(execTtrDays || 0)
-                            ? "Buffer Failure"
-                            : Number(item.value) < Number(execTtrDays || 0) * 1.5
-                            ? "Thin Buffer"
-                            : "Protected")
-                        : getDecisionKpiStatus(item.key, item.value);
+                    const status = getDecisionKpiStatus(item.key, item.value);
 
                     return (
                       <div
@@ -2359,36 +2243,15 @@ setOverlayChartData(overlay);
                             </p>
                             <p
                               className="text-xl font-semibold"
-                              style={{
-                              color:
-                                item.key === "recoveryGap"
-                                  ? (Number(item.value) > 0 ? "#f87171" : "#34d399")
-                                  : item.key === "revenueAtRisk"
-                                  ? "#fbbf24"
-                                  : item.key === "bufferRisk"
-                                  ? (Number(item.value) < Number(execTtrDays || 0)
-                                      ? "#f87171"
-                                      : Number(item.value) < Number(execTtrDays || 0) * 1.5
-                                      ? "#fbbf24"
-                                      : "#34d399")
-                                  : styles.value
-                            }}
+                              style={{ color: styles.value }}
                             >
-                              {item.key === "recoveryGap"
-        ? `${item.value > 0 ? "+" : ""}${item.value} day${Math.abs(item.value) === 1 ? "" : "s"}`
-        : item.key === "revenueAtRisk"
-        ? `$${Number(item.value) >= 1000
-            ? (Number(item.value)/1000).toFixed(0) + "K"
-            : Number(item.value)}`
-        : item.key === "bufferRisk"
-        ? `${bufferCoverageDays.toFixed(1)} days buffer`
-        : formatDecisionKpiValue(item.key, item.value)}
+                              {formatDecisionKpiValue(item.key, item.value)}
                             </p>
                           </div>
                           <div className="text-xl leading-none">{icon}</div>
                         </div>
 
-                        <p className="text-[12px] text-slate-200 mt-2 min-h-[28px]">
+                        <p className="text-[10px] text-slate-300 mt-2 min-h-[28px]">
                           {item.subtitle}
                         </p>
 
@@ -2396,13 +2259,13 @@ setOverlayChartData(overlay);
                           <span
                             className="inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold"
                             style={{
-                              backgroundColor: pillBg,
-                              color: pillText,
+                              backgroundColor: styles.pillBg,
+                              color: styles.pillText,
                             }}
                           >
                             {status}
                           </span>
-                          <span className="text-[11px] text-slate-300 text-right max-w-[160px] leading-4">
+                          <span className="text-[10px] text-slate-400 text-right max-w-[160px] leading-4">
                             {executiveInsight}
                           </span>
                         </div>

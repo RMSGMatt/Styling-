@@ -409,19 +409,14 @@ const totalRevenueAtRisk = impactRows.reduce((sum, row) => {
 
 // 3️⃣ Prefer KPI-based revenue exposure from App.jsx, then fall back to panel-derived estimate
 const revenueExposureDisplayValue = (() => {
-  const directRevenue =
-    Number(kpis?.estimatedRevenueExposure ?? kpis?.revenueExposure ?? 0);
+  const kpiValue = _toNumberLoose(
+    kpis?.estimatedRevenueExposure ??
+    kpis?.revenueExposure
+  );
 
-  if (directRevenue > 0) return directRevenue;
+  if (Number.isFinite(kpiValue) && kpiValue > 0) return kpiValue;
 
-  const unitsAtRisk =
-    Number(
-      kpis?.lateFulfilledUnits ??
-      kpis?.unitsAtRisk ??
-      0
-    );
-
-  return unitsAtRisk * 100;
+  return Number.isFinite(totalRevenueAtRisk) ? totalRevenueAtRisk : 0;
 })();
 
   const riskDistribution = impactRows.reduce(
@@ -937,7 +932,6 @@ export default function SimulationDashboard({
   const execMissedServiceDays = Number(kpis?.missedServiceDays || 0);
   const execTtrDays = Number(kpis?.timeToRecoverDays || 0);
   const execTtsDays = Number(kpis?.timeToSurviveDays || 0);
-  
 
   // Unified executive KPI aliases (single source of truth for UI)
   const execFillRatePct = Number(
@@ -1084,25 +1078,6 @@ const demandAtRiskUnits = Number(
 const revenueAtRisk =
   demandAtRiskUnits * 100; // placeholder multiplier until unit-value mapping is wired
 
-const avgInventoryForBuffer = Number(kpis?.avgInventory || 0);
-
-  const revenueExposureDisplayValue = Number(
-    revenueAtRisk ??
-    kpis?.estimatedRevenueExposure ??
-    kpis?.revenueExposure ??
-    0
-  );
-const annualDemandForBuffer = Number(kpis?.totalDemand || 0);
-const dailyDemandForBuffer =
-  annualDemandForBuffer > 0 ? annualDemandForBuffer / 365 : 0;
-
-const bufferCoverageDays =
-  dailyDemandForBuffer > 0 ? avgInventoryForBuffer / dailyDemandForBuffer : 0;
-
-const bufferRiskValue = Number(
-  (execTtrDays || 0) - (bufferCoverageDays || 0)
-);
-
 const decisionKpis = [
   {
     key: "recoveryGap",
@@ -1115,14 +1090,6 @@ const decisionKpis = [
     label: "Revenue at Risk",
     value: revenueAtRisk,
     subtitle: "Estimated revenue exposure from demand at risk",
-  },
-  {
-    key: "bufferRisk",
-    label: "Buffer Risk",
-    value: bufferCoverageDays,
-    subtitle: bufferCoverageDays < (execTtrDays || 0)
-  ? `Runs out ${(Number(execTtrDays || 0) - bufferCoverageDays).toFixed(1)} days before recovery`
-  : `Buffer exceeds recovery by ${(bufferCoverageDays - Number(execTtrDays || 0)).toFixed(1)} days`,
   },
 
     {
@@ -2118,7 +2085,7 @@ setOverlayChartData(overlay);
                       </p>
                       <p className="text-lg font-semibold text-rose-300">
                         {formatCurrency(
-                          revenueExposureDisplayValue,
+                          execRevenueExposure,
                           { zeroIsDash: true, digits: 0 }
                         )}
                       </p>
@@ -2267,7 +2234,6 @@ setOverlayChartData(overlay);
                       hiddenCostOfRecovery: "Recovery Cost Exposure",
                       recoveryGap: "Recovery Gap",
                       revenueAtRisk: "Revenue at Risk",
-                      bufferRisk: "Buffer Risk",
                     };
 
                     const executiveInsightMap = {
@@ -2287,7 +2253,6 @@ setOverlayChartData(overlay);
                       hiddenCostOfRecovery: "Quantify cost required to protect service",
                       recoveryGap: "Recovery is slower than disruption impact",
                       revenueAtRisk: "Financial exposure from current disruption",
-                      bufferRisk: "Structural gap: insufficient buffer or over-reliance on single-source supply",
                     };
 
                     const sourceLabel = item.label || item.title || item.name || item.key || "";
@@ -2305,12 +2270,6 @@ setOverlayChartData(overlay);
                         ? "rgba(239, 68, 68, 0.18)"
                         : item.key === "revenueAtRisk"
                         ? "rgba(251, 191, 36, 0.18)"
-                        : item.key === "bufferRisk"
-                        ? (Number(item.value) < Number(execTtrDays || 0)
-                            ? "rgba(239, 68, 68, 0.18)"
-                            : Number(item.value) < Number(execTtrDays || 0) * 1.5
-                            ? "rgba(251, 191, 36, 0.18)"
-                            : "rgba(52, 211, 153, 0.18)")
                         : styles.pillBg;
 
                     const pillText =
@@ -2318,12 +2277,6 @@ setOverlayChartData(overlay);
                         ? "#fca5a5"
                         : item.key === "revenueAtRisk"
                         ? "#fcd34d"
-                        : item.key === "bufferRisk"
-                        ? (Number(item.value) < Number(execTtrDays || 0)
-                            ? "#fca5a5"
-                            : Number(item.value) < Number(execTtrDays || 0) * 1.5
-                            ? "#fcd34d"
-                            : "#86efac")
                         : styles.pillText;
 
                     const status =
@@ -2331,12 +2284,6 @@ setOverlayChartData(overlay);
                         ? (Number(item.value) > 0 ? "Recovery Risk" : "Resilient")
                         : item.key === "revenueAtRisk"
                         ? (Number(item.value) > 0 ? "Revenue Exposure" : "Low Risk")
-                        : item.key === "bufferRisk"
-                        ? (Number(item.value) < Number(execTtrDays || 0)
-                            ? "Buffer Failure"
-                            : Number(item.value) < Number(execTtrDays || 0) * 1.5
-                            ? "Thin Buffer"
-                            : "Protected")
                         : getDecisionKpiStatus(item.key, item.value);
 
                     return (
@@ -2365,12 +2312,6 @@ setOverlayChartData(overlay);
                                   ? (Number(item.value) > 0 ? "#f87171" : "#34d399")
                                   : item.key === "revenueAtRisk"
                                   ? "#fbbf24"
-                                  : item.key === "bufferRisk"
-                                  ? (Number(item.value) < Number(execTtrDays || 0)
-                                      ? "#f87171"
-                                      : Number(item.value) < Number(execTtrDays || 0) * 1.5
-                                      ? "#fbbf24"
-                                      : "#34d399")
                                   : styles.value
                             }}
                             >
@@ -2380,8 +2321,6 @@ setOverlayChartData(overlay);
         ? `$${Number(item.value) >= 1000
             ? (Number(item.value)/1000).toFixed(0) + "K"
             : Number(item.value)}`
-        : item.key === "bufferRisk"
-        ? `${bufferCoverageDays.toFixed(1)} days buffer`
         : formatDecisionKpiValue(item.key, item.value)}
                             </p>
                           </div>
