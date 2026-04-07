@@ -1052,12 +1052,11 @@ export default function SimulationDashboard({
     liveUnfulfilledDemand > 0 ? "Unfulfilled Demand" : "Service Degradation";
 
   const liveImmediatePriority =
-    liveUnfulfilledDemand > 0
-      ? "Restore supply flow"
-      : liveDemandAtRisk > 0
-      ? "Stabilize service"
-      : "Monitor performance";
-    const isRunning = simulationStatus === "running";
+    liveDemandAtRisk > 0 || liveUnfulfilledDemand > 0
+      ? liveImmediatePriority
+      : "Maintain service stability";
+
+  const isRunning = simulationStatus === "running";
 
   const statusLabel =
     simulationStatus === "idle"
@@ -2805,7 +2804,6 @@ setOverlayChartData(overlay);
                     </button>
                   </div>
                 </div>
-            </div>
             </div>
           </section>
 

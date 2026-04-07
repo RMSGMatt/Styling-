@@ -373,51 +373,9 @@ export default function App() {
 
   // Tracks whether backend supplied KPIs for the CURRENT run
   const backendKpisRef = useRef(false);
-  const latestRunIdRef = useRef(null);
 
   const [userRole, setUserRole] = useState("");
   const [userPlan, setUserPlan] = useState("");
-
-  const persistRunKpis = (targetRunId, finalKpis) => {
-    if (!targetRunId || !finalKpis || typeof finalKpis !== "object") return;
-
-    setSimulationHistory((prevHistory) => {
-      const nextHistory = (Array.isArray(prevHistory) ? prevHistory : []).map((run) => {
-        const runId =
-          run?.run_id ??
-          run?.runId ??
-          run?.id ??
-          run?.timestamp ??
-          run?.created_at ??
-          null;
-
-        if (String(runId) !== String(targetRunId)) return run;
-
-        return {
-          ...run,
-          kpis: {
-            ...(run?.kpis || {}),
-            ...finalKpis,
-          },
-          raw: {
-            ...(run?.raw || {}),
-            kpis: {
-              ...(run?.raw?.kpis || {}),
-              ...finalKpis,
-            },
-          },
-        };
-      });
-
-      try {
-        localStorage.setItem("forc_local_runs_v1", JSON.stringify(nextHistory));
-      } catch (err) {
-        console.warn("❌ [persistRunKpis] Failed to persist KPI payload", err);
-      }
-
-      return nextHistory;
-    });
-  };
 
   // Keep scenario ref + localStorage sync
   useEffect(() => {
@@ -549,7 +507,6 @@ export default function App() {
 
       // merge (prefer remote)
       const merged = [
-
         ...remote.map((r) => ({ ...r, _source: "remote" })),
         ...local
           .filter((lr) => {
@@ -1396,27 +1353,7 @@ console.log("KPI_DEBUG_DUMP", allKpis);
       finalKpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
       finalKpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
       finalKpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
-
-      const directRevenueExposure = Number(
-        finalKpis?.estimatedRevenueExposure ??
-        finalKpis?.revenueExposure ??
-        0
-      );
-
-      if (!(directRevenueExposure > 0)) {
-        const revenueUnitsAtRisk = Number(
-          finalKpis?.lateFulfilledUnits ??
-          finalKpis?.unitsAtRisk ??
-          0
-        );
-
-        const fallbackRevenueExposure = revenueUnitsAtRisk * 100;
-
-        finalKpis.estimatedRevenueExposure = fallbackRevenueExposure;
-        finalKpis.revenueExposure = fallbackRevenueExposure;
-      }
 console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
-      persistRunKpis(latestRunIdRef.current, finalKpis);
       setKpis(finalKpis);
     } catch (err) {
       console.error("❌ [KPI] Failed KPI pipeline:", err);
@@ -1554,24 +1491,14 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
 
       // Save run locally immediately (so history is never empty)
       const entry = {
-  ...(normalizedUrls || {}),
-  // 🔥 report will be injected after build
-
         id: payload.run_id || payload.id || payload.timestamp || `${Date.now()}`,
         run_id: payload.run_id,
         created_at: payload.timestamp || new Date().toISOString(),
         output_urls: normalizedUrls,
         urls: normalizedUrls,
         outputUrls: normalizedUrls,
-        raw: {
-          ...(payload || {}),
-          kpis: {
-            ...(payload?.kpis || {}),
-          },
-        },
         _source: "local",
       };
-      latestRunIdRef.current = entry.run_id || entry.id || entry.created_at || null;
       const nextLocal = upsertLocalRun(entry);
 
 // 🔥 FORCE latest run globally visible immediately
@@ -1580,7 +1507,16 @@ try {
 } catch (e) {
   console.warn("Failed to persist latest run", e);
 }
-      // 🔥 Build report BEFORE inserting run
+      setSimulationHistory((prev) => {
+        const prevArr = Array.isArray(prev) ? prev : [];
+        // merge: prefer remote entries if present
+        const merged = [
+          ...prevArr.filter((r) => r?._source === "remote"),
+          ...nextLocal,
+        ];
+        return merged;
+      });
+
       const reportResult = await buildExecutiveReportAfterSim({
         run_id: normalizedUrls?.run_id || normalizedUrls?.id || normalizedUrls?.timestamp,
         timestamp: normalizedUrls?.run_id || normalizedUrls?.id || normalizedUrls?.timestamp,
@@ -1593,56 +1529,21 @@ try {
         reportResult?.executive_report ||
         null;
 
-      // 🔥 FORCE inject into nextLocal BEFORE merge
-      if (builtReport && Array.isArray(nextLocal) && nextLocal.length > 0) {
-        nextLocal[0] = {
-          ...nextLocal[0],
-          report: builtReport,
-          executiveReport: builtReport,
-        };
+      if (builtReport) {
+        setSimulationHistory((prev) =>
+          Array.isArray(prev)
+            ? prev.map((run, index) =>
+                index === 0
+                  ? {
+                      ...run,
+                      report: builtReport,
+                      executiveReport: builtReport,
+                    }
+                  : run
+              )
+            : prev
+        );
       }
-
-      // 🔥 FORCE inject into nextLocal BEFORE merge
-      if (builtReport && Array.isArray(nextLocal) && nextLocal.length > 0) {
-        nextLocal[0] = {
-          ...nextLocal[0],
-          report: builtReport,
-          executiveReport: builtReport,
-        };
-      }
-
-setSimulationHistory((prev) => {
-        const prevArr = Array.isArray(prev) ? prev : [];
-        // merge: prefer remote entries if present
-        const merged = [
-          ...prevArr.filter((r) => r?._source === "remote"),
-          ...(nextLocal.length > 0
-            ? [
-                {
-                  ...nextLocal[0],
-                  kpis: {
-                    ...(nextLocal[0]?.kpis || {}),
-                  },
-                  raw: {
-                    ...(nextLocal[0]?.raw || {}),
-                    kpis: {
-                      ...(nextLocal[0]?.raw?.kpis || {}),
-                    },
-                  },
-                  ...(builtReport
-                    ? { report: builtReport, executiveReport: builtReport }
-                    : {}),
-                },
-              ]
-            : []),
-          ...nextLocal.slice(1),
-        ];
-        return merged;
-      });
-
-      
-
-      
 
       // Reset facility selection
       setSelectedFacility(null);

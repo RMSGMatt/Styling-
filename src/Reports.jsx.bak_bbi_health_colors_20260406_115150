@@ -177,76 +177,6 @@ function normalizeExecutiveReport(report, selectedRun) {
 
 
 
-
-function getBbiHealth(score) {
-  const value = Number(score || 0);
-  if (value >= 80) return "healthy";
-  if (value >= 60) return "watch";
-  return "stressed";
-}
-
-function getBbiTone(score) {
-  const health = getBbiHealth(score);
-
-  if (health === "healthy") {
-    return {
-      label: "Healthy",
-      valueClass: "text-emerald-300",
-      badgeClass: "bg-emerald-500/15 text-emerald-300 border border-emerald-400/20",
-      borderColor: "rgba(16,185,129,0.30)",
-      background: "linear-gradient(145deg, rgba(6,78,59,0.28), rgba(15,23,42,0.96))",
-      shadow: "0 14px 30px rgba(16,185,129,0.12)",
-    };
-  }
-
-  if (health === "watch") {
-    return {
-      label: "Watch",
-      valueClass: "text-amber-300",
-      badgeClass: "bg-amber-500/15 text-amber-300 border border-amber-400/20",
-      borderColor: "rgba(245,158,11,0.30)",
-      background: "linear-gradient(145deg, rgba(120,53,15,0.22), rgba(15,23,42,0.96))",
-      shadow: "0 14px 30px rgba(245,158,11,0.10)",
-    };
-  }
-
-  return {
-    label: "Stressed",
-    valueClass: "text-rose-300",
-    badgeClass: "bg-rose-500/15 text-rose-300 border border-rose-400/20",
-    borderColor: "rgba(244,63,94,0.30)",
-    background: "linear-gradient(145deg, rgba(127,29,29,0.24), rgba(15,23,42,0.96))",
-    shadow: "0 14px 30px rgba(244,63,94,0.10)",
-  };
-}
-
-function getKpiValueClass(kind, value) {
-  const num = Number(value || 0);
-
-  switch (kind) {
-    case "serviceLevel":
-      if (num >= 90) return "text-emerald-300";
-      if (num >= 75) return "text-amber-300";
-      return "text-rose-300";
-
-    case "demandAtRisk":
-    case "unfulfilledDemand":
-    case "revenueExposure":
-      if (num <= 0) return "text-emerald-300";
-      if (num < 100) return "text-amber-300";
-      return "text-rose-300";
-
-    case "ttrDays":
-      if (num <= 1) return "text-emerald-300";
-      if (num <= 3) return "text-amber-300";
-      return "text-rose-300";
-
-    default:
-      return "text-white";
-  }
-}
-
-
 function computeFrontendBbi(selectedRun) {
   const kpis = selectedRun?.raw?.kpis || {};
 
@@ -343,7 +273,6 @@ function MetricCard({ label, value }) {
 export default function Reports(props) {
   const {
     simulationHistory = [],
-    switchView,
   } = props || {};
 
   const runs = useMemo(() => normalizeRuns(simulationHistory), [simulationHistory]);
@@ -467,49 +396,13 @@ export default function Reports(props) {
     return computeFrontendBbi(selectedRun);
   }, [selectedRun]);
 
-  const selectedRunBbiTone = useMemo(() => {
-    return getBbiTone(selectedRunBbi);
-  }, [selectedRunBbi]);
-
   useEffect(() => {
     if (!selectedRun) return;
     console.log("REPORT CHECK", selectedRun);
   }, [selectedRun]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="w-full border-b border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-6 py-4 flex items-center justify-between">
-        <div>
-          <div className="text-lg font-semibold tracking-tight">
-            <span className="text-emerald-400">FOR-C</span>{" "}
-            <span className="text-white">Executive Reports</span>
-          </div>
-          <div className="text-xs text-slate-400 mt-1">
-            Review simulation outcomes, KPIs, and recommended actions
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => switchView && switchView("control")}
-            className="px-4 py-2 text-sm rounded-lg border border-white/10 hover:border-emerald-400/40 hover:text-emerald-300 transition"
-          >
-            ← Back to Control Tower
-          </button>
-
-          <button
-            onClick={() => {
-              localStorage.removeItem("token");
-              window.location.reload();
-            }}
-            className="px-4 py-2 text-sm rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 transition"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-
-      <div
+    <div
       className="w-full text-white rounded-[32px] p-2 md:p-3"
       style={{
         background: "linear-gradient(180deg, rgba(241,245,249,0.22), rgba(226,232,240,0.10))",
@@ -713,20 +606,15 @@ export default function Reports(props) {
                     <div
                       className="rounded-2xl border border-white/10 px-4 py-3 mb-3"
                       style={{
-                        borderColor: selectedRunBbiTone.borderColor,
-                        background: selectedRunBbiTone.background,
-                        boxShadow: selectedRunBbiTone.shadow,
+                        borderColor: "rgba(52,211,153,0.22)",
+                        background: "linear-gradient(145deg, rgba(8,47,73,0.42), rgba(15,23,42,0.96))",
+                        boxShadow: "0 14px 30px rgba(2,6,23,0.22)",
                       }}
                     >
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-300">
-                          Business Balance Index
-                        </div>
-                        <span className={`text-[10px] px-2 py-1 rounded-full ${selectedRunBbiTone.badgeClass}`}>
-                          {selectedRunBbiTone.label}
-                        </span>
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-300 mb-2">
+                        Business Balance Index
                       </div>
-                      <div className={`text-6xl font-semibold tracking-tight ${selectedRunBbiTone.valueClass}`}>
+                      <div className="text-6xl font-semibold tracking-tight text-emerald-300">
                         {selectedRunBbi !== null && selectedRunBbi !== undefined ? `${selectedRunBbi}/100` : "—"}
                       </div>
                       <div className="text-sm text-slate-300 mt-2">
@@ -738,17 +626,14 @@ export default function Reports(props) {
                       <MetricCard
                         label="Service Level"
                         value={formatPercent(selectedRunKpis?.serviceLevel)}
-                        valueClassName={getKpiValueClass("serviceLevel", selectedRunKpis?.serviceLevel)}
                       />
                       <MetricCard
                         label="Demand at Risk"
                         value={formatNumber(selectedRunKpis?.demandAtRisk)}
-                        valueClassName={getKpiValueClass("demandAtRisk", selectedRunKpis?.demandAtRisk)}
                       />
                       <MetricCard
                         label="Unfulfilled Demand"
                         value={formatNumber(selectedRunKpis?.unfulfilledDemand)}
-                        valueClassName={getKpiValueClass("unfulfilledDemand", selectedRunKpis?.unfulfilledDemand)}
                       />
                       <MetricCard
                         label="TTR"
@@ -758,12 +643,10 @@ export default function Reports(props) {
                             ? `${formatNumber(selectedRunKpis?.ttrDays)} days`
                             : "—"
                         }
-                        valueClassName={getKpiValueClass("ttrDays", selectedRunKpis?.ttrDays)}
                       />
                       <MetricCard
                         label="Revenue Exposure"
                         value={formatCurrency(selectedRunKpis?.revenueExposure)}
-                        valueClassName={getKpiValueClass("revenueExposure", selectedRunKpis?.revenueExposure)}
                       />
                     </div>
 
@@ -851,7 +734,6 @@ export default function Reports(props) {
           </section>
         </div>
       )}
-      </div>
     </div>
   );
 }

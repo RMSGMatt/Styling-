@@ -373,51 +373,9 @@ export default function App() {
 
   // Tracks whether backend supplied KPIs for the CURRENT run
   const backendKpisRef = useRef(false);
-  const latestRunIdRef = useRef(null);
 
   const [userRole, setUserRole] = useState("");
   const [userPlan, setUserPlan] = useState("");
-
-  const persistRunKpis = (targetRunId, finalKpis) => {
-    if (!targetRunId || !finalKpis || typeof finalKpis !== "object") return;
-
-    setSimulationHistory((prevHistory) => {
-      const nextHistory = (Array.isArray(prevHistory) ? prevHistory : []).map((run) => {
-        const runId =
-          run?.run_id ??
-          run?.runId ??
-          run?.id ??
-          run?.timestamp ??
-          run?.created_at ??
-          null;
-
-        if (String(runId) !== String(targetRunId)) return run;
-
-        return {
-          ...run,
-          kpis: {
-            ...(run?.kpis || {}),
-            ...finalKpis,
-          },
-          raw: {
-            ...(run?.raw || {}),
-            kpis: {
-              ...(run?.raw?.kpis || {}),
-              ...finalKpis,
-            },
-          },
-        };
-      });
-
-      try {
-        localStorage.setItem("forc_local_runs_v1", JSON.stringify(nextHistory));
-      } catch (err) {
-        console.warn("❌ [persistRunKpis] Failed to persist KPI payload", err);
-      }
-
-      return nextHistory;
-    });
-  };
 
   // Keep scenario ref + localStorage sync
   useEffect(() => {
@@ -1396,27 +1354,7 @@ console.log("KPI_DEBUG_DUMP", allKpis);
       finalKpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
       finalKpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
       finalKpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
-
-      const directRevenueExposure = Number(
-        finalKpis?.estimatedRevenueExposure ??
-        finalKpis?.revenueExposure ??
-        0
-      );
-
-      if (!(directRevenueExposure > 0)) {
-        const revenueUnitsAtRisk = Number(
-          finalKpis?.lateFulfilledUnits ??
-          finalKpis?.unitsAtRisk ??
-          0
-        );
-
-        const fallbackRevenueExposure = revenueUnitsAtRisk * 100;
-
-        finalKpis.estimatedRevenueExposure = fallbackRevenueExposure;
-        finalKpis.revenueExposure = fallbackRevenueExposure;
-      }
 console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
-      persistRunKpis(latestRunIdRef.current, finalKpis);
       setKpis(finalKpis);
     } catch (err) {
       console.error("❌ [KPI] Failed KPI pipeline:", err);
@@ -1563,15 +1501,8 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
         output_urls: normalizedUrls,
         urls: normalizedUrls,
         outputUrls: normalizedUrls,
-        raw: {
-          ...(payload || {}),
-          kpis: {
-            ...(payload?.kpis || {}),
-          },
-        },
         _source: "local",
       };
-      latestRunIdRef.current = entry.run_id || entry.id || entry.created_at || null;
       const nextLocal = upsertLocalRun(entry);
 
 // 🔥 FORCE latest run globally visible immediately
@@ -1620,15 +1551,7 @@ setSimulationHistory((prev) => {
             ? [
                 {
                   ...nextLocal[0],
-                  kpis: {
-                    ...(nextLocal[0]?.kpis || {}),
-                  },
-                  raw: {
-                    ...(nextLocal[0]?.raw || {}),
-                    kpis: {
-                      ...(nextLocal[0]?.raw?.kpis || {}),
-                    },
-                  },
+                  kpis: kpis || {},   // 🔥 ATTACH KPIs
                   ...(builtReport
                     ? { report: builtReport, executiveReport: builtReport }
                     : {}),

@@ -1052,12 +1052,11 @@ export default function SimulationDashboard({
     liveUnfulfilledDemand > 0 ? "Unfulfilled Demand" : "Service Degradation";
 
   const liveImmediatePriority =
-    liveUnfulfilledDemand > 0
-      ? "Restore supply flow"
-      : liveDemandAtRisk > 0
-      ? "Stabilize service"
-      : "Monitor performance";
-    const isRunning = simulationStatus === "running";
+    liveDemandAtRisk > 0 || liveUnfulfilledDemand > 0
+      ? liveImmediatePriority
+      : "Maintain service stability";
+
+  const isRunning = simulationStatus === "running";
 
   const statusLabel =
     simulationStatus === "idle"
@@ -2519,108 +2518,9 @@ setOverlayChartData(overlay);
               </div>
             </div>
 
-              <div className="mt-3 text-[10px] text-slate-300">
-                <p>
-                  <span
-                    className="font-semibold"
-                    style={{ color: "#9CF700" }}
-                  >
-                    Tip:
-                  </span>{" "}
-                  Use the SKU and output filters below to see how KPIs move by
-                  product or output type.
-                </p>
-              </div>
-            </div>
-        </section>
-
-{/* ===== Scenario Impact Summary ============================== */}
-        <section
-          className="rounded-2xl p-5 shadow-xl border"
-          style={{
-            background:
-              "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(6,36,27,0.98))",
-            borderColor: "#123528",
-          }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-50">
-                ⚠️ Disruption Impact Summary
-              </h2>
-              <p
-                className="text-[11px] mt-1 font-semibold"
-                style={{
-                  color:
-                    scenarioImpactSummary?.networkHealth === "critical"
-                      ? "#f87171"
-                      : scenarioImpactSummary?.networkHealth === "stress"
-                      ? "#FFB200"
-                      : "#9CF700",
-                }}
-              >
-                Scenario: {scenarioData?.name?.trim() ? scenarioData.name : "Baseline / Healthy Network"}
-              </p>
-              <p className="text-xs text-slate-300 mt-1">
-                Plain-language interpretation of the latest simulation run.
-              </p>
-              <p className="text-[11px] text-slate-400 mt-2">
-                These signals explain why the service risk above appeared and which constraints drove it.
-              </p>
-            </div>
-            <div
-              className="text-xs font-semibold px-3 py-1 rounded-full"
-              style={{
-                backgroundColor:
-                  scenarioImpactSummary?.networkHealth === "healthy"
-                    ? "rgba(156, 247, 0, 0.12)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "rgba(239, 68, 68, 0.14)"
-                    : "rgba(255, 178, 0, 0.12)",
-                color:
-                  scenarioImpactSummary?.networkHealth === "healthy"
-                    ? "#9CF700"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "#f87171"
-                    : "#FFB200",
-                border:
-                  scenarioImpactSummary?.networkHealth === "healthy"
-                    ? "1px solid rgba(156, 247, 0, 0.35)"
-                    : scenarioImpactSummary?.networkHealth === "critical"
-                    ? "1px solid rgba(239, 68, 68, 0.35)"
-                    : "1px solid rgba(255, 178, 0, 0.35)",
-              }}
-            >
-              {liveNetworkHealthLabel}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 bg-slate-900/50 border border-slate-700/80 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{
-                    backgroundColor:
-                      scenarioImpactSummary?.networkHealth === "healthy"
-                        ? "#9CF700"
-                        : scenarioImpactSummary?.networkHealth === "critical"
-                        ? "#f87171"
-                        : "#FFB200",
-                  }}
-                />
-                <p className="text-[11px] uppercase tracking-[0.12em] text-slate-400">
-                  Executive Insight
-                </p>
-              </div>
-
-              <p
-                className="text-[1.75rem] leading-tight font-semibold mb-3"
-                style={{ color: "#E8FFE8" }}
-              >
-                {scenarioImpactSummary?.headline || "No simulation summary available yet."}
-              </p>
-
+            <div className="mt-3 text-[10px] text-slate-300">
+              <p>
+                <span
               <p className="text-sm text-slate-300 leading-7">
                 {scenarioImpactSummary?.narrative ? (
                   <>
@@ -2703,6 +2603,7 @@ setOverlayChartData(overlay);
                 </div>
 
                 <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <span className="text-slate-300">Fill Rate</span>
                   <span
                     className="font-semibold"
@@ -2717,6 +2618,13 @@ setOverlayChartData(overlay);
                   >
                     {liveServiceLevel.toFixed(1)}%
                   </span>
+                </div>
+                  <span className="text-slate-300">Fill Rate</span>
+                  <span
+                    className="font-semibold"
+                    style={{
+                      color:
+                        (scenarioImpactSummary?.fillRate ?? 0) >{liveServiceLevel.toFixed(1)}%</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -2740,77 +2648,93 @@ setOverlayChartData(overlay);
                 </div>
               </div>
 
+              <div className="bg-slate-900/40 border border-slate-700/80 rounded-xl p-4 mt-4">
+                <p className="text-xs font-semibold text-slate-50 mb-2">
+                  Decision Snapshot
+                </p>
 
-
-                <div className="bg-slate-900/40 border border-slate-700/80 rounded-xl p-4 mt-4">
-                  <p className="text-xs font-semibold text-slate-50 mb-2">
-                    Decision Snapshot
-                  </p>
-
-                  <div className="space-y-2 text-xs text-slate-300">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-400">Primary Constraint</span>
-                      <span className="text-amber-300 font-semibold">
-                        {liveUnfulfilledDemand > 0 ? livePrimaryConstraint : "Service Continuity"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-400">Operational Risk</span>
-                      <span
-                        className="font-semibold"
-                        style={{
-                          color:
-                            liveServiceLevel >= 90
-                              ? "#9CF700"
-                              : liveServiceLevel >= 70
-                              ? "#FFB200"
-                              : "#f87171",
-                        }}
-                      >
-                        {liveNetworkHealthLabel}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-400">Immediate Priority</span>
-                      <span className="text-emerald-300 font-semibold text-right">
-                        {liveDemandAtRisk > 0 ? liveImmediatePriority : "Maintain current network stability"}
-                      </span>
-                    </div>
+                <div className="space-y-2 text-xs text-slate-300">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-400">Primary Constraint</span>
+                    <span className="text-amber-300 font-semibold">
+                      {(scenarioImpactSummary?.missingComponents ?? 0) > 0
+                        ? livePrimaryConstraint
+                        : "Service Continuity"}
+                    </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-700/60">
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-400">Operational Risk</span>
+                    <span
+                      className="font-semibold"
                       style={{
-                        borderColor: "rgba(34, 197, 94, 0.35)",
-                        backgroundColor: "rgba(34, 197, 94, 0.12)",
-                        color: "#bbf7d0",
+                        color:
+                          scenarioImpactSummary?.networkHealth === "critical"
+                            ? "#f87171"
+                            : scenarioImpactSummary?.networkHealth === "stress"
+                            ? "#FFB200"
+                            : "#9CF700",
                       }}
                     >
-                      Save Insight
-                    </button>
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
-                      style={{
-                        borderColor: "rgba(148, 163, 184, 0.35)",
-                        backgroundColor: "rgba(2, 6, 23, 0.45)",
-                        color: "#E2E8F0",
-                      }}
-                    >
-                      Share Insight
-                    </button>
+                      {scenarioImpactSummary?.networkHealthLabel || "Healthy Network"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-400">Immediate Priority</span>
+                    <span className="text-emerald-300 font-semibold text-right">
+                      {(scenarioImpactSummary?.lateDemand ?? 0) > 0
+                        ? liveImmediatePriority
+                        : "Maintain current network stability"}
+                    </span>
                   </div>
                 </div>
+
+                <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-700/60">
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
+                    style={{
+                      borderColor: "rgba(34, 197, 94, 0.35)",
+                      backgroundColor: "rgba(34, 197, 94, 0.12)",
+                      color: "#bbf7d0",
+                    }}
+                  >
+                    Save Insight
+                  </button>
+
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
+                    style={{
+                      borderColor: "rgba(148, 163, 184, 0.28)",
+                      backgroundColor: "rgba(2, 6, 23, 0.45)",
+                      color: "#E2E8F0",
+                    }}
+                  >
+                    Export Summary
+                  </button>
+
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
+                    style={{
+                      borderColor: "rgba(148, 163, 184, 0.28)",
+                      backgroundColor: "rgba(2, 6, 23, 0.45)",
+                      color: "#E2E8F0",
+                    }}
+                  >
+                    Share Insight
+                  </button>
+                </div>
+              </div>
             </div>
-            </div>
-          </section>
+          </div>
+        </section>
 
                 {/* Scenario Builder */}
         <section className="grid grid-cols-1 gap-4">
+{/* Scenario Builder */}
           <div
             className="rounded-2xl p-4 border scenario-builder-panel"
             style={{

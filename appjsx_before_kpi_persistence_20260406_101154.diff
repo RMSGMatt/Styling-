@@ -1,0 +1,91 @@
+diff --git a/src/App.jsx b/src/App.jsx
+index f55a4c8..87b37a6 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -507,6 +507,7 @@ export default function App() {
+ 
+       // merge (prefer remote)
+       const merged = [
++
+         ...remote.map((r) => ({ ...r, _source: "remote" })),
+         ...local
+           .filter((lr) => {
+@@ -1491,6 +1492,9 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
+ 
+       // Save run locally immediately (so history is never empty)
+       const entry = {
++  ...(normalizedUrls || {}),
++  // 🔥 report will be injected after build
++
+         id: payload.run_id || payload.id || payload.timestamp || `${Date.now()}`,
+         run_id: payload.run_id,
+         created_at: payload.timestamp || new Date().toISOString(),
+@@ -1507,21 +1511,61 @@ try {
+ } catch (e) {
+   console.warn("Failed to persist latest run", e);
+ }
+-      setSimulationHistory((prev) => {
++      // 🔥 Build report BEFORE inserting run
++      const reportResult = await buildExecutiveReportAfterSim({
++        run_id: normalizedUrls?.run_id || normalizedUrls?.id || normalizedUrls?.timestamp,
++        timestamp: normalizedUrls?.run_id || normalizedUrls?.id || normalizedUrls?.timestamp,
++        kpis: kpis || {},
++      });
++
++      const builtReport =
++        reportResult?.report ||
++        reportResult?.executiveReport ||
++        reportResult?.executive_report ||
++        null;
++
++      // 🔥 FORCE inject into nextLocal BEFORE merge
++      if (builtReport && Array.isArray(nextLocal) && nextLocal.length > 0) {
++        nextLocal[0] = {
++          ...nextLocal[0],
++          report: builtReport,
++          executiveReport: builtReport,
++        };
++      }
++
++      // 🔥 FORCE inject into nextLocal BEFORE merge
++      if (builtReport && Array.isArray(nextLocal) && nextLocal.length > 0) {
++        nextLocal[0] = {
++          ...nextLocal[0],
++          report: builtReport,
++          executiveReport: builtReport,
++        };
++      }
++
++setSimulationHistory((prev) => {
+         const prevArr = Array.isArray(prev) ? prev : [];
+         // merge: prefer remote entries if present
+         const merged = [
+           ...prevArr.filter((r) => r?._source === "remote"),
+-          ...nextLocal,
++          ...(nextLocal.length > 0
++            ? [
++                {
++                  ...nextLocal[0],
++                  kpis: kpis || {},   // 🔥 ATTACH KPIs
++                  ...(builtReport
++                    ? { report: builtReport, executiveReport: builtReport }
++                    : {}),
++                },
++              ]
++            : []),
++          ...nextLocal.slice(1),
+         ];
+         return merged;
+       });
+ 
+-      await buildExecutiveReportAfterSim({
+-        run_id: normalizedUrls?.run_id || normalizedUrls?.id || normalizedUrls?.timestamp,
+-        timestamp: normalizedUrls?.run_id || normalizedUrls?.id || normalizedUrls?.timestamp,
+-        kpis: kpis || {},
+-      });
++      
++
++      
+ 
+       // Reset facility selection
+       setSelectedFacility(null);
