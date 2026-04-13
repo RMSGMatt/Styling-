@@ -196,7 +196,7 @@ const SKU_VALUE_MAP = {
 
 const DEFAULT_SKU_VALUE = 75;
 
-function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], productionRows = []) {
+function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], productionRows = [], executiveKpis = {}) {
   const custRows = (flowRows || []).filter((r) => {
     const ft = String(r.flow_type || r.FlowType || r.type || "").trim().toLowerCase();
     return ft === "customer_ship" || ft === "customer ship" || ft === "customership";
@@ -212,8 +212,6 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
     return sum + (Number.isFinite(v) ? v : 0);
   }, 0);
 
-  const fillRate = demand > 0 ? (shipped / demand) * 100 : 0;
-
   const byReason = (occurrenceRows || []).reduce((acc, r) => {
     const reason = String(r.reason || r.Reason || "UNKNOWN").trim();
     const qty = Number(r.unfulfilled ?? r.Unfulfilled ?? 0);
@@ -221,8 +219,35 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
     return acc;
   }, {});
 
-  const lateDemand = byReason["LATE_CUSTOMER_DEMAND"] || 0;
   const missingComponents = byReason["MISSING_COMPONENTS"] || 0;
+
+  const serviceLevel = Number(
+    executiveKpis?.onTimeFulfillment ??
+    executiveKpis?.serviceLevelPct ??
+    0
+  );
+
+  const lateDemand = Number(
+    executiveKpis?.lateFulfilledUnits ??
+    executiveKpis?.demandAtRiskUnits ??
+    0
+  );
+
+  const peakBacklog = Number(
+    executiveKpis?.peakBacklogUnits ??
+    executiveKpis?.unfulfilledDemandUnits ??
+    0
+  );
+
+  const missedServiceDays = Number(
+    executiveKpis?.missedServiceDays ??
+    0
+  );
+
+  const ttrDays = Number(
+    executiveKpis?.timeToRecoverDays ??
+    0
+  );
 
   const totalProduction = (productionRows || []).reduce((sum, r) => {
     const v = Number(r.produced ?? r.Produced ?? 0);
@@ -239,7 +264,7 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
       .filter(Boolean)
   ).size;
 
-  if (fillRate >= 99 && lateDemand === 0) {
+  if (serviceLevel >= 99 && lateDemand === 0) {
     headline =
       missingComponents > 0
         ? "Supply chain remained stable despite upstream material constraints."
@@ -259,14 +284,14 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
           "Monitor live incident feeds for early-warning changes in supply conditions.",
           "Preserve baseline safety stock settings and continue routine network surveillance.",
         ];
-  } else if (lateDemand > 0 || fillRate < 95) {
+  } else if (lateDemand > 0 || serviceLevel < 95) {
     headline = missingComponents > 0
       ? "Component shortages constrained production and reduced service."
       : "Customer service degradation increased backlog across the network.";
     narrative =
       missingComponents > 0
-        ? `Upstream material shortages prevented full production execution, contributing to ${missingComponents.toLocaleString()} missing component events and ${lateDemand.toLocaleString()} units of late demand. As the disruption propagated across ${impactedFacilities || 0} impacted facilities, fill rate fell to ${fillRate.toFixed(1)}%, indicating that mitigation actions were not sufficient to fully protect downstream service.`
-        : `The model indicates that shipment performance fell below demand requirements, with ${lateDemand.toLocaleString()} units pushed late and overall fill rate reduced to ${fillRate.toFixed(1)}%. While production continued, the network was unable to fully convert available supply into on-time fulfillment, signaling downstream service pressure and recovery risk.`;
+        ? `Upstream material shortages prevented full production execution, contributing to ${missingComponents.toLocaleString()} missing component events and ${lateDemand.toLocaleString()} units of late demand. As the disruption propagated across ${impactedFacilities || 0} impacted facilities, service level fell to ${serviceLevel.toFixed(1)}%, indicating that mitigation actions were not sufficient to fully protect downstream service.`
+        : `The model indicates that shipment performance fell below demand requirements, with ${lateDemand.toLocaleString()} units pushed late and on-time service level reduced to ${serviceLevel.toFixed(1)}%. While production continued, the network was unable to fully convert available supply into on-time fulfillment, signaling downstream service pressure and recovery risk.`;
     countermeasures = missingComponents > 0
       ? [
           "Expedite constrained components from alternate or backup suppliers.",
@@ -293,10 +318,10 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
   let networkHealth = "healthy";
   let networkHealthLabel = "🟢 Healthy Network";
 
-  if (fillRate >= 99 && lateDemand === 0) {
+  if (serviceLevel >= 99 && lateDemand === 0) {
     networkHealth = "healthy";
     networkHealthLabel = "🟢 Healthy Network";
-  } else if (fillRate < 90) {
+  } else if (serviceLevel < 90) {
     networkHealth = "critical";
     networkHealthLabel = "🔴 Critical Supply Disruption";
   } else {
@@ -307,8 +332,11 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
   return {
     demand,
     shipped,
-    fillRate,
+    serviceLevel,
     lateDemand,
+    peakBacklog,
+    missedServiceDays,
+    ttrDays,
     missingComponents,
     totalProduction,
     headline,
@@ -354,6 +382,33 @@ export default function App() {
   const [simulationHistory, setSimulationHistory] = useState([]);
   const [summaryStats, setSummaryStats] = useState({});
   const [kpis, setKpis] = useState({});
+
+  // ===============================
+  // BASELINE KPI SELECTION LOGIC
+  // ===============================
+  const baselineKpis = (() => {
+    if (!Array.isArray(simulationHistory) || simulationHistory.length < 2) return null;
+
+    const baselineRun = simulationHistory[1];
+
+    if (!baselineRun) return null;
+
+    // Priority 1: Executive report KPIs
+    const reportKpis =
+      baselineRun?.report?.metrics?.kpis ||
+      baselineRun?.executiveReport?.metrics?.kpis;
+
+    if (reportKpis && typeof reportKpis === "object") return reportKpis;
+
+    // Priority 2: Raw stored KPIs
+    if (baselineRun?.raw?.kpis) return baselineRun.raw.kpis;
+
+    // Priority 3: Direct KPIs
+    if (baselineRun?.kpis) return baselineRun.kpis;
+
+    return null;
+  })();
+
   const [scenarioImpactSummary, setScenarioImpactSummary] = useState(null);
 
   const [disruptionImpactData, setDisruptionImpactData] = useState([]);
@@ -1268,32 +1323,6 @@ console.log("📦 [KPI] Service truth JSON:", JSON.stringify(serviceTruth, null,
         }
       }
 
-      // ----- SCENARIO IMPACT SUMMARY -----
-      try {
-        const flowRowsForSummary = urls.flow_output_file_url
-          ? await fetchCsvRows(urls.flow_output_file_url)
-          : [];
-
-        const occurrenceRowsForSummary = urls.occurrence_output_file_url
-          ? await fetchCsvRows(urls.occurrence_output_file_url)
-          : [];
-
-        const productionRowsForSummary = urls.production_output_file_url
-          ? await fetchCsvRows(urls.production_output_file_url)
-          : [];
-
-        const summary = buildScenarioImpactSummary(
-          flowRowsForSummary,
-          occurrenceRowsForSummary,
-          productionRowsForSummary
-        );
-
-        setScenarioImpactSummary(summary);
-      } catch (e) {
-        console.warn("⚠️ Failed to build scenario impact summary:", e);
-        setScenarioImpactSummary(null);
-      }
-
       
       const toNumber = (v) => {
         if (v == null || v === "") return 0;
@@ -1314,11 +1343,12 @@ console.log("KPI_DEBUG_DUMP", allKpis);
         {};
 
       const normalizedServiceKpis = {
-        fillRatePct: Number(
-          serviceTruth?.fillRatePct ??
-          toNumber(allKpis?.demandFulfillment) ??
-          0
-        ),
+          serviceLevelPct: Number(
+            serviceTruth?.onTimeFillRatePct ??
+            serviceTruth?.onTimeFillPct ??
+            toNumber(allKpis?.onTimeFulfillment) ??
+            0
+          ),
         onTimeFulfillment: Number(
           serviceTruth?.onTimeFillRatePct ??
           serviceTruth?.onTimeFillPct ??
@@ -1389,31 +1419,71 @@ console.log("KPI_DEBUG_DUMP", allKpis);
         ...normalizedServiceKpis,
       };
 
+      const executiveKpis = {
+        serviceLevelPct: Number(kpis?.onTimeFulfillment ?? 0),
+        demandAtRiskUnits: Number(kpis?.lateFulfilledUnits ?? 0),
+        unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? 0),
+        missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
+        timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
+        timeToSurviveDays: Number(kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? 0),
+        revenueExposure: Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 0),
+        onTimeFulfillment: Number(kpis?.onTimeFulfillment ?? 0),
+        lateFulfilledUnits: Number(kpis?.lateFulfilledUnits ?? 0),
+        peakBacklogUnits: Number(kpis?.peakBacklogUnits ?? 0),
+      };
+
+      // ----- SCENARIO IMPACT SUMMARY -----
+      try {
+        const flowRowsForSummary = urls.flow_output_file_url
+          ? await fetchCsvRows(urls.flow_output_file_url)
+          : [];
+
+        const occurrenceRowsForSummary = urls.occurrence_output_file_url
+          ? await fetchCsvRows(urls.occurrence_output_file_url)
+          : [];
+
+        const productionRowsForSummary = urls.production_output_file_url
+          ? await fetchCsvRows(urls.production_output_file_url)
+          : [];
+
+        const summary = buildScenarioImpactSummary(
+          flowRowsForSummary,
+          occurrenceRowsForSummary,
+          productionRowsForSummary,
+          executiveKpis
+        );
+
+        setScenarioImpactSummary(summary);
+      } catch (e) {
+        console.warn("⚠️ Failed to build scenario impact summary:", e);
+        setScenarioImpactSummary(null);
+      }
+
       
       // 🔥 FINAL OVERRIDE — force correct service KPIs
-      finalKpis.lateFulfilledUnits = Number(serviceTruth?.lateFulfilledUnits || 0);
-      finalKpis.unitsAtRisk = Number(serviceTruth?.lateFulfilledUnits || 0);
-      finalKpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
-      finalKpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
-      finalKpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
+      kpis.lateFulfilledUnits = Number(serviceTruth?.lateFulfilledUnits || 0);
+      kpis.unitsAtRisk = Number(serviceTruth?.lateFulfilledUnits || 0);
+      kpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
+      kpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
+      kpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
 
       const directRevenueExposure = Number(
-        finalKpis?.estimatedRevenueExposure ??
-        finalKpis?.revenueExposure ??
+        kpis?.estimatedRevenueExposure ??
+        kpis?.revenueExposure ??
         0
       );
 
       if (!(directRevenueExposure > 0)) {
         const revenueUnitsAtRisk = Number(
-          finalKpis?.lateFulfilledUnits ??
-          finalKpis?.unitsAtRisk ??
+          kpis?.lateFulfilledUnits ??
+          kpis?.unitsAtRisk ??
           0
         );
 
         const fallbackRevenueExposure = revenueUnitsAtRisk * 100;
 
-        finalKpis.estimatedRevenueExposure = fallbackRevenueExposure;
-        finalKpis.revenueExposure = fallbackRevenueExposure;
+        kpis.estimatedRevenueExposure = fallbackRevenueExposure;
+        kpis.revenueExposure = fallbackRevenueExposure;
       }
 console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
       persistRunKpis(latestRunIdRef.current, finalKpis);
@@ -1876,6 +1946,15 @@ setSimulationHistory((prev) => {
         <AuthPage onLogin={handleLogin} />
       ) : view === "simulation" ? (
         <SimulationDashboard
+          executiveKpis={{
+            serviceLevelPct: Number(kpis?.onTimeFulfillment ?? 0),
+            demandAtRiskUnits: Number(kpis?.lateFulfilledUnits ?? 0),
+            unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? 0),
+            missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
+            timeToRecoverDays: Number(kpis?.ttrDays ?? kpis?.timeToRecoverDays ?? 0),
+            timeToSurviveDays: Number(kpis?.ttsDays ?? kpis?.timeToSurviveDays ?? 0),
+            revenueExposure: Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 0),
+          }}
           handleFileChange={handleFileChange}
           handleSubmit={handleSubmit}
           simulationStatus={simulationStatus}
@@ -1891,6 +1970,7 @@ setSimulationHistory((prev) => {
           simulationHistory={simulationHistory}
           files={files}
           kpis={kpis}
+          baselineKpis={typeof baselineKpis !== "undefined" ? baselineKpis : null}
           onLogout={handleLogout}
           switchView={setView}
           onReloadRun={onReloadRun}

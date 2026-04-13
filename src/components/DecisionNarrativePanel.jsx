@@ -1,0 +1,124 @@
+import React, { useMemo } from "react";
+import {
+  buildBaselineComparison,
+  buildDecisionNarrative,
+  getSeverityClasses,
+} from "../utils/decisionEngine";
+
+function ComparisonCard({ card }) {
+  const tone = getSeverityClasses(card.severity.tone);
+
+  return (
+    <div className={`rounded-2xl border p-4 shadow-sm ${tone.card}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-300">
+            {card.label}
+          </p>
+          <p className={`mt-2 text-2xl font-semibold ${tone.value}`}>
+            {card.currentDisplay}
+          </p>
+          <p className="mt-1 text-xs text-slate-300">
+            Baseline: {card.baselineDisplay}
+          </p>
+        </div>
+
+        <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${tone.badge}`}>
+          {card.severity.icon} {card.severity.label}
+        </span>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between text-sm">
+        <span className="text-slate-300">Change vs baseline</span>
+        <span
+          className={`font-semibold ${
+            card.isWorse
+              ? "text-red-200"
+              : card.isBetter
+              ? "text-emerald-200"
+              : "text-slate-200"
+          }`}
+        >
+          {card.deltaArrow} {card.deltaDisplay}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export default function DecisionNarrativePanel({
+  kpis = {},
+  baselineKpis = null,
+  materialRiskData = [],
+}) {
+  const comparison = useMemo(
+    () => buildBaselineComparison(kpis, baselineKpis),
+    [kpis, baselineKpis]
+  );
+
+  const narrative = useMemo(
+    () =>
+      buildDecisionNarrative({
+        currentKpis: kpis,
+        baselineKpis,
+        materialRiskData,
+      }),
+    [kpis, baselineKpis, materialRiskData]
+  );
+
+  return (
+    <section className="rounded-3xl border border-slate-700 bg-slate-900/80 p-5 shadow-xl">
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-emerald-300">
+            Decision Layer
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-white">
+            What Changed vs Baseline
+          </h2>
+          <p className="mt-1 text-sm text-slate-300">
+            Executive view of impact, urgency, and next best action.
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Comparing vs Previous Run
+          </p>
+        </div>
+
+        {!comparison.hasBaseline && (
+          <div className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
+            Baseline not yet connected
+          </div>
+        )}
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {comparison.cards.map((card) => (
+          <ComparisonCard key={card.metricId} card={card} />
+        ))}
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
+        <div className="rounded-2xl border border-slate-700 bg-slate-800/70 p-5">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-300">
+            What happened / why it matters
+          </p>
+          <h3 className="mt-2 text-lg font-semibold text-white">
+            {narrative.headline}
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-slate-200">
+            {narrative.summary}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-200">
+            What to do next
+          </p>
+          <p className="mt-3 text-sm font-medium leading-6 text-emerald-50">
+            {narrative.action}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
