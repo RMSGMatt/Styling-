@@ -390,28 +390,31 @@ export default function App() {
   const baselineOptions = useMemo(() => {
     if (!Array.isArray(simulationHistory) || simulationHistory.length < 2) return [];
 
-    return simulationHistory.slice(1).map((run, index) => {
-      const id = String(
-        run?.run_id ||
-        run?.id ||
-        run?.createdAt ||
-        run?.created_at ||
-        run?.timestamp ||
-        `baseline_${index + 1}`
-      );
+    return simulationHistory
+      .slice(1)
+      .map((run, index) => {
+        const runId =
+          run?.run_id ||
+          run?.id ||
+          run?.created_at ||
+          run?.timestamp ||
+          `baseline_${index + 1}`;
 
-      const labelBase =
-        run?.createdAt ||
-        run?.created_at ||
-        run?.timestamp ||
-        `Run ${index + 2}`;
+        const createdAt =
+          run?.created_at ||
+          run?.createdAt ||
+          run?.timestamp ||
+          "";
 
-      return {
-        id,
-        label: `Run ${index + 2} • ${labelBase}`,
-        entry: run,
-      };
-    });
+        return {
+          id: String(runId),
+          label: createdAt
+            ? `Run ${index + 2} • ${createdAt}`
+            : `Run ${index + 2}`,
+          entry: run,
+        };
+      })
+      .filter((item) => item?.id);
   }, [simulationHistory]);
 
   useEffect(() => {
@@ -420,37 +423,45 @@ export default function App() {
       return;
     }
 
-    const exists = baselineOptions.some((o) => o.id === selectedBaselineRunId);
-    if (!exists) setSelectedBaselineRunId(baselineOptions[0].id);
+    const exists = baselineOptions.some(
+      (option) => option.id === selectedBaselineRunId
+    );
+
+    if (!exists) {
+      setSelectedBaselineRunId(baselineOptions[0].id);
+    }
   }, [baselineOptions, selectedBaselineRunId]);
 
   const selectedBaselineEntry = useMemo(() => {
     if (!baselineOptions.length) return null;
+
     return (
-      baselineOptions.find((o) => o.id === selectedBaselineRunId)?.entry ||
+      baselineOptions.find((option) => option.id === selectedBaselineRunId)?.entry ||
       baselineOptions[0]?.entry ||
       null
     );
   }, [baselineOptions, selectedBaselineRunId]);
 
   const baselineKpis = useMemo(() => {
-    const run = selectedBaselineEntry;
-    if (!run) return null;
+    const baselineRun = selectedBaselineEntry;
+    if (!baselineRun) return null;
 
-    return (
-      run?.report?.metrics?.kpis ||
-      run?.executiveReport?.metrics?.kpis ||
-      run?.raw?.kpis ||
-      run?.kpis ||
-      null
-    );
+    const reportKpis =
+      baselineRun?.report?.metrics?.kpis ||
+      baselineRun?.executiveReport?.metrics?.kpis;
+
+    if (reportKpis && typeof reportKpis === "object") return reportKpis;
+    if (baselineRun?.raw?.kpis) return baselineRun.raw.kpis;
+    if (baselineRun?.kpis) return baselineRun.kpis;
+
+    return null;
   }, [selectedBaselineEntry]);
 
   const baselineLabel = useMemo(() => {
     if (!baselineOptions.length) return "No baseline selected";
 
     return (
-      baselineOptions.find((o) => o.id === selectedBaselineRunId)?.label ||
+      baselineOptions.find((option) => option.id === selectedBaselineRunId)?.label ||
       baselineOptions[0]?.label ||
       "Previous Run"
     );
@@ -1460,58 +1471,10 @@ console.log("KPI_DEBUG_DUMP", allKpis);
           0
         ),
       };
-      const sumRevenueFromImpactRows = (rows) => {
-        if (!Array.isArray(rows) || rows.length === 0) return 0;
-
-        return rows.reduce((sum, row) => {
-          const value = Number(
-            row?.revenue_at_risk ??
-            row?.revenueAtRisk ??
-            row?.estimated_revenue_exposure ??
-            row?.estimatedRevenueExposure ??
-            row?.revenue_exposure ??
-            row?.revenueExposure ??
-            row?.financial_impact ??
-            row?.financialImpact ??
-            row?.estimated_loss ??
-            row?.estimatedLoss ??
-            row?.revenue_at_risk_usd ??
-            row?.revenueAtRiskUsd ??
-            row?.value_at_risk ??
-            row?.valueAtRisk ??
-            0
-          );
-          return sum + (Number.isFinite(value) ? value : 0);
-        }, 0);
-      };
-
-      const projectedImpactRowsForRevenue =
-        urls?.projected_impact_output_file_url
-          ? await fetchCsvRows(urls.projected_impact_output_file_url)
-          : [];
-      const disruptionImpactRowsForRevenue =
-        urls?.disruption_impact_output_file_url
-          ? await fetchCsvRows(urls.disruption_impact_output_file_url)
-          : [];
-
-      const rowLevelRevenueExposure =
-        sumRevenueFromImpactRows(projectedImpactRowsForRevenue) ||
-        sumRevenueFromImpactRows(disruptionImpactRowsForRevenue) ||
-        0;
-
-      console.log("[Revenue Debug] projectedImpactRowsForRevenue sample:", projectedImpactRowsForRevenue?.[0]);
-      console.log("[Revenue Debug] disruptionImpactRowsForRevenue sample:", disruptionImpactRowsForRevenue?.[0]);
-      console.log("[KPI Revenue] rowLevelRevenueExposure:", rowLevelRevenueExposure);
-
-
-
-
 
       const finalKpis = {
         ...allKpis,
         ...normalizedServiceKpis,
-        estimatedRevenueExposure: (serviceTruth?.lateFulfilledUnits || 0) * 100,
-        revenueExposure: (serviceTruth?.lateFulfilledUnits || 0) * 100,
       };
 
       const executiveKpis = {
@@ -1562,7 +1525,24 @@ console.log("KPI_DEBUG_DUMP", allKpis);
       kpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
       kpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
 
-      
+      const directRevenueExposure = Number(
+        kpis?.estimatedRevenueExposure ??
+        kpis?.revenueExposure ??
+        0
+      );
+
+      if (!(directRevenueExposure > 0)) {
+        const revenueUnitsAtRisk = Number(
+          kpis?.lateFulfilledUnits ??
+          kpis?.unitsAtRisk ??
+          0
+        );
+
+        const fallbackRevenueExposure = revenueUnitsAtRisk * 100;
+
+        kpis.estimatedRevenueExposure = fallbackRevenueExposure;
+        kpis.revenueExposure = fallbackRevenueExposure;
+      }
 console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
       persistRunKpis(latestRunIdRef.current, finalKpis);
       setKpis(finalKpis);
@@ -2048,7 +2028,7 @@ setSimulationHistory((prev) => {
           simulationHistory={simulationHistory}
           files={files}
           kpis={kpis}
-          baselineKpis={baselineKpis}
+          baselineKpis={typeof baselineKpis !== "undefined" ? baselineKpis : null}
           baselineOptions={baselineOptions}
           selectedBaselineRunId={selectedBaselineRunId}
           setSelectedBaselineRunId={setSelectedBaselineRunId}

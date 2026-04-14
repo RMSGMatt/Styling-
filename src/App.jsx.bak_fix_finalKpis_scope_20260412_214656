@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import ToastsHost from "./components/Toasts";
 import AboutUs from "./pages/AboutUs";
 import AuthPage from "./pages/AuthPage";
@@ -380,82 +380,8 @@ export default function App() {
   const [selectedFacility, setSelectedFacility] = useState(null);
 
   const [simulationHistory, setSimulationHistory] = useState([]);
-  const [selectedBaselineRunId, setSelectedBaselineRunId] = useState("");
   const [summaryStats, setSummaryStats] = useState({});
   const [kpis, setKpis] = useState({});
-
-  // ===============================
-  // BASELINE KPI SELECTION LOGIC
-  // ===============================
-  const baselineOptions = useMemo(() => {
-    if (!Array.isArray(simulationHistory) || simulationHistory.length < 2) return [];
-
-    return simulationHistory.slice(1).map((run, index) => {
-      const id = String(
-        run?.run_id ||
-        run?.id ||
-        run?.createdAt ||
-        run?.created_at ||
-        run?.timestamp ||
-        `baseline_${index + 1}`
-      );
-
-      const labelBase =
-        run?.createdAt ||
-        run?.created_at ||
-        run?.timestamp ||
-        `Run ${index + 2}`;
-
-      return {
-        id,
-        label: `Run ${index + 2} • ${labelBase}`,
-        entry: run,
-      };
-    });
-  }, [simulationHistory]);
-
-  useEffect(() => {
-    if (!baselineOptions.length) {
-      if (selectedBaselineRunId) setSelectedBaselineRunId("");
-      return;
-    }
-
-    const exists = baselineOptions.some((o) => o.id === selectedBaselineRunId);
-    if (!exists) setSelectedBaselineRunId(baselineOptions[0].id);
-  }, [baselineOptions, selectedBaselineRunId]);
-
-  const selectedBaselineEntry = useMemo(() => {
-    if (!baselineOptions.length) return null;
-    return (
-      baselineOptions.find((o) => o.id === selectedBaselineRunId)?.entry ||
-      baselineOptions[0]?.entry ||
-      null
-    );
-  }, [baselineOptions, selectedBaselineRunId]);
-
-  const baselineKpis = useMemo(() => {
-    const run = selectedBaselineEntry;
-    if (!run) return null;
-
-    return (
-      run?.report?.metrics?.kpis ||
-      run?.executiveReport?.metrics?.kpis ||
-      run?.raw?.kpis ||
-      run?.kpis ||
-      null
-    );
-  }, [selectedBaselineEntry]);
-
-  const baselineLabel = useMemo(() => {
-    if (!baselineOptions.length) return "No baseline selected";
-
-    return (
-      baselineOptions.find((o) => o.id === selectedBaselineRunId)?.label ||
-      baselineOptions[0]?.label ||
-      "Previous Run"
-    );
-  }, [baselineOptions, selectedBaselineRunId]);
-
   const [scenarioImpactSummary, setScenarioImpactSummary] = useState(null);
 
   const [disruptionImpactData, setDisruptionImpactData] = useState([]);
@@ -1460,71 +1386,23 @@ console.log("KPI_DEBUG_DUMP", allKpis);
           0
         ),
       };
-      const sumRevenueFromImpactRows = (rows) => {
-        if (!Array.isArray(rows) || rows.length === 0) return 0;
-
-        return rows.reduce((sum, row) => {
-          const value = Number(
-            row?.revenue_at_risk ??
-            row?.revenueAtRisk ??
-            row?.estimated_revenue_exposure ??
-            row?.estimatedRevenueExposure ??
-            row?.revenue_exposure ??
-            row?.revenueExposure ??
-            row?.financial_impact ??
-            row?.financialImpact ??
-            row?.estimated_loss ??
-            row?.estimatedLoss ??
-            row?.revenue_at_risk_usd ??
-            row?.revenueAtRiskUsd ??
-            row?.value_at_risk ??
-            row?.valueAtRisk ??
-            0
-          );
-          return sum + (Number.isFinite(value) ? value : 0);
-        }, 0);
-      };
-
-      const projectedImpactRowsForRevenue =
-        urls?.projected_impact_output_file_url
-          ? await fetchCsvRows(urls.projected_impact_output_file_url)
-          : [];
-      const disruptionImpactRowsForRevenue =
-        urls?.disruption_impact_output_file_url
-          ? await fetchCsvRows(urls.disruption_impact_output_file_url)
-          : [];
-
-      const rowLevelRevenueExposure =
-        sumRevenueFromImpactRows(projectedImpactRowsForRevenue) ||
-        sumRevenueFromImpactRows(disruptionImpactRowsForRevenue) ||
-        0;
-
-      console.log("[Revenue Debug] projectedImpactRowsForRevenue sample:", projectedImpactRowsForRevenue?.[0]);
-      console.log("[Revenue Debug] disruptionImpactRowsForRevenue sample:", disruptionImpactRowsForRevenue?.[0]);
-      console.log("[KPI Revenue] rowLevelRevenueExposure:", rowLevelRevenueExposure);
-
-
-
-
 
       const finalKpis = {
         ...allKpis,
         ...normalizedServiceKpis,
-        estimatedRevenueExposure: (serviceTruth?.lateFulfilledUnits || 0) * 100,
-        revenueExposure: (serviceTruth?.lateFulfilledUnits || 0) * 100,
       };
 
       const executiveKpis = {
-        serviceLevelPct: Number(kpis?.onTimeFulfillment ?? 0),
-        demandAtRiskUnits: Number(kpis?.lateFulfilledUnits ?? 0),
-        unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? 0),
-        missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
-        timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
-        timeToSurviveDays: Number(kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? 0),
-        revenueExposure: Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 0),
-        onTimeFulfillment: Number(kpis?.onTimeFulfillment ?? 0),
-        lateFulfilledUnits: Number(kpis?.lateFulfilledUnits ?? 0),
-        peakBacklogUnits: Number(kpis?.peakBacklogUnits ?? 0),
+        serviceLevelPct: Number(finalKpis?.onTimeFulfillment ?? 0),
+        demandAtRiskUnits: Number(finalKpis?.lateFulfilledUnits ?? 0),
+        unfulfilledDemandUnits: Number(finalKpis?.peakBacklogUnits ?? 0),
+        missedServiceDays: Number(finalKpis?.missedServiceDays ?? 0),
+        timeToRecoverDays: Number(finalKpis?.timeToRecoverDays ?? finalKpis?.ttrDays ?? 0),
+        timeToSurviveDays: Number(finalKpis?.timeToSurviveDays ?? finalKpis?.ttsDays ?? 0),
+        revenueExposure: Number(finalKpis?.revenueExposure ?? finalKpis?.estimatedRevenueExposure ?? 0),
+        onTimeFulfillment: Number(finalKpis?.onTimeFulfillment ?? 0),
+        lateFulfilledUnits: Number(finalKpis?.lateFulfilledUnits ?? 0),
+        peakBacklogUnits: Number(finalKpis?.peakBacklogUnits ?? 0),
       };
 
       // ----- SCENARIO IMPACT SUMMARY -----
@@ -1556,13 +1434,30 @@ console.log("KPI_DEBUG_DUMP", allKpis);
 
       
       // 🔥 FINAL OVERRIDE — force correct service KPIs
-      kpis.lateFulfilledUnits = Number(serviceTruth?.lateFulfilledUnits || 0);
-      kpis.unitsAtRisk = Number(serviceTruth?.lateFulfilledUnits || 0);
-      kpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
-      kpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
-      kpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
+      finalKpis.lateFulfilledUnits = Number(serviceTruth?.lateFulfilledUnits || 0);
+      finalKpis.unitsAtRisk = Number(serviceTruth?.lateFulfilledUnits || 0);
+      finalKpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
+      finalKpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
+      finalKpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
 
-      
+      const directRevenueExposure = Number(
+        finalKpis?.estimatedRevenueExposure ??
+        finalKpis?.revenueExposure ??
+        0
+      );
+
+      if (!(directRevenueExposure > 0)) {
+        const revenueUnitsAtRisk = Number(
+          finalKpis?.lateFulfilledUnits ??
+          finalKpis?.unitsAtRisk ??
+          0
+        );
+
+        const fallbackRevenueExposure = revenueUnitsAtRisk * 100;
+
+        finalKpis.estimatedRevenueExposure = fallbackRevenueExposure;
+        finalKpis.revenueExposure = fallbackRevenueExposure;
+      }
 console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
       persistRunKpis(latestRunIdRef.current, finalKpis);
       setKpis(finalKpis);
@@ -2025,7 +1920,7 @@ setSimulationHistory((prev) => {
       ) : view === "simulation" ? (
         <SimulationDashboard
           executiveKpis={{
-            serviceLevelPct: Number(kpis?.onTimeFulfillment ?? 0),
+            serviceLevelPct: Number(finalKpis?.onTimeFulfillment ?? 0),
             demandAtRiskUnits: Number(kpis?.lateFulfilledUnits ?? 0),
             unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? 0),
             missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
@@ -2048,11 +1943,6 @@ setSimulationHistory((prev) => {
           simulationHistory={simulationHistory}
           files={files}
           kpis={kpis}
-          baselineKpis={baselineKpis}
-          baselineOptions={baselineOptions}
-          selectedBaselineRunId={selectedBaselineRunId}
-          setSelectedBaselineRunId={setSelectedBaselineRunId}
-          baselineLabel={baselineLabel}
           onLogout={handleLogout}
           switchView={setView}
           onReloadRun={onReloadRun}

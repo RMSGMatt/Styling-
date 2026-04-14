@@ -4,7 +4,6 @@ import ScenarioBuilder from "./ScenarioBuilder";
 import { Line } from "react-chartjs-2";
 import Select from "react-select";
 import Papa from "papaparse";
-import DecisionNarrativePanel from "./DecisionNarrativePanel";
 import {
   Chart as ChartJS,
   LineElement,
@@ -786,12 +785,6 @@ function formatDecisionKpiValue(key, value) {
 }
 
 export default function SimulationDashboard({
-  baselineKpis = null,
-  baselineOptions = [],
-  selectedBaselineRunId = "",
-  setSelectedBaselineRunId = () => {},
-  baselineLabel = "Previous Run",
-
   handleFileChange,
   handleSubmit,
   simulationStatus,
@@ -2006,16 +1999,6 @@ setOverlayChartData(overlay);
               📊 Operational Efficiency
             </h2>
             <div className="space-y-4 text-xs">
-      <DecisionNarrativePanel
-        kpis={kpis}
-        baselineKpis={baselineKpis}
-        baselineOptions={baselineOptions}
-        selectedBaselineRunId={selectedBaselineRunId}
-        setSelectedBaselineRunId={setSelectedBaselineRunId}
-        baselineLabel={baselineLabel}
-        materialRiskData={typeof materialRiskData !== "undefined" ? materialRiskData : []}
-      />
-
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">
                   Executive Signals
@@ -2708,17 +2691,10 @@ setOverlayChartData(overlay);
           disruptionImpactData={disruptionImpactData}
           runoutRiskData={runoutRiskData}
           countermeasuresData={countermeasuresData}
-          executiveKpis={{
-            serviceLevelPct: Number(kpis?.serviceLevelPct ?? kpis?.onTimeFulfillment ?? 0),
-            demandAtRiskUnits: Number(kpis?.lateFulfilledUnits ?? kpis?.unitsAtRisk ?? 0),
-            unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0),
-            missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
-            timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
-            timeToSurviveDays: Number(kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? 0),
-            revenueExposure: Number(kpis?.revenueExposure ?? 0),
-            estimatedRevenueExposure: Number(kpis?.estimatedRevenueExposure ?? 0),
-          }}
-        />{/* ===== Filters + Chart ======================================== */}
+          kpis={kpis}
+        />
+
+        {/* ===== Filters + Chart ======================================== */}
         <section
           className="rounded-2xl p-5 shadow-xl border simulation-chart-container"
           style={{

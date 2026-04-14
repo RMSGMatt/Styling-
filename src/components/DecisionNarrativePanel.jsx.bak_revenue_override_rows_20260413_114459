@@ -53,40 +53,31 @@ export default function DecisionNarrativePanel({
   selectedBaselineRunId = "",
   setSelectedBaselineRunId = () => {},
   baselineLabel = "Previous Run",
+  revenueExposureOverride = null,
   materialRiskData = [],
 }) {
-  const normalizeDecisionKpis = (source = {}) => {
-    const demandAtRisk = Number(
-      source?.demandAtRisk ??
-      source?.lateFulfilledUnits ??
-      source?.unitsAtRisk ??
-      0
-    );
+  console.log("[DecisionNarrativePanel] kpis:", kpis);
+  console.log("[DecisionNarrativePanel] baselineKpis:", baselineKpis);
 
-    const revenueExposure = Number(
-      source?.revenueExposure ??
-      source?.estimatedRevenueExposure ??
-      source?.endingBacklogExposure ??
+  const effectiveKpis = useMemo(() => {
+    const resolvedRevenueExposure = Number(
+      revenueExposureOverride ??
+      kpis?.estimatedRevenueExposure ??
+      kpis?.revenueExposure ??
+      kpis?.endingBacklogExposure ??
       0
     );
 
     return {
-      ...source,
-      demandAtRisk,
-      revenueExposure,
-      estimatedRevenueExposure: revenueExposure,
+      ...kpis,
+      estimatedRevenueExposure: resolvedRevenueExposure,
+      revenueExposure: resolvedRevenueExposure,
     };
-  };
-
-  const effectiveKpis = useMemo(() => normalizeDecisionKpis(kpis), [kpis]);
-  const effectiveBaselineKpis = useMemo(
-    () => normalizeDecisionKpis(baselineKpis || {}),
-    [baselineKpis]
-  );
+  }, [kpis, revenueExposureOverride]);
 
   const comparison = useMemo(
-    () => buildBaselineComparison(effectiveKpis, effectiveBaselineKpis),
-    [effectiveKpis, effectiveBaselineKpis]
+    () => buildBaselineComparison(effectiveKpis, baselineKpis),
+    [effectiveKpis, baselineKpis]
   );
 
   const narrative = useMemo(
@@ -96,7 +87,7 @@ export default function DecisionNarrativePanel({
         baselineKpis,
         materialRiskData,
       }),
-    [effectiveKpis, effectiveBaselineKpis, materialRiskData]
+    [effectiveKpis, baselineKpis, materialRiskData]
   );
 
   return (

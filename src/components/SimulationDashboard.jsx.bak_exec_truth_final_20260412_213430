@@ -4,7 +4,6 @@ import ScenarioBuilder from "./ScenarioBuilder";
 import { Line } from "react-chartjs-2";
 import Select from "react-select";
 import Papa from "papaparse";
-import DecisionNarrativePanel from "./DecisionNarrativePanel";
 import {
   Chart as ChartJS,
   LineElement,
@@ -315,64 +314,123 @@ function DisruptionPanels({
       .filter((x) => typeof x === "string" && x.trim() !== "")
   ).size;
 
-  const revenueExposureDisplayValue = (() => {
-    const directRevenue = Number(
-      exec?.revenueExposure ??
-      exec?.estimatedRevenueExposure ??
-      0
-    );
+  // 🔥 Revenue at Risk (real revenue if present, otherwise proxy from severity_score × days_affected)
+const totalRevenueAtRisk = impactRows.reduce((sum, row) => {
+  // 1️⃣ Prefer explicit revenue fields if available
+  let rawRevenue =
+    row.revenue_at_risk ??
+    row.RevenueAtRisk ??
+    row.revenue ??
+    row.Revenue ??
+    null;
 
-    if (directRevenue > 0) return directRevenue;
+  let value;
 
-    const unitsAtRisk = Number(exec?.demandAtRiskUnits ?? 0);
-    return unitsAtRisk * 100;
-  })();
+  if (rawRevenue != null && rawRevenue !== "") {
+    if (typeof rawRevenue === "string") {
+      const cleaned = rawRevenue.replace(/[$,]/g, "");
+      value = parseFloat(cleaned);
+    } else {
+      value = Number(rawRevenue);
+    }
+  }
+
+  // 2️⃣ No revenue field? → derive proxy
+  if (!Number.isFinite(value)) {
+    const rawSeverity =
+      row.severity_score ??
+      row.SeverityScore ??
+      row.severityScore ??
+      null;
+    const severity =
+      typeof rawSeverity === "string"
+        ? parseFloat(rawSeverity)
+        : Number(rawSeverity);
+
+    const rawDays =
+      row.days_affected ??
+      row.DaysAffected ??
+      row.days ??
+      null;
+    const days =
+      typeof rawDays === "string"
+        ? parseFloat(rawDays)
+        : Number(rawDays);
+
+    // Baseline model: severity (0–100) × days × $10k
+    const BASE_REVENUE_PER_DAY = 10_000;
+
+    if (Number.isFinite(severity) && Number.isFinite(days)) {
+      const severityFactor = Math.max(0, Math.min(1, severity / 100));
+      value = severityFactor * days * BASE_REVENUE_PER_DAY;
+    } else {
+      value = 0;
+    }
+  }
+
+  return sum + (Number.isFinite(value) ? value : 0);
+}, 0);
+
+// 3️⃣ Prefer KPI-based revenue exposure from App.jsx, then fall back to panel-derived estimate
+const revenueExposureDisplayValue = (() => {
+  const directRevenue = Number(exec?.revenueExposure ?? 0);
+
+  if (directRevenue > 0) return directRevenue;
+
+  const unitsAtRisk = Number(exec?.demandAtRiskUnits ?? 0);
+  return unitsAtRisk * 100;
+})();
 
   const riskDistribution = impactRows.reduce(
-    (acc, row) => {
-      let sev = (row.severity || row.Severity || "")
-        .toString()
-        .toLowerCase()
-        .trim();
+  (acc, row) => {
+    // 1️⃣ Try explicit severity text first, if present
+    let sev = (row.severity || row.Severity || "")
+      .toString()
+      .toLowerCase()
+      .trim();
 
-      if (!sev) {
-        const rawScore =
-          row.severity_score ??
-          row.SeverityScore ??
-          row.severityScore ??
-          null;
+    // 2️⃣ If missing, derive from severity_score
+    if (!sev) {
+      const rawScore =
+        row.severity_score ??
+        row.SeverityScore ??
+        row.severityScore ??
+        null;
 
-        const score =
-          typeof rawScore === "string"
-            ? parseFloat(rawScore)
-            : Number(rawScore);
+      const score =
+        typeof rawScore === "string"
+          ? parseFloat(rawScore)
+          : Number(rawScore);
 
-        if (Number.isFinite(score)) {
-          if (score >= 70) sev = "high";
-          else if (score >= 30) sev = "medium";
-          else if (score >= 0) sev = "low";
-        }
+      if (Number.isFinite(score)) {
+        if (score >= 70) sev = "high";
+        else if (score >= 30) sev = "medium";
+        else if (score >= 0) sev = "low";
       }
+    }
 
-      if (sev === "high" || sev === "severe" || sev === "critical") sev = "high";
-      else if (sev === "medium" || sev === "med") sev = "medium";
-      else if (sev === "low") sev = "low";
+    // Normalize allowed values
+    if (sev === "high" || sev === "severe" || sev === "critical") sev = "high";
+    else if (sev === "medium" || sev === "med") sev = "medium";
+    else if (sev === "low") sev = "low";
 
-      if (sev === "high") acc.high++;
-      else if (sev === "medium") acc.medium++;
-      else if (sev === "low") acc.low++;
-      else acc.unknown++;
+    // 3️⃣ Bucket into High / Med / Low / Unknown
+    if (sev === "high") acc.high++;
+    else if (sev === "medium") acc.medium++;
+    else if (sev === "low") acc.low++;
+    else acc.unknown++;
 
-      return acc;
-    },
-    { high: 0, medium: 0, low: 0, unknown: 0 }
-  );
+    return acc;
+  },
+  { high: 0, medium: 0, low: 0, unknown: 0 }
+);
 
   const firstImpactedFacility =
     impactRows[0]?.facility ||
     impactRows[0]?.Facility ||
     (impactRows[0] ? "First impacted facility" : "No disruptions recorded");
 
+  // Runout / Countermeasures quick summaries
   const highRiskSkus = runoutRows
     .filter((r) => {
       const risk = (r.risk_level || r.RiskLevel || "")
@@ -434,6 +492,7 @@ function DisruptionPanels({
 
   return (
     <section className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {/* Left: Disruption Impact & Projected Impact */}
       <div
         className="border rounded-2xl p-5 shadow-lg"
         style={{
@@ -466,7 +525,10 @@ function DisruptionPanels({
           </div>
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
             <p className="text-xs text-slate-300">Estimated Revenue Exposure</p>
-            <p className="text-xl font-bold" style={{ color: "#9CF700" }}>
+            <p
+              className="text-xl font-bold"
+              style={{ color: "#9CF700" }}
+            >
               {formatCurrencyCompact(revenueExposureDisplayValue, { zeroIsDash: false })}
             </p>
           </div>
@@ -522,6 +584,7 @@ function DisruptionPanels({
         </div>
       </div>
 
+      {/* Right: Runout Risk & Countermeasures */}
       <div
         className="border rounded-2xl p-5 shadow-lg"
         style={{
@@ -593,7 +656,7 @@ function DisruptionPanels({
                 No countermeasures generated yet for this scenario.
               </p>
             ) : (
-              <ul className="list-disc list-inside space-y-1">
+              <ul className="space-y-1">
                 {candidateActions.map((row, idx) => (
                   <li key={idx}>
                     <span className="font-semibold">{row.sku}</span>{" "}
@@ -786,12 +849,6 @@ function formatDecisionKpiValue(key, value) {
 }
 
 export default function SimulationDashboard({
-  baselineKpis = null,
-  baselineOptions = [],
-  selectedBaselineRunId = "",
-  setSelectedBaselineRunId = () => {},
-  baselineLabel = "Previous Run",
-
   handleFileChange,
   handleSubmit,
   simulationStatus,
@@ -882,17 +939,20 @@ export default function SimulationDashboard({
   }, []);
 
   const liveServiceLevel = Number(
-    exec?.serviceLevelPct ??
+    kpis?.onTimeFulfillment ??
+    kpis?.serviceTruth?.onTimeFillRatePct ??
     0
   );
 
   const liveDemandAtRisk = Number(
-    exec?.demandAtRiskUnits ??
+    kpis?.unitsAtRisk ??
+    kpis?.lateFulfilledUnits ??
+    kpis?.serviceTruth?.lateFulfilledUnits ??
     0
   );
 
   const liveUnfulfilledDemand = Number(
-    exec?.unfulfilledDemandUnits ??
+    kpis?.peakBacklogUnits ??
     kpis?.peakBacklog ??
     kpis?.serviceTruth?.peakBacklogUnits ??
     0
@@ -2006,16 +2066,6 @@ setOverlayChartData(overlay);
               📊 Operational Efficiency
             </h2>
             <div className="space-y-4 text-xs">
-      <DecisionNarrativePanel
-        kpis={kpis}
-        baselineKpis={baselineKpis}
-        baselineOptions={baselineOptions}
-        selectedBaselineRunId={selectedBaselineRunId}
-        setSelectedBaselineRunId={setSelectedBaselineRunId}
-        baselineLabel={baselineLabel}
-        materialRiskData={typeof materialRiskData !== "undefined" ? materialRiskData : []}
-      />
-
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">
                   Executive Signals
@@ -2425,79 +2475,279 @@ setOverlayChartData(overlay);
         </section>
 
 {/* ===== Scenario Impact Summary ============================== */}
-<section
-  className="rounded-2xl p-5 shadow-xl border"
-  style={{
-    background: "linear-gradient(160deg, rgba(24,7,7,0.96), rgba(34,10,10,0.96))",
-    borderColor: "rgba(127,29,29,0.65)",
-  }}
->
-  <div className="flex items-center justify-between mb-3">
-    <div>
-      <p className="text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1">
-        Decision Narrative
-      </p>
-      <h3 className="text-base font-semibold text-red-200">
-        ⚠️ Service Breakdown Detected
-      </h3>
-    </div>
+        <section
+          className="rounded-2xl p-5 shadow-xl border"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(6,36,27,0.98))",
+            borderColor: "#123528",
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-50">
+                ⚠️ Disruption Impact Summary
+              </h2>
+              <p
+                className="text-[11px] mt-1 font-semibold"
+                style={{
+                  color:
+                    scenarioImpactSummary?.networkHealth === "critical"
+                      ? "#f87171"
+                      : scenarioImpactSummary?.networkHealth === "stress"
+                      ? "#FFB200"
+                      : "#9CF700",
+                }}
+              >
+                Scenario: {scenarioData?.name?.trim() ? scenarioData.name : "Baseline / Healthy Network"}
+              </p>
+              <p className="text-xs text-slate-300 mt-1">
+                Plain-language interpretation of the latest simulation run.
+              </p>
+              <p className="text-[11px] text-slate-400 mt-2">
+                These signals explain why the service risk above appeared and which constraints drove it.
+              </p>
+            </div>
+            <div
+              className="text-xs font-semibold px-3 py-1 rounded-full"
+              style={{
+                backgroundColor:
+                  scenarioImpactSummary?.networkHealth === "healthy"
+                    ? "rgba(156, 247, 0, 0.12)"
+                    : scenarioImpactSummary?.networkHealth === "critical"
+                    ? "rgba(239, 68, 68, 0.14)"
+                    : "rgba(255, 178, 0, 0.12)",
+                color:
+                  scenarioImpactSummary?.networkHealth === "healthy"
+                    ? "#9CF700"
+                    : scenarioImpactSummary?.networkHealth === "critical"
+                    ? "#f87171"
+                    : "#FFB200",
+                border:
+                  scenarioImpactSummary?.networkHealth === "healthy"
+                    ? "1px solid rgba(156, 247, 0, 0.35)"
+                    : scenarioImpactSummary?.networkHealth === "critical"
+                    ? "1px solid rgba(239, 68, 68, 0.35)"
+                    : "1px solid rgba(255, 178, 0, 0.35)",
+              }}
+            >
+              {liveNetworkHealthLabel}
+            </div>
+          </div>
 
-    <div className="text-right">
-      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">
-        Current State
-      </p>
-      <p className="text-xs font-semibold text-red-300">
-        {execOnTimePct < 60 ? "High Service Risk" : execOnTimePct < 90 ? "Service Under Stress" : "Stable"}
-      </p>
-    </div>
-  </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 bg-slate-900/50 border border-slate-700/80 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{
+                    backgroundColor:
+                      scenarioImpactSummary?.networkHealth === "healthy"
+                        ? "#9CF700"
+                        : scenarioImpactSummary?.networkHealth === "critical"
+                        ? "#f87171"
+                        : "#FFB200",
+                  }}
+                />
+                <p className="text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                  Executive Insight
+                </p>
+              </div>
 
-  <p className="text-sm leading-6 text-slate-200 mb-4">
-    A supplier disruption did not prevent fulfillment, but it materially degraded service performance across the network.
-  </p>
+              <p
+                className="text-[1.75rem] leading-tight font-semibold mb-3"
+                style={{ color: "#E8FFE8" }}
+              >
+                {scenarioImpactSummary?.headline || "No simulation summary available yet."}
+              </p>
 
-  <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
-    <div className="rounded-xl border border-red-900/40 bg-black/20 p-3">
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">Service Level</p>
-      <p className="text-xl font-semibold text-red-300">{execOnTimePct.toFixed(1)}%</p>
-    </div>
+              <p className="text-sm text-slate-300 leading-7">
+                {scenarioImpactSummary?.narrative ? (
+                  <>
+                    {scenarioImpactSummary.narrative}
+                    {(liveDemandAtRisk > 0 || liveMissedServiceDays > 0) && (
+                      <span>
+                        {" "}
+                        This scenario also resulted in{" "}
+                        <strong style={{ color: "#fca5a5" }}>
+                          {liveDemandAtRisk.toLocaleString()} units at risk
+                        </strong>,{" "}
+                        <strong style={{ color: "#fca5a5" }}>
+                          {liveMissedServiceDays} missed service day{liveMissedServiceDays === 1 ? "" : "s"}
+                        </strong>, and a{" "}
+                        <strong style={{ color: "#fca5a5" }}>
+                          {liveTtrDays} day recovery window
+                        </strong>{" "}
+                        despite full final fulfillment.
+                      </span>
+                    )}
+                    {selectedOutputType === "inventory" && isInventoryFlatline && (
+                      <span>
+                        {" "}
+                        Inventory remained at{" "}
+                        <strong style={{ color: "#fbbf24" }}>
+                          effectively zero buffer
+                        </strong>
+                        , indicating a just-in-time condition with limited shock absorption.
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  "Run a simulation to generate a scenario-level interpretation."
+                )}
+              </p>
 
-    <div className="rounded-xl border border-orange-900/40 bg-black/20 p-3">
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">Demand at Risk</p>
-      <p className="text-xl font-semibold text-orange-300">{execLateUnits.toLocaleString()}</p>
-    </div>
+              <div
+                className="mt-5 rounded-xl border p-4"
+                style={{
+                  background: "linear-gradient(180deg, rgba(2, 6, 23, 0.55), rgba(2, 6, 23, 0.35))",
+                  borderColor: "rgba(71, 85, 105, 0.45)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-emerald-300">✅</span>
+                  <p className="text-sm font-semibold text-slate-100">
+                    Suggested Countermeasures
+                  </p>
+                </div>
 
-    <div className="rounded-xl border border-amber-900/40 bg-black/20 p-3">
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">Peak Backlog</p>
-      <p className="text-xl font-semibold text-amber-300">{execPeakBacklog.toLocaleString()}</p>
-    </div>
+                {scenarioImpactSummary?.countermeasures?.length ? (
+                  <ul className="space-y-2 text-sm text-slate-300">
+                    {scenarioImpactSummary.countermeasures.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-[#9CF700] mt-[2px]">•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    No countermeasures generated yet for this scenario.
+                  </p>
+                )}
+              </div>
+            </div>
 
-    <div className="rounded-xl border border-rose-900/40 bg-black/20 p-3">
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">Time to Recover</p>
-      <p className="text-xl font-semibold text-rose-300">{execTtrDays} days</p>
-    </div>
-  </div>
+            <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4">
+              <p className="text-xs text-slate-300 mb-3">Key Outcome Performance Metrics</p>
 
-  <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-4 mb-4">
-    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400 mb-2">
-      Why this matters
-    </p>
-    <p className="text-sm leading-6 text-slate-200">
-      Despite 100% eventual fulfillment, customers experienced delays, backlog accumulated rapidly, and recovery required {execTtrDays} days. The network caught up, but service reliability failed first.
-    </p>
-  </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Demand</span>
+                  <span className="text-slate-50 font-semibold">
+                    {formatNumber(scenarioImpactSummary?.demand, {
+                      zeroIsDash: false,
+                      digits: 0,
+                    })}
+                  </span>
+                </div>
 
-  <div className="rounded-xl border border-emerald-900/35 bg-emerald-950/20 p-4">
-    <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-300/90 mb-2">
-      Recommended action
-    </p>
-    <ul className="space-y-2 text-sm text-slate-200">
-      <li>• Prioritize mitigation on the constrained component path.</li>
-      <li>• Protect customer-facing service before backlog expands further.</li>
-      <li>• Compress recovery time by expediting the limiting supply node.</li>
-    </ul>
-  </div>
-</section>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Fill Rate</span>
+                  <span
+                    className="font-semibold"
+                    style={{
+                      color:
+                        liveServiceLevel >= 90
+                          ? "#9CF700"
+                          : liveServiceLevel >= 70
+                          ? "#FFB200"
+                          : "#f87171",
+                    }}
+                  >
+                    {liveServiceLevel.toFixed(1)}%
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Demand at Risk</span>
+                  <span className="text-rose-300 font-semibold">{liveDemandAtRisk.toLocaleString()}</span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Unfulfilled Demand</span>
+                  <span className="text-amber-300 font-semibold">{liveUnfulfilledDemand.toLocaleString()}</span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Production</span>
+                  <span className="text-sky-300 font-semibold">
+                    {formatNumber(scenarioImpactSummary?.totalProduction, {
+                      zeroIsDash: true,
+                      digits: 0,
+                    })}
+                  </span>
+                </div>
+              </div>
+
+
+
+                <div className="bg-slate-900/40 border border-slate-700/80 rounded-xl p-4 mt-4">
+                  <p className="text-xs font-semibold text-slate-50 mb-2">
+                    Decision Snapshot
+                  </p>
+
+                  <div className="space-y-2 text-xs text-slate-300">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-400">Primary Constraint</span>
+                      <span className="text-amber-300 font-semibold">
+                        {liveUnfulfilledDemand > 0 ? livePrimaryConstraint : "Service Continuity"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-400">Operational Risk</span>
+                      <span
+                        className="font-semibold"
+                        style={{
+                          color:
+                            liveServiceLevel >= 90
+                              ? "#9CF700"
+                              : liveServiceLevel >= 70
+                              ? "#FFB200"
+                              : "#f87171",
+                        }}
+                      >
+                        {liveNetworkHealthLabel}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-slate-400">Immediate Priority</span>
+                      <span className="text-emerald-300 font-semibold text-right">
+                        {liveDemandAtRisk > 0 ? liveImmediatePriority : "Maintain current network stability"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-700/60">
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
+                      style={{
+                        borderColor: "rgba(34, 197, 94, 0.35)",
+                        backgroundColor: "rgba(34, 197, 94, 0.12)",
+                        color: "#bbf7d0",
+                      }}
+                    >
+                      Save Insight
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition"
+                      style={{
+                        borderColor: "rgba(148, 163, 184, 0.35)",
+                        backgroundColor: "rgba(2, 6, 23, 0.45)",
+                        color: "#E2E8F0",
+                      }}
+                    >
+                      Share Insight
+                    </button>
+                  </div>
+                </div>
+            </div>
+            </div>
+          </section>
 
                 {/* Scenario Builder */}
         <section className="grid grid-cols-1 gap-4">
@@ -2708,17 +2958,10 @@ setOverlayChartData(overlay);
           disruptionImpactData={disruptionImpactData}
           runoutRiskData={runoutRiskData}
           countermeasuresData={countermeasuresData}
-          executiveKpis={{
-            serviceLevelPct: Number(kpis?.serviceLevelPct ?? kpis?.onTimeFulfillment ?? 0),
-            demandAtRiskUnits: Number(kpis?.lateFulfilledUnits ?? kpis?.unitsAtRisk ?? 0),
-            unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0),
-            missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
-            timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
-            timeToSurviveDays: Number(kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? 0),
-            revenueExposure: Number(kpis?.revenueExposure ?? 0),
-            estimatedRevenueExposure: Number(kpis?.estimatedRevenueExposure ?? 0),
-          }}
-        />{/* ===== Filters + Chart ======================================== */}
+          kpis={kpis}
+        />
+
+        {/* ===== Filters + Chart ======================================== */}
         <section
           className="rounded-2xl p-5 shadow-xl border simulation-chart-container"
           style={{

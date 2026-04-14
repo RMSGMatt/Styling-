@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import ToastsHost from "./components/Toasts";
 import AboutUs from "./pages/AboutUs";
 import AuthPage from "./pages/AuthPage";
@@ -380,81 +380,34 @@ export default function App() {
   const [selectedFacility, setSelectedFacility] = useState(null);
 
   const [simulationHistory, setSimulationHistory] = useState([]);
-  const [selectedBaselineRunId, setSelectedBaselineRunId] = useState("");
   const [summaryStats, setSummaryStats] = useState({});
   const [kpis, setKpis] = useState({});
 
   // ===============================
   // BASELINE KPI SELECTION LOGIC
   // ===============================
-  const baselineOptions = useMemo(() => {
-    if (!Array.isArray(simulationHistory) || simulationHistory.length < 2) return [];
+  const baselineKpis = (() => {
+    if (!Array.isArray(simulationHistory) || simulationHistory.length < 2) return null;
 
-    return simulationHistory.slice(1).map((run, index) => {
-      const id = String(
-        run?.run_id ||
-        run?.id ||
-        run?.createdAt ||
-        run?.created_at ||
-        run?.timestamp ||
-        `baseline_${index + 1}`
-      );
+    const baselineRun = simulationHistory[1];
 
-      const labelBase =
-        run?.createdAt ||
-        run?.created_at ||
-        run?.timestamp ||
-        `Run ${index + 2}`;
+    if (!baselineRun) return null;
 
-      return {
-        id,
-        label: `Run ${index + 2} • ${labelBase}`,
-        entry: run,
-      };
-    });
-  }, [simulationHistory]);
+    // Priority 1: Executive report KPIs
+    const reportKpis =
+      baselineRun?.report?.metrics?.kpis ||
+      baselineRun?.executiveReport?.metrics?.kpis;
 
-  useEffect(() => {
-    if (!baselineOptions.length) {
-      if (selectedBaselineRunId) setSelectedBaselineRunId("");
-      return;
-    }
+    if (reportKpis && typeof reportKpis === "object") return reportKpis;
 
-    const exists = baselineOptions.some((o) => o.id === selectedBaselineRunId);
-    if (!exists) setSelectedBaselineRunId(baselineOptions[0].id);
-  }, [baselineOptions, selectedBaselineRunId]);
+    // Priority 2: Raw stored KPIs
+    if (baselineRun?.raw?.kpis) return baselineRun.raw.kpis;
 
-  const selectedBaselineEntry = useMemo(() => {
-    if (!baselineOptions.length) return null;
-    return (
-      baselineOptions.find((o) => o.id === selectedBaselineRunId)?.entry ||
-      baselineOptions[0]?.entry ||
-      null
-    );
-  }, [baselineOptions, selectedBaselineRunId]);
+    // Priority 3: Direct KPIs
+    if (baselineRun?.kpis) return baselineRun.kpis;
 
-  const baselineKpis = useMemo(() => {
-    const run = selectedBaselineEntry;
-    if (!run) return null;
-
-    return (
-      run?.report?.metrics?.kpis ||
-      run?.executiveReport?.metrics?.kpis ||
-      run?.raw?.kpis ||
-      run?.kpis ||
-      null
-    );
-  }, [selectedBaselineEntry]);
-
-  const baselineLabel = useMemo(() => {
-    if (!baselineOptions.length) return "No baseline selected";
-
-    return (
-      baselineOptions.find((o) => o.id === selectedBaselineRunId)?.label ||
-      baselineOptions[0]?.label ||
-      "Previous Run"
-    );
-  }, [baselineOptions, selectedBaselineRunId]);
+    return null;
+  })();
 
   const [scenarioImpactSummary, setScenarioImpactSummary] = useState(null);
 
@@ -1510,8 +1463,8 @@ console.log("KPI_DEBUG_DUMP", allKpis);
       const finalKpis = {
         ...allKpis,
         ...normalizedServiceKpis,
-        estimatedRevenueExposure: (serviceTruth?.lateFulfilledUnits || 0) * 100,
-        revenueExposure: (serviceTruth?.lateFulfilledUnits || 0) * 100,
+        estimatedRevenueExposure: rowLevelRevenueExposure,
+        revenueExposure: rowLevelRevenueExposure,
       };
 
       const executiveKpis = {
@@ -2048,11 +2001,7 @@ setSimulationHistory((prev) => {
           simulationHistory={simulationHistory}
           files={files}
           kpis={kpis}
-          baselineKpis={baselineKpis}
-          baselineOptions={baselineOptions}
-          selectedBaselineRunId={selectedBaselineRunId}
-          setSelectedBaselineRunId={setSelectedBaselineRunId}
-          baselineLabel={baselineLabel}
+          baselineKpis={typeof baselineKpis !== "undefined" ? baselineKpis : null}
           onLogout={handleLogout}
           switchView={setView}
           onReloadRun={onReloadRun}

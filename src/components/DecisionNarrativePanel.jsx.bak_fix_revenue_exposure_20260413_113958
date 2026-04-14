@@ -55,48 +55,22 @@ export default function DecisionNarrativePanel({
   baselineLabel = "Previous Run",
   materialRiskData = [],
 }) {
-  const normalizeDecisionKpis = (source = {}) => {
-    const demandAtRisk = Number(
-      source?.demandAtRisk ??
-      source?.lateFulfilledUnits ??
-      source?.unitsAtRisk ??
-      0
-    );
-
-    const revenueExposure = Number(
-      source?.revenueExposure ??
-      source?.estimatedRevenueExposure ??
-      source?.endingBacklogExposure ??
-      0
-    );
-
-    return {
-      ...source,
-      demandAtRisk,
-      revenueExposure,
-      estimatedRevenueExposure: revenueExposure,
-    };
-  };
-
-  const effectiveKpis = useMemo(() => normalizeDecisionKpis(kpis), [kpis]);
-  const effectiveBaselineKpis = useMemo(
-    () => normalizeDecisionKpis(baselineKpis || {}),
-    [baselineKpis]
-  );
+  console.log("[DecisionNarrativePanel] kpis:", kpis);
+  console.log("[DecisionNarrativePanel] baselineKpis:", baselineKpis);
 
   const comparison = useMemo(
-    () => buildBaselineComparison(effectiveKpis, effectiveBaselineKpis),
-    [effectiveKpis, effectiveBaselineKpis]
+    () => buildBaselineComparison(kpis, baselineKpis),
+    [kpis, baselineKpis]
   );
 
   const narrative = useMemo(
     () =>
       buildDecisionNarrative({
-        currentKpis: effectiveKpis,
+        currentKpis: kpis,
         baselineKpis,
         materialRiskData,
       }),
-    [effectiveKpis, effectiveBaselineKpis, materialRiskData]
+    [kpis, baselineKpis, materialRiskData]
   );
 
   return (

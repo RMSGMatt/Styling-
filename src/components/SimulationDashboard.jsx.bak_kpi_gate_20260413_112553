@@ -786,7 +786,6 @@ function formatDecisionKpiValue(key, value) {
 }
 
 export default function SimulationDashboard({
-  baselineKpis = null,
   baselineOptions = [],
   selectedBaselineRunId = "",
   setSelectedBaselineRunId = () => {},
@@ -2008,12 +2007,12 @@ setOverlayChartData(overlay);
             <div className="space-y-4 text-xs">
       <DecisionNarrativePanel
         kpis={kpis}
-        baselineKpis={baselineKpis}
-        baselineOptions={baselineOptions}
+        baselineKpis={typeof baselineKpis !== "undefined" ? baselineKpis : null}
+                baselineOptions={baselineOptions}
         selectedBaselineRunId={selectedBaselineRunId}
         setSelectedBaselineRunId={setSelectedBaselineRunId}
         baselineLabel={baselineLabel}
-        materialRiskData={typeof materialRiskData !== "undefined" ? materialRiskData : []}
+materialRiskData={typeof materialRiskData !== "undefined" ? materialRiskData : []}
       />
 
               <div>

@@ -4,7 +4,6 @@ import ScenarioBuilder from "./ScenarioBuilder";
 import { Line } from "react-chartjs-2";
 import Select from "react-select";
 import Papa from "papaparse";
-import DecisionNarrativePanel from "./DecisionNarrativePanel";
 import {
   Chart as ChartJS,
   LineElement,
@@ -315,64 +314,127 @@ function DisruptionPanels({
       .filter((x) => typeof x === "string" && x.trim() !== "")
   ).size;
 
-  const revenueExposureDisplayValue = (() => {
-    const directRevenue = Number(
-      exec?.revenueExposure ??
-      exec?.estimatedRevenueExposure ??
-      0
-    );
+  // 🔥 Revenue at Risk (real revenue if present, otherwise proxy from severity_score × days_affected)
+const totalRevenueAtRisk = impactRows.reduce((sum, row) => {
+  // 1️⃣ Prefer explicit revenue fields if available
+  let rawRevenue =
+    row.revenue_at_risk ??
+    row.RevenueAtRisk ??
+    row.revenue ??
+    row.Revenue ??
+    null;
 
-    if (directRevenue > 0) return directRevenue;
+  let value;
 
-    const unitsAtRisk = Number(exec?.demandAtRiskUnits ?? 0);
-    return unitsAtRisk * 100;
-  })();
+  if (rawRevenue != null && rawRevenue !== "") {
+    if (typeof rawRevenue === "string") {
+      const cleaned = rawRevenue.replace(/[$,]/g, "");
+      value = parseFloat(cleaned);
+    } else {
+      value = Number(rawRevenue);
+    }
+  }
+
+  // 2️⃣ No revenue field? → derive proxy
+  if (!Number.isFinite(value)) {
+    const rawSeverity =
+      row.severity_score ??
+      row.SeverityScore ??
+      row.severityScore ??
+      null;
+    const severity =
+      typeof rawSeverity === "string"
+        ? parseFloat(rawSeverity)
+        : Number(rawSeverity);
+
+    const rawDays =
+      row.days_affected ??
+      row.DaysAffected ??
+      row.days ??
+      null;
+    const days =
+      typeof rawDays === "string"
+        ? parseFloat(rawDays)
+        : Number(rawDays);
+
+    // Baseline model: severity (0–100) × days × $10k
+    const BASE_REVENUE_PER_DAY = 10_000;
+
+    if (Number.isFinite(severity) && Number.isFinite(days)) {
+      const severityFactor = Math.max(0, Math.min(1, severity / 100));
+      value = severityFactor * days * BASE_REVENUE_PER_DAY;
+    } else {
+      value = 0;
+    }
+  }
+
+  return sum + (Number.isFinite(value) ? value : 0);
+}, 0);
+
+// 3️⃣ Prefer KPI-based revenue exposure from App.jsx, then fall back to panel-derived estimate
+const revenueExposureDisplayValue = (() => {
+  const directRevenue = Number(
+    exec?.revenueExposure ??
+    exec?.estimatedRevenueExposure ??
+    0
+  );
+
+  if (directRevenue > 0) return directRevenue;
+
+  const unitsAtRisk = Number(exec?.demandAtRiskUnits ?? 0);
+  return unitsAtRisk * 100;
+})();;
 
   const riskDistribution = impactRows.reduce(
-    (acc, row) => {
-      let sev = (row.severity || row.Severity || "")
-        .toString()
-        .toLowerCase()
-        .trim();
+  (acc, row) => {
+    // 1️⃣ Try explicit severity text first, if present
+    let sev = (row.severity || row.Severity || "")
+      .toString()
+      .toLowerCase()
+      .trim();
 
-      if (!sev) {
-        const rawScore =
-          row.severity_score ??
-          row.SeverityScore ??
-          row.severityScore ??
-          null;
+    // 2️⃣ If missing, derive from severity_score
+    if (!sev) {
+      const rawScore =
+        row.severity_score ??
+        row.SeverityScore ??
+        row.severityScore ??
+        null;
 
-        const score =
-          typeof rawScore === "string"
-            ? parseFloat(rawScore)
-            : Number(rawScore);
+      const score =
+        typeof rawScore === "string"
+          ? parseFloat(rawScore)
+          : Number(rawScore);
 
-        if (Number.isFinite(score)) {
-          if (score >= 70) sev = "high";
-          else if (score >= 30) sev = "medium";
-          else if (score >= 0) sev = "low";
-        }
+      if (Number.isFinite(score)) {
+        if (score >= 70) sev = "high";
+        else if (score >= 30) sev = "medium";
+        else if (score >= 0) sev = "low";
       }
+    }
 
-      if (sev === "high" || sev === "severe" || sev === "critical") sev = "high";
-      else if (sev === "medium" || sev === "med") sev = "medium";
-      else if (sev === "low") sev = "low";
+    // Normalize allowed values
+    if (sev === "high" || sev === "severe" || sev === "critical") sev = "high";
+    else if (sev === "medium" || sev === "med") sev = "medium";
+    else if (sev === "low") sev = "low";
 
-      if (sev === "high") acc.high++;
-      else if (sev === "medium") acc.medium++;
-      else if (sev === "low") acc.low++;
-      else acc.unknown++;
+    // 3️⃣ Bucket into High / Med / Low / Unknown
+    if (sev === "high") acc.high++;
+    else if (sev === "medium") acc.medium++;
+    else if (sev === "low") acc.low++;
+    else acc.unknown++;
 
-      return acc;
-    },
-    { high: 0, medium: 0, low: 0, unknown: 0 }
-  );
+    return acc;
+  },
+  { high: 0, medium: 0, low: 0, unknown: 0 }
+);
 
   const firstImpactedFacility =
     impactRows[0]?.facility ||
     impactRows[0]?.Facility ||
     (impactRows[0] ? "First impacted facility" : "No disruptions recorded");
 
+  // Runout / Countermeasures quick summaries
   const highRiskSkus = runoutRows
     .filter((r) => {
       const risk = (r.risk_level || r.RiskLevel || "")
@@ -434,6 +496,7 @@ function DisruptionPanels({
 
   return (
     <section className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {/* Left: Disruption Impact & Projected Impact */}
       <div
         className="border rounded-2xl p-5 shadow-lg"
         style={{
@@ -466,7 +529,10 @@ function DisruptionPanels({
           </div>
           <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-3">
             <p className="text-xs text-slate-300">Estimated Revenue Exposure</p>
-            <p className="text-xl font-bold" style={{ color: "#9CF700" }}>
+            <p
+              className="text-xl font-bold"
+              style={{ color: "#9CF700" }}
+            >
               {formatCurrencyCompact(revenueExposureDisplayValue, { zeroIsDash: false })}
             </p>
           </div>
@@ -522,6 +588,7 @@ function DisruptionPanels({
         </div>
       </div>
 
+      {/* Right: Runout Risk & Countermeasures */}
       <div
         className="border rounded-2xl p-5 shadow-lg"
         style={{
@@ -593,7 +660,7 @@ function DisruptionPanels({
                 No countermeasures generated yet for this scenario.
               </p>
             ) : (
-              <ul className="list-disc list-inside space-y-1">
+              <ul className="space-y-1">
                 {candidateActions.map((row, idx) => (
                   <li key={idx}>
                     <span className="font-semibold">{row.sku}</span>{" "}
@@ -786,12 +853,6 @@ function formatDecisionKpiValue(key, value) {
 }
 
 export default function SimulationDashboard({
-  baselineKpis = null,
-  baselineOptions = [],
-  selectedBaselineRunId = "",
-  setSelectedBaselineRunId = () => {},
-  baselineLabel = "Previous Run",
-
   handleFileChange,
   handleSubmit,
   simulationStatus,
@@ -2006,16 +2067,6 @@ setOverlayChartData(overlay);
               📊 Operational Efficiency
             </h2>
             <div className="space-y-4 text-xs">
-      <DecisionNarrativePanel
-        kpis={kpis}
-        baselineKpis={baselineKpis}
-        baselineOptions={baselineOptions}
-        selectedBaselineRunId={selectedBaselineRunId}
-        setSelectedBaselineRunId={setSelectedBaselineRunId}
-        baselineLabel={baselineLabel}
-        materialRiskData={typeof materialRiskData !== "undefined" ? materialRiskData : []}
-      />
-
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">
                   Executive Signals
@@ -2718,7 +2769,9 @@ setOverlayChartData(overlay);
             revenueExposure: Number(kpis?.revenueExposure ?? 0),
             estimatedRevenueExposure: Number(kpis?.estimatedRevenueExposure ?? 0),
           }}
-        />{/* ===== Filters + Chart ======================================== */}
+        />
+
+        {/* ===== Filters + Chart ======================================== */}
         <section
           className="rounded-2xl p-5 shadow-xl border simulation-chart-container"
           style={{

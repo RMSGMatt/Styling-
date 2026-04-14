@@ -49,54 +49,21 @@ function ComparisonCard({ card }) {
 export default function DecisionNarrativePanel({
   kpis = {},
   baselineKpis = null,
-  baselineOptions = [],
-  selectedBaselineRunId = "",
-  setSelectedBaselineRunId = () => {},
-  baselineLabel = "Previous Run",
   materialRiskData = [],
 }) {
-  const normalizeDecisionKpis = (source = {}) => {
-    const demandAtRisk = Number(
-      source?.demandAtRisk ??
-      source?.lateFulfilledUnits ??
-      source?.unitsAtRisk ??
-      0
-    );
-
-    const revenueExposure = Number(
-      source?.revenueExposure ??
-      source?.estimatedRevenueExposure ??
-      source?.endingBacklogExposure ??
-      0
-    );
-
-    return {
-      ...source,
-      demandAtRisk,
-      revenueExposure,
-      estimatedRevenueExposure: revenueExposure,
-    };
-  };
-
-  const effectiveKpis = useMemo(() => normalizeDecisionKpis(kpis), [kpis]);
-  const effectiveBaselineKpis = useMemo(
-    () => normalizeDecisionKpis(baselineKpis || {}),
-    [baselineKpis]
-  );
-
   const comparison = useMemo(
-    () => buildBaselineComparison(effectiveKpis, effectiveBaselineKpis),
-    [effectiveKpis, effectiveBaselineKpis]
+    () => buildBaselineComparison(kpis, baselineKpis),
+    [kpis, baselineKpis]
   );
 
   const narrative = useMemo(
     () =>
       buildDecisionNarrative({
-        currentKpis: effectiveKpis,
+        currentKpis: kpis,
         baselineKpis,
         materialRiskData,
       }),
-    [effectiveKpis, effectiveBaselineKpis, materialRiskData]
+    [kpis, baselineKpis, materialRiskData]
   );
 
   return (
@@ -113,34 +80,17 @@ export default function DecisionNarrativePanel({
             Executive view of impact, urgency, and next best action.
           </p>
           <p className="mt-1 text-xs text-slate-400">
-            Comparing vs {baselineLabel}
+            Comparing vs Previous Run
+          </p>
+
           </p>
         </div>
 
-        <div className="flex flex-col items-start gap-2 md:items-end">
-          {baselineOptions.length > 0 ? (
-            <>
-              <label className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                Compare against
-              </label>
-              <select
-                value={selectedBaselineRunId}
-                onChange={(e) => setSelectedBaselineRunId(e.target.value)}
-                className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs text-slate-100 outline-none"
-              >
-                {baselineOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </>
-          ) : (
-            <div className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
-              Baseline not yet connected
-            </div>
-          )}
-        </div>
+        {!comparison.hasBaseline && (
+          <div className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
+            Baseline not yet connected
+          </div>
+        )}
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">

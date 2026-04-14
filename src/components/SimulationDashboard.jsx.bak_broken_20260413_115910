@@ -431,6 +431,41 @@ function DisruptionPanels({
   }
 
   const uniqueRecommendedActions = candidateActions.map((row) => row.action);
+  const decisionRevenueExposure = (() => {
+    const extractRevenue = (rows) => {
+      if (!Array.isArray(rows) || rows.length === 0) return 0;
+      return rows.reduce((sum, row) => {
+        const value = Number(
+          row?.revenue_at_risk ??
+          row?.revenueAtRisk ??
+          row?.estimated_revenue_exposure ??
+          row?.estimatedRevenueExposure ??
+          row?.revenue_exposure ??
+          row?.revenueExposure ??
+          row?.financial_impact ??
+          row?.financialImpact ??
+          row?.estimated_loss ??
+          row?.estimatedLoss ??
+          0
+        );
+        return sum + (Number.isFinite(value) ? value : 0);
+      }, 0);
+    };
+
+    
+    const fromProjected = extractRevenue(projectedImpactData);
+    const fromDisruption = extractRevenue(disruptionImpactData);
+
+    return (
+      (Number.isFinite(fromProjected) ? fromProjected : 0) ||
+      (Number.isFinite(fromDisruption) ? fromDisruption : 0) ||
+      0
+    );
+  })();
+
+  console.log("[SimulationDashboard] decisionRevenueExposure:", decisionRevenueExposure);
+
+
 
   return (
     <section className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -785,46 +820,25 @@ function formatDecisionKpiValue(key, value) {
   return n.toLocaleString();
 }
 
-export default function SimulationDashboard({
-  baselineKpis = null,
-  baselineOptions = [],
-  selectedBaselineRunId = "",
-  setSelectedBaselineRunId = () => {},
-  baselineLabel = "Previous Run",
+export default function SimulationDashboard(props) {
 
-  handleFileChange,
-  handleSubmit,
-  simulationStatus,
-  outputUrls,
-  skuOptions,
-  selectedSku,
-  setSelectedSku,
-  selectedOutputType,
-  setSelectedOutputType,
-  chartData,
-  summaryStats,
-  scenarioImpactSummary,
-  simulationHistory,
-  files,
-  kpis,
-  executiveKpis,
-  onLogout,
-  switchView,
-  onReloadRun,
-  disruptionImpactData,
-  runoutRiskData,
-  countermeasuresData,
-  locationsUrl,
-  scenarioData,
-  setScenarioData,
-  selectedFacility,
-  handleFacilityClick,
+  const {
+    kpis = {},
+    executiveKpis = {},
+    baselineKpis = null,
+    baselineOptions = [],
+    selectedBaselineRunId = "",
+    setSelectedBaselineRunId = () => {},
+    baselineLabel = "Previous Run",
 
-  // 🔐 plan gating hooks (from App.jsx)
-  userPlan,
-  requirePro,
-  openUpgradeGate,
-}) {
+    materialRiskData = [],
+    projectedImpactData = [],
+    disruptionImpactData = [],
+
+    scenarioData = {},
+    ...rest
+  } = props;
+
 
   const [projectedSlider, setProjectedSlider] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
@@ -2006,15 +2020,22 @@ setOverlayChartData(overlay);
               📊 Operational Efficiency
             </h2>
             <div className="space-y-4 text-xs">
-      <DecisionNarrativePanel
-        kpis={kpis}
-        baselineKpis={baselineKpis}
-        baselineOptions={baselineOptions}
-        selectedBaselineRunId={selectedBaselineRunId}
-        setSelectedBaselineRunId={setSelectedBaselineRunId}
-        baselineLabel={baselineLabel}
-        materialRiskData={typeof materialRiskData !== "undefined" ? materialRiskData : []}
-      />
+      {kpis && Object.keys(kpis).length > 0 ? (
+  <DecisionNarrativePanel
+    kpis={kpis}
+    baselineKpis={baselineKpis}
+    baselineOptions={baselineOptions}
+    selectedBaselineRunId={selectedBaselineRunId}
+    setSelectedBaselineRunId={setSelectedBaselineRunId}
+    baselineLabel={baselineLabel}
+    revenueExposureOverride={decisionRevenueExposure}
+    materialRiskData={materialRiskData}
+  />
+) : (
+  <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 text-sm text-slate-400">
+    Calculating decision insights...
+  </div>
+)}
 
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">

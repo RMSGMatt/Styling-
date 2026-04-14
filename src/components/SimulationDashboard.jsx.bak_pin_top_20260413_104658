@@ -786,12 +786,6 @@ function formatDecisionKpiValue(key, value) {
 }
 
 export default function SimulationDashboard({
-  baselineKpis = null,
-  baselineOptions = [],
-  selectedBaselineRunId = "",
-  setSelectedBaselineRunId = () => {},
-  baselineLabel = "Previous Run",
-
   handleFileChange,
   handleSubmit,
   simulationStatus,
@@ -2006,16 +2000,6 @@ setOverlayChartData(overlay);
               📊 Operational Efficiency
             </h2>
             <div className="space-y-4 text-xs">
-      <DecisionNarrativePanel
-        kpis={kpis}
-        baselineKpis={baselineKpis}
-        baselineOptions={baselineOptions}
-        selectedBaselineRunId={selectedBaselineRunId}
-        setSelectedBaselineRunId={setSelectedBaselineRunId}
-        baselineLabel={baselineLabel}
-        materialRiskData={typeof materialRiskData !== "undefined" ? materialRiskData : []}
-      />
-
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">
                   Executive Signals
@@ -2549,6 +2533,15 @@ setOverlayChartData(overlay);
                 🔄 Restore Baseline
               </button>
             )}
+
+        
+
+      <DecisionNarrativePanel
+        kpis={kpis}
+        baselineKpis={typeof baselineKpis !== "undefined" ? baselineKpis : null}
+        materialRiskData={typeof materialRiskData !== "undefined" ? materialRiskData : []}
+      />
+
 
             <ScenarioBuilder
               scenarioData={scenarioData}
