@@ -786,12 +786,6 @@ function formatDecisionKpiValue(key, value) {
 }
 
 export default function SimulationDashboard({
-  baselineKpis = null,
-  baselineOptions = [],
-  selectedBaselineRunId = "",
-  setSelectedBaselineRunId = () => {},
-  baselineLabel = "Previous Run",
-
   handleFileChange,
   handleSubmit,
   simulationStatus,
@@ -2008,11 +2002,7 @@ setOverlayChartData(overlay);
             <div className="space-y-4 text-xs">
       <DecisionNarrativePanel
         kpis={kpis}
-        baselineKpis={baselineKpis}
-        baselineOptions={baselineOptions}
-        selectedBaselineRunId={selectedBaselineRunId}
-        setSelectedBaselineRunId={setSelectedBaselineRunId}
-        baselineLabel={baselineLabel}
+        baselineKpis={typeof baselineKpis !== "undefined" ? baselineKpis : null}
         materialRiskData={typeof materialRiskData !== "undefined" ? materialRiskData : []}
       />
 
@@ -2550,10 +2540,130 @@ setOverlayChartData(overlay);
               </button>
             )}
 
-            <ScenarioBuilder
-              scenarioData={scenarioData}
-              setScenarioData={setScenarioData}
-            />
+            
+<div className="bg-slate-900 border border-slate-700 rounded-xl p-5 mt-6">
+  <div className="mb-4">
+    <h2 className="text-lg font-semibold text-white">
+      🎯 War Game the Scenario
+    </h2>
+    <p className="text-sm text-slate-400 mt-1">
+      Apply disruptions, demand shocks, and policy changes to stress test your network.
+    </p>
+  </div>
+  {/* CURRENT STATE SNAPSHOT */}
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+
+    <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
+      <p className="text-xs text-slate-400">Service Level</p>
+      <p className="text-sm font-semibold text-green-400">
+        {kpis?.onTimeFulfillment ?? '-'}%
+      </p>
+    </div>
+
+    <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
+      <p className="text-xs text-slate-400">Demand at Risk</p>
+      <p className="text-sm font-semibold text-yellow-400">
+        {kpis?.unitsAtRisk ?? '-'}
+      </p>
+    </div>
+
+    <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
+      <p className="text-xs text-slate-400">Revenue Exposure</p>
+      <p className="text-sm font-semibold text-red-400">
+        {formatCurrencyCompact(kpis?.revenueExposure ?? 0)}
+      </p>
+    </div>
+
+    <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
+      <p className="text-xs text-slate-400">Peak Backlog</p>
+      <p className="text-sm font-semibold text-orange-400">
+        {kpis?.peakBacklog ?? '-'}
+      </p>
+    </div>
+
+    <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
+      <p className="text-xs text-slate-400">TTR</p>
+      <p className="text-sm font-semibold text-blue-400">
+        {kpis?.timeToRecoverDays ?? '-'}d
+      </p>
+    </div>
+
+    <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
+      <p className="text-xs text-slate-400">Status</p>
+      <p className="text-sm font-semibold text-slate-300">
+        Baseline
+      </p>
+    </div>
+
+  </div>
+  {/* BEFORE vs AFTER DELTA */}
+  <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-4">
+
+    <p className="text-xs text-slate-400 mb-2">
+      Before vs After (Scenario Impact)
+    </p>
+
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
+
+      <div>
+        <p className="text-[10px] text-slate-400">Service</p>
+        <p className="text-sm font-semibold text-slate-200">
+          {kpis?.onTimeFulfillment ?? '-'}%
+        </p>
+        <p className="text-xs text-slate-500">→ Pending</p>
+      </div>
+
+      <div>
+        <p className="text-[10px] text-slate-400">Risk</p>
+        <p className="text-sm font-semibold text-slate-200">
+          {kpis?.unitsAtRisk ?? '-'}
+        </p>
+        <p className="text-xs text-slate-500">→ Pending</p>
+      </div>
+
+      <div>
+        <p className="text-[10px] text-slate-400">Revenue</p>
+        <p className="text-sm font-semibold text-slate-200">
+          {formatCurrencyCompact(kpis?.revenueExposure ?? 0)}
+        </p>
+        <p className="text-xs text-slate-500">→ Pending</p>
+      </div>
+
+      <div>
+        <p className="text-[10px] text-slate-400">Backlog</p>
+        <p className="text-sm font-semibold text-slate-200">
+          {kpis?.peakBacklog ?? '-'}
+        </p>
+        <p className="text-xs text-slate-500">→ Pending</p>
+      </div>
+
+      <div>
+        <p className="text-[10px] text-slate-400">TTR</p>
+        <p className="text-sm font-semibold text-slate-200">
+          {kpis?.timeToRecoverDays ?? '-'}d
+        </p>
+        <p className="text-xs text-slate-500">→ Pending</p>
+      </div>
+
+      <div>
+        <p className="text-[10px] text-slate-400">Impact</p>
+        <p className="text-sm font-semibold text-yellow-400">
+          Awaiting Scenario
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  <ScenarioBuilder
+    scenarioData={scenarioData}
+    setScenarioData={setScenarioData}
+  />
+</div>
+
 
             {/* 🧩 Scenario Status (applied via ScenarioBuilder) */}
             <div className="mt-3">
