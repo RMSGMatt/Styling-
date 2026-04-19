@@ -1986,7 +1986,8 @@ setOverlayChartData(overlay);
         </section>
 
         {/* KPI row */}
-        <section className="grid grid-cols-1 gap-4">
+        {false && (
+<section className="grid grid-cols-1 gap-4">
 {/* KPI Panel */}
           <div
             className="rounded-2xl p-4 flex flex-col border shadow-xl"
@@ -2010,6 +2011,29 @@ setOverlayChartData(overlay);
                 <p className="text-[11px] uppercase tracking-wide text-slate-400 mb-2">
                   Executive Signals
                 </p>
+
+                <div
+                  className="rounded-2xl border p-3 mb-3"
+                  style={{
+                    background:
+                      (Number(execPeakBacklog || 0) > 0 || execMissedServiceDays > 0)
+                        ? "rgba(239,68,68,0.08)"
+                        : "rgba(34,197,94,0.08)",
+                    borderColor:
+                      (Number(execPeakBacklog || 0) > 0 || execMissedServiceDays > 0)
+                        ? "rgba(239,68,68,0.24)"
+                        : "rgba(34,197,94,0.24)",
+                  }}
+                >
+                  <p className="text-[10px] uppercase tracking-wide text-slate-300 mb-1">
+                    Scenario Readout
+                  </p>
+                  <p className="text-sm text-slate-100 leading-relaxed">
+                    {(Number(execPeakBacklog || 0) > 0 || execMissedServiceDays > 0)
+                      ? `Service failure hidden behind 100% fulfillment. Only ${formatPercent(execOnTimePct, { zeroIsDash: false, digits: 1 })} of demand was met on time, with ${formatNumber(execLateUnits)} units delivered late and a ${formatNumber(execTtrDays || 0, { zeroIsDash: false })}-day recovery period.`
+                      : "Network remained stable with no service misses, no backlog, and full on-time fulfillment."}
+                  </p>
+                </div>
 
                 <div
                   className="rounded-2xl border p-3 mb-3"
@@ -2413,6 +2437,7 @@ setOverlayChartData(overlay);
               </div>
             </div>
         </section>
+)}
 
 {/* ===== Scenario Impact Summary ============================== */}
 <section
@@ -2550,7 +2575,7 @@ setOverlayChartData(overlay);
       Apply disruptions, demand shocks, and policy changes to stress test your network.
     </p>
   </div>
-  {/* CURRENT STATE SNAPSHOT */}
+  {/* REMOVED SNAPSHOT */}
   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
 
     <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
@@ -2596,7 +2621,7 @@ setOverlayChartData(overlay);
     </div>
 
   </div>
-  {/* BEFORE vs AFTER DELTA */}
+  {/* REMOVED DELTA */}
   <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-4">
 
     <p className="text-xs text-slate-400 mb-2">
@@ -3084,7 +3109,8 @@ setOverlayChartData(overlay);
 </section>
 
         {/* ===== Projected Disruption Impact (Slider) =================== */}
-        <section
+        {false && (
+<section
           className="rounded-2xl p-5 shadow-xl border"
           style={{
             background:
@@ -3127,6 +3153,7 @@ setOverlayChartData(overlay);
             )}
           </div>
         </section>
+)}
 
         {/* ===== Simulation History ==================================== */}
         <section
