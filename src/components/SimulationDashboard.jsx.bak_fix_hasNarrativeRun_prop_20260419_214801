@@ -294,7 +294,6 @@ function DisruptionPanels({
   runoutRiskData,
   countermeasuresData,
   executiveKpis,
-  hasNarrativeRun = false,
 }) {
   const impactRows = safeArray(disruptionImpactData);
   const runoutRows = safeArray(runoutRiskData);
@@ -466,7 +465,7 @@ function DisruptionPanels({
         : "text-green-400"
     }
   >
-    {!hasNarrativeRun ? <span className="opacity-40">—</span> : execOnTimePct.toFixed(1) + "%"}
+    {!hasNarrativeRun ? "—" : execOnTimePct.toFixed(1) + "%"}
   </span>
 </p>
           </div>
@@ -1153,14 +1152,14 @@ const decisionKpis = [
       label: "Units at Risk",
       healthy: "0",
       stressed: execLateUnits.toLocaleString(),
-      delta: `+${!hasNarrativeRun ? <span className="opacity-40">—</span> : execLateUnits.toLocaleString()}`,
+      delta: `+${!hasNarrativeRun ? "—" : execLateUnits.toLocaleString()}`,
       direction: Number(execLateUnits ?? 0) > 0 ? "up" : "flat",
     },
     {
       label: "Peak Backlog",
       healthy: "0",
       stressed: execPeakBacklog.toLocaleString(),
-      delta: `+${!hasNarrativeRun ? <span className="opacity-40">—</span> : execPeakBacklog.toLocaleString()}`,
+      delta: `+${!hasNarrativeRun ? "—" : execPeakBacklog.toLocaleString()}`,
       direction: Number(execPeakBacklog ?? 0) > 0 ? "up" : "flat",
     },
     {
@@ -1951,7 +1950,7 @@ setOverlayChartData(overlay);
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <input
             key={`upload-${key}-${files[key]?.name || "empty"}`}
             id={`upload-${key}`}
@@ -2003,7 +2002,7 @@ setOverlayChartData(overlay);
       handleRunSimulationWithScenario(activeScenario);
     }}
     disabled={isSimulateDisabled}
-    className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition hover:bg-lime-400 active:scale-[0.98] transition-all duration-150"
+    className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition"
     style={
       isSimulateDisabled
         ? {
@@ -2140,7 +2139,7 @@ setOverlayChartData(overlay);
                         Units at Risk
                       </p>
                       <p className="text-3xl font-bold tracking-tight text-white font-semibold text-amber-300">
-                        {!hasNarrativeRun ? <span className="opacity-40">—</span> : execLateUnits.toLocaleString()}
+                        {!hasNarrativeRun ? "—" : execLateUnits.toLocaleString()}
                       </p>
                       <p className="text-[10px] text-slate-400 mt-1">
                         Demand exposed before the network stabilized.
@@ -2152,7 +2151,7 @@ setOverlayChartData(overlay);
                         Peak Backlog
                       </p>
                       <p className="text-3xl font-bold tracking-tight text-white font-semibold text-orange-300">
-                        {!hasNarrativeRun ? <span className="opacity-40">—</span> : execPeakBacklog.toLocaleString()}
+                        {!hasNarrativeRun ? "—" : execPeakBacklog.toLocaleString()}
                       </p>
                       <p className="text-[10px] text-slate-400 mt-1">
                         Maximum accumulated unmet demand during recovery.
@@ -2501,7 +2500,7 @@ setOverlayChartData(overlay);
         <p className={narrativeEyebrowClass}>
           Decision Narrative
         </p>
-        <h3 className={`text-lg tracking-tight font-semibold shadow-2xl transition-all duration-500 ${
+        <h3 className={`text-base font-semibold shadow-2xl transition-all duration-500 ${
           hasNarrativeRun
             ? "text-red-200 border border-red-500/40 ring-1 ring-red-500/20"
             : "text-slate-200 border border-slate-700/60 ring-1 ring-slate-700/40"
@@ -2538,42 +2537,35 @@ setOverlayChartData(overlay);
           Service Level
         </p>
         <p className="text-3xl font-bold tracking-tight font-semibold">
-          {!hasNarrativeRun ? (
-            <span className="opacity-40 text-slate-200">—</span>
-          ) : (
-            <span className="flex items-center gap-2">
-              <span
-                className={
-                  execOnTimePct < 80
-                    ? "text-red-400"
-                    : execOnTimePct < 90
-                    ? "text-yellow-400"
-                    : "text-green-400"
-                }
-              >
-                {execOnTimePct.toFixed(1)}%
-              </span>
-              <span className={execOnTimePct < 80 ? "text-[10px] text-red-400 opacity-80" : execOnTimePct < 90 ? "text-[10px] text-yellow-400 opacity-80" : "text-[10px] text-green-400 opacity-80"}>
-                {execOnTimePct < 80 ? "▼" : execOnTimePct < 90 ? "●" : "▲"}
-              </span>
-            </span>
-          )}
+          <span
+            className={
+              !hasNarrativeRun
+                ? "text-slate-200"
+                : execOnTimePct < 80
+                ? "text-red-400"
+                : execOnTimePct < 90
+                ? "text-yellow-400"
+                : "text-green-400"
+            }
+          >
+            {!hasNarrativeRun ? "—" : execOnTimePct.toFixed(1) + "%"}
+          </span>
         </p>
       </div>
 
       <div className={hasNarrativeRun ? "rounded-xl border border-orange-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
         <p className="text-[11px] uppercase tracking-wide text-slate-400">Demand at Risk</p>
-        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-orange-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execLateUnits.toLocaleString()}</p>
+        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-orange-300" : "text-slate-200"}`}>{!hasNarrativeRun ? "—" : execLateUnits.toLocaleString()}</p>
       </div>
 
       <div className={hasNarrativeRun ? "rounded-xl border border-amber-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
         <p className="text-[11px] uppercase tracking-wide text-slate-400">Peak Backlog</p>
-        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-amber-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execPeakBacklog.toLocaleString()}</p>
+        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-amber-300" : "text-slate-200"}`}>{!hasNarrativeRun ? "—" : execPeakBacklog.toLocaleString()}</p>
       </div>
 
       <div className={hasNarrativeRun ? "rounded-xl border border-rose-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
         <p className="text-[11px] uppercase tracking-wide text-slate-400">Time to Recover</p>
-        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-rose-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execTtrDays + " days"}</p>
+        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-rose-300" : "text-slate-200"}`}>{!hasNarrativeRun ? "—" : execTtrDays + " days"}</p>
       </div>
     </div>
 
@@ -2592,9 +2584,9 @@ setOverlayChartData(overlay);
       Recommended action
     </p>
     <ul className="space-y-2 text-sm text-slate-200">
-      <li>• Prioritize the constrained component path immediately.</li>
-      <li>• Protect customer-facing service before backlog accelerates.</li>
-      <li>• Expedite the limiting supply node to reduce recovery time.</li>
+      <li>• Prioritize mitigation on the constrained component path.</li>
+      <li>• Protect customer-facing service before backlog expands further.</li>
+      <li>• Compress recovery time by expediting the limiting supply node.</li>
     </ul>
   </div>
 </section>
@@ -2928,7 +2920,6 @@ setOverlayChartData(overlay);
         <DisruptionPanels
           disruptionImpactData={disruptionImpactData}
           runoutRiskData={runoutRiskData}
-            hasNarrativeRun={hasNarrativeRun}
           countermeasuresData={countermeasuresData}
           executiveKpis={{
             serviceLevelPct: Number(kpis?.serviceLevelPct ?? kpis?.onTimeFulfillment ?? 0),

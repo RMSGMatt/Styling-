@@ -1951,7 +1951,7 @@ setOverlayChartData(overlay);
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <input
             key={`upload-${key}-${files[key]?.name || "empty"}`}
             id={`upload-${key}`}
@@ -2538,26 +2538,19 @@ setOverlayChartData(overlay);
           Service Level
         </p>
         <p className="text-3xl font-bold tracking-tight font-semibold">
-          {!hasNarrativeRun ? (
-            <span className="opacity-40 text-slate-200">—</span>
-          ) : (
-            <span className="flex items-center gap-2">
-              <span
-                className={
-                  execOnTimePct < 80
-                    ? "text-red-400"
-                    : execOnTimePct < 90
-                    ? "text-yellow-400"
-                    : "text-green-400"
-                }
-              >
-                {execOnTimePct.toFixed(1)}%
-              </span>
-              <span className={execOnTimePct < 80 ? "text-[10px] text-red-400 opacity-80" : execOnTimePct < 90 ? "text-[10px] text-yellow-400 opacity-80" : "text-[10px] text-green-400 opacity-80"}>
-                {execOnTimePct < 80 ? "▼" : execOnTimePct < 90 ? "●" : "▲"}
-              </span>
-            </span>
-          )}
+          <span
+            className={
+              !hasNarrativeRun
+                ? "text-slate-200"
+                : execOnTimePct < 80
+                ? "text-red-400"
+                : execOnTimePct < 90
+                ? "text-yellow-400"
+                : "text-green-400"
+            }
+          >
+            {!hasNarrativeRun ? <span className="opacity-40">—</span> : execOnTimePct.toFixed(1) + "%"}
+          </span>
         </p>
       </div>
 
@@ -2592,9 +2585,9 @@ setOverlayChartData(overlay);
       Recommended action
     </p>
     <ul className="space-y-2 text-sm text-slate-200">
-      <li>• Prioritize the constrained component path immediately.</li>
-      <li>• Protect customer-facing service before backlog accelerates.</li>
-      <li>• Expedite the limiting supply node to reduce recovery time.</li>
+      <li>• Prioritize mitigation on the constrained component path.</li>
+      <li>• Protect customer-facing service before backlog expands further.</li>
+      <li>• Compress recovery time by expediting the limiting supply node.</li>
     </ul>
   </div>
 </section>
