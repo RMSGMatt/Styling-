@@ -832,6 +832,7 @@ export default function SimulationDashboard({
   openUpgradeGate,
 }) {
 
+  const [presentationMode, setPresentationMode] = useState(false);
   const [projectedSlider, setProjectedSlider] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
   const [scenarioJustRan, setScenarioJustRan] = useState(false);
@@ -1850,6 +1851,14 @@ setOverlayChartData(overlay);
             </button>
             <button
               type="button"
+              onClick={() => setPresentationMode(p => !p)}
+              className="px-3 py-1.5 rounded-full text-xs border transition font-semibold"
+              style={{ borderColor: "#9CF700", color: "#9CF700", backgroundColor: "rgba(2, 6, 23, 0.6)" }}
+            >
+              {presentationMode ? "⬜ Exit Presentation" : "🖥 Presentation Mode"}
+            </button>
+            <button
+              type="button"
               onClick={onLogout}
               className="px-3 py-1.5 rounded-full text-xs border border-rose-500/80 text-rose-300 hover:bg-rose-500/10 transition"
             >
@@ -1860,7 +1869,7 @@ setOverlayChartData(overlay);
       </header>
 
       {/* Main Layout */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-4 space-y-6">
+      <main className={`flex-1 max-w-7xl mx-auto px-4 py-4 space-y-6 ${presentationMode ? "text-lg" : "text-sm"}`}>
                 {/* Top row: map + inputs */}
         <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 {/* Map */}
