@@ -455,7 +455,7 @@ function DisruptionPanels({
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-xs text-slate-300">Disruption Records</p>
+            <p className="text-xs text-slate-300">Disruption Severity Rate</p>
             <p className="text-3xl font-bold tracking-tight font-semibold">
   <span
     className={
@@ -2507,6 +2507,8 @@ setOverlayChartData(overlay);
             : "text-slate-200 border border-slate-700/60 ring-1 ring-slate-700/40"
         } ${
           scenarioJustRan ? "ring-2 ring-lime-400/60 shadow-[0_0_25px_rgba(132,204,22,0.35)]" : ""
+        } ${
+          hasNarrativeRun ? "animate-pulse" : ""
         }`}>
           {narrativeHeadline}
         </h3>
@@ -3201,7 +3203,7 @@ setOverlayChartData(overlay);
           className="rounded-2xl p-5 shadow-xl border"
           style={{
             background:
-              "linear-gradient(160deg, rgba(4,23,18,0.98), rgba(6,36,27,0.98))",
+              "linear-gradient(160deg, rgba(4,24,18,0.98), rgba(6,32,24,0.98))",
             borderColor: "#123528",
           }}
         >
