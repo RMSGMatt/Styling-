@@ -455,7 +455,7 @@ function DisruptionPanels({
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-xs text-slate-300">Disruption Severity Rate</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Disruption Severity Rate</p>
             <p className="text-3xl font-bold tracking-tight font-semibold">
   <span
     className={
@@ -471,19 +471,19 @@ function DisruptionPanels({
 </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-xs text-slate-300">Facilities Impacted</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Facilities Impacted</p>
             <p className="text-3xl font-bold tracking-tight text-white font-semibold text-slate-50">
               {facilitiesImpacted || 0}
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-xs text-slate-300">Estimated Revenue Exposure</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Estimated Revenue Exposure</p>
             <p className="text-3xl font-bold tracking-tight text-white font-bold" style={{ color: "#9CF700" }}>
               {formatCurrencyCompact(revenueExposureDisplayValue, { zeroIsDash: false })}
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-xs text-slate-300">High-Risk SKUs</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">High-Risk SKUs</p>
             <p className="text-3xl font-bold tracking-tight text-white font-semibold text-rose-400">
               {uniqueHighRiskSkus.length}
             </p>
@@ -553,19 +553,19 @@ function DisruptionPanels({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-xs text-slate-300">SKUs at Runout Risk</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">SKUs at Runout Risk</p>
             <p className="text-3xl font-bold tracking-tight text-white font-semibold text-rose-400">
               {uniqueRunoutRiskSkus.length}
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-xs text-slate-300">Recommended Actions</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Recommended Actions</p>
             <p className="text-3xl font-bold tracking-tight text-white font-semibold text-emerald-400">
               {uniqueRecommendedActions.length}
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-xs text-slate-300">Service Level (On-Time)</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Service Level (On-Time)</p>
             <p className="text-3xl font-bold tracking-tight text-white font-semibold text-sky-400">
               {formatPercent(execOnTimePct, { zeroIsDash: false, digits: 1 })}
             </p>
