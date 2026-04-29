@@ -558,7 +558,7 @@ export default function ControlTower({
         type: Bar,
         data: [4.8, 4.7, 4.5, 4.4, 4.1, 4.0, 3.9, 3.85],
         label: "Revenue at Risk ($M)",
-        color: "#EF4444",
+        color: "#1D625B",
       },
       onTime: {
         type: Line,
@@ -955,7 +955,7 @@ export default function ControlTower({
                         kpiSectionVisibility.cost ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
                       }`}
                     >
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
                         {["revenueAtRisk", "supplierOnTime", "expeditedOrders", "activeIncidents"].map(
                           (key) => (
                             <KpiCard
