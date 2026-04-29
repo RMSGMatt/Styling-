@@ -122,7 +122,7 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
       className={`bg-gradient-to-br from-white to-[#e8f8f5] p-3.5 rounded-xl shadow-sm relative transition duration-200 ease-in-out transform hover:-translate-y-1 hover:shadow-lg ${riskClass}`}
       title={`${label} - Click for details`}
     >
-      <div className="text-[1.65rem] leading-none font-extrabold text-[#1D625B]" title={`Current value: ${value}`}>
+      <div className="text-[2.25rem] leading-none font-extrabold text-[#1D625B]" title={`Current value: ${value}`}>
         {value}
       </div>
       <div className="text-[13px] text-gray-600 flex items-center gap-1 mt-1" title={`Metric: ${label}`}>
@@ -616,7 +616,7 @@ export default function ControlTower({
   return (
     <div className="flex h-screen bg-[#f9fafb] font-sans">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#1D625B] text-white p-6 space-y-6 h-screen overflow-y-auto">
+      <aside className="w-64 bg-[#0a2e22] text-white p-6 space-y-6 h-screen overflow-y-auto">
         <div className="flex items-center justify-center mb-4">
           <img src="/logo.png" alt="FOR-C Logo" className="h-12 w-auto rounded-lg" />
         </div>
@@ -829,6 +829,16 @@ export default function ControlTower({
 
               <div className="text-xs text-gray-500 mb-3">
                 Last updated: {new Date().toLocaleString()}
+              <div className="rounded-xl mb-5 px-5 py-4 flex items-center justify-between gap-4" style={{ background: "linear-gradient(90deg, #0d3d2e 0%, #1D625B 100%)", border: "1px solid rgba(156,247,0,0.2)" }}>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">⚡</span>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-widest text-lime-300/70 mb-0.5">Recommended Action</p>
+                    <p className="text-sm font-semibold text-white">Supplier disruption affecting {businessKpis?.activeIncidents} facilities — expedite constrained component path before backlog accelerates.</p>
+                  </div>
+                </div>
+                <button onClick={() => switchView("simulation")} className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition" style={{ background: "#9CF700", color: "#020617" }}>Run Simulation →</button>
+              </div>
               </div>
 
               {businessKpis && (
