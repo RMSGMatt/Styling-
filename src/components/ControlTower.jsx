@@ -773,11 +773,23 @@ export default function ControlTower({
                     Executive overview of current supply chain performance and disruption exposure.
                   </div>
 
-                  <ul className="space-y-2 text-sm text-gray-700">
-                    <li>• {businessKpis?.activeIncidents} active disruption incidents across monitored regions</li>
-                    <li>• Service level currently {businessKpis?.serviceLevel}</li>
-                    <li>• Revenue exposure estimated at {businessKpis?.revenueAtRisk}</li>
-                    <li>• Backorders currently {businessKpis?.backorders}</li>
+                  <ul className="space-y-3">
+                    <li className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Active Incidents</span>
+                      <span className="text-base font-extrabold text-red-500">{businessKpis?.activeIncidents}</span>
+                    </li>
+                    <li className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Service Level</span>
+                      <span className="text-base font-extrabold text-[#1D625B]">{businessKpis?.serviceLevel}</span>
+                    </li>
+                    <li className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Revenue Exposure</span>
+                      <span className="text-base font-extrabold text-amber-600">{businessKpis?.revenueAtRisk}</span>
+                    </li>
+                    <li className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Backorders</span>
+                      <span className="text-base font-extrabold text-red-400">{businessKpis?.backorders}</span>
+                    </li>
                   </ul>
                 </div>
               </section>

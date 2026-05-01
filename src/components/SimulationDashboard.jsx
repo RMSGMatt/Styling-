@@ -1828,11 +1828,11 @@ setOverlayChartData(overlay);
       >
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white font-semibold flex items-center gap-2">
+            <h1 className="text-4xl font-extrabold tracking-tight text-white flex items-center gap-2">
               <span style={{ color: "#9CF700" }}>FOR-C</span>
               <span className="text-slate-200">Simulation Dashboard</span>
             </h1>
-            <p className="text-xs text-slate-300 mt-1">
+            <p className="text-sm text-slate-400 mt-1">
               Run digital twin scenarios, analyze disruption impact, and
               compare mitigation strategies.
             </p>
@@ -3150,10 +3150,12 @@ setOverlayChartData(overlay);
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-slate-300 mt-2">
-                    Select any two runs to generate an overlay comparison of
-                    the chart below.
-                  </p>
+                  <div className="mt-3 flex items-start gap-2 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2">
+                    <span className="text-lg">💡</span>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Select any two simulation runs above to generate a side-by-side overlay comparison.
+                    </p>
+                  </div>
                 </div>
 
                 {/* CHART */}
@@ -3198,7 +3200,7 @@ setOverlayChartData(overlay);
       options={chartOptions}
     />
   ) : (
-    <p className="text-slate-300 text-xs">No data available for selected filters.</p>
+    <div className="flex flex-col items-center justify-center py-10 gap-2"><span className="text-3xl">📊</span><p className="text-slate-400 text-sm font-semibold">No data to display</p><p className="text-slate-500 text-xs">Select a product and facility, then run a simulation to populate this chart.</p></div>
   )}
 </div>
 </>
