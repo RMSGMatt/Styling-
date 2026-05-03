@@ -2155,6 +2155,17 @@ setOverlayChartData(overlay);
                         Time required to work back to operational stability.
                       </p>
                     </div>
+                    <div className="rounded-xl border border-slate-700/70 bg-slate-900/50 p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
+                        Time to Survive
+                      </p>
+                      <p className="text-3xl font-bold tracking-tight text-white font-semibold text-purple-300">
+                        {execTtsDays} day{execTtsDays === 1 ? "" : "s"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Days of buffer before customer impact begins.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -2561,6 +2572,10 @@ setOverlayChartData(overlay);
       <div className={hasNarrativeRun ? "rounded-xl border border-rose-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
         <p className="text-[11px] uppercase tracking-wide text-slate-400">Time to Recover</p>
         <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-rose-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execTtrDays + " days"}</p>
+      </div>
+      <div className={hasNarrativeRun ? "rounded-xl border border-purple-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
+        <p className="text-[11px] uppercase tracking-wide text-slate-400">Time to Survive</p>
+        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-purple-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execTtsDays + " days"}</p>
       </div>
     </div>
 
