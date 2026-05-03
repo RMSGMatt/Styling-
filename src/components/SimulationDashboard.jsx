@@ -2661,7 +2661,7 @@ setOverlayChartData(overlay);
     <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
       <p className="text-xs text-slate-400">Demand at Risk</p>
       <p className="text-sm font-semibold text-yellow-400">
-        {kpis?.unitsAtRisk ?? '-'}
+        {kpis?.peakBacklogUnits ?? kpis?.unitsAtRisk ?? '-'}
       </p>
     </div>
 
