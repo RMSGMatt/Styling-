@@ -1510,8 +1510,8 @@ console.log("KPI_DEBUG_DUMP", allKpis);
       const finalKpis = {
         ...allKpis,
         ...normalizedServiceKpis,
-        estimatedRevenueExposure: (serviceTruth?.lateFulfilledUnits || 0) * 100,
-        revenueExposure: (serviceTruth?.lateFulfilledUnits || 0) * 100,
+        estimatedRevenueExposure: rowLevelRevenueExposure || (serviceTruth?.lateFulfilledUnits || 0) * 100,
+        revenueExposure: rowLevelRevenueExposure || (serviceTruth?.lateFulfilledUnits || 0) * 100,
       };
 
       const executiveKpis = {
