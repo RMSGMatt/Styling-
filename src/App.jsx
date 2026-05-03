@@ -1516,7 +1516,7 @@ console.log("KPI_DEBUG_DUMP", allKpis);
 
       const executiveKpis = {
         serviceLevelPct: Number(kpis?.onTimeFulfillment ?? 0),
-        demandAtRiskUnits: Number(kpis?.lateFulfilledUnits ?? 0),
+        demandAtRiskUnits: Number(kpis?.peakBacklogUnits ?? kpis?.lateFulfilledUnits ?? 0),
         unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? 0),
         missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
         timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
@@ -2026,7 +2026,7 @@ setSimulationHistory((prev) => {
         <SimulationDashboard
           executiveKpis={{
             serviceLevelPct: Number(kpis?.onTimeFulfillment ?? 0),
-            demandAtRiskUnits: Number(kpis?.lateFulfilledUnits ?? 0),
+            demandAtRiskUnits: Number(kpis?.peakBacklogUnits ?? kpis?.lateFulfilledUnits ?? 0),
             unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? 0),
             missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
             timeToRecoverDays: Number(kpis?.ttrDays ?? kpis?.timeToRecoverDays ?? 0),

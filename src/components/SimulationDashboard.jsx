@@ -1053,6 +1053,7 @@ const recoveryGap =
   );
 
 const demandAtRiskUnits = Number(
+  kpis?.peakBacklogUnits ||
   (typeof execDemandAtRisk !== "undefined" && execDemandAtRisk) ||
   (typeof execUnitsAtRisk !== "undefined" && execUnitsAtRisk) ||
   kpis?.demandAtRisk ||
@@ -2943,7 +2944,7 @@ setOverlayChartData(overlay);
           countermeasuresData={countermeasuresData}
           executiveKpis={{
             serviceLevelPct: Number(kpis?.serviceLevelPct ?? kpis?.onTimeFulfillment ?? 0),
-            demandAtRiskUnits: Number(kpis?.lateFulfilledUnits ?? kpis?.unitsAtRisk ?? 0),
+            demandAtRiskUnits: Number(kpis?.peakBacklogUnits ?? kpis?.lateFulfilledUnits ?? kpis?.unitsAtRisk ?? 0),
             unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0),
             missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
             timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
