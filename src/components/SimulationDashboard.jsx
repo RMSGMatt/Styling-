@@ -2489,10 +2489,14 @@ setOverlayChartData(overlay);
   <section
     className="rounded-2xl p-5 shadow-xl border"
     style={{
-      background: hasNarrativeRun
+      background: isHealthy
+        ? "linear-gradient(160deg, rgba(4,24,12,0.96), rgba(6,30,16,0.96))"
+        : hasNarrativeRun
         ? "linear-gradient(160deg, rgba(24,7,7,0.96), rgba(34,10,10,0.96))"
         : "linear-gradient(160deg, rgba(8,15,24,0.96), rgba(10,18,30,0.96))",
-      borderColor: hasNarrativeRun
+      borderColor: isHealthy
+        ? "rgba(20,100,50,0.65)"
+        : hasNarrativeRun
         ? "rgba(127,29,29,0.65)"
         : "rgba(71,85,105,0.55)",
     }}
@@ -2503,23 +2507,25 @@ setOverlayChartData(overlay);
           Decision Narrative
         </p>
         <h3 className={`text-lg tracking-tight font-semibold shadow-2xl transition-all duration-500 ${
-          hasNarrativeRun
+          isHealthy
+            ? "text-emerald-200 border border-emerald-500/40 ring-1 ring-emerald-500/20"
+            : hasNarrativeRun
             ? "text-red-200 border border-red-500/40 ring-1 ring-red-500/20"
             : "text-slate-200 border border-slate-700/60 ring-1 ring-slate-700/40"
         } ${
           scenarioJustRan ? "ring-2 ring-lime-400/60 shadow-[0_0_25px_rgba(132,204,22,0.35)]" : ""
         } ${
-          hasNarrativeRun ? "animate-pulse" : ""
+          hasNarrativeRun && !isHealthy ? "animate-pulse" : ""
         }`}>
           {narrativeHeadline}
         </h3>
       </div>
 
       <div className="text-right">
-        <p className={hasNarrativeRun ? "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1" : "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1"}>
+        <p className={isHealthy ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1" : hasNarrativeRun ? "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1" : "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1"}>
           {narrativeStateLabel}
         </p>
-        <p className={hasNarrativeRun ? "text-xs font-semibold text-red-300" : "text-xs font-semibold text-slate-300"}>
+        <p className={isHealthy ? "text-xs font-semibold text-emerald-300" : hasNarrativeRun ? "text-xs font-semibold text-red-300" : "text-xs font-semibold text-slate-300"}>
           {hasNarrativeRun ? (execOnTimePct < 60 ? "High Service Risk" : execOnTimePct < 90 ? narrativeStateValue : "Stable") : narrativeStateValue}
         </p>
       </div>
@@ -2532,7 +2538,9 @@ setOverlayChartData(overlay);
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
       <div
         className={
-          hasNarrativeRun
+          isHealthy
+            ? "rounded-xl border border-emerald-900/40 bg-black/20 p-3"
+            : hasNarrativeRun
             ? "rounded-xl border border-red-900/40 bg-black/20 p-3"
             : "rounded-xl border border-slate-700/50 bg-black/20 p-3"
         }
@@ -2564,23 +2572,23 @@ setOverlayChartData(overlay);
         </p>
       </div>
 
-      <div className={hasNarrativeRun ? "rounded-xl border border-orange-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
+      <div className={isHealthy ? "rounded-xl border border-emerald-900/40 bg-black/20 p-3" : hasNarrativeRun ? "rounded-xl border border-orange-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
         <p className="text-[11px] uppercase tracking-wide text-slate-400">Demand at Risk</p>
-        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-orange-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execLateUnits.toLocaleString()}</p>
+        <p className={`text-3xl font-bold tracking-tight font-semibold ${isHealthy ? "text-emerald-300" : hasNarrativeRun ? "text-orange-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execLateUnits.toLocaleString()}</p>
       </div>
 
-      <div className={hasNarrativeRun ? "rounded-xl border border-amber-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
+      <div className={isHealthy ? "rounded-xl border border-emerald-900/40 bg-black/20 p-3" : hasNarrativeRun ? "rounded-xl border border-amber-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
         <p className="text-[11px] uppercase tracking-wide text-slate-400">Peak Backlog</p>
-        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-amber-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execPeakBacklog.toLocaleString()}</p>
+        <p className={`text-3xl font-bold tracking-tight font-semibold ${isHealthy ? "text-emerald-300" : hasNarrativeRun ? "text-amber-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execPeakBacklog.toLocaleString()}</p>
       </div>
 
-      <div className={hasNarrativeRun ? "rounded-xl border border-rose-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
+      <div className={isHealthy ? "rounded-xl border border-emerald-900/40 bg-black/20 p-3" : hasNarrativeRun ? "rounded-xl border border-rose-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
         <p className="text-[11px] uppercase tracking-wide text-slate-400">Time to Recover</p>
-        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-rose-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execTtrDays + " days"}</p>
+        <p className={`text-3xl font-bold tracking-tight font-semibold ${isHealthy ? "text-emerald-300" : hasNarrativeRun ? "text-rose-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execTtrDays + " days"}</p>
       </div>
-      <div className={hasNarrativeRun ? "rounded-xl border border-purple-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
+      <div className={isHealthy ? "rounded-xl border border-emerald-900/40 bg-black/20 p-3" : hasNarrativeRun ? "rounded-xl border border-purple-900/40 bg-black/20 p-3" : "rounded-xl border border-slate-700/50 bg-black/20 p-3"}>
         <p className="text-[11px] uppercase tracking-wide text-slate-400">Time to Survive</p>
-        <p className={`text-3xl font-bold tracking-tight font-semibold ${hasNarrativeRun ? "text-purple-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execTtsDays + " days"}</p>
+        <p className={`text-3xl font-bold tracking-tight font-semibold ${isHealthy ? "text-emerald-300" : hasNarrativeRun ? "text-purple-300" : "text-slate-200"}`}>{!hasNarrativeRun ? <span className="opacity-40">—</span> : execTtsDays + " days"}</p>
       </div>
     </div>
 
@@ -2594,14 +2602,24 @@ setOverlayChartData(overlay);
     </p>
   </div>
 
-  <div className="rounded-xl border border-emerald-900/35 bg-emerald-950/20 p-4">
+  <div className={`rounded-xl border p-4 ${isHealthy ? "border-emerald-700/40 bg-emerald-950/20" : "border-emerald-900/35 bg-emerald-950/20"}`}>
     <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-300/90 mb-2">
       Recommended action
     </p>
     <ul className="space-y-2 text-sm text-slate-200">
-      <li>• Prioritize the constrained component path immediately.</li>
-      <li>• Protect customer-facing service before backlog accelerates.</li>
-      <li>• Expedite the limiting supply node to reduce recovery time.</li>
+      {isHealthy ? (
+        <>
+          <li>• Continue monitoring Taiwan Strait supplier concentration risk.</li>
+          <li>• Validate buffer inventory levels ahead of Q3 demand peak.</li>
+          <li>• Run blockade scenario to quantify latent exposure.</li>
+        </>
+      ) : (
+        <>
+          <li>• Prioritize the constrained component path immediately.</li>
+          <li>• Protect customer-facing service before backlog accelerates.</li>
+          <li>• Expedite the limiting supply node to reduce recovery time.</li>
+        </>
+      )}
     </ul>
   </div>
 </section>
