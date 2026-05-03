@@ -1627,6 +1627,7 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
           return fd;
         })();
 
+      const runNameFromForm = maybeFormData instanceof FormData ? (maybeFormData.get("run_name") || "") : "";
       console.log("▶️ [App] Starting simulation run...");
       console.log("📡 [App] POST", `${API_ROOT}/api/run`);
 
@@ -1718,6 +1719,7 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
           },
         },
         _source: "local",
+        name: runNameFromForm || null,
       };
       latestRunIdRef.current = entry.run_id || entry.id || entry.created_at || null;
       const nextLocal = upsertLocalRun(entry);

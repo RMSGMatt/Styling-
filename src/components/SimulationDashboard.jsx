@@ -811,6 +811,7 @@ export default function SimulationDashboard({
   const [projectedSlider, setProjectedSlider] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
   const [scenarioJustRan, setScenarioJustRan] = useState(false);
+  const [runName, setRunName] = useState("");
   
   
   const runsPerPage = 5;
@@ -1493,7 +1494,7 @@ setOverlayChartData(overlay);
     setProjectedSlider(Math.max(0, Math.min(100, v)));
   };
 
-  const handleRunSimulationWithScenario = async () => {
+  const handleRunSimulationWithScenario = async (scenarioOverride, runLabel) => {
   try {
     console.log("🧪 Applying scenario transforms before run...");
 
@@ -1769,6 +1770,7 @@ setOverlayChartData(overlay);
       Array.from(formData.entries()).map(([k, v]) => `${k} → ${v?.name || "blob"}`)
     );
 
+    if (runLabel) formData.append("run_name", runLabel);
     await handleSubmit(formData);
 
     console.log("🎯 Scenario-applied run submitted.");}
@@ -1984,13 +1986,20 @@ setOverlayChartData(overlay);
 
   </div>
 
+  <input
+    type="text"
+    value={runName}
+    onChange={(e) => setRunName(e.target.value)}
+    placeholder="Name this run (e.g. Taiwan Blockade July)"
+    className="mt-3 w-full px-3 py-2 rounded-lg text-sm bg-slate-800 border border-slate-600 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+  />
   <button
     onClick={() => {
       const activeScenario =
         scenarioData && Object.keys(scenarioData).length > 0
           ? scenarioData
           : null;
-      handleRunSimulationWithScenario(activeScenario);
+      handleRunSimulationWithScenario(activeScenario, runName);
     }}
     disabled={isSimulateDisabled}
     className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition hover:bg-lime-400 active:scale-[0.98] transition-all duration-150"
@@ -3303,7 +3312,7 @@ setOverlayChartData(overlay);
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-slate-300">
-                      {new Date(sim.timestamp).toLocaleString()}
+                      {sim.name ? `${sim.name} — ${new Date(sim.timestamp).toLocaleString()}` : new Date(sim.timestamp).toLocaleString()}
                     </p>
                     <button
                       onClick={() => onReloadRun(idx)}
