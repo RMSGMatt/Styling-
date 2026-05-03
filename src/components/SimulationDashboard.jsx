@@ -832,30 +832,35 @@ export default function SimulationDashboard({
     execTtrDays > 0 ||
     execRevenueExposure > 0;
 
+  const isHealthy = hasNarrativeRun && execOnTimePct >= 95;
   const narrativeEyebrowClass = hasNarrativeRun
-    ? "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1"
+    ? isHealthy
+      ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1"
+      : "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1"
     : "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1";
-
   const narrativeHeadline = hasNarrativeRun
-    ? "⚠️ Service Breakdown Detected"
+    ? isHealthy
+      ? "✅ Network Operating Normally"
+      : "⚠️ Service Breakdown Detected"
     : "Run a Scenario to Generate Impact";
-
   const narrativeSummary = hasNarrativeRun
-    ? "A supplier disruption did not prevent fulfillment, but it materially degraded service performance across the network."
+    ? isHealthy
+      ? "The supply network is performing at full capacity with no material disruptions detected."
+      : "A supplier disruption did not prevent fulfillment, but it materially degraded service performance across the network."
     : "Run a simulation to generate a live narrative of service impact, backlog risk, and recovery pressure.";
-
   const narrativeStateLabel = hasNarrativeRun
     ? "Current State"
     : "Status";
-
   const narrativeStateValue = hasNarrativeRun
-    ? "Service Under Stress"
+    ? isHealthy
+      ? "Service Healthy"
+      : "Service Under Stress"
     : "Awaiting Simulation";
-
   const narrativeWhyText = hasNarrativeRun
-    ? "Fulfillment masked the problem—service degradation introduced real risk, backlog, and recovery cost."
+    ? isHealthy
+      ? "All customer commitments are being met on time. Inventory levels are healthy and the network has sufficient buffer to absorb minor disruptions."
+      : "Fulfillment masked the problem—service degradation introduced real risk, backlog, and recovery cost."
     : "This panel will translate simulation outputs into an executive-ready summary of what changed, why it matters, and what to do next.";
-
   // 🧠 Scenario State
   const [scenarioJson, setScenarioJson] = useState(null);
   const [savedScenarios, setSavedScenarios] = useState([]);
