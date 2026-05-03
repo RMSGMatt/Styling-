@@ -153,6 +153,7 @@ function normalizeDate(val) {
 }
 
 function formatRunLabel(sim, idx) {
+  if (sim?.name) return `${idx + 1}. ${sim.name}`;
   const raw =
     sim?.timestamp ||
     sim?.created_at ||
@@ -3312,7 +3313,7 @@ setOverlayChartData(overlay);
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-slate-300">
-                      {sim.name ? `${sim.name} — ${new Date(sim.timestamp).toLocaleString()}` : new Date(sim.timestamp).toLocaleString()}
+                      {formatRunLabel(sim, idx)}
                     </p>
                     <button
                       onClick={() => onReloadRun(idx)}
