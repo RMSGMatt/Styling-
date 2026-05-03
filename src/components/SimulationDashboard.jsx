@@ -330,41 +330,16 @@ function DisruptionPanels({
     return unitsAtRisk * 100;
   })();
 
-  const riskDistribution = impactRows.reduce(
+  const riskDistribution = runoutRows.reduce(
     (acc, row) => {
-      let sev = (row.severity || row.Severity || "")
+      const level = (row.risk_level || row.riskLevel || "")
         .toString()
         .toLowerCase()
         .trim();
-
-      if (!sev) {
-        const rawScore =
-          row.severity_score ??
-          row.SeverityScore ??
-          row.severityScore ??
-          null;
-
-        const score =
-          typeof rawScore === "string"
-            ? parseFloat(rawScore)
-            : Number(rawScore);
-
-        if (Number.isFinite(score)) {
-          if (score >= 70) sev = "high";
-          else if (score >= 30) sev = "medium";
-          else if (score >= 0) sev = "low";
-        }
-      }
-
-      if (sev === "high" || sev === "severe" || sev === "critical") sev = "high";
-      else if (sev === "medium" || sev === "med") sev = "medium";
-      else if (sev === "low") sev = "low";
-
-      if (sev === "high") acc.high++;
-      else if (sev === "medium") acc.medium++;
-      else if (sev === "low") acc.low++;
+      if (level === "high") acc.high++;
+      else if (level === "medium" || level === "med") acc.medium++;
+      else if (level === "low") acc.low++;
       else acc.unknown++;
-
       return acc;
     },
     { high: 0, medium: 0, low: 0, unknown: 0 }
