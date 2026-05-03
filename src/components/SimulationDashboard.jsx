@@ -2695,9 +2695,15 @@ setOverlayChartData(overlay);
     </div>
 
     <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
-      <p className="text-xs text-slate-400">TTR</p>
-      <p className="text-sm font-semibold text-blue-400">
-        {kpis?.timeToRecoverDays ?? '-'}d
+      <p className="text-xs text-slate-400">TTS</p>
+      <p className="text-sm font-semibold text-purple-400">
+        {kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? '-'}d
+      </p>
+    </div>
+    <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
+      <p className="text-xs text-slate-400">Status</p>
+      <p className="text-sm font-semibold text-slate-300">
+        Baseline
       </p>
     </div>
 
