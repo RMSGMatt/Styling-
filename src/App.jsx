@@ -1358,7 +1358,7 @@ console.log("📦 [KPI] Service truth JSON:", JSON.stringify(serviceTruth, null,
             const last = new Date(Math.max(...occDates.map((d) => d.getTime())));
             const diffDays = Math.round((last - first) / (1000 * 60 * 60 * 24));
             allKpis.timeToRecovery = `${diffDays} days`;
-            if (typeof allKpis.ttrDays !== "number" || Number.isNaN(allKpis.ttrDays)) {
+            if (typeof allKpis.ttrDays !== "number" || Number.isNaN(allKpis.ttrDays) || allKpis.ttrDays === 0) {
               allKpis.ttrDays = diffDays;
             }
           } else {
