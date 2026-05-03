@@ -2714,7 +2714,7 @@ setOverlayChartData(overlay);
       <div>
         <p className="text-[10px] text-slate-400">Risk</p>
         <p className="text-sm font-semibold text-slate-200">
-          {kpis?.unitsAtRisk ?? '-'}
+          {kpis?.peakBacklogUnits ?? kpis?.unitsAtRisk ?? '-'}
         </p>
         <p className="text-xs text-slate-500">→ Pending</p>
       </div>
