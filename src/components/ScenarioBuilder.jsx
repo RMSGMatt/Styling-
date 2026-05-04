@@ -12,6 +12,7 @@ function getAuthToken() {
 }
 
 export default function ScenarioBuilder({
+  onRun,
   setScenarioData,
   onClear,
   apiBase = "https://supply-chain-simulator.onrender.com",
@@ -169,6 +170,7 @@ export default function ScenarioBuilder({
 
     // 2) persist + broadcast (Reports / other views path)
     persistAndBroadcastScenario(scenario);
+    if (onRun) setTimeout(() => onRun(), 150);
   };
 
   const saveScenarioToBackend = async () => {

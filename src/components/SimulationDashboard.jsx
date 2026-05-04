@@ -2826,6 +2826,7 @@ setOverlayChartData(overlay);
   <ScenarioBuilder
     scenarioData={scenarioData}
     setScenarioData={setScenarioData}
+    onRun={() => handleRunSimulationWithScenario(scenarioData, runName)}
   />
 </div>
 
