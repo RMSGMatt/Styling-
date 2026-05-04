@@ -26,6 +26,8 @@ export default function ScenarioBuilder({
   const [startDate, setStartDate] = useState("2025-08-01");
   const [duration, setDuration] = useState(14); // days
   const [severity, setSeverity] = useState(70); // 0-100
+  const [productionImpact, setProductionImpact] = useState(100);
+  const [shippingImpact, setShippingImpact] = useState(0);
   const [demandSpikePct, setDemandSpikePct] = useState(25); // % demand change
   const [supplyCapPct, setSupplyCapPct] = useState(80); // capacity % of normal
   const [sourcing, setSourcing] = useState("none");
@@ -80,6 +82,8 @@ export default function ScenarioBuilder({
     setStartDate("2025-08-01");
     setDuration(14);
     setSeverity(70);
+    setProductionImpact(100);
+    setShippingImpact(0);
     setDemandSpikePct(0);
     setSupplyCapPct(100);
     setSourcing("none");
@@ -103,7 +107,9 @@ export default function ScenarioBuilder({
       facility,
       startDate,
       endDate,
-      severity: severity / 100,
+      severity: productionImpact / 100,
+      production_impact: productionImpact / 100,
+      shipping_impact: shippingImpact / 100,
     }));
 
     const demandAdjustments =
@@ -158,7 +164,9 @@ export default function ScenarioBuilder({
       startDate,
       endDate,
       duration,
-      severity: severity / 100,
+      severity: productionImpact / 100,
+      production_impact: productionImpact / 100,
+      shipping_impact: shippingImpact / 100,
       demandSpikePct,
       supplyCapPct,
       sourcing,
@@ -347,22 +355,37 @@ export default function ScenarioBuilder({
           </div>
 
           {/* Sliders */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
             <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
               <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
-                Disruption Severity
+                Production Impact
               </p>
               <input
                 type="range"
                 min="0"
                 max="100"
-                value={severity}
-                onChange={(e) => setSeverity(Number(e.target.value) || 0)}
+                value={productionImpact}
+                onChange={(e) => setProductionImpact(Number(e.target.value) || 0)}
                 className="w-full accent-rose-400"
               />
               <p className="text-[11px] text-slate-300 mt-1">
-                Severity:{" "}
-                <span className="text-rose-300 font-semibold">{severity}%</span>
+                Production stopped: <span className="text-rose-300 font-semibold">{productionImpact}%</span>
+              </p>
+            </div>
+            <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
+              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
+                Shipping Impact
+              </p>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={shippingImpact}
+                onChange={(e) => setShippingImpact(Number(e.target.value) || 0)}
+                className="w-full accent-blue-400"
+              />
+              <p className="text-[11px] text-slate-300 mt-1">
+                Outbound blocked: <span className="text-blue-300 font-semibold">{shippingImpact}%</span>
               </p>
             </div>
 

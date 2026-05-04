@@ -1688,11 +1688,13 @@ setOverlayChartData(overlay);
         severity:
           scenario.severity !== undefined && scenario.severity !== null && scenario.severity !== ""
             ? scenario.severity
-            : 100,
+            : 1.0,
+        production_impact: scenario.production_impact !== undefined ? scenario.production_impact : scenario.severity,
+        shipping_impact: scenario.shipping_impact !== undefined ? scenario.shipping_impact : 0.0,
       }));
 
       transformedDisruptions = Papa.unparse(scenarioRows, {
-        columns: ["start_date", "end_date", "facility", "severity"],
+        columns: ["start_date", "end_date", "facility", "severity", "production_impact", "shipping_impact"],
       });
 
       console.log("✅ disruptions.csv replaced from Scenario Builder");
