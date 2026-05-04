@@ -103,7 +103,7 @@ export default function ScenarioBuilder({
       facility,
       startDate,
       endDate,
-      severity,
+      severity: severity / 100,
     }));
 
     const demandAdjustments =
@@ -158,7 +158,7 @@ export default function ScenarioBuilder({
       startDate,
       endDate,
       duration,
-      severity,
+      severity: severity / 100,
       demandSpikePct,
       supplyCapPct,
       sourcing,
