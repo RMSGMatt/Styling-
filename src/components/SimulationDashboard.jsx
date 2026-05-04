@@ -2746,64 +2746,67 @@ setOverlayChartData(overlay);
     </div>
 
   </div>
-  {/* REMOVED DELTA */}
+  {/* Before vs After Comparison */}
   <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-6">
-
-    <p className="text-xs text-slate-400 mb-2">
-      Before vs After (Scenario Impact)
-    </p>
-
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
-
-      <div>
-        <p className="text-[10px] text-slate-400">Service</p>
-        <p className="text-sm font-semibold text-slate-200">
-          {typeof kpis?.onTimeFulfillment === 'number' ? `${kpis.onTimeFulfillment.toFixed(1)}%` : '-'}
-        </p>
-        <p className="text-xs text-slate-500">→ Pending</p>
-      </div>
-
-      <div>
-        <p className="text-[10px] text-slate-400">Risk</p>
-        <p className="text-sm font-semibold text-slate-200">
-          {kpis?.peakBacklogUnits ?? kpis?.unitsAtRisk ?? '-'}
-        </p>
-        <p className="text-xs text-slate-500">→ Pending</p>
-      </div>
-
-      <div>
-        <p className="text-[10px] text-slate-400">Revenue</p>
-        <p className="text-sm font-semibold text-slate-200">
-          {formatCurrencyCompact(kpis?.revenueExposure ?? 0)}
-        </p>
-        <p className="text-xs text-slate-500">→ Pending</p>
-      </div>
-
-      <div>
-        <p className="text-[10px] text-slate-400">Backlog</p>
-        <p className="text-sm font-semibold text-slate-200">
-          {kpis?.peakBacklog ?? '-'}
-        </p>
-        <p className="text-xs text-slate-500">→ Pending</p>
-      </div>
-
-      <div>
-        <p className="text-[10px] text-slate-400">TTR</p>
-        <p className="text-sm font-semibold text-slate-200">
-          {kpis?.timeToRecoverDays ?? '-'}d
-        </p>
-        <p className="text-xs text-slate-500">→ Pending</p>
-      </div>
-
-      <div>
-        <p className="text-[10px] text-slate-400">Impact</p>
-        <p className="text-sm font-semibold text-yellow-400">
-          Awaiting Scenario
-        </p>
-      </div>
-
-    </div>
-
+    <p className="text-xs text-slate-400 mb-2">Before vs After (Scenario Impact)</p>
+    {(() => {
+      const baselineIdx = scenarioData?.baselineRunIndex;
+      const baselineRun = (baselineIdx !== null && baselineIdx !== undefined) ? simulationHistory?.[baselineIdx] : simulationHistory?.[1];
+      const baseKpis = baselineRun?.kpis || {};
+      const hasBaseline = Object.keys(baseKpis).length > 0;
+      const baseSvc = Number(baseKpis?.onTimeFulfillment ?? baseKpis?.serviceLevelPct ?? 0);
+      const curSvc = Number(kpis?.onTimeFulfillment ?? 0);
+      const svcDelta = curSvc - baseSvc;
+      const baseRev = Number(baseKpis?.revenueExposure ?? baseKpis?.estimatedRevenueExposure ?? 0);
+      const curRev = Number(kpis?.revenueExposure ?? 0);
+      const revDelta = curRev - baseRev;
+      const baseTtr = Number(baseKpis?.ttrDays ?? baseKpis?.timeToRecoverDays ?? 0);
+      const curTtr = Number(kpis?.ttrDays ?? kpis?.timeToRecoverDays ?? 0);
+      const ttrDelta = curTtr - baseTtr;
+      const curBacklog = Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0);
+      const baseBacklog = Number(baseKpis?.peakBacklogUnits ?? baseKpis?.peakBacklog ?? 0);
+      const backlogDelta = curBacklog - baseBacklog;
+      const curRisk = Number(kpis?.peakBacklogUnits ?? 0);
+      const baseRisk = Number(baseKpis?.peakBacklogUnits ?? 0);
+      const riskDelta = curRisk - baseRisk;
+      const deltaColor = (val, lowerIsBetter = false) => { if (val === 0) return "text-slate-400"; return (lowerIsBetter ? val > 0 : val < 0) ? "text-red-400" : "text-emerald-400"; };
+      const deltaSign = (val) => Number(val) > 0 ? `+${val}` : `${val}`;
+      const impactLabel = !hasBaseline ? "Select baseline" : svcDelta < -10 ? "High Impact" : svcDelta < -3 ? "Moderate Impact" : svcDelta < 0 ? "Low Impact" : "No Impact";
+      const impactColor = !hasBaseline ? "text-yellow-400" : svcDelta < -10 ? "text-red-400" : svcDelta < -3 ? "text-amber-400" : svcDelta < 0 ? "text-yellow-400" : "text-emerald-400";
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
+          <div>
+            <p className="text-[10px] text-slate-400">Service</p>
+            <p className="text-sm font-semibold text-slate-200">{curSvc > 0 ? `${curSvc.toFixed(1)}%` : '-'}</p>
+            <p className={`text-xs font-semibold ${hasBaseline ? deltaColor(svcDelta) : "text-slate-500"}`}>{hasBaseline ? `${deltaSign(svcDelta.toFixed(1))}%` : "→ Select baseline"}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-400">Risk</p>
+            <p className="text-sm font-semibold text-slate-200">{curRisk > 0 ? curRisk : '-'}</p>
+            <p className={`text-xs font-semibold ${hasBaseline ? deltaColor(riskDelta, true) : "text-slate-500"}`}>{hasBaseline ? deltaSign(riskDelta) + " units" : "→ Select baseline"}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-400">Revenue</p>
+            <p className="text-sm font-semibold text-slate-200">{formatCurrencyCompact(curRev)}</p>
+            <p className={`text-xs font-semibold ${hasBaseline ? deltaColor(revDelta, true) : "text-slate-500"}`}>{hasBaseline ? (revDelta >= 0 ? `+${formatCurrencyCompact(revDelta)}` : formatCurrencyCompact(revDelta)) : "→ Select baseline"}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-400">Backlog</p>
+            <p className="text-sm font-semibold text-slate-200">{curBacklog > 0 ? curBacklog : '-'}</p>
+            <p className={`text-xs font-semibold ${hasBaseline ? deltaColor(backlogDelta, true) : "text-slate-500"}`}>{hasBaseline ? deltaSign(backlogDelta) + " units" : "→ Select baseline"}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-400">TTR</p>
+            <p className="text-sm font-semibold text-slate-200">{curTtr > 0 ? `${curTtr}d` : '-'}</p>
+            <p className={`text-xs font-semibold ${hasBaseline ? deltaColor(ttrDelta, true) : "text-slate-500"}`}>{hasBaseline ? deltaSign(ttrDelta) + "d" : "→ Select baseline"}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-400">Impact</p>
+            <p className={`text-sm font-semibold ${impactColor}`}>{impactLabel}</p>
+          </div>
+        </div>
+      );
+    })()}
   </div>
 
 
