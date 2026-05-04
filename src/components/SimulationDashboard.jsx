@@ -2748,10 +2748,22 @@ setOverlayChartData(overlay);
   </div>
   {/* Before vs After Comparison */}
   <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-6">
-    <p className="text-xs text-slate-400 mb-2">Before vs After (Scenario Impact)</p>
+    <div className="flex items-center justify-between mb-3">
+      <p className="text-xs text-slate-400">Before vs After (Scenario Impact)</p>
+      <select
+        className="text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded px-2 py-1 focus:outline-none focus:border-emerald-500"
+        onChange={(e) => setScenarioData((d) => ({ ...d, baselineRunIndex: e.target.value !== "" ? Number(e.target.value) : null }))}
+        defaultValue=""
+      >
+        <option value="">Select baseline run...</option>
+        {(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => (
+          <option key={idx} value={idx}>{formatRunLabel(s, idx)}</option>
+        ))}
+      </select>
+    </div>
     {(() => {
       const baselineIdx = scenarioData?.baselineRunIndex;
-      const baselineRun = (baselineIdx !== null && baselineIdx !== undefined) ? simulationHistory?.[baselineIdx] : simulationHistory?.[1];
+      const baselineRun = (baselineIdx !== null && baselineIdx !== undefined) ? simulationHistory?.[baselineIdx] : null;
       const baseKpis = baselineRun?.kpis || {};
       const hasBaseline = Object.keys(baseKpis).length > 0;
       const baseSvc = Number(baseKpis?.onTimeFulfillment ?? baseKpis?.serviceLevelPct ?? 0);
