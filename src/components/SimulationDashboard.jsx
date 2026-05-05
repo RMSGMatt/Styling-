@@ -2823,12 +2823,11 @@ setOverlayChartData(overlay);
     })()}
   </div>
 
-
-
   <ScenarioBuilder
     scenarioData={scenarioData}
     setScenarioData={setScenarioData}
     onRun={() => handleRunSimulationWithScenario(scenarioData, runName)}
+    locationsFile={files.locations}
   />
 </div>
 

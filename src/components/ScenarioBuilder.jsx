@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import Papa from "papaparse";
 
 function getAuthToken() {
   const t =
@@ -12,6 +13,7 @@ function getAuthToken() {
 }
 
 export default function ScenarioBuilder({
+  locationsFile,
   onRun,
   setScenarioData,
   onClear,
@@ -28,6 +30,43 @@ export default function ScenarioBuilder({
   const [severity, setSeverity] = useState(70); // 0-100
   const [productionImpact, setProductionImpact] = useState(100);
   const [shippingImpact, setShippingImpact] = useState(0);
+  const [regionMode, setRegionMode] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState("");
+  const [regionFacilities, setRegionFacilities] = useState([]);
+  const [availableRegions, setAvailableRegions] = useState([]);
+  // Parse locations file to extract countries/regions
+  useEffect(() => {
+    if (!locationsFile) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true });
+        const rows = parsed.data || [];
+        const countryCol = Object.keys(rows[0] || {}).find(k =>
+          ["country", "Country", "region", "Region", "nation"].includes(k)
+        );
+        const facCol = Object.keys(rows[0] || {}).find(k =>
+          ["facility", "Facility", "site", "node"].includes(k)
+        );
+        if (!countryCol || !facCol) return;
+        const countriesMap = {};
+        rows.forEach(row => {
+          const country = String(row[countryCol] || "").trim();
+          const fac = String(row[facCol] || "").trim();
+          if (country && fac) {
+            if (!countriesMap[country]) countriesMap[country] = [];
+            countriesMap[country].push(fac);
+          }
+        });
+        setAvailableRegions(Object.keys(countriesMap).sort());
+        setRegionFacilities(countriesMap);
+      } catch (e) {
+        console.warn("Could not parse locations file for regions:", e);
+      }
+    };
+    reader.readAsText(locationsFile);
+  }, [locationsFile]);
+
   const [demandSpikePct, setDemandSpikePct] = useState(25); // % demand change
   const [supplyCapPct, setSupplyCapPct] = useState(80); // capacity % of normal
   const [sourcing, setSourcing] = useState("none");
@@ -102,15 +141,20 @@ export default function ScenarioBuilder({
       .map((t) => disruptionOptions.find((o) => o.value === t)?.label || t)
       .join(", ")} @ ${facility}`;
 
-    const disruptionScenarios = selectedTypes.map((type) => ({
-      type,
-      facility,
-      startDate,
-      endDate,
-      severity: productionImpact / 100,
-      production_impact: productionImpact / 100,
-      shipping_impact: shippingImpact / 100,
-    }));
+    const facilitiesToDisrupt = regionMode && selectedRegion && regionFacilities[selectedRegion]
+      ? regionFacilities[selectedRegion]
+      : [facility];
+    const disruptionScenarios = facilitiesToDisrupt.flatMap((fac) =>
+      selectedTypes.map((type) => ({
+        type,
+        facility: fac,
+        startDate,
+        endDate,
+        severity: productionImpact / 100,
+        production_impact: productionImpact / 100,
+        shipping_impact: shippingImpact / 100,
+      }))
+    );
 
     const demandAdjustments =
       Number(demandSpikePct) !== 0
@@ -307,18 +351,43 @@ export default function ScenarioBuilder({
           {/* Facility + dates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
-              <p className="text-[11px] font-semibold mb-1" style={{ color: "#E8FFE8" }}>
-                Affected Facility
-              </p>
-              <input
-                type="text"
-                className="w-full rounded-md bg-slate-950/80 border border-slate-700 px-2 py-1 text-[11px] text-slate-100 placeholder:text-slate-500"
-                value={facility}
-                onChange={(e) => setFacility(e.target.value)}
-              />
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] font-semibold" style={{ color: "#E8FFE8" }}>
+                  {regionMode ? "Affected Region" : "Affected Facility"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setRegionMode(r => !r); setSelectedRegion(""); }}
+                  className="text-[10px] px-2 py-0.5 rounded border border-slate-600 text-slate-300 hover:border-emerald-500 hover:text-emerald-300"
+                >
+                  {regionMode ? "Single Facility" : "By Region"}
+                </button>
+              </div>
+              {regionMode ? (
+                <select
+                  className="w-full rounded-md bg-slate-950/80 border border-slate-700 px-2 py-1 text-[11px] text-slate-100"
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                >
+                  <option value="">Select a country/region...</option>
+                  {availableRegions.map(r => (
+                    <option key={r} value={r}>{r} ({(regionFacilities[r] || []).length} facilities)</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  className="w-full rounded-md bg-slate-950/80 border border-slate-700 px-2 py-1 text-[11px] text-slate-100 placeholder:text-slate-500"
+                  value={facility}
+                  onChange={(e) => setFacility(e.target.value)}
+                />
+              )}
               <p className="text-[11px] text-slate-300 mt-1">
-                Use any label that matches your locations file (e.g.{" "}
-                <span className="text-slate-100">VN-Facility-1</span>).
+                {regionMode
+                  ? selectedRegion
+                    ? `Will disrupt all ${(regionFacilities[selectedRegion] || []).length} facilities in ${selectedRegion}`
+                    : "Upload locations.csv to see available regions"
+                  : "Use any label that matches your locations file"}
               </p>
             </div>
 
