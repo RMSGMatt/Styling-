@@ -812,6 +812,7 @@ export default function SimulationDashboard({
   const [projectedSlider, setProjectedSlider] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
   const [scenarioJustRan, setScenarioJustRan] = useState(false);
+  const [baselineRunIndex, setBaselineRunIndex] = useState(null);
   const [runName, setRunName] = useState("");
   
   
@@ -1276,7 +1277,7 @@ const decisionKpis = [
 
     // 🔀 Build overlay chart when two historical runs are selected
   useEffect(() => {
-    const baselineIdx = scenarioData?.baselineRunIndex;
+    const baselineIdx = baselineRunIndex;
     const compareIdx = scenarioData?.compareRunIndex;
 
     // Reset overlay when not active
@@ -1435,7 +1436,7 @@ setOverlayChartData(overlay);
       cancelled = true;
     };
   }, [
-    scenarioData?.baselineRunIndex,
+    baselineRunIndex,
     scenarioData?.compareRunIndex,
     simulationHistory,
     selectedOutputType,
@@ -2758,7 +2759,7 @@ setOverlayChartData(overlay);
       <p className="text-xs text-slate-400">Before vs After (Scenario Impact)</p>
       <select
         className="text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded px-2 py-1 focus:outline-none focus:border-emerald-500"
-        onChange={(e) => setScenarioData((d) => ({ ...d, baselineRunIndex: e.target.value !== "" ? Number(e.target.value) : null }))}
+        onChange={(e) => setBaselineRunIndex(e.target.value !== "" ? Number(e.target.value) : null)}
         defaultValue=""
       >
         <option value="">Select baseline run...</option>
@@ -2768,7 +2769,7 @@ setOverlayChartData(overlay);
       </select>
     </div>
     {(() => {
-      const baselineIdx = scenarioData?.baselineRunIndex;
+      const baselineIdx = baselineRunIndex;
       const baselineRun = (baselineIdx !== null && baselineIdx !== undefined) ? simulationHistory?.[baselineIdx] : null;
       const baseKpis = baselineRun?.kpis || {};
       const hasBaseline = Object.keys(baseKpis).length > 0;
@@ -3165,10 +3166,7 @@ setOverlayChartData(overlay);
                           label: formatRunLabel(s, idx),
                         }))}
                         onChange={(opt) =>
-                          setScenarioData((d) => ({
-                            ...d,
-                            baselineRunIndex: opt?.value ?? null,
-                          }))
+                          setBaselineRunIndex(opt?.value ?? null)
                         }
                         className="text-sm select"
                         classNamePrefix="select"
