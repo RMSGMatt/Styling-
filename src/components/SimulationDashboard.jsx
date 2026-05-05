@@ -1765,6 +1765,9 @@ setOverlayChartData(overlay);
 
     const blob = new Blob([csvText], { type: "text/csv" });
     setFormFile(formData, key, blob, fallbackName);
+    overwriteCsvIfValid("demand", transformedDemand, files.demand?.name || "demand.csv");
+    overwriteCsvIfValid("disruptions", transformedDisruptions, files.disruptions?.name || "disruptions.csv");
+    overwriteCsvIfValid("location_materials", transformedLocMaterials, files.locationMaterials?.name || "location_materials.csv");
   };
 
     // Debug: final keys
@@ -2826,7 +2829,7 @@ setOverlayChartData(overlay);
   <ScenarioBuilder
     scenarioData={scenarioData}
     setScenarioData={setScenarioData}
-    onRun={() => handleRunSimulationWithScenario(scenarioData, runName)}
+    onRun={() => handleRunSimulationWithScenario(null, runName)}
     locationsFile={files.locations}
   />
 </div>
