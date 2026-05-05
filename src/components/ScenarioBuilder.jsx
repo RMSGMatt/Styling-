@@ -187,6 +187,7 @@ export default function ScenarioBuilder({
   const persistAndBroadcastScenario = (scenario) => {
     try {
       localStorage.setItem("forc_active_scenario", JSON.stringify(scenario));
+      localStorage.setItem("currentScenarioJSON", JSON.stringify(scenario));
     } catch {}
 
     try {
@@ -222,7 +223,7 @@ export default function ScenarioBuilder({
 
     // 2) persist + broadcast (Reports / other views path)
     persistAndBroadcastScenario(scenario);
-    if (onRun) setTimeout(() => onRun(), 150);
+    if (onRun) setTimeout(() => onRun(), 300);
   };
 
   const saveScenarioToBackend = async () => {
