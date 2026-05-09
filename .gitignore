@@ -73,3 +73,9 @@ scenario.json
 *.bak
 *.pre_*
 backups/
+
+# backup files from development
+src/**/*.bak*
+src/**/*.pre_*
+*.diff
+*.patch
