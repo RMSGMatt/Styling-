@@ -144,17 +144,20 @@ export default function ScenarioBuilder({
     const facilitiesToDisrupt = regionMode && selectedRegion && regionFacilities[selectedRegion]
       ? regionFacilities[selectedRegion]
       : [facility];
-    const disruptionScenarios = facilitiesToDisrupt.flatMap((fac) =>
-      selectedTypes.map((type) => ({
-        type,
-        facility: fac,
-        startDate,
-        endDate,
-        severity: productionImpact / 100,
-        production_impact: productionImpact / 100,
-        shipping_impact: shippingImpact / 100,
-      }))
-    );
+    // One row per facility regardless of how many types are selected.
+    // Multiple types share the same impact sliders — writing one row per type
+    // would double-count the disruption signal in the simulator.
+    const primaryType = selectedTypes[0] || "natural_disaster";
+    const disruptionScenarios = facilitiesToDisrupt.map((fac) => ({
+      type: primaryType,
+      combined_types: selectedTypes,
+      facility: fac,
+      startDate,
+      endDate,
+      severity: productionImpact / 100,
+      production_impact: productionImpact / 100,
+      shipping_impact: shippingImpact / 100,
+    }));
 
     const demandAdjustments =
       Number(demandSpikePct) !== 0
@@ -223,7 +226,7 @@ export default function ScenarioBuilder({
 
     // 2) persist + broadcast (Reports / other views path)
     persistAndBroadcastScenario(scenario);
-    if (onRun) setTimeout(() => onRun(), 300);
+    // Auto-run disabled - user clicks Run Simulation after applying
   };
 
   const saveScenarioToBackend = async () => {

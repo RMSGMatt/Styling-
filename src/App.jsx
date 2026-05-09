@@ -1005,8 +1005,6 @@ export default function App() {
           return skuMatch && facMatch;
         });
 
-        const totalDemand = scopedDemandRows.reduce((sum, r) => sum + toNum(r[demandQtyKey]), 0);
-
         const demandBySku = scopedDemandRows.reduce((acc, r) => {
           const sku = normalizeSku(r[demandSkuKey] || r.sku || r.SKU);
           const qty = toNum(r[demandQtyKey]);
@@ -1015,12 +1013,7 @@ export default function App() {
           return acc;
         }, {});
 
-        const demandMixBySku = Object.fromEntries(
-          Object.entries(demandBySku).map(([sku, qty]) => [
-            sku,
-            totalDemand > 0 ? qty / totalDemand : 0,
-          ])
-        );
+        
 
         const demandFacilities = new Set(
           scopedDemandRows
@@ -1065,6 +1058,27 @@ export default function App() {
             backlogOut: toNum(r[backlogOutKey]),
           }))
           .sort((a, b) => new Date(a.date) - new Date(b.date));
+          
+        // Filter demand to analysis window only (exclude warmup period)
+        const analysisStartDate = customerShipRows.length > 0
+          ? customerShipRows[0].date
+          : null;
+
+        const filteredDemandRows = analysisStartDate
+          ? scopedDemandRows.filter((r) => {
+              const d = String(r.date || r.Date || r.day || "").slice(0, 10);
+              return d >= analysisStartDate;
+            })
+          : scopedDemandRows;
+
+        const totalDemand = filteredDemandRows.reduce((sum, r) => sum + toNum(r[demandQtyKey]), 0);
+
+        const demandMixBySku = Object.fromEntries(
+          Object.entries(demandBySku).map(([sku, qty]) => [
+            sku,
+            totalDemand > 0 ? qty / totalDemand : 0,
+          ])
+        );
 
         const fulfilledCustomerShip = customerShipRows.reduce((sum, r) => sum + toNum(r.flow), 0);
         const latestBacklogOut =
@@ -1201,13 +1215,17 @@ export default function App() {
         const demandByDate = {};
         const shipByDate = {};
 
-        flowRows.forEach((r) => {
-          const d = r.date;
-          const demand = Number(r.demand || 0);
-          const shipped = Number(r.flow || 0);
+        // Build demand from the demand CSV (source of truth) not flow rows
+        filteredDemandRows.forEach((r) => {
+          const dateVal = String(r.date || r.Date || r.day || "").slice(0, 10);
+          const qty = toNum(r[demandQtyKey]);
+          if (dateVal) demandByDate[dateVal] = (demandByDate[dateVal] || 0) + qty;
+        });
 
-          demandByDate[d] = (demandByDate[d] || 0) + demand;
-          shipByDate[d] = (shipByDate[d] || 0) + shipped;
+        // Build shipments from customer ship flow rows
+        customerShipRows.forEach((r) => {
+          const d = String(r.date || "").slice(0, 10);
+          if (d) shipByDate[d] = (shipByDate[d] || 0) + toNum(r.flow);
         });
 
         const orderedDates = Object.keys(demandByDate).sort();
@@ -1358,9 +1376,8 @@ console.log("📦 [KPI] Service truth JSON:", JSON.stringify(serviceTruth, null,
             const last = new Date(Math.max(...occDates.map((d) => d.getTime())));
             const diffDays = Math.round((last - first) / (1000 * 60 * 60 * 24));
             allKpis.timeToRecovery = `${diffDays} days`;
-            if (typeof allKpis.ttrDays !== "number" || Number.isNaN(allKpis.ttrDays) || allKpis.ttrDays === 0) {
-              allKpis.ttrDays = diffDays;
-            }
+            allKpis.ttrDays = diffDays;
+            allKpis.timeToRecoverDays = diffDays;
           } else {
             allKpis.timeToRecovery = "N/A";
           }
@@ -1515,17 +1532,17 @@ console.log("KPI_DEBUG_DUMP", allKpis);
       };
 
       const executiveKpis = {
-        serviceLevelPct: Number(kpis?.onTimeFulfillment ?? 0),
-        demandAtRiskUnits: Number(kpis?.peakBacklogUnits ?? kpis?.lateFulfilledUnits ?? 0),
-        unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? 0),
-        missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
-        timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
-        timeToSurviveDays: Number(kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? 0),
-        revenueExposure: Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 0),
-        onTimeFulfillment: Number(kpis?.onTimeFulfillment ?? 0),
-        lateFulfilledUnits: Number(kpis?.lateFulfilledUnits ?? 0),
-        peakBacklogUnits: Number(kpis?.peakBacklogUnits ?? 0),
-      };
+  serviceLevelPct: Number(allKpis?.onTimeFulfillment ?? 0),
+  demandAtRiskUnits: Number(allKpis?.peakBacklogUnits ?? allKpis?.lateFulfilledUnits ?? 0),
+  unfulfilledDemandUnits: Number(allKpis?.peakBacklogUnits ?? 0),
+  missedServiceDays: Number(allKpis?.missedServiceDays ?? 0),
+  timeToRecoverDays: Number(allKpis?.ttrDays ?? allKpis?.timeToRecoverDays ?? 0),
+  timeToSurviveDays: Number(allKpis?.ttsDays ?? allKpis?.timeToSurviveDays ?? 0),
+  revenueExposure: Number(allKpis?.estimatedRevenueExposure ?? 0),
+  onTimeFulfillment: Number(allKpis?.onTimeFulfillment ?? 0),
+  lateFulfilledUnits: Number(allKpis?.lateFulfilledUnits ?? 0),
+  peakBacklogUnits: Number(allKpis?.peakBacklogUnits ?? 0),
+};
 
       // ----- SCENARIO IMPACT SUMMARY -----
       try {
@@ -1597,6 +1614,7 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
               files.locationMaterials ||
               files.location_materials_file ||
               files.locationMaterialsCsv,
+            ...(files.lanes ? { lanes: files.lanes } : {}),
           };
 
           Object.entries(fileMap).forEach(([backendKey, file]) => {
@@ -1876,22 +1894,27 @@ setSimulationHistory((prev) => {
 
       const skus = [...new Set(rows.map((r) => normalizeSku(r.sku || r.SKU)).filter(Boolean))];
       const options = skus.map((sku) => ({ label: sku, value: sku }));
-      setSkuOptions(options);
 
+      if (options.length === 0) {
+        console.warn("⚠️ [SKU Seed] No SKUs found, forcing primed");
+        setPostRunPhase("primed");
+        return [];
+      }
+
+      setSkuOptions(options);
       const seeded =
         selectedSku && selectedSku.length > 0
-          ? Array.isArray(selectedSku)
-            ? selectedSku
-            : [selectedSku]
+          ? Array.isArray(selectedSku) ? selectedSku : [selectedSku]
           : options.map((o) => o.value);
 
       if (!selectedSku || selectedSku.length === 0) {
         setSelectedSku(seeded);
       }
-
       return seeded;
     } catch (err) {
       console.error("❌ Failed to extract SKUs:", err);
+      setPostRunPhase("primed");
+      return [];
     }
   };
 

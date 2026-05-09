@@ -135,7 +135,7 @@ function safeArray(input) {
 // 🔀 Overlay helpers
 // ===============================
 function pickOutputUrlForType(sim, outputType) {
-  const u = sim?.outputUrls || {};
+  const u = sim?.outputUrls || sim?.output_urls || sim?.urls || {};
   if (outputType === "inventory") return u.inventory_output_file_url;
   if (outputType === "production") return u.production_output_file_url;
   if (outputType === "flow") return u.flow_output_file_url;
@@ -259,6 +259,13 @@ function buildOverlaySeriesFromCsvText(
 
     if (skuSet && !skuSet.has(String(sku).trim())) continue;
     if (facilityFilter && String(fac || "").trim() !== facilityFilter) continue;
+
+    // For flow output, only count CUSTOMER_SHIP rows
+    if (outputType === "flow") {
+      const ft = String(r.flow_type || r.FlowType || r.type || "").trim().toLowerCase();
+      const isCustomerShip = ft === "customer_ship" || ft === "customer ship" || ft === "customership";
+      if (!isCustomerShip) continue;
+    }
 
     const y = getY(r);
     const key = String(sku).trim();
@@ -813,6 +820,7 @@ export default function SimulationDashboard({
   const [historyPage, setHistoryPage] = useState(1);
   const [scenarioJustRan, setScenarioJustRan] = useState(false);
   const [baselineRunIndex, setBaselineRunIndex] = useState(null);
+  const [compareRunIndex, setCompareRunIndex] = useState(null);
   const [runName, setRunName] = useState("");
   
   
@@ -835,12 +843,14 @@ export default function SimulationDashboard({
     execTtrDays > 0 ||
     execRevenueExposure > 0;
 
-  const isHealthy = hasNarrativeRun && execOnTimePct >= 95;
-  const narrativeEyebrowClass = hasNarrativeRun
-    ? isHealthy
-      ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1"
-      : "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1"
-    : "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1";
+  const isHealthy = hasNarrativeRun && execOnTimePct >= 90;
+  const narrativeEyebrowClass = !hasNarrativeRun
+    ? "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1"
+    : execOnTimePct >= 90
+    ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1"
+    : execOnTimePct >= 80
+    ? "text-[11px] uppercase tracking-[0.22em] text-yellow-400/80 mb-1"
+    : "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1";
   const narrativeHeadline = hasNarrativeRun
     ? isHealthy
       ? "✅ Network Operating Normally"
@@ -1278,7 +1288,7 @@ const decisionKpis = [
     // 🔀 Build overlay chart when two historical runs are selected
   useEffect(() => {
     const baselineIdx = baselineRunIndex;
-    const compareIdx = scenarioData?.compareRunIndex;
+    const compareIdx = compareRunIndex;
 
     // Reset overlay when not active
     if (
@@ -1363,18 +1373,20 @@ function colorForSku(sku) {
   return SKU_COLORS[hash % SKU_COLORS.length];
 }
 
+const chainSkus = ["WIDGET_A", "CHIP", "WAFER"];
+
 const base = buildOverlaySeriesFromCsvText(baselineText, {
   outputType: selectedOutputType,
-  selectedSkus: selectedSku,
+  selectedSkus: chainSkus,
   selectedFacility,
-  runLabelPrefix: "Run 1",
+  runLabelPrefix: formatRunLabel(baselineSim, baselineIdx),
 });
 
 const comp = buildOverlaySeriesFromCsvText(compareText, {
   outputType: selectedOutputType,
-  selectedSkus: selectedSku,
+  selectedSkus: chainSkus,
   selectedFacility,
-  runLabelPrefix: "Run 2",
+  runLabelPrefix: formatRunLabel(compareSim, compareIdx),
 });
 
 // Merge labels across both runs
@@ -1437,7 +1449,7 @@ setOverlayChartData(overlay);
     };
   }, [
     baselineRunIndex,
-    scenarioData?.compareRunIndex,
+    compareRunIndex,
     simulationHistory,
     selectedOutputType,
     selectedSku,
@@ -1580,55 +1592,58 @@ setOverlayChartData(overlay);
       }
     };
 
-    // -----------------------------
-    // 0) Hard validation: required uploads
-    // -----------------------------
-    const required = [
-      ["demand", files.demand],
-      ["disruptions", files.disruptions],
-      ["locations", files.locations],
-      ["processes", files.processes],
-      ["bom", files.bom],
-      ["location_materials", files.locationMaterials],
-    ];
+   // -----------------------------
+  // 0) Hard validation: required uploads
+  // -----------------------------
+  const required = [
+    ["demand", files.demand],
+    ["disruptions", files.disruptions],
+    ["locations", files.locations],
+    ["processes", files.processes],
+    ["bom", files.bom],
+    ["location_materials", files.locationMaterials],
+  ];
 
-    const missing = required.filter(([, f]) => !f).map(([k]) => k);
-    if (missing.length) {
-      alert(`Missing required file(s): ${missing.join(", ")}. Please re-upload and try again.`);
-      return;
-    }
+  const missing = required.filter(([, f]) => !f).map(([k]) => k);
+  if (missing.length) {
+    alert(`Missing required file(s): ${missing.join(", ")}. Please re-upload and try again.`);
+    return;
+  }
 
-    // -----------------------------
-    // 1) Build FormData with RAW files first
-    // -----------------------------
-    const formData = new FormData();
+  // -----------------------------
+  // 1) Build FormData with RAW files first
+  // -----------------------------
+  const formData = new FormData();
 
-    setFormFile(formData, "demand", files.demand, files.demand?.name || "demand.csv");
-    setFormFile(
-      formData,
-      "disruptions",
-      files.disruptions,
-      files.disruptions?.name || "disruptions.csv"
-    );
-    setFormFile(
-      formData,
-      "locations",
-      files.locations,
-      files.locations?.name || "locations.csv"
-    );
-    setFormFile(
-      formData,
-      "processes",
-      files.processes,
-      files.processes?.name || "processes.csv"
-    );
-    setFormFile(formData, "bom", files.bom, files.bom?.name || "bom.csv");
-    setFormFile(
-      formData,
-      "location_materials",
-      files.locationMaterials,
-      files.locationMaterials?.name || "location_materials.csv"
-    );
+  setFormFile(formData, "demand", files.demand, files.demand?.name || "demand.csv");
+  setFormFile(
+    formData,
+    "disruptions",
+    files.disruptions,
+    files.disruptions?.name || "disruptions.csv"
+  );
+  setFormFile(
+    formData,
+    "locations",
+    files.locations,
+    files.locations?.name || "locations.csv"
+  );
+  setFormFile(
+    formData,
+    "processes",
+    files.processes,
+    files.processes?.name || "processes.csv"
+  );
+  setFormFile(formData, "bom", files.bom, files.bom?.name || "bom.csv");
+  setFormFile(
+    formData,
+    "location_materials",
+    files.locationMaterials,
+    files.locationMaterials?.name || "location_materials.csv"
+  );
+  if (files.lanes) {
+    setFormFile(formData, "lanes", files.lanes, files.lanes?.name || "lanes.csv");
+  }
 
     // Debug: raw keys
     console.log(
@@ -1679,6 +1694,22 @@ setOverlayChartData(overlay);
 
       transformedDemand = Papa.unparse(rows);
       console.log("✅ demand.csv transformed");
+    }
+
+    if (!scenarioData?.disruptionScenarios?.length) {
+  try {
+    const stored = localStorage.getItem("forc_active_scenario");
+    if (stored) activeScenario = JSON.parse(stored);
+    console.log("🔁 [ScenarioFallback] Loaded from localStorage:", activeScenario);
+  } catch {}
+}
+
+if (!scenarioData?.disruptionScenarios?.length) {
+      try {
+        const stored = localStorage.getItem("forc_active_scenario");
+        if (stored) Object.assign(scenarioData, JSON.parse(stored));
+        console.log("🔁 [ScenarioFallback] Loaded from localStorage:", scenarioData);
+      } catch {}
     }
 
     if (scenarioData?.disruptionScenarios?.length) {
@@ -1934,7 +1965,8 @@ setOverlayChartData(overlay);
       ["Locations", "locations"],
       ["Processes", "processes"],
       ["BOM", "bom"],
-      ["Location Materials", "locationMaterials"]
+      ["Location Materials", "locationMaterials"],
+      ["Lanes (Optional)", "lanes"]
     ].map(([label, key]) => (
       <div key={key} className="flex items-center justify-between py-2">
 
@@ -2506,16 +2538,20 @@ setOverlayChartData(overlay);
   <section
     className="rounded-2xl p-5 shadow-xl border"
     style={{
-      background: isHealthy
+      background: !hasNarrativeRun
+        ? "linear-gradient(160deg, rgba(8,15,24,0.96), rgba(10,18,30,0.96))"
+        : execOnTimePct >= 90
         ? "linear-gradient(160deg, rgba(4,24,12,0.96), rgba(6,30,16,0.96))"
-        : hasNarrativeRun
-        ? "linear-gradient(160deg, rgba(24,7,7,0.96), rgba(34,10,10,0.96))"
-        : "linear-gradient(160deg, rgba(8,15,24,0.96), rgba(10,18,30,0.96))",
-      borderColor: isHealthy
+        : execOnTimePct >= 80
+        ? "linear-gradient(160deg, rgba(24,18,4,0.96), rgba(34,26,4,0.96))"
+        : "linear-gradient(160deg, rgba(24,7,7,0.96), rgba(34,10,10,0.96))",
+      borderColor: !hasNarrativeRun
+        ? "rgba(71,85,105,0.55)"
+        : execOnTimePct >= 90
         ? "rgba(20,100,50,0.65)"
-        : hasNarrativeRun
-        ? "rgba(127,29,29,0.65)"
-        : "rgba(71,85,105,0.55)",
+        : execOnTimePct >= 80
+        ? "rgba(202,138,4,0.65)"
+        : "rgba(127,29,29,0.65)",
     }}
   >
     <div className="flex items-center justify-between mb-3">
@@ -2524,11 +2560,13 @@ setOverlayChartData(overlay);
           Decision Narrative
         </p>
         <h3 className={`text-lg tracking-tight font-semibold shadow-2xl transition-all duration-500 ${
-          isHealthy
+          !hasNarrativeRun
+            ? "text-slate-200 border border-slate-700/60 ring-1 ring-slate-700/40"
+            : execOnTimePct >= 90
             ? "text-emerald-200 border border-emerald-500/40 ring-1 ring-emerald-500/20"
-            : hasNarrativeRun
-            ? "text-red-200 border border-red-500/40 ring-1 ring-red-500/20"
-            : "text-slate-200 border border-slate-700/60 ring-1 ring-slate-700/40"
+            : execOnTimePct >= 80
+            ? "text-yellow-200 border border-yellow-500/40 ring-1 ring-yellow-500/20"
+            : "text-red-200 border border-red-500/40 ring-1 ring-red-500/20"
         } ${
           scenarioJustRan ? "ring-2 ring-lime-400/60 shadow-[0_0_25px_rgba(132,204,22,0.35)]" : ""
         } ${
@@ -2539,11 +2577,21 @@ setOverlayChartData(overlay);
       </div>
 
       <div className="text-right">
-        <p className={isHealthy ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1" : hasNarrativeRun ? "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1" : "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1"}>
+        <p className={
+          !hasNarrativeRun ? "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1" :
+          execOnTimePct >= 90 ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1" :
+          execOnTimePct >= 80 ? "text-[11px] uppercase tracking-[0.22em] text-yellow-400/80 mb-1" :
+          "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1"
+        }>
           {narrativeStateLabel}
         </p>
-        <p className={isHealthy ? "text-xs font-semibold text-emerald-300" : hasNarrativeRun ? "text-xs font-semibold text-red-300" : "text-xs font-semibold text-slate-300"}>
-          {hasNarrativeRun ? (execOnTimePct < 60 ? "High Service Risk" : execOnTimePct < 90 ? narrativeStateValue : "Stable") : narrativeStateValue}
+        <p className={
+          !hasNarrativeRun ? "text-xs font-semibold text-slate-300" :
+          execOnTimePct >= 90 ? "text-xs font-semibold text-emerald-300" :
+          execOnTimePct >= 80 ? "text-xs font-semibold text-yellow-400" :
+          "text-xs font-semibold text-red-400"
+        }>
+          {!hasNarrativeRun ? narrativeStateValue : execOnTimePct >= 90 ? "Stable" : execOnTimePct >= 80 ? "Under Stress" : "High Service Risk"}
         </p>
       </div>
     </div>
@@ -2748,7 +2796,7 @@ setOverlayChartData(overlay);
     <div className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
       <p className="text-xs text-slate-400">Status</p>
       <p className="text-sm font-semibold text-slate-300">
-        Baseline
+        {scenarioData?.name ? "Scenario Active" : "Baseline"}
       </p>
     </div>
 
@@ -2771,9 +2819,13 @@ setOverlayChartData(overlay);
     {(() => {
       const baselineIdx = baselineRunIndex;
       const baselineRun = (baselineIdx !== null && baselineIdx !== undefined) ? simulationHistory?.[baselineIdx] : null;
-      const baseKpis = baselineRun?.kpis || {};
+      const baseKpis = baselineRun?.kpis || baselineRun?.raw?.kpis || {};
       const hasBaseline = Object.keys(baseKpis).length > 0;
-      const baseSvc = Number(baseKpis?.onTimeFulfillment ?? baseKpis?.serviceLevelPct ?? 0);
+      const baseSvc = (() => {
+        const raw = baseKpis?.onTimeFulfillment ?? baseKpis?.serviceLevelPct ?? baseKpis?.onTimeFill ?? 0;
+        const n = typeof raw === "string" ? parseFloat(raw.replace(/[^0-9.]/g, "")) : Number(raw);
+        return Number.isFinite(n) ? n : 0;
+      })();
       const curSvc = Number(kpis?.onTimeFulfillment ?? 0);
       const svcDelta = curSvc - baseSvc;
       const baseRev = Number(baseKpis?.revenueExposure ?? baseKpis?.estimatedRevenueExposure ?? 0);
@@ -3184,12 +3236,7 @@ setOverlayChartData(overlay);
                           value: idx,
                           label: formatRunLabel(s, idx),
                         }))}
-                        onChange={(opt) =>
-                          setScenarioData((d) => ({
-                            ...d,
-                            compareRunIndex: opt?.value ?? null,
-                          }))
-                        }
+                        onChange={(opt) => setCompareRunIndex(opt?.value ?? null)}
                         className="text-sm select"
                         classNamePrefix="select"
                         styles={selectStyles}
@@ -3197,12 +3244,14 @@ setOverlayChartData(overlay);
                     </div>
                   </div>
 
+                  {!overlayChartData && (
                   <div className="mt-3 flex items-start gap-2 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2">
                     <span className="text-lg">💡</span>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
                       Select any two simulation runs above to generate a side-by-side overlay comparison.
                     </p>
                   </div>
+                )}
                 </div>
 
                 {/* CHART */}
@@ -3335,7 +3384,7 @@ setOverlayChartData(overlay);
                       {formatRunLabel(sim, idx)}
                     </p>
                     <button
-                      onClick={() => onReloadRun(idx)}
+                      onClick={() => onReloadRun(sim)}
                       className="text-xs font-semibold hover:underline"
                       style={{ color: "#9CF700" }}
                     >
