@@ -1697,12 +1697,12 @@ setOverlayChartData(overlay);
     }
 
     if (!scenarioData?.disruptionScenarios?.length) {
-  try {
-    const stored = localStorage.getItem("forc_active_scenario");
-    if (stored) activeScenario = JSON.parse(stored);
-    console.log("🔁 [ScenarioFallback] Loaded from localStorage:", activeScenario);
-  } catch {}
-}
+      try {
+        const stored = localStorage.getItem("forc_active_scenario");
+        if (stored) Object.assign(scenarioData, JSON.parse(stored));
+        console.log("🔁 [ScenarioFallback] Loaded from localStorage:", scenarioData);
+      } catch {}
+    }
 
 if (!scenarioData?.disruptionScenarios?.length) {
       try {
