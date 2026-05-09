@@ -910,7 +910,11 @@ export default function SimulationDashboard({
   // 📥 Load Saved Scenarios on Mount
   useEffect(() => {
     listScenarios()
-      .then((res) => setSavedScenarios(res.data))
+      .then((res) => {
+        const data = res.data;
+        const arr = Array.isArray(data) ? data : Array.isArray(data?.scenarios) ? data.scenarios : [];
+        setSavedScenarios(arr);
+      })
       .catch(() => console.warn("No scenarios found or fetch failed."));
   }, []);
 
