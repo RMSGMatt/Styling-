@@ -3368,7 +3368,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
             scenarios.
           </p>
 
-          {simulationHistory.length === 0 ? (
+          {(!Array.isArray(simulationHistory) || simulationHistory.length === 0) ? (
             <p className="text-xs text-slate-300">
               No past simulations yet.
             </p>
