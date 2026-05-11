@@ -18,7 +18,7 @@ export default function UpgradeModal({
   // Choose the right priceId based on what the backend says is required.
   // (Defaults to Pro if anything is unclear.)
   const priceId =
-    (Array.isArray(required) && required.includes("enterprise")
+    (Array.isArray(required) && required.length === 1 && required.includes("enterprise")
       ? import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE
       : import.meta.env.VITE_STRIPE_PRICE_PRO) || import.meta.env.VITE_STRIPE_PRICE_PRO;
 
