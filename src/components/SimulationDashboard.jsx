@@ -863,7 +863,7 @@ export default function SimulationDashboard({
     ? "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1"
     : execOnTimePct >= 99
     ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1"
-    : execOnTimePct >= 99
+    : execOnTimePct >= 80
     ? "text-[11px] uppercase tracking-[0.22em] text-yellow-400/80 mb-1"
     : "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1";
   const narrativeHeadline = hasNarrativeRun
