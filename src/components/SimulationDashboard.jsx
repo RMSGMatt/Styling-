@@ -551,7 +551,7 @@ function DisruptionPanels({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">SKUs at Runout Risk</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Facilities at Runout Risk</p>
             <p className="text-3xl font-bold tracking-tight text-white font-semibold text-rose-400">
               {uniqueRunoutRiskSkus.length}
             </p>
