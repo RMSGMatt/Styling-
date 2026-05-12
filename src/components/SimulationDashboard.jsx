@@ -392,7 +392,7 @@ function DisruptionPanels({
   const candidateActions = [];
   const seenActionKeys = new Set();
 
-  for (const row of runoutRows) {
+  for (const row of uniqueRunoutRows) {
     const sku = (row.sku || row.SKU || "Unknown SKU").toString().trim();
     const facility = (row.facility || row.Facility || "Unknown facility").toString().trim();
     const risk = (row.risk_level || row.RiskLevel || "Medium").toString().trim();
@@ -575,11 +575,11 @@ function DisruptionPanels({
             <p className="font-semibold mb-2 text-slate-50">
               🔍 Highest Runout Risk (Top 3)
             </p>
-            {runoutRows.length === 0 ? (
+            {uniqueRunoutRows.length === 0 ? (
               <p className="text-slate-300">No SKUs flagged for runout.</p>
             ) : (
               <ul className="space-y-2 leading-6">
-                {runoutRows.slice(0, 3).map((row, idx) => (
+                {uniqueRunoutRows.slice(0, 3).map((row, idx) => (
                   <li key={idx}>
                     <span className="font-semibold">
                       {row.sku || row.SKU || "Unknown SKU"}
