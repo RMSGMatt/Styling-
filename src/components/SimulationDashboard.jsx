@@ -449,11 +449,9 @@ function DisruptionPanels({
   <span
     className={
       !hasNarrativeRun ? "text-slate-400"
-        : execOnTimePct < 80
-        ? "text-red-400"
-        : execOnTimePct < 90
-        ? "text-yellow-400"
-        : "text-green-400"
+        : execOnTimePct >= 99 ? "text-emerald-400"
+        : execOnTimePct < 80 ? "text-red-400"
+        : "text-yellow-400"
     }
   >
     {!hasNarrativeRun
