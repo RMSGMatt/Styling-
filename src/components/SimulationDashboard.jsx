@@ -2618,7 +2618,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
           execOnTimePct >= 80 ? "text-xs font-semibold text-yellow-400" :
           "text-xs font-semibold text-red-400"
         }>
-          {!hasNarrativeRun ? narrativeStateValue : execOnTimePct >= 90 ? "Stable" : execOnTimePct >= 80 ? "Under Stress" : "High Service Risk"}
+          {!hasNarrativeRun ? narrativeStateValue : execOnTimePct >= 99 ? "Stable" : execOnTimePct >= 90 ? "Under Stress" : "High Service Risk"}
         </p>
       </div>
     </div>
@@ -2649,15 +2649,15 @@ if (!scenarioData?.disruptionScenarios?.length) {
                 className={
                   execOnTimePct < 80
                     ? "text-red-400"
-                    : execOnTimePct < 90
+                    : execOnTimePct < 99
                     ? "text-yellow-400"
                     : "text-green-400"
                 }
               >
                 {execOnTimePct.toFixed(1)}%
               </span>
-              <span className={execOnTimePct < 80 ? "text-[10px] text-red-400 opacity-80" : execOnTimePct < 90 ? "text-[10px] text-yellow-400 opacity-80" : "text-[10px] text-green-400 opacity-80"}>
-                {execOnTimePct < 80 ? "▼" : execOnTimePct < 90 ? "●" : "▲"}
+              <span className={execOnTimePct < 80 ? "text-[10px] text-red-400 opacity-80" : execOnTimePct < 99 ? "text-[10px] text-yellow-400 opacity-80" : "text-[10px] text-green-400 opacity-80"}>
+                {execOnTimePct < 99 ? "▼" : "▲"}
               </span>
             </span>
           )}
