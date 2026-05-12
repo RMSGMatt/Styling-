@@ -2569,14 +2569,14 @@ if (!scenarioData?.disruptionScenarios?.length) {
         ? "linear-gradient(160deg, rgba(8,15,24,0.96), rgba(10,18,30,0.96))"
         : execOnTimePct >= 99
         ? "linear-gradient(160deg, rgba(4,24,12,0.96), rgba(6,30,16,0.96))"
-        : execOnTimePct >= 99
-        ? "linear-gradient(160deg, rgba(24,18,4,0.96), rgba(34,26,4,0.96))"
+        : execOnTimePct >= 80
+        ? "linear-gradient(160deg, rgba(28,20,2,0.96), rgba(40,30,4,0.96))"
         : "linear-gradient(160deg, rgba(24,7,7,0.96), rgba(34,10,10,0.96))",
       borderColor: !hasNarrativeRun
         ? "rgba(71,85,105,0.55)"
         : execOnTimePct >= 99
         ? "rgba(20,100,50,0.65)"
-        : execOnTimePct >= 99
+        : execOnTimePct >= 80
         ? "rgba(202,138,4,0.65)"
         : "rgba(127,29,29,0.65)",
     }}
@@ -2618,7 +2618,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
           execOnTimePct >= 80 ? "text-xs font-semibold text-yellow-400" :
           "text-xs font-semibold text-red-400"
         }>
-          {!hasNarrativeRun ? narrativeStateValue : execOnTimePct >= 99 ? "Stable" : execOnTimePct >= 99 ? "Under Stress" : "High Service Risk"}
+          {!hasNarrativeRun ? narrativeStateValue : execOnTimePct >= 99 ? "Stable" : execOnTimePct >= 80 ? "Under Stress" : "High Service Risk"}
         </p>
       </div>
     </div>
@@ -2632,6 +2632,8 @@ if (!scenarioData?.disruptionScenarios?.length) {
         className={
           isHealthy
             ? "rounded-xl border border-emerald-900/40 bg-black/20 p-3"
+            : hasNarrativeRun && execOnTimePct >= 80
+            ? "rounded-xl border border-amber-900/40 bg-black/20 p-3"
             : hasNarrativeRun
             ? "rounded-xl border border-red-900/40 bg-black/20 p-3"
             : "rounded-xl border border-slate-700/50 bg-black/20 p-3"
