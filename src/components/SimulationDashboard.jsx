@@ -338,7 +338,13 @@ function DisruptionPanels({
     return unitsAtRisk * 100;
   })();
 
-  const riskDistribution = runoutRows.reduce(
+  const uniqueRunoutRows = Array.from(
+    new Map(
+      runoutRows.map((r) => [`${r.sku || r.SKU}__${r.facility || r.Facility}`, r])
+    ).values()
+  );
+
+  const riskDistribution = uniqueRunoutRows.reduce(
     (acc, row) => {
       const level = (row.risk_level || row.riskLevel || "")
         .toString()
@@ -438,18 +444,23 @@ function DisruptionPanels({
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">Disruption Severity Rate</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Service Degradation</p>
             <p className="text-3xl font-bold tracking-tight font-semibold">
   <span
     className={
-      execOnTimePct < 80
+      !hasNarrativeRun ? "text-slate-400"
+        : execOnTimePct < 80
         ? "text-red-400"
         : execOnTimePct < 90
         ? "text-yellow-400"
         : "text-green-400"
     }
   >
-    {!hasNarrativeRun ? <span className="opacity-40">—</span> : execOnTimePct.toFixed(1) + "%"}
+    {!hasNarrativeRun
+      ? <span className="opacity-40">—</span>
+      : execOnTimePct >= 99
+      ? "None"
+      : `-${(100 - execOnTimePct).toFixed(1)}pp`}
   </span>
 </p>
           </div>
