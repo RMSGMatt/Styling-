@@ -338,11 +338,17 @@ function DisruptionPanels({
     return unitsAtRisk * 100;
   })();
 
+  // Take the worst-case row per SKU/facility combo (lowest days_until_runout = highest risk)
   const uniqueRunoutRows = Array.from(
-    new Map(
-      runoutRows.map((r) => [`${r.sku || r.SKU}__${r.facility || r.Facility}`, r])
-    ).values()
-  );
+    runoutRows.reduce((map, r) => {
+      const key = `${r.sku || r.SKU}__${r.facility || r.Facility}`;
+      const existing = map.get(key);
+      const days = Number(r.days_until_runout ?? 9999);
+      const existingDays = existing ? Number(existing.days_until_runout ?? 9999) : 9999;
+      if (!existing || days < existingDays) map.set(key, r);
+      return map;
+    }, new Map()).values()
+  ).sort((a, b) => Number(a.days_until_runout ?? 9999) - Number(b.days_until_runout ?? 9999));
 
   const riskDistribution = uniqueRunoutRows.reduce(
     (acc, row) => {
