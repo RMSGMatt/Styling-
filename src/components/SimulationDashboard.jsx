@@ -858,7 +858,7 @@ export default function SimulationDashboard({
     execTtrDays > 0 ||
     execRevenueExposure > 0;
 
-  const isHealthy = hasNarrativeRun && execOnTimePct >= 90;
+  const isHealthy = hasNarrativeRun && execOnTimePct >= 99;
   const narrativeEyebrowClass = !hasNarrativeRun
     ? "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1"
     : execOnTimePct >= 90
@@ -874,7 +874,7 @@ export default function SimulationDashboard({
   const narrativeSummary = hasNarrativeRun
     ? isHealthy
       ? "The supply network is performing at full capacity with no material disruptions detected."
-      : "A supplier disruption did not prevent fulfillment, but it materially degraded service performance across the network."
+      : `The network fulfilled demand but at a degraded service level of ${execOnTimePct.toFixed(1)}%. Backlog accumulated, recovery will take ${execTtrDays} days, and the network has ${execTtsDays} days of survival buffer remaining.`
     : "Run a simulation to generate a live narrative of service impact, backlog risk, and recovery pressure.";
   const narrativeStateLabel = hasNarrativeRun
     ? "Current State"
