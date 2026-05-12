@@ -861,9 +861,9 @@ export default function SimulationDashboard({
   const isHealthy = hasNarrativeRun && execOnTimePct >= 99;
   const narrativeEyebrowClass = !hasNarrativeRun
     ? "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1"
-    : execOnTimePct >= 90
+    : execOnTimePct >= 99
     ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1"
-    : execOnTimePct >= 80
+    : execOnTimePct >= 99
     ? "text-[11px] uppercase tracking-[0.22em] text-yellow-400/80 mb-1"
     : "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1";
   const narrativeHeadline = hasNarrativeRun
@@ -2567,16 +2567,16 @@ if (!scenarioData?.disruptionScenarios?.length) {
     style={{
       background: !hasNarrativeRun
         ? "linear-gradient(160deg, rgba(8,15,24,0.96), rgba(10,18,30,0.96))"
-        : execOnTimePct >= 90
+        : execOnTimePct >= 99
         ? "linear-gradient(160deg, rgba(4,24,12,0.96), rgba(6,30,16,0.96))"
-        : execOnTimePct >= 80
+        : execOnTimePct >= 99
         ? "linear-gradient(160deg, rgba(24,18,4,0.96), rgba(34,26,4,0.96))"
         : "linear-gradient(160deg, rgba(24,7,7,0.96), rgba(34,10,10,0.96))",
       borderColor: !hasNarrativeRun
         ? "rgba(71,85,105,0.55)"
-        : execOnTimePct >= 90
+        : execOnTimePct >= 99
         ? "rgba(20,100,50,0.65)"
-        : execOnTimePct >= 80
+        : execOnTimePct >= 99
         ? "rgba(202,138,4,0.65)"
         : "rgba(127,29,29,0.65)",
     }}
@@ -2589,7 +2589,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
         <h3 className={`text-lg tracking-tight font-semibold shadow-2xl transition-all duration-500 ${
           !hasNarrativeRun
             ? "text-slate-200 border border-slate-700/60 ring-1 ring-slate-700/40"
-            : execOnTimePct >= 90
+            : execOnTimePct >= 99
             ? "text-emerald-200 border border-emerald-500/40 ring-1 ring-emerald-500/20"
             : execOnTimePct >= 80
             ? "text-yellow-200 border border-yellow-500/40 ring-1 ring-yellow-500/20"
@@ -2606,7 +2606,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
       <div className="text-right">
         <p className={
           !hasNarrativeRun ? "text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-1" :
-          execOnTimePct >= 90 ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1" :
+          execOnTimePct >= 99 ? "text-[11px] uppercase tracking-[0.22em] text-emerald-300/80 mb-1" :
           execOnTimePct >= 80 ? "text-[11px] uppercase tracking-[0.22em] text-yellow-400/80 mb-1" :
           "text-[11px] uppercase tracking-[0.22em] text-red-300/80 mb-1"
         }>
@@ -2614,11 +2614,11 @@ if (!scenarioData?.disruptionScenarios?.length) {
         </p>
         <p className={
           !hasNarrativeRun ? "text-xs font-semibold text-slate-300" :
-          execOnTimePct >= 90 ? "text-xs font-semibold text-emerald-300" :
+          execOnTimePct >= 99 ? "text-xs font-semibold text-emerald-300" :
           execOnTimePct >= 80 ? "text-xs font-semibold text-yellow-400" :
           "text-xs font-semibold text-red-400"
         }>
-          {!hasNarrativeRun ? narrativeStateValue : execOnTimePct >= 99 ? "Stable" : execOnTimePct >= 90 ? "Under Stress" : "High Service Risk"}
+          {!hasNarrativeRun ? narrativeStateValue : execOnTimePct >= 99 ? "Stable" : execOnTimePct >= 99 ? "Under Stress" : "High Service Risk"}
         </p>
       </div>
     </div>
