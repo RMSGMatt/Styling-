@@ -1858,12 +1858,15 @@ if (!scenarioData?.disruptionScenarios?.length) {
               <span style={{ color: "#9CF700" }}>FOR-C</span>
               <span className="text-slate-200">Simulation Dashboard</span>
             </h1>
+            {!presentationMode && (
             <p className="text-sm text-slate-400 mt-1">
               Run digital twin scenarios, analyze disruption impact, and
               compare mitigation strategies.
             </p>
+            )}
           </div>
           <div className="flex items-center gap-3">
+            {!presentationMode && (
             <button
               type="button"
               className="px-3 py-1.5 rounded-full text-xs border transition text-slate-200 hover:text-white"
@@ -1875,6 +1878,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
             >
               ⬅ Back to Control Tower
             </button>
+            )}
             <button
               type="button"
               onClick={() => setPresentationMode(p => !p)}
@@ -1883,6 +1887,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
             >
               {presentationMode ? "⬜ Exit Presentation" : "🖥 Presentation Mode"}
             </button>
+            {!presentationMode && (
             <button
               type="button"
               onClick={onLogout}
@@ -1890,6 +1895,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
             >
               Logout
             </button>
+            )}
           </div>
         </div>
       </header>
@@ -1897,10 +1903,10 @@ if (!scenarioData?.disruptionScenarios?.length) {
       {/* Main Layout */}
       <main className={`flex-1 max-w-7xl mx-auto px-4 py-4 space-y-6 ${presentationMode ? "text-lg" : "text-sm"}`}>
                 {/* Top row: map + inputs */}
-        <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <section className={`grid grid-cols-1 gap-4 ${presentationMode ? "" : "lg:grid-cols-5"}`}>
 {/* Map */}
           <div
-            className="lg:col-span-3 rounded-2xl p-4 shadow-xl border"
+            className={`${presentationMode ? "col-span-1" : "lg:col-span-3"} rounded-2xl p-4 shadow-xl border`}
             style={{
               background:
                 "linear-gradient(135deg, rgba(5,25,20,0.98), rgba(7,46,34,0.98))",
@@ -1929,6 +1935,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
           </div>
 
 {/* Inputs + Run Button */}
+{!presentationMode && (
 <div
   className="lg:col-span-2 rounded-2xl p-4 border"
   style={{
@@ -2070,6 +2077,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
   )}
 
 </div>
+)}
 
         </section>
 
