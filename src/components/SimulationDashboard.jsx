@@ -830,6 +830,7 @@ export default function SimulationDashboard({
   openUpgradeGate,
 }) {
 
+  const API_BASE = import.meta?.env?.VITE_API_BASE || "https://supply-chain-simulator-v2.onrender.com";
   const [presentationMode, setPresentationMode] = useState(false);
   const [projectedSlider, setProjectedSlider] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
@@ -857,6 +858,45 @@ export default function SimulationDashboard({
     execPeakBacklog > 0 ||
     execTtrDays > 0 ||
     execRevenueExposure > 0;
+
+  const [aiNarrative, setAiNarrative] = useState(null);
+  const [aiNarrativeLoading, setAiNarrativeLoading] = useState(false);
+
+  useEffect(() => {
+    if (!hasNarrativeRun) return;
+
+    const generateNarrative = async () => {
+      try {
+        setAiNarrativeLoading(true);
+        const res = await fetch(`${API_BASE}/api/narrative/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenario: runName || "Supply chain disruption scenario",
+            kpis: {
+              serviceLevelPct: execOnTimePct,
+              peakBacklogUnits: execPeakBacklog,
+              timeToRecoverDays: execTtrDays,
+              timeToSurviveDays: execTtsDays,
+              demandAtRiskUnits: execLateUnits,
+              facilitiesImpacted: 0,
+              revenueExposure: execRevenueExposure,
+            }
+          })
+        });
+        const data = await res.json();
+        if (data.status === "success" && data.narrative) {
+          setAiNarrative(data.narrative);
+        }
+      } catch (e) {
+        console.error("❌ AI narrative failed:", e);
+      } finally {
+        setAiNarrativeLoading(false);
+      }
+    };
+
+    generateNarrative();
+  }, [execOnTimePct, execPeakBacklog, execTtrDays, execTtsDays, execLateUnits, execRevenueExposure, hasNarrativeRun]);
 
   const isHealthy = hasNarrativeRun && execOnTimePct >= 99;
   const narrativeEyebrowClass = !hasNarrativeRun
@@ -2624,7 +2664,9 @@ if (!scenarioData?.disruptionScenarios?.length) {
     </div>
 
     <p className="text-sm leading-6 text-slate-200 mb-6">
-      {narrativeSummary}
+      {aiNarrativeLoading
+        ? "Generating executive narrative..."
+        : aiNarrative || narrativeSummary}
     </p>
 
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
