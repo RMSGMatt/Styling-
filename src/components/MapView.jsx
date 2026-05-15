@@ -87,12 +87,12 @@ export default function MapView({
      ============================================================================ */
   const getEmojiForGDACS = (props = {}) => {
     const t = String(props.type || props.eventtype || "").toLowerCase();
-    if (t.includes("earthquake")) return "🌍";
-    if (t.includes("flood")) return "🌊";
-    if (t.includes("cyclone") || t.includes("storm") || t.includes("hurricane"))
-      return "🌀";
-    if (t.includes("wildfire") || t.includes("fire")) return "🔥";
-    if (t.includes("volcano")) return "🌋";
+    if (t === "eq" || t.includes("earthquake")) return "🌍";
+    if (t === "fl" || t.includes("flood")) return "🌊";
+    if (t === "tc" || t.includes("cyclone") || t.includes("storm") || t.includes("hurricane")) return "🌀";
+    if (t === "wf" || t.includes("wildfire") || t.includes("fire")) return "🔥";
+    if (t === "vo" || t.includes("volcano")) return "🌋";
+    if (t === "dr" || t.includes("drought")) return "🏜️";
     return "⚠️";
   };
 
