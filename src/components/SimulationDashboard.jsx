@@ -861,6 +861,8 @@ export default function SimulationDashboard({
 
   const [aiNarrative, setAiNarrative] = useState(null);
   const [aiNarrativeLoading, setAiNarrativeLoading] = useState(false);
+  const [suggestedScenarios, setSuggestedScenarios] = useState([]);
+  const [scenariosLoading, setScenariosLoading] = useState(false);
 
   useEffect(() => {
     if (!hasNarrativeRun) return;
@@ -897,6 +899,38 @@ export default function SimulationDashboard({
 
     generateNarrative();
   }, [execOnTimePct, execPeakBacklog, execTtrDays, execTtsDays, execLateUnits, execRevenueExposure, hasNarrativeRun]);
+
+  useEffect(() => {
+    if (!hasNarrativeRun) return;
+
+    const fetchSuggestedScenarios = async () => {
+      try {
+        setScenariosLoading(true);
+        const res = await fetch(`${API_BASE}/api/narrative/suggest-scenarios`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lastScenario: runName || "Supply chain disruption scenario",
+            kpis: {
+              serviceLevelPct: execOnTimePct,
+              timeToRecoverDays: execTtrDays,
+            },
+            liveIncidents: []
+          })
+        });
+        const data = await res.json();
+        if (data.status === "success" && data.scenarios?.length) {
+          setSuggestedScenarios(data.scenarios);
+        }
+      } catch (e) {
+        console.error("❌ Scenario suggestion failed:", e);
+      } finally {
+        setScenariosLoading(false);
+      }
+    };
+
+    fetchSuggestedScenarios();
+  }, [execOnTimePct, execTtrDays, hasNarrativeRun, runName]);
 
   const isHealthy = hasNarrativeRun && execOnTimePct >= 99;
   const narrativeEyebrowClass = !hasNarrativeRun
@@ -2757,7 +2791,32 @@ if (!scenarioData?.disruptionScenarios?.length) {
         </>
       )}
     </ul>
-  </div>
+  {(suggestedScenarios.length > 0 || scenariosLoading) && (
+    <div className="rounded-xl border border-slate-700/50 bg-slate-950/40 p-4 mt-4">
+      <p className="text-[11px] uppercase tracking-[0.18em] text-lime-400/90 mb-3">
+        🧪 Suggested Next Scenarios
+      </p>
+      {scenariosLoading ? (
+        <p className="text-xs text-slate-400">Analyzing live feed data...</p>
+      ) : (
+        <div className="space-y-3">
+          {suggestedScenarios.map((s, idx) => (
+            <div key={idx} className="rounded-lg border border-slate-700/40 bg-slate-900/50 p-3">
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <p className="text-xs font-semibold text-slate-100">{s.title}</p>
+                <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                  Severity {Math.round(s.severity * 100)}%
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 mb-1">{s.description}</p>
+              <p className="text-[10px] text-lime-400/70 italic">{s.rationale}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
+</div>
 </section>
 
 
