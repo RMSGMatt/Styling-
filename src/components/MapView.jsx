@@ -76,7 +76,7 @@ export default function MapView({
     usgs: true,
     noaa: true,
     gdacs: true,
-    live: true,
+    live: false,
   });
 
 
