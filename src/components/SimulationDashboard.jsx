@@ -888,7 +888,13 @@ export default function SimulationDashboard({
         });
         const data = await res.json();
         if (data.status === "success" && data.narrative) {
-          setAiNarrative(data.narrative);
+          // Strip markdown bold/italic formatting
+          const clean = data.narrative
+            .replace(/\*\*(.*?)\*\*/g, "$1")
+            .replace(/\*(.*?)\*/g, "$1")
+            .replace(/^#+\s/gm, "")
+            .trim();
+          setAiNarrative(clean);
         }
       } catch (e) {
         console.error("❌ AI narrative failed:", e);
