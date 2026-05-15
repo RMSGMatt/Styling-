@@ -120,9 +120,9 @@ export default function MapView({
     // 🌐 USGS Earthquakes — emoji by magnitude
   const getEmojiForUSGSQuake = (props = {}) => {
     const mag = Number(props.mag ?? props.magnitude ?? 0);
-    if (mag >= 6) return "🔴";
-    if (mag >= 5) return "🟠";
-    if (mag >= 4) return "🟡";
+    if (mag >= 7) return "🔴";
+    if (mag >= 6) return "🟠";
+    if (mag >= 5) return "🟡";
     return "🟢";
   };
 
@@ -427,10 +427,19 @@ export default function MapView({
 
       const feats = data?.features || [];
 
+      // Filter by magnitude — only show 5.0+ for supply chain relevance
+      const MIN_MAGNITUDE = 5.0;
+      const filteredFeats = feats.filter((f) => {
+        const mag = Number(f?.properties?.mag ?? f?.properties?.magnitude ?? 0);
+        return mag >= MIN_MAGNITUDE;
+      });
+
+      console.log(`🌍 USGS: ${feats.length} total quakes, ${filteredFeats.length} above M${MIN_MAGNITUDE}`);
+
       // USGS puts mag/place/time under properties
       renderPointMarkersFromGeoJSON(
         map,
-        feats,
+        filteredFeats,
         usgsMarkersRef,
         (p) => getEmojiForUSGSQuake(p),
         (p) => getTitleForUSGSQuake(p)
