@@ -110,10 +110,12 @@ export default function MapView({
 
   const getEmojiForLiveIncident = (props = {}) => {
     const t = String(props.type || "").toLowerCase();
+    if (t === "chokepoint") return "⚓";
+    if (t === "shipping_lane") return "🚢";
+    if (t === "port") return "🏗️";
     if (t.includes("fire")) return "🔥";
     if (t.includes("cyber")) return "🧑‍💻";
     if (t.includes("strike")) return "✊";
-    if (t.includes("port")) return "⚓";
     return "⚠️";
   };
 
