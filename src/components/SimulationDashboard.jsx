@@ -3021,6 +3021,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
     setScenarioData={setScenarioData}
     onRun={() => handleRunSimulationWithScenario(null, runName)}
     locationsFile={files.locations}
+    apiBase={API_BASE}
   />
 </div>
 
