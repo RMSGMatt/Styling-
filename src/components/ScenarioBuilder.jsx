@@ -71,6 +71,9 @@ export default function ScenarioBuilder({
   const [supplyCapPct, setSupplyCapPct] = useState(80); // capacity % of normal
   const [sourcing, setSourcing] = useState("none");
   const [notes, setNotes] = useState("");
+  const [nlQuery, setNlQuery] = useState("");
+  const [nlLoading, setNlLoading] = useState(false);
+  const [nlFeedback, setNlFeedback] = useState("");
 
   const disruptionOptions = [
     {
@@ -287,6 +290,44 @@ export default function ScenarioBuilder({
   };
 
   // ✅ Convenience: Apply first, then Save (most common workflow)
+  const handleNlParse = async () => {
+    if (!nlQuery.trim()) return;
+    try {
+      setNlLoading(true);
+      setNlFeedback("");
+      const res = await fetch(`${apiBase}/api/narrative/parse-scenario`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: nlQuery })
+      });
+      const data = await res.json();
+      if (data.status === "success" && data.scenario) {
+        const s = data.scenario;
+        // Pre-fill form fields
+        if (s.facility) setFacility(s.facility);
+        if (s.startDate) setStartDate(s.startDate);
+        if (s.endDate) {
+          const start = new Date(s.startDate);
+          const end = new Date(s.endDate);
+          const days = Math.round((end - start) / (1000 * 60 * 60 * 24));
+          setDuration(days);
+        }
+        if (s.severity !== undefined) {
+          setProductionImpact(Math.round(s.severity * 100));
+        }
+        if (s.description) setNotes(s.description);
+        setNlFeedback(`✅ Parsed: ${s.title} — ${s.assumptions || "Review and adjust before applying."}`);
+      } else {
+        setNlFeedback("⚠️ Could not parse scenario. Try rephrasing.");
+      }
+    } catch (e) {
+      console.error("❌ NL parse failed:", e);
+      setNlFeedback("⚠️ Parse failed. Check connection.");
+    } finally {
+      setNlLoading(false);
+    }
+  };
+  
   const applyAndSave = async () => {
     applyScenario();
     await saveScenarioToBackend();
@@ -316,6 +357,43 @@ export default function ScenarioBuilder({
             Configure demand shocks, disruption injections, and high-level policies,
             then apply this configuration to the next simulation run.
           </p>
+
+          {/* Natural Language Input */}
+          <div className="border border-lime-500/30 rounded-xl p-3 bg-lime-950/20">
+            <p className="text-xs font-semibold mb-2" style={{ color: "#9CF700" }}>
+              ✨ Describe a scenario in plain English
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="flex-1 rounded-md bg-slate-950/80 border border-slate-700 px-3 py-2 text-[11px] text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-lime-500"
+                placeholder='e.g. "What happens if TSMC goes down for 60 days at 80% severity?"'
+                value={nlQuery}
+                onChange={(e) => setNlQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && nlQuery.trim()) handleNlParse();
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleNlParse}
+                disabled={nlLoading || !nlQuery.trim()}
+                className="px-3 py-2 rounded-md text-[11px] font-semibold transition"
+                style={{
+                  background: nlLoading ? "rgba(156,247,0,0.2)" : "linear-gradient(90deg,#9CF700,#22c55e)",
+                  color: "#020617",
+                  opacity: nlLoading || !nlQuery.trim() ? 0.6 : 1,
+                }}
+              >
+                {nlLoading ? "Parsing..." : "→ Parse"}
+              </button>
+            </div>
+            {nlFeedback && (
+              <p className="text-[10px] mt-2" style={{ color: "#9CF700" }}>
+                {nlFeedback}
+              </p>
+            )}
+          </div>
 
           {/* Disruption types */}
           <div className="border border-slate-700/80 rounded-xl p-3 bg-slate-900/60">
