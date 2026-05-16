@@ -2822,6 +2822,54 @@ if (!scenarioData?.disruptionScenarios?.length) {
       )}
     </div>
   )}
+
+  {hasNarrativeRun && (
+    <div className="mt-4 flex justify-end">
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            const res = await fetch(`${API_BASE}/api/report/generate`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                scenario: runName || "Supply Chain Disruption Scenario",
+                networkName: "Nexty Electronics Network",
+                aiNarrative: aiNarrative || narrativeSummary,
+                kpis: {
+                  serviceLevelPct: execOnTimePct,
+                  peakBacklogUnits: execPeakBacklog,
+                  timeToRecoverDays: execTtrDays,
+                  timeToSurviveDays: execTtsDays,
+                  demandAtRiskUnits: execLateUnits,
+                  revenueExposure: execRevenueExposure,
+                },
+                suggestedScenarios,
+              })
+            });
+            if (!res.ok) throw new Error("Report generation failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `forc_report_${Date.now()}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+          } catch (e) {
+            console.error("❌ Report download failed:", e);
+            alert("Report generation failed. Check console.");
+          }
+        }}
+        className="px-4 py-2 rounded-lg text-xs font-semibold transition"
+        style={{
+          background: "linear-gradient(90deg, #9CF700, #22c55e)",
+          color: "#020617",
+        }}
+      >
+        📄 Generate Executive Report
+      </button>
+    </div>
+  )}
 </div>
 </section>
 
