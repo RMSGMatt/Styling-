@@ -184,6 +184,25 @@ export default function ControlTower({
 
   // --- identity / display
   const [userName, setUserName] = useState("");
+  const [newsHeadlines, setNewsHeadlines] = useState([]);
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        const API_BASE = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
+        const res = await fetch(`${API_BASE}/api/news-feed`);
+        const data = await res.json();
+        if (data.status === "success" && data.headlines?.length) {
+          setNewsHeadlines(data.headlines);
+        }
+      } catch (e) {
+        console.error("❌ News feed failed:", e);
+      }
+    };
+    fetchNews();
+    const interval = setInterval(fetchNews, 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // --- scenario state (synced via localStorage, used by Simulation view)
   const [scenario, setScenario] = useState(() => {
@@ -984,6 +1003,27 @@ export default function ControlTower({
                   </div>
                 </section>
                 </>
+              )}
+
+                {newsHeadlines.length > 0 && (
+                <div className="rounded-xl overflow-hidden mb-2" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
+                  <div className="flex items-center">
+                    <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
+                      LIVE INTEL
+                    </div>
+                    <div className="overflow-hidden flex-1 relative">
+                      <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 60s linear infinite", display: "inline-flex" }}>
+                        {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
+                          <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
+                            <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
+                            {h.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+                </div>
               )}
 
               <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
