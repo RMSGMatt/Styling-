@@ -168,6 +168,124 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
     </div>
   );
 }
+const FACILITY_MOCK = {
+  default: (name) => ({
+    name: name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    location: "Global Network",
+    status: "Operational",
+    statusColor: "#1D625B",
+    capacity: "78%",
+    incidents: 3,
+    onTime: "92.4%",
+    leadTime: "5.7 days",
+    topRisk: "Moderate supplier delay exposure",
+    action: "Monitor inbound lead times over next 7 days.",
+  }),
+  TSMC_TAIWAN: {
+    name: "TSMC Taiwan",
+    location: "Hsinchu, Taiwan",
+    status: "Elevated Risk",
+    statusColor: "#F59E0B",
+    capacity: "94%",
+    incidents: 11,
+    onTime: "88.1%",
+    leadTime: "9.2 days",
+    topRisk: "Taiwan Strait shipping disruption risk",
+    action: "Authorize safety stock build for semiconductor components before Q3.",
+  },
+  NEXTY_MARYVILLE: {
+    name: "Nexty Electronics – Maryville",
+    location: "Maryville, TN",
+    status: "Operational",
+    statusColor: "#1D625B",
+    capacity: "81%",
+    incidents: 2,
+    onTime: "94.3%",
+    leadTime: "4.1 days",
+    topRisk: "Upstream component shortage from Asia suppliers",
+    action: "Confirm Q3 component orders with Murata and TDK within 48 hours.",
+  },
+  DENSO_BATTLE_CREEK: {
+    name: "Denso – Battle Creek",
+    location: "Battle Creek, MI",
+    status: "Under Pressure",
+    statusColor: "#EF4444",
+    capacity: "96%",
+    incidents: 7,
+    onTime: "86.0%",
+    leadTime: "6.8 days",
+    topRisk: "Near capacity — any demand spike risks line stoppage",
+    action: "Escalate to ops leadership: approve overtime authorization or defer non-critical orders.",
+  },
+};
+
+function FacilityDrawer({ facility, onClose }) {
+  const data = FACILITY_MOCK[facility] || FACILITY_MOCK.default(facility);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div
+        className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between" style={{ background: "#0a2e22" }}>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "#9FD63A" }}>
+              Facility Intelligence
+            </p>
+            <h2 className="text-lg font-bold text-white">{data.name}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{data.location}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white mt-1 text-xl leading-none">×</button>
+        </div>
+
+        {/* Status banner */}
+        <div className="px-6 py-3 flex items-center gap-2 border-b border-gray-100" style={{ background: "#f9fafb" }}>
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: data.statusColor }} />
+          <span className="text-sm font-semibold" style={{ color: data.statusColor }}>{data.status}</span>
+        </div>
+
+        {/* KPIs */}
+        <div className="px-6 py-4 grid grid-cols-2 gap-4 border-b border-gray-100">
+          {[
+            { label: "Capacity Utilization", value: data.capacity },
+            { label: "Active Incidents", value: data.incidents },
+            { label: "Supplier On-Time", value: data.onTime },
+            { label: "Avg Lead Time", value: data.leadTime },
+          ].map((kpi) => (
+            <div key={kpi.label} className="bg-gray-50 rounded-xl p-3">
+              <div className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">{kpi.label}</div>
+              <div className="text-lg font-extrabold text-[#1D625B]">{kpi.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Risk + Action */}
+        <div className="px-6 py-4 space-y-4 flex-1">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Top Risk</p>
+            <p className="text-sm text-gray-700">{data.topRisk}</p>
+          </div>
+          <div className="rounded-xl px-4 py-3" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
+            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#9FD63A" }}>Recommended Action</p>
+            <p className="text-sm leading-relaxed" style={{ color: "#e2e8e0" }}>{data.action}</p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="w-full py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ControlTower({
   switchView,
@@ -178,8 +296,10 @@ export default function ControlTower({
   // --------------------------------------
   // 🔒 Stable handler so MapView never remounts
   // --------------------------------------
+  const [selectedFacility, setSelectedFacility] = useState(null);
+
   const handleFacilitySelect = React.useCallback((facility) => {
-    console.log("📍 [ControlTower] Facility clicked:", facility);
+    setSelectedFacility(facility);
   }, []);
 
   // --- identity / display
@@ -285,6 +405,8 @@ export default function ControlTower({
 
   const [chartType1, setChartType1] = useState("revenue");
   const [chartType2, setChartType2] = useState("onTime");
+  const [ctNarrative, setCtNarrative] = useState("");
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
 
   const chartOptions = [
     { value: "shipments", label: "📦 Outbound Shipments" },
@@ -333,6 +455,28 @@ export default function ControlTower({
       footer: "Basis: expedited order share",
     },
   };
+
+  useEffect(() => {
+    if (!businessKpis) return;
+    const fetchNarrative = async () => {
+      setNarrativeLoading(true);
+      try {
+        const API_BASE = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
+        const res = await fetch(`${API_BASE}/api/control-tower/narrative`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ range: kpiRange, kpis: businessKpis }),
+        });
+        const data = await res.json();
+        if (data.status === "success") setCtNarrative(data.narrative);
+      } catch (e) {
+        console.warn("Control tower narrative failed:", e);
+      } finally {
+        setNarrativeLoading(false);
+      }
+    };
+    fetchNarrative();
+  }, [businessKpis, kpiRange]);
 
   useEffect(() => {
     const mockData = {
@@ -813,6 +957,28 @@ export default function ControlTower({
                 </div>
               </section>
 
+              {(ctNarrative || narrativeLoading) && (
+                <div className="rounded-2xl mb-5 px-5 py-4" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg mt-0.5">🧠</span>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#9FD63A" }}>
+                        FOR-C Network Intelligence
+                      </p>
+                      {narrativeLoading ? (
+                        <p className="text-sm animate-pulse" style={{ color: "#e2e8e0" }}>
+                          Analyzing network conditions...
+                        </p>
+                      ) : (
+                        <p className="text-sm leading-relaxed" style={{ color: "#e2e8e0" }}>
+                          {ctNarrative}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <section className="mb-5">
                 <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
@@ -1157,6 +1323,13 @@ export default function ControlTower({
 
         </div>
       </main>
-    </div>
-  );
+
+    {selectedFacility && (
+      <FacilityDrawer
+        facility={selectedFacility}
+        onClose={() => setSelectedFacility(null)}
+      />
+    )}
+  </div>
+);
 }

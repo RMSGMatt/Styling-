@@ -220,13 +220,8 @@ export default function MapView({
         el.style.cursor = "pointer";
 
         const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([lng, lat])
-          .setPopup(
-            new mapboxgl.Popup({ offset: 16 }).setHTML(
-              `<div style="font-weight:700;color:#1D625B;">🏭 ${facility}</div>`
-            )
-          )
-          .addTo(map);
+  .setLngLat([lng, lat])
+  .addTo(map);
 
         el.addEventListener("click", () => {
           if (typeof onFacilitySelect === "function") onFacilitySelect(facility);
