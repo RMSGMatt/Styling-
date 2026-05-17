@@ -633,7 +633,7 @@ export default function ControlTower({
   const goToBilling = () => setActiveView("billing");
 
   return (
-    <div className="flex h-screen bg-[#f9fafb] font-sans">
+    <div className="flex h-screen bg-[#f9fafb] font-sans overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-[#0a2e22] text-white p-6 space-y-6 h-screen overflow-y-auto">
         <div className="flex items-center justify-center mb-4">
@@ -739,7 +739,7 @@ export default function ControlTower({
       </aside>
 
       {/* Main column */}
-      <main className="flex-1 min-h-0 flex flex-col">
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col">
         {/* Sticky header */}
         <div className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
           <div className="flex items-center justify-between px-6 py-3">
@@ -860,6 +860,8 @@ export default function ControlTower({
 
               <div className="text-xs text-gray-500 mb-3">
                 Last updated: {new Date().toLocaleString()}
+              </div>
+
               <div className="rounded-xl mb-5 px-5 py-4 flex items-center justify-between gap-4" style={{ background: "linear-gradient(90deg, #0d3d2e 0%, #1D625B 100%)", border: "1px solid rgba(156,247,0,0.2)" }}>
                 <div className="flex items-center gap-3">
                   <span className="text-lg">⚡</span>
@@ -869,7 +871,6 @@ export default function ControlTower({
                   </div>
                 </div>
                 <button onClick={() => switchView("simulation")} className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition" style={{ background: "#9CF700", color: "#020617" }}>Run Simulation →</button>
-              </div>
               </div>
 
               {businessKpis && (

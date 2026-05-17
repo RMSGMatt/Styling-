@@ -68,3 +68,8 @@ body {
   top: 6px !important;
   right: 8px !important;
 }
+
+@keyframes forc-ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
