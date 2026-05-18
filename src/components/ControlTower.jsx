@@ -287,6 +287,75 @@ function FacilityDrawer({ facility, onClose }) {
   );
 }
 
+function deriveAlerts(kpis) {
+  if (!kpis) return [];
+  const alerts = [];
+
+  const svc = parseFloat(kpis.serviceLevel);
+  const backorders = parseInt(kpis.backorders?.replace(/,/g, ""));
+  const revenue = parseFloat(kpis.revenueAtRisk?.replace(/[$M]/g, ""));
+  const incidents = parseInt(kpis.activeIncidents);
+
+  if (svc < 94) alerts.push({ id: "svc-escalate", level: "escalate", kpi: "Service Level", value: kpis.serviceLevel, action: "Escalate to VP Ops — contractual SLA breach imminent." });
+  else if (svc < 96) alerts.push({ id: "svc-act", level: "act", kpi: "Service Level", value: kpis.serviceLevel, action: "Review top 5 backorder SKUs and authorize expedite freight." });
+  else if (svc < 97) alerts.push({ id: "svc-watch", level: "watch", kpi: "Service Level", value: kpis.serviceLevel, action: "Monitor daily — trending toward threshold." });
+
+  if (backorders > 1500) alerts.push({ id: "bo-escalate", level: "escalate", kpi: "Backorders", value: kpis.backorders, action: "Escalate: backlog at risk of customer cancellations." });
+  else if (backorders > 1000) alerts.push({ id: "bo-act", level: "act", kpi: "Backorders", value: kpis.backorders, action: "Authorize overtime or premium freight to clear backlog within 48hrs." });
+  else if (backorders > 800) alerts.push({ id: "bo-watch", level: "watch", kpi: "Backorders", value: kpis.backorders, action: "Watch — backlog building toward action threshold." });
+
+  if (revenue > 5) alerts.push({ id: "rev-escalate", level: "escalate", kpi: "Revenue at Risk", value: kpis.revenueAtRisk, action: "Escalate to CFO — exposure exceeds $5M threshold." });
+  else if (revenue > 4) alerts.push({ id: "rev-act", level: "act", kpi: "Revenue at Risk", value: kpis.revenueAtRisk, action: "Identify top exposed customer accounts and initiate triage." });
+  else if (revenue > 3) alerts.push({ id: "rev-watch", level: "watch", kpi: "Revenue at Risk", value: kpis.revenueAtRisk, action: "Watch — revenue exposure trending upward." });
+
+  if (incidents > 150) alerts.push({ id: "inc-escalate", level: "escalate", kpi: "Active Incidents", value: kpis.activeIncidents, action: "Escalate: incident volume indicates systemic network stress." });
+  else if (incidents > 120) alerts.push({ id: "inc-act", level: "act", kpi: "Active Incidents", value: kpis.activeIncidents, action: "Assign incident owners and set 24hr resolution targets." });
+  else if (incidents > 100) alerts.push({ id: "inc-watch", level: "watch", kpi: "Active Incidents", value: kpis.activeIncidents, action: "Watch — incident count above normal baseline." });
+
+  return alerts;
+}
+
+const ALERT_CONFIG = {
+  watch:    { color: "#92400e", bg: "#fef3c7", border: "#fbbf24", icon: "🟡", label: "WATCH" },
+  act:      { color: "#7f1d1d", bg: "#fee2e2", border: "#f87171", icon: "🔴", label: "ACT" },
+  escalate: { color: "#fff",    bg: "#7f1d1d", border: "#ef4444", icon: "🚨", label: "ESCALATE" },
+};
+
+function AlertStrip({ kpis }) {
+  const [dismissed, setDismissed] = useState([]);
+  const alerts = deriveAlerts(kpis).filter((a) => !dismissed.includes(a.id));
+
+  if (!alerts.length) return (
+    <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2 text-sm" style={{ background: "#f0fdf4", border: "1px solid #86efac" }}>
+      <span>✅</span>
+      <span className="text-green-700 font-medium">All KPIs within normal thresholds</span>
+    </div>
+  );
+
+  return (
+    <div className="space-y-2 mb-4">
+      {alerts.map((alert) => {
+        const cfg = ALERT_CONFIG[alert.level];
+        return (
+          <div key={alert.id} className="rounded-xl px-4 py-3 flex items-start justify-between gap-3" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+            <div className="flex items-start gap-2 flex-1">
+              <span className="text-base mt-0.5">{cfg.icon}</span>
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[10px] font-bold tracking-widest" style={{ color: cfg.color }}>{cfg.label}</span>
+                  <span className="text-xs font-semibold" style={{ color: cfg.color }}>{alert.kpi}: {alert.value}</span>
+                </div>
+                <p className="text-xs" style={{ color: cfg.color }}>{alert.action}</p>
+              </div>
+            </div>
+            <button onClick={() => setDismissed((d) => [...d, alert.id])} className="text-xs opacity-50 hover:opacity-100 shrink-0 mt-0.5" style={{ color: cfg.color }}>✕</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ControlTower({
   switchView,
   simulationHistory,
@@ -979,6 +1048,29 @@ export default function ControlTower({
                 </div>
               )}
 
+              {newsHeadlines.length > 0 && (
+                <div className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
+                  <div className="flex items-center">
+                    <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
+                      LIVE INTEL
+                    </div>
+                    <div className="overflow-hidden flex-1 relative">
+                      <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 60s linear infinite", display: "inline-flex" }}>
+                        {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
+                          <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
+                            <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
+                            {h.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+                </div>
+              )}
+
+              <AlertStrip kpis={businessKpis} />
+
               <section className="mb-5">
                 <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
@@ -1005,26 +1097,6 @@ export default function ControlTower({
                   </div>
                 </div>
               </section>
-              {newsHeadlines.length > 0 && (
-                <div className="rounded-xl overflow-hidden mb-2" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
-                  <div className="flex items-center">
-                    <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
-                      LIVE INTEL
-                    </div>
-                    <div className="overflow-hidden flex-1 relative">
-                      <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 60s linear infinite", display: "inline-flex" }}>
-                        {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
-                          <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
-                            <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
-                            {h.title}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
-                </div>
-              )}
 
               <div className="flex justify-end mb-4">
                 

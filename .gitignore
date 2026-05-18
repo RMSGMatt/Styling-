@@ -79,3 +79,4 @@ src/**/*.bak*
 src/**/*.pre_*
 *.diff
 *.patch
+.env
