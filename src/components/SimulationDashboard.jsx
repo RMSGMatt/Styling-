@@ -795,6 +795,146 @@ function formatDecisionKpiValue(key, value) {
   return n.toLocaleString();
 }
 
+function ScenarioComparison({ runA, runB }) {
+  const [kpisA, setKpisA] = useState(null);
+  const [kpisB, setKpisB] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function extractKpis(sim) {
+    const urls = sim?.outputUrls || sim?.output_urls || sim?.urls || {};
+    const flowUrl = urls.flow_output_file_url || urls.flow;
+    const inventoryUrl = urls.inventory_output_file_url || urls.inventory;
+    const occurrenceUrl = urls.occurrence_output_file_url || urls.occurrence;
+
+    let onTime = "--", backorders = "--", avgInventory = "--", occurrences = "--";
+
+    try {
+      if (flowUrl) {
+        const res = await fetch(flowUrl);
+        const text = await res.text();
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+        const rows = parsed.data || [];
+        const customerRows = rows.filter(r => {
+          const ft = String(r.flow_type || r.FlowType || "").toLowerCase();
+          return ft === "customer_ship" || ft === "customer ship";
+        });
+        const shipped = customerRows.reduce((s, r) => s + (_toNumberLoose(r.shipped || r.flow || 0)), 0);
+        const lastBacklog = customerRows.length
+          ? _toNumberLoose(customerRows[customerRows.length - 1].backlog_out || 0)
+          : 0;
+        const demand = shipped + lastBacklog;
+        onTime = demand > 0 ? ((shipped / demand) * 100).toFixed(1) + "%" : "--";
+        backorders = Math.round(lastBacklog).toLocaleString();
+      }
+    } catch (e) { console.warn("Flow parse failed", e); }
+
+    try {
+      if (inventoryUrl) {
+        const res = await fetch(inventoryUrl);
+        const text = await res.text();
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+        const rows = parsed.data || [];
+        const invCol = Object.keys(rows[0] || {}).find(k => k.toLowerCase().includes("inventory"));
+        if (invCol) {
+          const vals = rows.map(r => _toNumberLoose(r[invCol])).filter(Number.isFinite);
+          avgInventory = vals.length ? Math.round(vals.reduce((a, b) => a + b) / vals.length).toLocaleString() : "--";
+        }
+      }
+    } catch (e) { console.warn("Inventory parse failed", e); }
+
+    try {
+      if (occurrenceUrl) {
+        const res = await fetch(occurrenceUrl);
+        const text = await res.text();
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+        occurrences = String((parsed.data || []).length);
+      }
+    } catch (e) { console.warn("Occurrence parse failed", e); }
+
+    return { onTime, backorders, avgInventory, occurrences };
+  }
+
+  async function runComparison() {
+    if (!runA || !runB) return;
+    setLoading(true);
+    setKpisA(null);
+    setKpisB(null);
+    try {
+      const [a, b] = await Promise.all([extractKpis(runA), extractKpis(runB)]);
+      setKpisA(a);
+      setKpisB(b);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const METRICS = [
+    { key: "onTime", label: "On-Time Fulfillment", better: "higher" },
+    { key: "backorders", label: "Backorders", better: "lower" },
+    { key: "avgInventory", label: "Avg Inventory", better: "higher" },
+    { key: "occurrences", label: "Exception Events", better: "lower" },
+  ];
+
+  if (!runA || !runB) return (
+    <div className="mt-3 flex items-start gap-2 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2">
+      <span className="text-lg">⚖️</span>
+      <p className="text-[11px] text-slate-400 leading-relaxed">
+        Select both runs above to generate a KPI scorecard comparison.
+      </p>
+    </div>
+  );
+
+  return (
+    <div className="mt-4">
+      <button
+        onClick={runComparison}
+        disabled={loading}
+        className="px-4 py-2 rounded-lg text-xs font-bold mb-4 transition"
+        style={{ background: "#9CF700", color: "#020617", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}
+      >
+        {loading ? "Comparing..." : "⚖️ Compare KPIs →"}
+      </button>
+
+      {kpisA && kpisB && (
+        <div className="rounded-xl overflow-hidden border border-slate-700">
+          <table className="w-full text-xs">
+            <thead>
+              <tr style={{ background: "rgba(15,30,24,0.9)" }}>
+                <th className="text-left px-4 py-2 text-slate-400 font-semibold uppercase tracking-wider">Metric</th>
+                <th className="text-center px-4 py-2 font-semibold" style={{ color: "#9CF700" }}>Baseline</th>
+                <th className="text-center px-4 py-2 font-semibold" style={{ color: "#2EC4A6" }}>Comparison</th>
+                <th className="text-center px-4 py-2 text-slate-400 font-semibold uppercase tracking-wider">Winner</th>
+              </tr>
+            </thead>
+            <tbody>
+              {METRICS.map((m, i) => {
+                const a = kpisA[m.key];
+                const b = kpisB[m.key];
+                const na = parseFloat(String(a).replace(/[%,]/g, ""));
+                const nb = parseFloat(String(b).replace(/[%,]/g, ""));
+                const aWins = Number.isFinite(na) && Number.isFinite(nb) && (m.better === "higher" ? na > nb : na < nb);
+                const bWins = Number.isFinite(na) && Number.isFinite(nb) && (m.better === "higher" ? nb > na : nb < na);
+                return (
+                  <tr key={m.key} style={{ background: i % 2 === 0 ? "rgba(10,25,20,0.6)" : "rgba(15,30,24,0.4)" }}>
+                    <td className="px-4 py-3 text-slate-300 font-medium">{m.label}</td>
+                    <td className={`px-4 py-3 text-center font-bold ${aWins ? "text-emerald-400" : "text-slate-300"}`}>{a}</td>
+                    <td className={`px-4 py-3 text-center font-bold ${bWins ? "text-emerald-400" : "text-slate-300"}`}>{b}</td>
+                    <td className="px-4 py-3 text-center">
+                      {aWins ? <span style={{ color: "#9CF700" }}>Baseline ✓</span>
+                        : bWins ? <span style={{ color: "#2EC4A6" }}>Comparison ✓</span>
+                        : <span className="text-slate-500">Tie</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SimulationDashboard({
   handleFileChange,
   handleSubmit,
@@ -3439,6 +3579,11 @@ if (!scenarioData?.disruptionScenarios?.length) {
                 )}
                 </div>
 
+                <ScenarioComparison
+                  runA={baselineRunIndex !== null ? simulationHistory[baselineRunIndex] : null}
+                  runB={compareRunIndex !== null ? simulationHistory[compareRunIndex] : null}
+                />
+
                 {/* CHART */}
                 {selectedOutputType === "inventory" && isInventoryFlatline && (
                   <div
@@ -3489,7 +3634,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
 })()}
 </section>
 
-        {/* ===== Projected Disruption Impact (Slider) =================== */}
+      {/* ===== Projected Disruption Impact (Slider)
         {false && (
 <section
           className="rounded-2xl p-5 shadow-xl border"
@@ -3703,7 +3848,8 @@ if (!scenarioData?.disruptionScenarios?.length) {
             </div>
           )}
         </section>
-      </main>
+
+        </main>
     </div>
   );
 }
