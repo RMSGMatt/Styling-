@@ -430,7 +430,7 @@ function DisruptionPanels({
   const uniqueRecommendedActions = candidateActions.map((row) => row.action);
 
   return (
-    <section className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <section id="tour-disruption-signals" className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
       <div
         className="border rounded-2xl p-5 shadow-lg"
         style={{
@@ -931,6 +931,109 @@ function ScenarioComparison({ runA, runB }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+const TOUR_STEPS_SIMULATION = [
+  {
+    id: "scenario-builder",
+    title: "Build a Disruption Scenario",
+    body: "Define what breaks — which facility, how severe, how long. FOR-C simulates the downstream impact across your entire network.",
+    target: "tour-scenario-builder",
+    position: "bottom",
+  },
+  {
+    id: "disruption-signals",
+    title: "Disruption Signals",
+    body: "Instant KPI impact from the simulation — service degradation, revenue exposure, facilities impacted, high-risk SKUs.",
+    target: "tour-disruption-signals",
+    position: "bottom",
+  },
+  {
+    id: "scenario-comparison",
+    title: "Scenario Comparison",
+    body: "Run two simulations and diff the outcomes. Find the sourcing strategy or mitigation path that wins on every KPI.",
+    target: "tour-scenario-comparison",
+    position: "top",
+  },
+];
+
+function SimTour({ steps, onFinish, onSkip }) {
+  const [step, setStep] = useState(0);
+  const [pos, setPos] = useState({ top: 100, left: 100 });
+  const current = steps[step];
+
+  useEffect(() => {
+    if (!current?.target) return;
+    const el = document.getElementById(current.target);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => {
+      const rect = el.getBoundingClientRect();
+      const tooltipHeight = 160;
+      const rawTop = current.position === "bottom"
+        ? rect.bottom + window.scrollY + 12
+        : rect.top + window.scrollY - tooltipHeight - 12;
+      const maxTop = window.scrollY + window.innerHeight - tooltipHeight - 16;
+      const top = Math.min(rawTop, maxTop);
+      const left = Math.min(rect.left + window.scrollX, window.innerWidth - 340);
+      setPos({ top, left: Math.max(left, 16) });
+    }, 400);
+
+    el.style.outline = "2px solid #9FD63A";
+    el.style.outlineOffset = "4px";
+    el.style.borderRadius = "8px";
+    return () => {
+      el.style.outline = "";
+      el.style.outlineOffset = "";
+    };
+  }, [step, current]);
+
+  return (
+    <div
+      className="fixed z-[100] w-80 rounded-2xl shadow-2xl p-5"
+      style={{
+        top: pos.top,
+        left: pos.left,
+        background: "#0a2e22",
+        border: "1px solid rgba(159,214,58,0.4)",
+      }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] uppercase tracking-widest" style={{ color: "#9FD63A" }}>
+          FOR-C Tour · Step {step + 1} of {steps.length}
+        </p>
+        <button onClick={onSkip} className="text-gray-500 hover:text-white text-xs">Skip</button>
+      </div>
+      <h3 className="text-white font-bold text-sm mb-1">{current.title}</h3>
+      <p className="text-gray-300 text-xs leading-relaxed mb-4">{current.body}</p>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          disabled={step === 0}
+          className="text-xs px-3 py-1.5 rounded-lg border border-gray-600 text-gray-400 disabled:opacity-30"
+        >
+          ← Back
+        </button>
+        {step < steps.length - 1 ? (
+          <button
+            onClick={() => setStep((s) => s + 1)}
+            className="text-xs px-4 py-1.5 rounded-lg font-bold"
+            style={{ background: "#9FD63A", color: "#020617" }}
+          >
+            Next →
+          </button>
+        ) : (
+          <button
+            onClick={onFinish}
+            className="text-xs px-4 py-1.5 rounded-lg font-bold"
+            style={{ background: "#9FD63A", color: "#020617" }}
+          >
+            Done ✓
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -3066,7 +3169,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
             )}
 
             
-<div className="bg-slate-900 border border-slate-700 rounded-xl p-5 mt-6">
+<div id="tour-scenario-builder" className="bg-slate-900 border border-slate-700 rounded-xl p-5 mt-6">
   <div className="mb-6">
     <h2 className="text-3xl font-bold tracking-tight text-white font-semibold text-white">
       🎯 War Game the Scenario
@@ -3579,10 +3682,12 @@ if (!scenarioData?.disruptionScenarios?.length) {
                 )}
                 </div>
 
-                <ScenarioComparison
-                  runA={baselineRunIndex !== null ? simulationHistory[baselineRunIndex] : null}
-                  runB={compareRunIndex !== null ? simulationHistory[compareRunIndex] : null}
-                />
+                <div id="tour-scenario-comparison">
+                  <ScenarioComparison
+                    runA={baselineRunIndex !== null ? simulationHistory[baselineRunIndex] : null}
+                    runB={compareRunIndex !== null ? simulationHistory[compareRunIndex] : null}
+                  />
+                </div>
 
                 {/* CHART */}
                 {selectedOutputType === "inventory" && isInventoryFlatline && (

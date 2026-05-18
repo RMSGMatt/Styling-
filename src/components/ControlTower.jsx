@@ -356,6 +356,114 @@ function AlertStrip({ kpis }) {
   );
 }
 
+const TOUR_STEPS_CONTROL_TOWER = [
+  {
+    id: "map",
+    title: "Your Network, Live",
+    body: "Every facility in your supply chain plotted in real time. Click any pin to see its risk status, capacity, and recommended action.",
+    target: "tour-map",
+    position: "bottom",
+  },
+  {
+    id: "ticker",
+    title: "Live Intel Feed",
+    body: "Real-time supply chain news filtered for relevance — tariffs, port disruptions, freight conditions. No manual monitoring needed.",
+    target: "tour-ticker",
+    position: "top",
+  },
+  {
+    id: "alerts",
+    title: "Automatic Exception Alerts",
+    body: "FOR-C watches your KPIs and surfaces exceptions automatically. No threshold configuration required — just act on what matters.",
+    target: "tour-alerts",
+    position: "top",
+  },
+  {
+    id: "narrative",
+    title: "AI Decision Intelligence",
+    body: "Not a summary — a decision prompt. FOR-C tells you what needs a human call right now and what's at stake if you wait.",
+    target: "tour-narrative",
+    position: "bottom",
+  },
+];
+
+function OnboardingTour({ steps, onFinish, onSkip }) {
+  const [step, setStep] = useState(0);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const current = steps[step];
+
+  useEffect(() => {
+    if (!current?.target) return;
+    const el = document.getElementById(current.target);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const rect = el.getBoundingClientRect();
+    const tooltipHeight = 160;
+    const rawTop = current.position === "bottom"
+      ? rect.bottom + window.scrollY + 12
+      : rect.top + window.scrollY - tooltipHeight - 12;
+    const maxTop = window.scrollY + window.innerHeight - tooltipHeight - 16;
+    const top = Math.min(rawTop, maxTop);
+    const left = Math.min(rect.left + window.scrollX, window.innerWidth - 340);
+    setPos({ top, left: Math.max(left, 16) });
+
+    el.style.outline = "2px solid #9FD63A";
+    el.style.outlineOffset = "4px";
+    el.style.borderRadius = "8px";
+    return () => {
+      el.style.outline = "";
+      el.style.outlineOffset = "";
+    };
+  }, [step, current]);
+
+  return (
+    <div
+      className="fixed z-[100] w-80 rounded-2xl shadow-2xl p-5"
+      style={{
+        top: pos.top,
+        left: pos.left,
+        background: "#0a2e22",
+        border: "1px solid rgba(159,214,58,0.4)",
+      }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] uppercase tracking-widest" style={{ color: "#9FD63A" }}>
+          FOR-C Tour · Step {step + 1} of {steps.length}
+        </p>
+        <button onClick={onSkip} className="text-gray-500 hover:text-white text-xs">Skip</button>
+      </div>
+      <h3 className="text-white font-bold text-sm mb-1">{current.title}</h3>
+      <p className="text-gray-300 text-xs leading-relaxed mb-4">{current.body}</p>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          disabled={step === 0}
+          className="text-xs px-3 py-1.5 rounded-lg border border-gray-600 text-gray-400 disabled:opacity-30"
+        >
+          ← Back
+        </button>
+        {step < steps.length - 1 ? (
+          <button
+            onClick={() => setStep((s) => s + 1)}
+            className="text-xs px-4 py-1.5 rounded-lg font-bold"
+            style={{ background: "#9FD63A", color: "#020617" }}
+          >
+            Next →
+          </button>
+        ) : (
+          <button
+            onClick={onFinish}
+            className="text-xs px-4 py-1.5 rounded-lg font-bold"
+            style={{ background: "#9FD63A", color: "#020617" }}
+          >
+            Done ✓
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ControlTower({
   switchView,
   simulationHistory,
@@ -366,6 +474,14 @@ export default function ControlTower({
   // 🔒 Stable handler so MapView never remounts
   // --------------------------------------
   const [selectedFacility, setSelectedFacility] = useState(null);
+  const [tourActive, setTourActive] = useState(() => {
+    return localStorage.getItem("forc_tour_done") !== "true";
+  });
+
+  function finishTour() {
+    localStorage.setItem("forc_tour_done", "true");
+    setTourActive(false);
+  }
 
   const handleFacilitySelect = React.useCallback((facility) => {
     setSelectedFacility(facility);
@@ -947,6 +1063,15 @@ export default function ControlTower({
                 📘 About FOR-C
               </a>
             </li>
+            <li>
+              
+              <a  onClick={() => { setTourActive(true); setActiveView("dashboard"); }}
+                className="block cursor-pointer hover:underline"
+                style={{ color: "#9FD63A" }}
+              >
+                🗺 Start Tour
+              </a>
+            </li>
           </ul>
         </div>
       </aside>
@@ -989,7 +1114,7 @@ export default function ControlTower({
               )}
 
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div className="lg:col-span-2 h-96 rounded overflow-hidden shadow border border-gray-300">
+                <div id="tour-map" className="lg:col-span-2 h-96 rounded overflow-hidden shadow border border-gray-300">
                   <MapView
                     locationsUrl={simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
                     onFacilitySelect={handleFacilitySelect}
@@ -1027,7 +1152,7 @@ export default function ControlTower({
               </section>
 
               {(ctNarrative || narrativeLoading) && (
-                <div className="rounded-2xl mb-5 px-5 py-4" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
+                <div id="tour-narrative" className="rounded-2xl mb-5 px-5 py-4" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
                   <div className="flex items-start gap-3">
                     <span className="text-lg mt-0.5">🧠</span>
                     <div>
@@ -1049,7 +1174,7 @@ export default function ControlTower({
               )}
 
               {newsHeadlines.length > 0 && (
-                <div className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
+                <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
                   <div className="flex items-center">
                     <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
                       LIVE INTEL
@@ -1069,7 +1194,7 @@ export default function ControlTower({
                 </div>
               )}
 
-              <AlertStrip kpis={businessKpis} />
+              <div id="tour-alerts"><AlertStrip kpis={businessKpis} /></div>
 
               <section className="mb-5">
                 <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3">
@@ -1395,6 +1520,14 @@ export default function ControlTower({
 
         </div>
       </main>
+
+    {tourActive && activeView === "dashboard" && (
+      <OnboardingTour
+        steps={TOUR_STEPS_CONTROL_TOWER}
+        onFinish={finishTour}
+        onSkip={finishTour}
+      />
+    )}
 
     {selectedFacility && (
       <FacilityDrawer
