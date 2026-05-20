@@ -3088,6 +3088,33 @@ if (!scenarioData?.disruptionScenarios?.length) {
                   revenueExposure: execRevenueExposure,
                 },
                 suggestedScenarios,
+                disruptionSignals: {
+                  facilitiesImpacted: Array.isArray(disruptionImpactData)
+                    ? new Set(disruptionImpactData.map(r => r.facility || r.Facility).filter(Boolean)).size
+                    : 0,
+                  highRiskSkuCount: Array.isArray(runoutRiskData)
+                    ? new Set(runoutRiskData.filter(r => (r.risk_level || "").toLowerCase().includes("high")).map(r => r.sku || r.SKU)).size
+                    : 0,
+                  highRiskSkus: Array.isArray(runoutRiskData)
+                    ? [...new Set(runoutRiskData.filter(r => (r.risk_level || "").toLowerCase().includes("high")).map(r => r.sku || r.SKU))].slice(0, 5)
+                    : [],
+                  occurrenceCount: Array.isArray(disruptionImpactData) ? disruptionImpactData.length : 0,
+                  revenueExposure: execRevenueExposure,
+                  severityMix: Array.isArray(runoutRiskData)
+                    ? runoutRiskData.reduce((acc, r) => {
+                        const l = (r.risk_level || "").toLowerCase();
+                        if (l.includes("high")) acc.high = (acc.high || 0) + 1;
+                        else if (l.includes("med")) acc.medium = (acc.medium || 0) + 1;
+                        else if (l.includes("low")) acc.low = (acc.low || 0) + 1;
+                        return acc;
+                      }, {})
+                    : {},
+                },
+                countermeasures: Array.isArray(countermeasuresData) ? countermeasuresData.slice(0, 5) : [],
+                runMetadata: {
+                  runId: simulationHistory?.[0]?.run_id || simulationHistory?.[0]?.timestamp || "",
+                  timestamp: simulationHistory?.[0]?.timestamp || "",
+                },
               })
             });
             if (!res.ok) throw new Error("Report generation failed");
