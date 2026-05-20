@@ -1,11 +1,18 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import * as d3 from "d3";
 
-// ── Derive facility→facility edges from BOM + locations data ──────────
+const RISK_COLOR = {
+  high: "#EF4444",
+  medium: "#F59E0B",
+  low: "#2EC4A6",
+};
+
+const NODE_RADIUS = 28;
+
+// ── Build force graph data from lanes + runout risk ───────────────────
 function buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsData, lanesData) {
   if (!bomData?.length) return { nodes: [], links: [] };
 
-  // Map SKU → facility using location_materials (preferred) or locations fallback
   const skuToFacility = {};
   const matSource = (locationMaterialsData?.length ? locationMaterialsData : locationsData) || [];
   for (const row of matSource) {
@@ -14,7 +21,6 @@ function buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsDat
     if (facility && sku) skuToFacility[String(sku).trim()] = String(facility).trim();
   }
 
-  // Risk map from runout data
   const facilityRisk = {};
   for (const row of (runoutRiskData || [])) {
     const facility = String(row.facility || row.Facility || "").trim();
@@ -27,7 +33,6 @@ function buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsDat
     }
   }
 
-  // Build edges: use lanes directly if available, otherwise derive from BOM
   const edgeMap = new Map();
   const facilitySet = new Set();
 
@@ -64,8 +69,7 @@ function buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsDat
     }
   }
 
-  // Also add all facilities from locations even if no BOM edge
-  for (const row of locationsData) {
+  for (const row of locationsData || []) {
     const facility = row.facility || row.Facility || row.name || row.Name;
     if (facility) facilitySet.add(String(facility).trim());
   }
@@ -78,182 +82,222 @@ function buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsDat
 
   const links = Array.from(edgeMap.values()).map((e) => ({
     ...e,
-    label: e.skus.slice(0, 2).join(", ") + (e.skus.length > 2 ? `+${e.skus.length - 2}` : ""),
+    label: e.skus.slice(0, 2).join(", ") + (e.skus.length > 2 ? "+" + (e.skus.length - 2) : ""),
   }));
 
   return { nodes, links };
 }
 
-const RISK_COLOR = {
-  high: "#EF4444",
-  medium: "#F59E0B",
-  low: "#2EC4A6",
-};
 
-const NODE_RADIUS = 28;
-
-export default function SupplierNetworkGraph({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData }) {
-  const svgRef = useRef(null);
-  const [tooltip, setTooltip] = useState(null);
+// ── Force Graph view ──────────────────────────────────────────────────
+function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData }) {
   const [selectedNode, setSelectedNode] = useState(null);
 
-  const { nodes, links } = useMemo(
-    () => buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsData, lanesData),
-    [bomData, locationsData, runoutRiskData, locationMaterialsData, lanesData]
+  const facilityRisk = useMemo(() => {
+    const map = {};
+    for (const row of (runoutRiskData || [])) {
+      const facility = String(row.facility || row.Facility || "").trim();
+      const risk = String(row.risk_level || row.riskLevel || "low").toLowerCase();
+      if (facility) {
+        const current = map[facility] || "low";
+        if (risk === "high" || (risk === "medium" && current === "low")) map[facility] = risk;
+      }
+    }
+    return map;
+  }, [runoutRiskData]);
+
+  const { pos, edges } = useMemo(() => {
+    if (!lanesData?.length) return { pos: {}, edges: [] };
+
+    const allFrom = new Set(lanesData.map(r => r.from_facility).filter(Boolean));
+    const allTo = new Set(lanesData.map(r => r.to_facility).filter(Boolean));
+
+    const tier3 = [...allFrom].filter(f => !allTo.has(f));
+    const tierN = [...allTo].filter(f => !allFrom.has(f));
+    const middle = [...new Set([...allFrom, ...allTo])].filter(f => !tier3.includes(f) && !tierN.includes(f));
+    const feedsOEM = new Set(lanesData.filter(r => tierN.includes(r.to_facility)).map(r => r.from_facility));
+    const distributor = middle.filter(f => !feedsOEM.has(f));
+    const tier1 = middle.filter(f => feedsOEM.has(f));
+
+    const cols = { tier3: 80, distributor: 260, tier1: 440, oem: 620 };
+    const H = 480;
+
+    function colY(list, idx) {
+      const spacing = Math.min(130, (H - 100) / Math.max(list.length, 1));
+      const startY = H / 2 - ((list.length - 1) * spacing) / 2;
+      return startY + idx * spacing;
+    }
+
+    const pos = {};
+    tier3.forEach((f, i) => { pos[f] = { x: cols.tier3, y: colY(tier3, i), tier: "Tier 3" }; });
+    distributor.forEach((f, i) => { pos[f] = { x: cols.distributor, y: colY(distributor, i), tier: "Distributor" }; });
+    tier1.forEach((f, i) => { pos[f] = { x: cols.tier1, y: colY(tier1, i), tier: "Tier 1" }; });
+    tierN.forEach((f, i) => { pos[f] = { x: cols.oem, y: colY(tierN, i), tier: "OEM" }; });
+
+    return { pos, edges: lanesData };
+  }, [lanesData]);
+
+  const NW = 110;
+  const NH = 46;
+
+  function shortLabel(id) {
+    return id.replace(/_/g, " ");
+  }
+
+  const allNodes = Object.entries(pos);
+  const H = 480;
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-slate-700/60" style={{ background: "rgba(4,16,12,0.95)" }}>
+      <svg style={{ display: "block", width: "100%", height: H }} viewBox={`0 0 720 ${H}`}>
+        <defs>
+          <marker id="h-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+          <filter id="h-glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        {/* Tier column headers */}
+        {[
+          { label: "Tier 3", x: 80 },
+          { label: "Distributor", x: 260 },
+          { label: "Tier 1", x: 440 },
+          { label: "OEM", x: 620 },
+        ].map(({ label, x }) => (
+          <text key={label} x={x + NW / 2} y={22} textAnchor="middle" fill="#475569" fontSize="11" fontFamily="monospace">
+            {label}
+          </text>
+        ))}
+
+        {/* Vertical tier dividers */}
+        {[185, 365, 545].map(x => (
+          <line key={x} x1={x} y1={32} x2={x} y2={H - 20} stroke="#1e3a2f" strokeWidth="1" strokeDasharray="4 4"/>
+        ))}
+
+        {/* Edges */}
+        {edges.map((row, i) => {
+          const from = pos[row.from_facility];
+          const to = pos[row.to_facility];
+          if (!from || !to) return null;
+          const x1 = from.x + NW;
+          const y1 = from.y + NH / 2;
+          const x2 = to.x;
+          const y2 = to.y + NH / 2;
+          const mx = (x1 + x2) / 2;
+          const isSelected = selectedNode && (row.from_facility === selectedNode || row.to_facility === selectedNode);
+          return (
+            <g key={i}>
+              <path
+                d={`M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`}
+                fill="none"
+                stroke={isSelected ? "#9FD63A" : "#2EC4A6"}
+                strokeOpacity={isSelected ? 0.9 : 0.35}
+                strokeWidth={isSelected ? 2 : 1.2}
+                markerEnd="url(#h-arrow)"
+              />
+              <text
+                x={mx}
+                y={(y1 + y2) / 2 - 6}
+                textAnchor="middle"
+                fill={isSelected ? "#9FD63A" : "#2EC4A6"}
+                fontSize="8"
+                fontFamily="monospace"
+                opacity={isSelected ? 1 : 0.5}
+              >
+                {row.sku}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Nodes */}
+        {allNodes.map(([id, { x, y }]) => {
+          const risk = facilityRisk[id] || "low";
+          const color = RISK_COLOR[risk];
+          const isSelected = selectedNode === id;
+          const label = shortLabel(id);
+          const words = label.split(" ");
+
+          return (
+            <g key={id} style={{ cursor: "pointer" }} onClick={() => setSelectedNode(prev => prev === id ? null : id)}>
+              {/* Outer ring */}
+              <rect
+                x={x - 2} y={y - 2}
+                width={NW + 4} height={NH + 4}
+                rx={9}
+                fill="none"
+                stroke={color}
+                strokeWidth={isSelected ? 2 : 0.8}
+                strokeOpacity={isSelected ? 0.8 : 0.3}
+                strokeDasharray={isSelected ? "0" : "4 3"}
+              />
+              {/* Main box */}
+              <rect
+                x={x} y={y}
+                width={NW} height={NH}
+                rx={7}
+                fill={isSelected ? "#0d2e20" : "#0a1f16"}
+                stroke={color}
+                strokeWidth={isSelected ? 2 : 1.5}
+                filter={risk === "high" ? "url(#h-glow)" : undefined}
+              />
+              {/* Risk dot */}
+              <circle cx={x + NW - 8} cy={y + 8} r={3.5} fill={color}/>
+              {/* Label */}
+              {words.length <= 2 ? (
+                <text x={x + NW / 2} y={y + NH / 2} textAnchor="middle" dominantBaseline="central"
+                  fill="#e2e8f0" fontSize="8.5" fontWeight="600" fontFamily="monospace">
+                  {label}
+                </text>
+              ) : (
+                <>
+                  <text x={x + NW / 2} y={y + NH / 2 - 7} textAnchor="middle" dominantBaseline="central"
+                    fill="#e2e8f0" fontSize="8.5" fontWeight="600" fontFamily="monospace">
+                    {words.slice(0, 2).join(" ")}
+                  </text>
+                  <text x={x + NW / 2} y={y + NH / 2 + 7} textAnchor="middle" dominantBaseline="central"
+                    fill="#e2e8f0" fontSize="8.5" fontWeight="600" fontFamily="monospace">
+                    {words.slice(2).join(" ")}
+                  </text>
+                </>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Selected node panel */}
+      {selectedNode && (
+        <div className="px-4 py-3 border-t" style={{ borderColor: "rgba(159,214,58,0.2)" }}>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-white font-bold text-sm">{shortLabel(selectedNode)}</p>
+            <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{
+              background: `${RISK_COLOR[facilityRisk[selectedNode] || "low"]}22`,
+              color: RISK_COLOR[facilityRisk[selectedNode] || "low"],
+              border: `1px solid ${RISK_COLOR[facilityRisk[selectedNode] || "low"]}44`,
+            }}>
+              {(facilityRisk[selectedNode] || "low").toUpperCase()} RISK
+            </span>
+          </div>
+          <p className="text-xs text-slate-400">
+            {edges.filter(e => e.from_facility === selectedNode).map(e => `→ ${e.to_facility} (${e.sku})`).join("  ·  ")}
+            {edges.filter(e => e.to_facility === selectedNode).map(e => `← ${e.from_facility} (${e.sku})`).join("  ·  ")}
+          </p>
+        </div>
+      )}
+    </div>
   );
+}
 
-  useEffect(() => {
-    if (!nodes.length || !svgRef.current) return;
+// ── Main export ───────────────────────────────────────────────────────
+export default function SupplierNetworkGraph({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData }) {
 
-    const container = svgRef.current.parentElement;
-    const W = container.clientWidth || 800;
-    const H = 520;
+  const hasData = bomData?.length || lanesData?.length;
 
-    const svg = d3.select(svgRef.current)
-      .attr("width", W)
-      .attr("height", H);
-
-    svg.selectAll("*").remove();
-
-    // Defs: arrowhead + glow filter
-    const defs = svg.append("defs");
-
-    defs.append("marker")
-      .attr("id", "arrow")
-      .attr("viewBox", "0 -5 10 10")
-      .attr("refX", NODE_RADIUS + 10)
-      .attr("refY", 0)
-      .attr("markerWidth", 6)
-      .attr("markerHeight", 6)
-      .attr("orient", "auto")
-      .append("path")
-      .attr("d", "M0,-5L10,0L0,5")
-      .attr("fill", "#9FD63A")
-      .attr("opacity", 0.7);
-
-    const glow = defs.append("filter").attr("id", "glow");
-    glow.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "coloredBlur");
-    const feMerge = glow.append("feMerge");
-    feMerge.append("feMergeNode").attr("in", "coloredBlur");
-    feMerge.append("feMergeNode").attr("in", "SourceGraphic");
-
-    const g = svg.append("g");
-
-    // Zoom
-    svg.call(
-      d3.zoom()
-        .scaleExtent([0.3, 3])
-        .on("zoom", (e) => g.attr("transform", e.transform))
-    );
-
-    // Force simulation
-    const sim = d3.forceSimulation(nodes)
-      .force("link", d3.forceLink(links).id((d) => d.id).distance(100).strength(0.8))
-      .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(W / 2, H / 2))
-      .force("collision", d3.forceCollide(NODE_RADIUS + 20));
-
-    // Links
-    const link = g.append("g")
-      .selectAll("line")
-      .data(links)
-      .join("line")
-      .attr("stroke", "#9FD63A")
-      .attr("stroke-opacity", 0.35)
-      .attr("stroke-width", 1.5)
-      .attr("marker-end", "url(#arrow)");
-
-    // Edge labels
-    const edgeLabel = g.append("g")
-      .selectAll("text")
-      .data(links)
-      .join("text")
-      .attr("fill", "#9FD63A")
-      .attr("font-size", 8)
-      .attr("opacity", 0.6)
-      .attr("text-anchor", "middle")
-      .text((d) => d.label);
-
-    // Node groups
-    const node = g.append("g")
-      .selectAll("g")
-      .data(nodes)
-      .join("g")
-      .attr("cursor", "pointer")
-      .call(
-        d3.drag()
-          .on("start", (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-          .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
-          .on("end", (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; })
-      )
-      .on("click", (e, d) => {
-        setSelectedNode((prev) => prev?.id === d.id ? null : d);
-        e.stopPropagation();
-      });
-
-    // Outer ring
-    node.append("circle")
-      .attr("r", NODE_RADIUS + 4)
-      .attr("fill", "none")
-      .attr("stroke", (d) => RISK_COLOR[d.risk])
-      .attr("stroke-width", 1)
-      .attr("stroke-opacity", 0.3)
-      .attr("stroke-dasharray", "4 3");
-
-    // Main circle
-    node.append("circle")
-      .attr("r", NODE_RADIUS)
-      .attr("fill", "#0d1f1a")
-      .attr("stroke", (d) => RISK_COLOR[d.risk])
-      .attr("stroke-width", 2)
-      .attr("filter", (d) => d.risk === "high" ? "url(#glow)" : null);
-
-    // Risk dot
-    node.append("circle")
-      .attr("r", 4)
-      .attr("cx", NODE_RADIUS - 6)
-      .attr("cy", -(NODE_RADIUS - 6))
-      .attr("fill", (d) => RISK_COLOR[d.risk]);
-
-    // Label inside node
-    node.append("text")
-      .attr("text-anchor", "middle")
-      .attr("dy", 4)
-      .attr("fill", "#e2e8f0")
-      .attr("font-size", 7.5)
-      .attr("font-weight", "600")
-      .attr("font-family", "monospace")
-      .each(function(d) {
-        const words = d.label.split(" ");
-        const el = d3.select(this);
-        if (words.length <= 2) {
-          el.text(d.label);
-        } else {
-          el.append("tspan").attr("x", 0).attr("dy", -6).text(words.slice(0, 2).join(" "));
-          el.append("tspan").attr("x", 0).attr("dy", 12).text(words.slice(2).join(" "));
-        }
-      });
-
-    svg.on("click", () => setSelectedNode(null));
-
-    sim.on("tick", () => {
-      link
-        .attr("x1", (d) => d.source.x)
-        .attr("y1", (d) => d.source.y)
-        .attr("x2", (d) => d.target.x)
-        .attr("y2", (d) => d.target.y);
-
-      edgeLabel
-        .attr("x", (d) => (d.source.x + d.target.x) / 2)
-        .attr("y", (d) => (d.source.y + d.target.y) / 2 - 5);
-
-      node.attr("transform", (d) => `translate(${d.x},${d.y})`);
-    });
-
-    return () => sim.stop();
-  }, [nodes, links]);
-
-  if (!bomData?.length || !locationsData?.length) {
+  if (!hasData) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3">
         <span className="text-4xl">🕸️</span>
@@ -263,70 +307,26 @@ export default function SupplierNetworkGraph({ bomData, locationsData, locationM
     );
   }
 
-  const connectedLinks = selectedNode
-    ? links.filter((l) => l.source.id === selectedNode.id || l.target.id === selectedNode.id)
-    : [];
-
   return (
-    <div className="relative w-full">
+    <div className="w-full">
       {/* Legend */}
-      <div className="flex items-center gap-5 mb-3 px-1">
+      <div className="flex items-center gap-4 mb-4">
         {[["high", "High Risk"], ["medium", "Medium Risk"], ["low", "Operational"]].map(([risk, label]) => (
           <div key={risk} className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: RISK_COLOR[risk] }} />
             <span className="text-[10px] text-slate-400 uppercase tracking-wide">{label}</span>
           </div>
         ))}
-        <span className="text-[10px] text-slate-500 ml-auto">Drag nodes · Scroll to zoom · Click to inspect</span>
+        <span className="text-[10px] text-slate-500 ml-auto">Click to inspect</span>
       </div>
 
-      {/* Graph */}
-      <div
-        className="rounded-xl overflow-hidden border border-slate-700/60"
-        style={{ background: "rgba(4,16,12,0.95)" }}
-      >
-        <svg ref={svgRef} style={{ display: "block", width: "100%", height: 520 }} />
-      </div>
-
-      {/* Selected node panel */}
-      {selectedNode && (
-        <div
-          className="mt-3 rounded-xl px-4 py-3 border"
-          style={{ background: "#0a2e22", borderColor: "rgba(159,214,58,0.3)" }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: "#9FD63A" }}>
-                Facility Intelligence
-              </p>
-              <p className="text-white font-bold text-sm">{selectedNode.label}</p>
-            </div>
-            <span
-              className="text-xs px-2 py-1 rounded-full font-semibold"
-              style={{
-                background: `${RISK_COLOR[selectedNode.risk]}22`,
-                color: RISK_COLOR[selectedNode.risk],
-                border: `1px solid ${RISK_COLOR[selectedNode.risk]}44`,
-              }}
-            >
-              {selectedNode.risk.toUpperCase()} RISK
-            </span>
-          </div>
-          {connectedLinks.length > 0 && (
-            <div className="text-xs text-slate-400">
-              <span className="text-slate-300 font-medium">Connections: </span>
-              {connectedLinks.map((l, i) => (
-                <span key={i}>
-                  {l.source.id === selectedNode.id
-                    ? `→ ${l.target.id} (${l.label})`
-                    : `← ${l.source.id} (${l.label})`}
-                  {i < connectedLinks.length - 1 ? "  ·  " : ""}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <ForceGraphView
+        bomData={bomData}
+        locationsData={locationsData}
+        locationMaterialsData={locationMaterialsData}
+        lanesData={lanesData}
+        runoutRiskData={runoutRiskData}
+      />
     </div>
   );
 }
