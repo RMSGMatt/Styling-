@@ -23,6 +23,7 @@ import {
   saveScenario,
   runSimulationWithScenario
 } from "../apiClient/scenarios.js";
+import SupplierNetworkGraph from "./SupplierNetworkGraph";
 
 // ✅ Register Chart.js components
 ChartJS.register(
@@ -1217,10 +1218,56 @@ export default function SimulationDashboard({
   const [savedScenarios, setSavedScenarios] = useState([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState(null);
 
-    // 🔀 Overlay state (compare 2 historical runs)
+  // 🔀 Overlay state (compare 2 historical runs)
   const [overlayChartData, setOverlayChartData] = useState(null);
   const [overlayLoading, setOverlayLoading] = useState(false);
   const [overlayError, setOverlayError] = useState(null);
+  const [parsedBomData, setParsedBomData] = useState([]);
+const [parsedLocationsData, setParsedLocationsData] = useState([]);
+
+useEffect(() => {
+  if (!files.bom) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true });
+    setParsedBomData(parsed.data || []);
+  };
+  reader.readAsText(files.bom);
+}, [files.bom]);
+
+useEffect(() => {
+  if (!files.locations) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true });
+    setParsedLocationsData(parsed.data || []);
+  };
+  reader.readAsText(files.locations);
+}, [files.locations]);
+
+const [parsedLanesData, setParsedLanesData] = useState([]);
+
+useEffect(() => {
+  if (!files.lanes) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true });
+    setParsedLanesData(parsed.data || []);
+  };
+  reader.readAsText(files.lanes);
+}, [files.lanes]);
+
+const [parsedLocationMaterialsData, setParsedLocationMaterialsData] = useState([]);
+
+useEffect(() => {
+  if (!files.locationMaterials) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true });
+    setParsedLocationMaterialsData(parsed.data || []);
+  };
+  reader.readAsText(files.locationMaterials);
+}, [files.locationMaterials]);
 
   // 🧪 Ensure scenarioJson is initialized for saving/loading
   useEffect(() => {
@@ -3814,6 +3861,29 @@ if (!scenarioData?.disruptionScenarios?.length) {
 )}
 
         {/* ===== Simulation History ==================================== */}
+
+        <section
+          className="rounded-2xl p-5 shadow-xl border mb-6"
+          style={{
+            background: "linear-gradient(170deg, rgba(4,24,18,0.98), rgba(4,28,21,0.98))",
+            borderColor: "#123528",
+          }}
+        >
+          <h2 className="text-sm font-semibold text-slate-50 mb-1">
+            🕸️ Supplier Network Graph
+          </h2>
+          <p className="text-xs text-slate-300 mb-4">
+            Facility-level supply chain topology derived from your BOM and locations data. Node color indicates risk level from the latest simulation run.
+          </p>
+          <SupplierNetworkGraph
+            bomData={parsedBomData}
+            locationsData={parsedLocationsData}
+            locationMaterialsData={parsedLocationMaterialsData}
+            lanesData={parsedLanesData}
+            runoutRiskData={safeArray(runoutRiskData)}
+          />
+        </section>
+
         <section
           className="rounded-2xl p-5 shadow-xl border mb-6"
           style={{
