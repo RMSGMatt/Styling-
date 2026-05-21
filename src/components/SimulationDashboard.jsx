@@ -1039,6 +1039,69 @@ function SimTour({ steps, onFinish, onSkip }) {
   );
 }
 
+function RunCard({ sim, globalIdx, svcLevel, ttr, onReloadRun, formatRunLabel }) {
+  const [showDownloads, setShowDownloads] = useState(false);
+  return (
+    <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-4">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div>
+          <p className="text-sm font-semibold text-slate-100">
+            {sim?.name || `Run ${globalIdx + 1}`}
+          </p>
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            {formatRunLabel(sim, globalIdx).replace(/^\d+\.\s/, "")}
+          </p>
+        </div>
+        <button
+          onClick={() => onReloadRun(sim)}
+          className="px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0"
+          style={{ background: "linear-gradient(90deg,#9CF700,#22c55e)", color: "#020617" }}
+        >
+          🔄 Reload
+        </button>
+      </div>
+
+      {svcLevel > 0 && (
+        <div className="flex items-center gap-4 mb-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-400 uppercase tracking-wide">Service</span>
+            <span className={`text-xs font-bold ${svcLevel >= 99 ? "text-emerald-400" : svcLevel >= 80 ? "text-yellow-400" : "text-red-400"}`}>
+              {svcLevel.toFixed(1)}%
+            </span>
+          </div>
+          {ttr > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wide">TTR</span>
+              <span className="text-xs font-bold text-rose-400">{ttr}d</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={() => setShowDownloads(p => !p)}
+        className="text-[11px] text-slate-500 hover:text-slate-300 transition"
+      >
+        {showDownloads ? "▲ Hide outputs" : "▼ Download outputs"}
+      </button>
+
+      {showDownloads && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-[11px]">
+          <a href={sim.outputUrls?.flow_output_file_url} target="_blank" rel="noreferrer" className="text-sky-300 hover:underline">➜ Flow CSV</a>
+          <a href={sim.outputUrls?.inventory_output_file_url} target="_blank" rel="noreferrer" className="text-sky-300 hover:underline">➜ Inventory CSV</a>
+          <a href={sim.outputUrls?.production_output_file_url} target="_blank" rel="noreferrer" className="text-sky-300 hover:underline">➜ Production CSV</a>
+          <a href={sim.outputUrls?.occurrence_output_file_url} target="_blank" rel="noreferrer" className="text-sky-300 hover:underline">➜ Occurrence CSV</a>
+          <a href={sim.outputUrls?.disruption_impact_output_file_url} target="_blank" rel="noreferrer" className="text-rose-300 hover:underline">⚡ Disruption Impact</a>
+          <a href={sim.outputUrls?.projected_impact_output_file_url} target="_blank" rel="noreferrer" className="text-amber-300 hover:underline">🔮 Projected Impact</a>
+          <a href={sim.outputUrls?.runout_risk_output_file_url} target="_blank" rel="noreferrer" className="text-red-300 hover:underline">🛑 SKU Runout Risk</a>
+          <a href={sim.outputUrls?.countermeasures_output_file_url} target="_blank" rel="noreferrer" className="text-emerald-300 hover:underline">🛡️ Countermeasures</a>
+          <a href={sim.outputUrls?.locations_output_file_url} target="_blank" rel="noreferrer" className="text-slate-200 hover:underline">📍 Locations CSV</a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SimulationDashboard({
   handleFileChange,
   handleSubmit,
@@ -3914,116 +3977,26 @@ if (!scenarioData?.disruptionScenarios?.length) {
           </p>
 
           {(!Array.isArray(simulationHistory) || simulationHistory.length === 0) ? (
-            <p className="text-xs text-slate-300">
-              No past simulations yet.
-            </p>
+            <p className="text-xs text-slate-300">No past simulations yet.</p>
           ) : (
-            <div className="space-y-4">
-              {pagedSimulationHistory.map((sim, idx) => (
-                <div
-                  key={idx}
-                  className="bg-slate-900/60 border border-slate-700/80 rounded-xl p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-slate-300">
-                      {formatRunLabel(sim, idx)}
-                    </p>
-                    <button
-                      onClick={() => onReloadRun(sim)}
-                      className="text-xs font-semibold hover:underline"
-                      style={{ color: "#9CF700" }}
-                    >
-                      🔄 Reload Results
-                    </button>
-                  </div>
-
-                  {/* DOWNLOAD GRID */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-[11px]">
-                    <a
-                      href={sim.outputUrls?.flow_output_file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sky-300 hover:underline"
-                    >
-                      ➜ Flow CSV
-                    </a>
-                    <a
-                      href={sim.outputUrls?.inventory_output_file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sky-300 hover:underline"
-                    >
-                      ➜ Inventory CSV
-                    </a>
-                    <a
-                      href={sim.outputUrls?.production_output_file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sky-300 hover:underline"
-                    >
-                      ➜ Production CSV
-                    </a>
-                    <a
-                      href={sim.outputUrls?.occurrence_output_file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sky-300 hover:underline"
-                    >
-                      ➜ Occurrence CSV
-                    </a>
-
-                    <a
-                      href={
-                        sim.outputUrls?.disruption_impact_output_file_url
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-rose-300 hover:underline"
-                    >
-                      ⚡ Disruption Impact
-                    </a>
-                    <a
-                      href={
-                        sim.outputUrls?.projected_impact_output_file_url
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-amber-300 hover:underline"
-                    >
-                      🔮 Projected Impact
-                    </a>
-                    <a
-                      href={
-                        sim.outputUrls?.runout_risk_output_file_url
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-red-300 hover:underline"
-                    >
-                      🛑 SKU Runout Risk
-                    </a>
-                    <a
-                      href={
-                        sim.outputUrls?.countermeasures_output_file_url
-                      }
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-emerald-300 hover:underline"
-                    >
-                      🛡️ Countermeasures
-                    </a>
-
-                    <a
-                      href={sim.outputUrls?.locations_output_file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-slate-200 hover:underline"
-                    >
-                      📍 Locations CSV
-                    </a>
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-3">
+              {pagedSimulationHistory.map((sim, idx) => {
+                const globalIdx = (historyPage - 1) * runsPerPage + idx;
+                const runKpis = sim?.kpis || sim?.raw?.kpis || {};
+                const svcLevel = Number(runKpis?.onTimeFulfillment ?? runKpis?.serviceLevelPct ?? 0);
+                const ttr = Number(runKpis?.ttrDays ?? runKpis?.timeToRecoverDays ?? 0);
+                return (
+                  <RunCard
+                    key={globalIdx}
+                    sim={sim}
+                    globalIdx={globalIdx}
+                    svcLevel={svcLevel}
+                    ttr={ttr}
+                    onReloadRun={onReloadRun}
+                    formatRunLabel={formatRunLabel}
+                  />
+                );
+              })}
 
               <div className="flex items-center justify-between pt-2">
                 <button
@@ -4040,11 +4013,9 @@ if (!scenarioData?.disruptionScenarios?.length) {
                 >
                   ← Previous
                 </button>
-
                 <p className="text-xs text-slate-400">
                   Page {historyPage} of {totalHistoryPages}
                 </p>
-
                 <button
                   type="button"
                   onClick={() => setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))}
