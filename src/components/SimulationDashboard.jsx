@@ -3881,6 +3881,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
             locationMaterialsData={parsedLocationMaterialsData}
             lanesData={parsedLanesData}
             runoutRiskData={safeArray(runoutRiskData)}
+            scenarioData={scenarioData}
           />
         </section>
 

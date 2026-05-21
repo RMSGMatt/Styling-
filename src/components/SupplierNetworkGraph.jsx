@@ -90,8 +90,13 @@ function buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsDat
 
 
 // ── Force Graph view ──────────────────────────────────────────────────
-function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData }) {
+function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData, scenarioData }) {
   const [selectedNode, setSelectedNode] = useState(null);
+
+  const disruptedFacilities = useMemo(() => {
+    const scenarios = scenarioData?.disruptionScenarios || [];
+    return new Set(scenarios.map(s => String(s.facility || "").trim()).filter(Boolean));
+  }, [scenarioData]);
 
   const facilityRisk = useMemo(() => {
     const map = {};
@@ -149,6 +154,12 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
 
   return (
     <div className="rounded-xl overflow-hidden border border-slate-700/60" style={{ background: "rgba(4,16,12,0.95)" }}>
+      <style>{`
+        @keyframes disruption-pulse {
+          0%, 100% { stroke-opacity: 0.9; }
+          50% { stroke-opacity: 0.2; }
+        }
+      `}</style>
       <svg style={{ display: "block", width: "100%", height: H }} viewBox={`0 0 720 ${H}`}>
         <defs>
           <marker id="h-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -223,6 +234,19 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
 
           return (
             <g key={id} style={{ cursor: "pointer" }} onClick={() => setSelectedNode(prev => prev === id ? null : id)}>
+              {/* Disruption ring */}
+              {disruptedFacilities.has(id) && (
+                <rect
+                  x={x - 6} y={y - 6}
+                  width={NW + 12} height={NH + 12}
+                  rx={12}
+                  fill="none"
+                  stroke="#F59E0B"
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                  style={{ animation: "disruption-pulse 1.5s ease-in-out infinite" }}
+                />
+              )}
               {/* Outer ring */}
               <rect
                 x={x - 2} y={y - 2}
@@ -246,6 +270,11 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
               />
               {/* Risk dot */}
               <circle cx={x + NW - 8} cy={y + 8} r={3.5} fill={color}/>
+              {/* Disruption indicator */}
+              {disruptedFacilities.has(id) && (
+                <text x={x + 8} y={y + 10} fontSize="10" fontFamily="sans-serif" dominantBaseline="central">⚡</text>
+              )}
+
               {/* Label */}
               {words.length <= 2 ? (
                 <text x={x + NW / 2} y={y + NH / 2} textAnchor="middle" dominantBaseline="central"
@@ -293,7 +322,7 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
 }
 
 // ── Main export ───────────────────────────────────────────────────────
-export default function SupplierNetworkGraph({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData }) {
+export default function SupplierNetworkGraph({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData, scenarioData }) {
 
   const hasData = bomData?.length || lanesData?.length;
 
@@ -317,6 +346,10 @@ export default function SupplierNetworkGraph({ bomData, locationsData, locationM
             <span className="text-[10px] text-slate-400 uppercase tracking-wide">{label}</span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5 ml-4">
+          <span style={{ color: "#F59E0B", fontSize: 12 }}>⚡</span>
+          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Disrupted</span>
+        </div>
         <span className="text-[10px] text-slate-500 ml-auto">Click to inspect</span>
       </div>
 
@@ -326,6 +359,7 @@ export default function SupplierNetworkGraph({ bomData, locationsData, locationM
         locationMaterialsData={locationMaterialsData}
         lanesData={lanesData}
         runoutRiskData={runoutRiskData}
+        scenarioData={scenarioData}
       />
     </div>
   );
