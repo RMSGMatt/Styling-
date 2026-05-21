@@ -3190,8 +3190,363 @@ if (!scenarioData?.disruptionScenarios?.length) {
 </div>
 </section>
 
+{hasNarrativeRun && (
+        <section
+          className="rounded-2xl p-5 shadow-xl border mb-6"
+          style={{
+            background: "linear-gradient(170deg, rgba(4,24,18,0.98), rgba(4,28,21,0.98))",
+            borderColor: "#123528",
+          }}
+        >
+          <h2 className="text-sm font-semibold text-slate-50 mb-1">
+            🕸️ Supplier Network Graph
+          </h2>
+          <p className="text-xs text-slate-300 mb-4">
+            Facility-level supply chain topology derived from your BOM and locations data. Node color indicates risk level from the latest simulation run.
+          </p>
+          <SupplierNetworkGraph
+            bomData={parsedBomData}
+            locationsData={parsedLocationsData}
+            locationMaterialsData={parsedLocationMaterialsData}
+            lanesData={parsedLanesData}
+            runoutRiskData={safeArray(runoutRiskData)}
+            scenarioData={scenarioData}
+          />
+        </section>
+        )}
 
-{/* Scenario Builder */}
+
+{/* ===== Disruption Panels ====================================== */}
+        {hasNarrativeRun && (
+        <DisruptionPanels
+          disruptionImpactData={disruptionImpactData}
+          runoutRiskData={runoutRiskData}
+            hasNarrativeRun={hasNarrativeRun}
+          countermeasuresData={countermeasuresData}
+          executiveKpis={{
+            serviceLevelPct: Number(kpis?.serviceLevelPct ?? kpis?.onTimeFulfillment ?? 0),
+            demandAtRiskUnits: Number(kpis?.peakBacklogUnits ?? kpis?.lateFulfilledUnits ?? kpis?.unitsAtRisk ?? 0),
+            unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0),
+            missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
+            timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
+            timeToSurviveDays: Number(kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? 0),
+            revenueExposure: Number(kpis?.revenueExposure ?? 0),
+            estimatedRevenueExposure: Number(kpis?.estimatedRevenueExposure ?? 0),
+          }}
+        />
+        )}
+        
+        {/* ===== Filters + Chart ======================================== */}
+        {hasNarrativeRun && (
+        <section
+          className="rounded-2xl p-5 shadow-xl border simulation-chart-container"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(4,27,21,0.98))",
+            borderColor: "#123528",
+          }}
+        >
+          {/* 🎨 Chart Text Bright Mint Fix */}
+          <style>
+            {`
+              .simulation-chart-container .select__placeholder,
+              .simulation-chart-container .select__single-value {
+                color: #111827 !important;
+                opacity: 1 !important;
+                font-weight: 600 !important;
+              }
+
+              .simulation-chart-container canvas {
+                color: #eafff4 !important;
+              }
+
+              .simulation-chart-container p,
+              .simulation-chart-container h2,
+              .simulation-chart-container h3 {
+                color: #eafff4 !important;
+              }
+            `}
+          </style>
+
+          {(() => {
+            const selectStyles = {
+              control: (base) => ({
+                ...base,
+                backgroundColor: "#e5e7eb",
+                borderColor: "#cbd5e1",
+                color: "#111827",
+                boxShadow: "none",
+              }),
+              menu: (base) => ({
+                ...base,
+                backgroundColor: "#f8fafc",
+                color: "#111827",
+              }),
+              option: (base, state) => ({
+                ...base,
+                backgroundColor: state.isFocused ? "#e2e8f0" : "#f8fafc",
+                color: "#111827",
+                cursor: "pointer",
+              }),
+              singleValue: (base) => ({
+                ...base,
+                color: "#111827",
+                fontWeight: 600,
+              }),
+              placeholder: (base) => ({
+                ...base,
+                color: "#374151",
+                opacity: 1,
+                fontWeight: 500,
+              }),
+              input: (base) => ({
+                ...base,
+                color: "#111827",
+              }),
+              multiValue: (base) => ({
+                ...base,
+                backgroundColor: "#e5e7eb",
+              }),
+              multiValueLabel: (base) => ({
+                ...base,
+                color: "#111827",
+                fontWeight: 600,
+              }),
+              multiValueRemove: (base) => ({
+                ...base,
+                color: "#6b7280",
+              }),
+            };
+
+            return (
+              <>
+                {/* Header */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="text-sm font-semibold flex items-center gap-2 text-slate-50">
+                      <span style={{ color: "#9CF700" }}>
+                        📈 Operational Performance Trends
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-300 mt-1">
+                      Explore how inventory, production, and service levels evolve across the network.
+                    </p>
+                    {selectedOutputType === "inventory" && isInventoryFlatline && (
+                      <p className="text-xs mt-2" style={{ color: "#fbbf24" }}>
+                        Inventory is not accumulating in this run — the chart is showing a true zero-buffer operating condition.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* FILTERS */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                  {/* SKU */}
+                  <div>
+                    <p className="text-xs text-white font-semibold mb-1">Product (SKU)</p>
+                    <Select
+                      isMulti
+                      options={multiSkuOptions}
+                      onChange={handleSkuChange}
+                      value={selectedSkuValue}
+                      className="text-sm select"
+                      classNamePrefix="select"
+                      styles={selectStyles}
+                    />
+                  </div>
+
+                  {/* Performance Metric */}
+                  <div>
+                    <p className="text-xs text-white font-semibold mb-1">Performance Metric</p>
+                    <Select
+                      options={outputTypes}
+                      onChange={handleOutputTypeChange}
+                      value={outputTypes.find(
+                        (o) => o.value === selectedOutputType
+                      )}
+                      className="text-sm select"
+                      classNamePrefix="select"
+                      styles={selectStyles}
+                    />
+                  </div>
+
+                  {/* Facility */}
+                  <div>
+                    <p className="text-xs text-white font-semibold mb-1">
+                      Facility
+                    </p>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-900/70 border border-slate-700 rounded-lg text-slate-200 text-sm px-2 py-1"
+                      value={selectedFacility || "All / None Selected"}
+                      disabled
+                    />
+                  </div>
+                </div>
+
+                {/* RUN COMPARISON SELECTORS */}
+                <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4 mb-6">
+                  <h3 className="text-xs font-semibold text-slate-200 mb-2">
+                    🔀 Compare Simulation Runs
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Baseline run */}
+                    <div>
+                      <p className="text-[11px] text-slate-300 mb-1">
+                        Baseline Run (Left)
+                      </p>
+                      <Select
+                        options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
+                          value: idx,
+                          label: formatRunLabel(s, idx),
+                        }))}
+                        onChange={(opt) =>
+                          setBaselineRunIndex(opt?.value ?? null)
+                        }
+                        className="text-sm select"
+                        classNamePrefix="select"
+                        styles={selectStyles}
+                      />
+                    </div>
+
+                    {/* Comparison run */}
+                    <div>
+                      <p className="text-[11px] text-slate-300 mb-1">
+                        Comparison Run (Right)
+                      </p>
+                      <Select
+                        options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
+                          value: idx,
+                          label: formatRunLabel(s, idx),
+                        }))}
+                        onChange={(opt) => setCompareRunIndex(opt?.value ?? null)}
+                        className="text-sm select"
+                        classNamePrefix="select"
+                        styles={selectStyles}
+                      />
+                    </div>
+                  </div>
+
+                  {!overlayChartData && (
+                  <div className="mt-3 flex items-start gap-2 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2">
+                    <span className="text-lg">💡</span>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Select any two simulation runs above to generate a side-by-side overlay comparison.
+                    </p>
+                  </div>
+                )}
+                </div>
+
+                <div id="tour-scenario-comparison">
+                  <ScenarioComparison
+                    runA={baselineRunIndex !== null ? simulationHistory[baselineRunIndex] : null}
+                    runB={compareRunIndex !== null ? simulationHistory[compareRunIndex] : null}
+                  />
+                </div>
+
+                {/* CHART */}
+                {selectedOutputType === "inventory" && isInventoryFlatline && (
+                  <div
+                    className="rounded-2xl border p-4 mb-6"
+                    style={{
+                      background: "rgba(245,158,11,0.10)",
+                      borderColor: "rgba(245,158,11,0.30)",
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="text-3xl font-bold tracking-tight text-white">⚠️</div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-amber-300 mb-1">
+                          Zero Buffer Exposure
+                        </p>
+                        <p className="text-sm text-slate-100 leading-relaxed">
+                          Inventory is flat at zero across the selected period. This usually means the network is operating with
+                          no visible buffer, relying on immediate flow and perfect execution. In practice, that increases
+                          sensitivity to even short disruptions.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+<div className="relative h-80 bg-slate-950/60 border border-slate-800 rounded-xl p-4">
+  {/* 🔀 Overlay status */}
+  {overlayLoading && (
+    <div className="text-xs text-slate-300 mb-2">Building overlay chart…</div>
+  )}
+
+  {overlayError && (
+    <div className="text-xs text-red-400 mb-2">{overlayError}</div>
+  )}
+
+  {/* 📈 Chart */}
+  {(overlayChartData?.datasets?.length > 0 || derivedChartData?.datasets?.length > 0) ? (
+    <Line
+      data={overlayChartData?.datasets?.length ? overlayChartData : derivedChartData}
+      options={chartOptions}
+    />
+  ) : (
+    <div className="flex flex-col items-center justify-center py-10 gap-2"><span className="text-3xl">📊</span><p className="text-slate-400 text-sm font-semibold">No data to display</p><p className="text-slate-500 text-xs">Select a product and facility, then run a simulation to populate this chart.</p></div>
+  )}
+</div>
+</>
+);
+})()}
+</section>
+        )}
+
+      {/* ===== Projected Disruption Impact (Slider) */}
+        {false && (
+<section
+          className="rounded-2xl p-5 shadow-xl border"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(4,24,18,0.98), rgba(6,32,24,0.98))",
+            borderColor: "#123528",
+          }}
+        >
+          <h2 className="text-sm font-semibold text-slate-50 mb-2">
+            📉 Projected Disruption Impacts
+          </h2>
+
+          <p className="text-xs text-slate-300 mb-3">
+            Adjust the slider to simulate increased disruption severity
+            and view the projected impact trend.
+          </p>
+
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={projectedSlider}
+            onChange={handleProjectedSliderChange}
+            className="w-full accent-lime-300"
+          />
+
+          <p className="text-xs text-slate-300 mt-2">
+            Severity Increase:{" "}
+            <span className="text-slate-50 font-semibold">
+              +{projectedSlider}%
+            </span>
+          </p>
+
+          <div className="h-64 mt-4 bg-slate-950/60 rounded-xl border border-slate-800 p-3">
+            {projectedSeries ? (
+              <Line data={projectedSeries} options={chartOptions} />
+            ) : (
+              <p className="text-slate-300 text-xs">
+                Not enough data to visualize projected impacts.
+              </p>
+            )}
+          </div>
+        </section>
+)}
+
+        
+
+        {/* Scenario Builder */}
+        {hasNarrativeRun && (
         <section className="grid grid-cols-1 gap-4">
           <div
             className="rounded-2xl p-4 border scenario-builder-panel"
@@ -3538,353 +3893,10 @@ if (!scenarioData?.disruptionScenarios?.length) {
             </div>
           </div>
         </section>
+        )}
 
-{/* ===== Disruption Panels ====================================== */}
-        <DisruptionPanels
-          disruptionImpactData={disruptionImpactData}
-          runoutRiskData={runoutRiskData}
-            hasNarrativeRun={hasNarrativeRun}
-          countermeasuresData={countermeasuresData}
-          executiveKpis={{
-            serviceLevelPct: Number(kpis?.serviceLevelPct ?? kpis?.onTimeFulfillment ?? 0),
-            demandAtRiskUnits: Number(kpis?.peakBacklogUnits ?? kpis?.lateFulfilledUnits ?? kpis?.unitsAtRisk ?? 0),
-            unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0),
-            missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
-            timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
-            timeToSurviveDays: Number(kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? 0),
-            revenueExposure: Number(kpis?.revenueExposure ?? 0),
-            estimatedRevenueExposure: Number(kpis?.estimatedRevenueExposure ?? 0),
-          }}
-        />{/* ===== Filters + Chart ======================================== */}
-        <section
-          className="rounded-2xl p-5 shadow-xl border simulation-chart-container"
-          style={{
-            background:
-              "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(4,27,21,0.98))",
-            borderColor: "#123528",
-          }}
-        >
-          {/* 🎨 Chart Text Bright Mint Fix */}
-          <style>
-            {`
-              .simulation-chart-container .select__placeholder,
-              .simulation-chart-container .select__single-value {
-                color: #111827 !important;
-                opacity: 1 !important;
-                font-weight: 600 !important;
-              }
-
-              .simulation-chart-container canvas {
-                color: #eafff4 !important;
-              }
-
-              .simulation-chart-container p,
-              .simulation-chart-container h2,
-              .simulation-chart-container h3 {
-                color: #eafff4 !important;
-              }
-            `}
-          </style>
-
-          {(() => {
-            const selectStyles = {
-              control: (base) => ({
-                ...base,
-                backgroundColor: "#e5e7eb",
-                borderColor: "#cbd5e1",
-                color: "#111827",
-                boxShadow: "none",
-              }),
-              menu: (base) => ({
-                ...base,
-                backgroundColor: "#f8fafc",
-                color: "#111827",
-              }),
-              option: (base, state) => ({
-                ...base,
-                backgroundColor: state.isFocused ? "#e2e8f0" : "#f8fafc",
-                color: "#111827",
-                cursor: "pointer",
-              }),
-              singleValue: (base) => ({
-                ...base,
-                color: "#111827",
-                fontWeight: 600,
-              }),
-              placeholder: (base) => ({
-                ...base,
-                color: "#374151",
-                opacity: 1,
-                fontWeight: 500,
-              }),
-              input: (base) => ({
-                ...base,
-                color: "#111827",
-              }),
-              multiValue: (base) => ({
-                ...base,
-                backgroundColor: "#e5e7eb",
-              }),
-              multiValueLabel: (base) => ({
-                ...base,
-                color: "#111827",
-                fontWeight: 600,
-              }),
-              multiValueRemove: (base) => ({
-                ...base,
-                color: "#6b7280",
-              }),
-            };
-
-            return (
-              <>
-                {/* Header */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-                  <div>
-                    <h2 className="text-sm font-semibold flex items-center gap-2 text-slate-50">
-                      <span style={{ color: "#9CF700" }}>
-                        📈 Operational Performance Trends
-                      </span>
-                    </h2>
-                    <p className="text-xs text-slate-300 mt-1">
-                      Explore how inventory, production, and service levels evolve across the network.
-                    </p>
-                    {selectedOutputType === "inventory" && isInventoryFlatline && (
-                      <p className="text-xs mt-2" style={{ color: "#fbbf24" }}>
-                        Inventory is not accumulating in this run — the chart is showing a true zero-buffer operating condition.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* FILTERS */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-                  {/* SKU */}
-                  <div>
-                    <p className="text-xs text-white font-semibold mb-1">Product (SKU)</p>
-                    <Select
-                      isMulti
-                      options={multiSkuOptions}
-                      onChange={handleSkuChange}
-                      value={selectedSkuValue}
-                      className="text-sm select"
-                      classNamePrefix="select"
-                      styles={selectStyles}
-                    />
-                  </div>
-
-                  {/* Performance Metric */}
-                  <div>
-                    <p className="text-xs text-white font-semibold mb-1">Performance Metric</p>
-                    <Select
-                      options={outputTypes}
-                      onChange={handleOutputTypeChange}
-                      value={outputTypes.find(
-                        (o) => o.value === selectedOutputType
-                      )}
-                      className="text-sm select"
-                      classNamePrefix="select"
-                      styles={selectStyles}
-                    />
-                  </div>
-
-                  {/* Facility */}
-                  <div>
-                    <p className="text-xs text-white font-semibold mb-1">
-                      Facility
-                    </p>
-                    <input
-                      type="text"
-                      className="w-full bg-slate-900/70 border border-slate-700 rounded-lg text-slate-200 text-sm px-2 py-1"
-                      value={selectedFacility || "All / None Selected"}
-                      disabled
-                    />
-                  </div>
-                </div>
-
-                {/* RUN COMPARISON SELECTORS */}
-                <div className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4 mb-6">
-                  <h3 className="text-xs font-semibold text-slate-200 mb-2">
-                    🔀 Compare Simulation Runs
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Baseline run */}
-                    <div>
-                      <p className="text-[11px] text-slate-300 mb-1">
-                        Baseline Run (Left)
-                      </p>
-                      <Select
-                        options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
-                          value: idx,
-                          label: formatRunLabel(s, idx),
-                        }))}
-                        onChange={(opt) =>
-                          setBaselineRunIndex(opt?.value ?? null)
-                        }
-                        className="text-sm select"
-                        classNamePrefix="select"
-                        styles={selectStyles}
-                      />
-                    </div>
-
-                    {/* Comparison run */}
-                    <div>
-                      <p className="text-[11px] text-slate-300 mb-1">
-                        Comparison Run (Right)
-                      </p>
-                      <Select
-                        options={(Array.isArray(simulationHistory) ? simulationHistory : []).map((s, idx) => ({
-                          value: idx,
-                          label: formatRunLabel(s, idx),
-                        }))}
-                        onChange={(opt) => setCompareRunIndex(opt?.value ?? null)}
-                        className="text-sm select"
-                        classNamePrefix="select"
-                        styles={selectStyles}
-                      />
-                    </div>
-                  </div>
-
-                  {!overlayChartData && (
-                  <div className="mt-3 flex items-start gap-2 bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2">
-                    <span className="text-lg">💡</span>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Select any two simulation runs above to generate a side-by-side overlay comparison.
-                    </p>
-                  </div>
-                )}
-                </div>
-
-                <div id="tour-scenario-comparison">
-                  <ScenarioComparison
-                    runA={baselineRunIndex !== null ? simulationHistory[baselineRunIndex] : null}
-                    runB={compareRunIndex !== null ? simulationHistory[compareRunIndex] : null}
-                  />
-                </div>
-
-                {/* CHART */}
-                {selectedOutputType === "inventory" && isInventoryFlatline && (
-                  <div
-                    className="rounded-2xl border p-4 mb-6"
-                    style={{
-                      background: "rgba(245,158,11,0.10)",
-                      borderColor: "rgba(245,158,11,0.30)",
-                    }}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="text-3xl font-bold tracking-tight text-white">⚠️</div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wide text-amber-300 mb-1">
-                          Zero Buffer Exposure
-                        </p>
-                        <p className="text-sm text-slate-100 leading-relaxed">
-                          Inventory is flat at zero across the selected period. This usually means the network is operating with
-                          no visible buffer, relying on immediate flow and perfect execution. In practice, that increases
-                          sensitivity to even short disruptions.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-<div className="relative h-80 bg-slate-950/60 border border-slate-800 rounded-xl p-4">
-  {/* 🔀 Overlay status */}
-  {overlayLoading && (
-    <div className="text-xs text-slate-300 mb-2">Building overlay chart…</div>
-  )}
-
-  {overlayError && (
-    <div className="text-xs text-red-400 mb-2">{overlayError}</div>
-  )}
-
-  {/* 📈 Chart */}
-  {(overlayChartData?.datasets?.length > 0 || derivedChartData?.datasets?.length > 0) ? (
-    <Line
-      data={overlayChartData?.datasets?.length ? overlayChartData : derivedChartData}
-      options={chartOptions}
-    />
-  ) : (
-    <div className="flex flex-col items-center justify-center py-10 gap-2"><span className="text-3xl">📊</span><p className="text-slate-400 text-sm font-semibold">No data to display</p><p className="text-slate-500 text-xs">Select a product and facility, then run a simulation to populate this chart.</p></div>
-  )}
-</div>
-</>
-);
-})()}
-</section>
-
-      {/* ===== Projected Disruption Impact (Slider)
-        {false && (
-<section
-          className="rounded-2xl p-5 shadow-xl border"
-          style={{
-            background:
-              "linear-gradient(160deg, rgba(4,24,18,0.98), rgba(6,32,24,0.98))",
-            borderColor: "#123528",
-          }}
-        >
-          <h2 className="text-sm font-semibold text-slate-50 mb-2">
-            📉 Projected Disruption Impacts
-          </h2>
-
-          <p className="text-xs text-slate-300 mb-3">
-            Adjust the slider to simulate increased disruption severity
-            and view the projected impact trend.
-          </p>
-
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={projectedSlider}
-            onChange={handleProjectedSliderChange}
-            className="w-full accent-lime-300"
-          />
-
-          <p className="text-xs text-slate-300 mt-2">
-            Severity Increase:{" "}
-            <span className="text-slate-50 font-semibold">
-              +{projectedSlider}%
-            </span>
-          </p>
-
-          <div className="h-64 mt-4 bg-slate-950/60 rounded-xl border border-slate-800 p-3">
-            {projectedSeries ? (
-              <Line data={projectedSeries} options={chartOptions} />
-            ) : (
-              <p className="text-slate-300 text-xs">
-                Not enough data to visualize projected impacts.
-              </p>
-            )}
-          </div>
-        </section>
-)}
-
-        {/* ===== Simulation History ==================================== */}
-
-        <section
-          className="rounded-2xl p-5 shadow-xl border mb-6"
-          style={{
-            background: "linear-gradient(170deg, rgba(4,24,18,0.98), rgba(4,28,21,0.98))",
-            borderColor: "#123528",
-          }}
-        >
-          <h2 className="text-sm font-semibold text-slate-50 mb-1">
-            🕸️ Supplier Network Graph
-          </h2>
-          <p className="text-xs text-slate-300 mb-4">
-            Facility-level supply chain topology derived from your BOM and locations data. Node color indicates risk level from the latest simulation run.
-          </p>
-          <SupplierNetworkGraph
-            bomData={parsedBomData}
-            locationsData={parsedLocationsData}
-            locationMaterialsData={parsedLocationMaterialsData}
-            lanesData={parsedLanesData}
-            runoutRiskData={safeArray(runoutRiskData)}
-            scenarioData={scenarioData}
-          />
-        </section>
-
+      {/* ===== Simulation History ==================================== */}
+        {hasNarrativeRun && (
         <section
           className="rounded-2xl p-5 shadow-xl border mb-6"
           style={{
@@ -4051,6 +4063,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
             </div>
           )}
         </section>
+        )}
 
         </main>
     </div>
