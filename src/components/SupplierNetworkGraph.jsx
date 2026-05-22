@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import * as d3 from "d3";
+import CascadeView from "./CascadeView";
 
 const RISK_COLOR = {
   high: "#EF4444",
@@ -323,6 +324,7 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
 
 // ── Main export ───────────────────────────────────────────────────────
 export default function SupplierNetworkGraph({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData, scenarioData }) {
+  const [activeTab, setActiveTab] = useState("network");
 
   const hasData = bomData?.length || lanesData?.length;
 
@@ -338,29 +340,60 @@ export default function SupplierNetworkGraph({ bomData, locationsData, locationM
 
   return (
     <div className="w-full">
-      {/* Legend */}
-      <div className="flex items-center gap-4 mb-4">
-        {[["high", "High Risk"], ["medium", "Medium Risk"], ["low", "Operational"]].map(([risk, label]) => (
-          <div key={risk} className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: RISK_COLOR[risk] }} />
-            <span className="text-[10px] text-slate-400 uppercase tracking-wide">{label}</span>
-          </div>
+      {/* Tab bar */}
+      <div className="flex items-center gap-2 mb-4">
+        {[
+          { id: "network", label: "🕸 Network" },
+          { id: "cascade", label: "⚡ Cascade" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+            style={
+              activeTab === tab.id
+                ? { background: "#9FD63A", color: "#020617" }
+                : { background: "rgba(15,30,24,0.6)", color: "#94a3b8", border: "1px solid #1f3f33" }
+            }
+          >
+            {tab.label}
+          </button>
         ))}
-        <div className="flex items-center gap-1.5 ml-4">
-          <span style={{ color: "#F59E0B", fontSize: 12 }}>⚡</span>
-          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Disrupted</span>
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 ml-4">
+          {[["high", "High Risk"], ["medium", "Medium Risk"], ["low", "Operational"]].map(([risk, label]) => (
+            <div key={risk} className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: RISK_COLOR[risk] }} />
+              <span className="text-[10px] text-slate-400 uppercase tracking-wide">{label}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-1.5">
+            <span style={{ color: "#F59E0B", fontSize: 12 }}>⚡</span>
+            <span className="text-[10px] text-slate-400 uppercase tracking-wide">Disrupted</span>
+          </div>
         </div>
-        <span className="text-[10px] text-slate-500 ml-auto">Click to inspect</span>
+        {activeTab === "network" && (
+          <span className="text-[10px] text-slate-500 ml-auto">Click to inspect</span>
+        )}
       </div>
 
-      <ForceGraphView
-        bomData={bomData}
-        locationsData={locationsData}
-        locationMaterialsData={locationMaterialsData}
-        lanesData={lanesData}
-        runoutRiskData={runoutRiskData}
-        scenarioData={scenarioData}
-      />
+      {activeTab === "network" ? (
+        <ForceGraphView
+          bomData={bomData}
+          locationsData={locationsData}
+          locationMaterialsData={locationMaterialsData}
+          lanesData={lanesData}
+          runoutRiskData={runoutRiskData}
+          scenarioData={scenarioData}
+        />
+      ) : (
+        <CascadeView
+          lanesData={lanesData}
+          scenarioData={scenarioData}
+          runoutRiskData={runoutRiskData}
+        />
+      )}
     </div>
   );
 }
