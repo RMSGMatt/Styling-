@@ -1347,14 +1347,6 @@ useEffect(() => {
     }));
   }, [scenarioData]);
 
-  useEffect(() => {
-    console.log("🧩 SimulationDashboard loaded (with scenario transforms)");
-  }, []);
-
-  useEffect(() => {
-    console.log("🧪 [SimulationDashboard] kpis prop:", kpis);
-  }, [kpis]);
-
   // 📥 Load Saved Scenarios on Mount
   useEffect(() => {
     listScenarios()
@@ -1764,15 +1756,6 @@ const decisionKpis = [
     const baselineUrl = pickOutputUrlForType(baselineSim, selectedOutputType);
     const compareUrl = pickOutputUrlForType(compareSim, selectedOutputType);
 
-    console.log("🔀 Overlay debug:", {
-  baselineIdx,
-  compareIdx,
-  selectedOutputType,
-  baselineUrl,
-  compareUrl,
-  sameUrl: baselineUrl === compareUrl,
-});
-
     if (!baselineUrl || !compareUrl) {
       setOverlayChartData(null);
       setOverlayError("Missing output URL(s) for selected run(s).");
@@ -1962,7 +1945,6 @@ setOverlayChartData(overlay);
 
   const handleRunSimulationWithScenario = async (scenarioOverride, runLabel) => {
   try {
-    console.log("🧪 Applying scenario transforms before run...");
 
     // ✅ Always use authoritative scenario from props first,
     // then fall back to localStorage (legacy), then baseline {}
@@ -1990,8 +1972,6 @@ setOverlayChartData(overlay);
       }
       return {};
     })();
-
-    console.log("🧪 [Scenario Debug] activeScenario used:", activeScenario);
 
     // ==============================
     // 🔥 Shadow scenarioData SAFELY (block-scoped)
@@ -2112,8 +2092,6 @@ setOverlayChartData(overlay);
 
     let transformedDemand = originalDemandText;
     let transformedDisruptions = originalDisruptionsText;
-    console.log("🧪 [Scenario Debug] transformedDisruptions length:", String(transformedDisruptions || "").length);
-    console.log("🧪 [Scenario Debug] transformedDisruptions preview:", String(transformedDisruptions || "").slice(0, 300));
     let transformedLocMaterials = originalLocMaterialsText;
 
     // -----------------------------
@@ -2145,14 +2123,12 @@ setOverlayChartData(overlay);
       });
 
       transformedDemand = Papa.unparse(rows);
-      console.log("✅ demand.csv transformed");
     }
 
     if (!scenarioData?.disruptionScenarios?.length) {
       try {
         const stored = localStorage.getItem("forc_active_scenario");
         if (stored) Object.assign(scenarioData, JSON.parse(stored));
-        console.log("🔁 [ScenarioFallback] Loaded from localStorage:", scenarioData);
       } catch {}
     }
 
@@ -2160,7 +2136,6 @@ if (!scenarioData?.disruptionScenarios?.length) {
       try {
         const stored = localStorage.getItem("forc_active_scenario");
         if (stored) Object.assign(scenarioData, JSON.parse(stored));
-        console.log("🔁 [ScenarioFallback] Loaded from localStorage:", scenarioData);
       } catch {}
     }
 
@@ -2181,13 +2156,9 @@ if (!scenarioData?.disruptionScenarios?.length) {
         columns: ["start_date", "end_date", "facility", "severity", "production_impact", "shipping_impact"],
       });
 
-      console.log("✅ disruptions.csv replaced from Scenario Builder");
       try {
         const txt = String(transformedDisruptions || "");
         const lines = txt.split(/\r?\n/).filter(Boolean);
-        console.log("🧪 [Verify] disruptions total lines:", lines.length);
-        console.log("🧪 [Verify] disruptions header:", lines[0] || "(none)");
-        console.log("🧪 [Verify] disruptions first row:", lines[1] || "(no rows written)");
       } catch (e) {
         console.warn("⚠️ [Verify] disruptions check failed:", e);
       }
@@ -2217,7 +2188,6 @@ if (!scenarioData?.disruptionScenarios?.length) {
       });
 
       transformedLocMaterials = Papa.unparse(rows);
-      console.log("✅ location_materials.csv transformed");
     }
 
     // -----------------------------
@@ -2227,8 +2197,6 @@ if (!scenarioData?.disruptionScenarios?.length) {
     // ---------- INVALID CSV ----------
     if (!isValidCsvText(csvText)) {
       if (key === "disruptions") {
-        console.log("🧪 [Verify] disruptions INVALID length:", String(csvText || "").length);
-        console.log("🧪 [Verify] disruptions INVALID preview:", String(csvText || "").slice(0, 300));
       }
 
       console.warn(
@@ -3056,6 +3024,25 @@ if (!scenarioData?.disruptionScenarios?.length) {
       </div>
     </div>
 
+    {!hasNarrativeRun ? (
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <div className="text-5xl">🎯</div>
+        <div className="text-center">
+          <p className="text-slate-200 font-semibold text-sm mb-1">Upload your files and run a scenario</p>
+          <p className="text-slate-400 text-xs max-w-md leading-relaxed">
+            FOR-C will simulate the downstream impact across your supply network and generate an executive-ready narrative of service risk, backlog pressure, and recovery time.
+          </p>
+        </div>
+        <div className="flex items-center gap-6 mt-2 text-[11px] text-slate-500">
+          <span>📂 Upload CSVs</span>
+          <span style={{ color: "#9FD63A" }}>→</span>
+          <span>▶ Run Simulation</span>
+          <span style={{ color: "#9FD63A" }}>→</span>
+          <span>📊 See Impact</span>
+        </div>
+      </div>
+    ) : (
+      <>
     <p className="text-sm leading-6 text-slate-200 mb-6">
       {aiNarrativeLoading
         ? "Generating executive narrative..."
@@ -3251,6 +3238,8 @@ if (!scenarioData?.disruptionScenarios?.length) {
     </div>
   )}
 </div>
+</>
+    )}
 </section>
 
 {hasNarrativeRun && (

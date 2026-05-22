@@ -1646,8 +1646,6 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
         })();
 
       const runNameFromForm = maybeFormData instanceof FormData ? (maybeFormData.get("run_name") || "") : "";
-      console.log("▶️ [App] Starting simulation run...");
-      console.log("📡 [App] POST", `${API_ROOT}/api/run`);
 
       const res = await apiClient.post("/api/run", formData);
       const payload = res.data || {};
