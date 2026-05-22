@@ -2154,7 +2154,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
       }));
 
       transformedDisruptions = Papa.unparse(scenarioRows, {
-        columns: ["start_date", "end_date", "facility", "severity", "production_impact", "shipping_impact"],
+        columns: ["facility", "start_date", "end_date", "severity", "production_impact", "shipping_impact"],
       });
 
       try {
@@ -2461,6 +2461,22 @@ if (!scenarioData?.disruptionScenarios?.length) {
     placeholder="Name this run (e.g. Taiwan Blockade July)"
     className="mt-3 w-full px-3 py-2 rounded-lg text-sm bg-slate-800 border border-slate-600 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
   />
+  <button
+    type="button"
+    onClick={() => {
+      try {
+        localStorage.removeItem("forc_active_scenario");
+        localStorage.removeItem("currentScenarioJSON");
+      } catch {}
+      setScenarioData(null);
+      alert("✅ Baseline cleared — next run will use uploaded files only.");
+    }}
+    className="mt-3 w-full py-2 rounded-xl text-xs font-semibold border transition"
+    style={{ borderColor: "#355e52", color: "#94a3b8", background: "rgba(2,6,23,0.45)" }}
+  >
+    🔄 Clear to Baseline
+  </button>
+  
   <button
     onClick={() => {
       const activeScenario =
