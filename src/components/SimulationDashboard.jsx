@@ -1135,6 +1135,7 @@ export default function SimulationDashboard({
   userPlan,
   requirePro,
   openUpgradeGate,
+  lastRunScenarioData,
 }) {
 
   const API_BASE = import.meta?.env?.VITE_API_BASE || "https://supply-chain-simulator-v2.onrender.com";
@@ -3262,7 +3263,9 @@ if (!scenarioData?.disruptionScenarios?.length) {
             locationMaterialsData={parsedLocationMaterialsData}
             lanesData={parsedLanesData}
             runoutRiskData={safeArray(runoutRiskData)}
-            scenarioData={scenarioData}
+            scenarioData={lastRunScenarioData || scenarioData}
+            apiBase={API_BASE}
+            kpis={kpis}
           />
         </section>
         )}

@@ -465,6 +465,7 @@ export default function App() {
 
   const [locationsUrl, setLocationsUrl] = useState(null);
   const [scenarioData, setScenarioData] = useState({});
+  const [lastRunScenarioData, setLastRunScenarioData] = useState(null);
 
   // Post-run deterministic pipeline gate: idle | seeding | primed
   const [postRunPhase, setPostRunPhase] = useState("idle");
@@ -531,6 +532,7 @@ export default function App() {
       if (hasScenario) {
         localStorage.setItem("currentScenarioJSON", JSON.stringify(scenarioData));
         console.log("🧪 [App] Scenario synced → localStorage + ref", scenarioData);
+        setLastRunScenarioData(scenarioData);
       } else {
         localStorage.removeItem("currentScenarioJSON");
         console.log("🧪 [App] Scenario cleared (baseline)");
@@ -2047,6 +2049,7 @@ setSimulationHistory((prev) => {
         <AuthPage onLogin={handleLogin} />
       ) : view === "simulation" ? (
         <SimulationDashboard
+          lastRunScenarioData={lastRunScenarioData}
           executiveKpis={{
             serviceLevelPct: Number(kpis?.onTimeFulfillment ?? 0),
             demandAtRiskUnits: Number(kpis?.peakBacklogUnits ?? kpis?.lateFulfilledUnits ?? 0),

@@ -323,7 +323,7 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
 }
 
 // ── Main export ───────────────────────────────────────────────────────
-export default function SupplierNetworkGraph({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData, scenarioData }) {
+export default function SupplierNetworkGraph({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData, scenarioData, apiBase = "https://supply-chain-simulator-v2.onrender.com", kpis }) {
   const [activeTab, setActiveTab] = useState("network");
 
   const hasData = bomData?.length || lanesData?.length;
@@ -392,6 +392,8 @@ export default function SupplierNetworkGraph({ bomData, locationsData, locationM
           lanesData={lanesData}
           scenarioData={scenarioData}
           runoutRiskData={runoutRiskData}
+          apiBase={apiBase}
+          kpis={kpis}
         />
       )}
     </div>

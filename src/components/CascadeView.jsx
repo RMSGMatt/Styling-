@@ -178,7 +178,6 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData, a
     generateCascadeSummary();
   }, [cascade, apiBase]);
 
-  // Auto-play
   useEffect(() => {
     if (playing) {
       intervalRef.current = setInterval(() => {
