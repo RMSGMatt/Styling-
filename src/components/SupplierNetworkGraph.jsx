@@ -164,7 +164,7 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
       <svg style={{ display: "block", width: "100%", height: H }} viewBox={`0 0 720 ${H}`}>
         <defs>
           <marker id="h-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </marker>
           <filter id="h-glow">
             <feGaussianBlur stdDeviation="3" result="coloredBlur"/>

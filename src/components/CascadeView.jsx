@@ -116,9 +116,11 @@ function buildCascade(lanesData, scenarioData, runoutRiskData) {
   return { hops, facilityHop, facilityEdges, facilityRisk, disruptedFacilities, downstream, upstream };
 }
 
-export default function CascadeView({ lanesData, scenarioData, runoutRiskData }) {
+export default function CascadeView({ lanesData, scenarioData, runoutRiskData, apiBase = "https://supply-chain-simulator-v2.onrender.com", kpis }) {
   const [currentHop, setCurrentHop] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [aiSummary, setAiSummary] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const [speed, setSpeed] = useState(1200);
   const intervalRef = useRef(null);
 
@@ -128,6 +130,53 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData })
   );
 
   const totalHops = cascade?.hops?.length || 0;
+
+  useEffect(() => {
+    if (!cascade || !cascade.disruptedFacilities?.size) return;
+
+    const disrupted = [...cascade.disruptedFacilities];
+    const downstream = cascade.hops.slice(1).flat();
+    if (!downstream.length) return;
+
+    const generateCascadeSummary = async () => {
+      try {
+        setAiLoading(true);
+        setAiSummary(null);
+        const res = await fetch(`${apiBase}/api/narrative/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenario: `Disruption at ${disrupted.join(", ")}`,
+            kpis: {
+              serviceLevelPct: kpis?.onTimeFulfillment ?? kpis?.serviceLevelPct ?? 0,
+              peakBacklogUnits: kpis?.peakBacklog ?? kpis?.peakBacklogUnits ?? 0,
+              timeToRecoverDays: kpis?.ttrDays ?? kpis?.timeToRecoverDays ?? 0,
+              timeToSurviveDays: kpis?.ttsDays ?? kpis?.timeToSurviveDays ?? 0,
+              demandAtRiskUnits: kpis?.unitsAtRisk ?? kpis?.lateFulfilledUnits ?? 0,
+              facilitiesImpacted: downstream.length,
+              revenueExposure: kpis?.revenueExposure ?? 0,
+            },
+            context: `Disruption originated at ${disrupted.join(" and ")}. Downstream facilities impacted in sequence: ${cascade.hops.slice(1).map((hop, i) => `Hop ${i + 1}: ${hop.join(", ")}`).join(" → ")}. Explain the operational impact on each downstream facility and what supply chain managers should prioritize.`
+          })
+        });
+        const data = await res.json();
+        if (data.status === "success" && data.narrative) {
+          const clean = data.narrative
+            .replace(/\*\*(.*?)\*\*/g, "$1")
+            .replace(/\*(.*?)\*/g, "$1")
+            .replace(/^#+\s/gm, "")
+            .trim();
+          setAiSummary(clean);
+        }
+      } catch (e) {
+        console.error("Cascade summary failed:", e);
+      } finally {
+        setAiLoading(false);
+      }
+    };
+
+    generateCascadeSummary();
+  }, [cascade, apiBase]);
 
   // Auto-play
   useEffect(() => {
@@ -476,6 +525,20 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData })
         <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"/><span>Newly impacted</span></div>
         <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-600 inline-block"/><span>Previously affected</span></div>
       </div>
+
+      {/* AI Cascade Summary */}
+      {(aiLoading || aiSummary) && (
+        <div className="mt-4 rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
+          <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: "#9FD63A" }}>
+            ⚡ Cascade Impact Analysis
+          </p>
+          {aiLoading ? (
+            <p className="text-xs text-slate-400 animate-pulse">Analyzing downstream impact...</p>
+          ) : (
+            <p className="text-sm leading-6 text-slate-200">{aiSummary}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
