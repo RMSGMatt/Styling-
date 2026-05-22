@@ -1115,6 +1115,27 @@ export default function ControlTower({
 
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div id="tour-map" className="lg:col-span-2 h-96 rounded overflow-hidden shadow border border-gray-300">
+
+                  {newsHeadlines.length > 0 && (
+                <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
+                  <div className="flex items-center">
+                    <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
+                      LIVE INTEL
+                    </div>
+                    <div className="overflow-hidden flex-1 relative">
+                      <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 90s linear infinite", display: "inline-flex" }}>
+                        {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
+                          <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
+                            <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
+                            {h.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+                </div>
+              )}
                   <MapView
                     locationsUrl={simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
                     onFacilitySelect={handleFacilitySelect}
@@ -1170,27 +1191,6 @@ export default function ControlTower({
                       )}
                     </div>
                   </div>
-                </div>
-              )}
-
-              {newsHeadlines.length > 0 && (
-                <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
-                  <div className="flex items-center">
-                    <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
-                      LIVE INTEL
-                    </div>
-                    <div className="overflow-hidden flex-1 relative">
-                      <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 60s linear infinite", display: "inline-flex" }}>
-                        {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
-                          <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
-                            <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
-                            {h.title}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
                 </div>
               )}
 
