@@ -2479,12 +2479,12 @@ if (!scenarioData?.disruptionScenarios?.length) {
   
   <button
     onClick={() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
       const activeScenario =
         scenarioData && Object.keys(scenarioData).length > 0
           ? scenarioData
           : null;
       handleRunSimulationWithScenario(activeScenario, runName);
+      setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
     }}
     disabled={isSimulateDisabled}
     className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition hover:bg-lime-400 active:scale-[0.98] transition-all duration-150"
