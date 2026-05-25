@@ -2234,6 +2234,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
     await handleSubmit(formData);
 
     console.log("🎯 Scenario-applied run submitted.");}
+    window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (err) {
     console.error("❌ Error applying scenario before run:", err);
     alert("Scenario run failed. Check console + backend logs for details.");
