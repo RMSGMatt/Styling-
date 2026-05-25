@@ -1140,6 +1140,7 @@ export default function SimulationDashboard({
 
   const API_BASE = import.meta?.env?.VITE_API_BASE || "https://supply-chain-simulator-v2.onrender.com";
   const [presentationMode, setPresentationMode] = useState(false);
+  const mainRef = useRef(null);
   const [projectedSlider, setProjectedSlider] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
   const [scenarioJustRan, setScenarioJustRan] = useState(false);
@@ -2318,7 +2319,7 @@ if (!scenarioData?.disruptionScenarios?.length) {
       </header>
 
       {/* Main Layout */}
-      <main className={`flex-1 max-w-7xl mx-auto px-4 py-4 space-y-6 ${presentationMode ? "text-lg" : "text-sm"}`}>
+      <main ref={mainRef} className={`flex-1 max-w-7xl mx-auto px-4 py-4 space-y-6 ${presentationMode ? "text-lg" : "text-sm"}`}>
                 {/* Top row: map + inputs */}
         <section className={`grid grid-cols-1 gap-4 ${presentationMode ? "" : "lg:grid-cols-5"}`}>
 {/* Map */}
@@ -2484,7 +2485,11 @@ if (!scenarioData?.disruptionScenarios?.length) {
           ? scenarioData
           : null;
       handleRunSimulationWithScenario(activeScenario, runName);
-      setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
+      setTimeout(() => {
+        document.documentElement.scrollTo({ top: 0, behavior: "smooth" });
+        document.body.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 50);
     }}
     disabled={isSimulateDisabled}
     className="mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition hover:bg-lime-400 active:scale-[0.98] transition-all duration-150"
