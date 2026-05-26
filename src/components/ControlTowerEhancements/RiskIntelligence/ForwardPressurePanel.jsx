@@ -122,7 +122,7 @@ function PanelHeader() {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ForwardPressurePanel({ forwardSignals, scoreResult }) {
+export default function ForwardPressurePanel({ forwardSignals, scoreResult, detailData }) {
   if (!scoreResult) return null;
 
   const { forward, regime } = scoreResult;
@@ -178,7 +178,7 @@ export default function ForwardPressurePanel({ forwardSignals, scoreResult }) {
       {/* Signal cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {sortedSignals.map(([key, value]) => (
-          <SignalCard key={key} signalKey={key} value={value} />
+          <SignalCard key={key} signalKey={key} value={value} detailData={detailData} />
         ))}
       </div>
 

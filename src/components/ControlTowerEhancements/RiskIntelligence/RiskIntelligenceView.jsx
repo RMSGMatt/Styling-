@@ -8,8 +8,8 @@ import React, { useState, useEffect } from "react";
 import ForwardPressurePanel from "./ForwardPressurePanel";
 import RegimeIndexPanel     from "./RegimeIndexPanel";
 import TriggerQueue         from "./TriggerQueue";
-import { computeFullRiskProfile } from "./riskScoreEngine";
-import { fetchForwardSignals, fetchRegimeSignals } from "./signalSources";
+import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS } from "./riskScoreEngine";
+import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL } from "./signalSources";
 import CommoditySelector from "./CommoditySelector";
 import { COMMODITY_REGISTRY } from "./commodityRegistry";
 // ── Tab config ────────────────────────────────────────────────────────────────
@@ -237,6 +237,9 @@ export default function RiskIntelligenceView({ switchView }) {
   const [lastUpdated,    setLastUpdated]    = useState(null);
   const [error,          setError]          = useState(null);
   const [selectedCommodity, setSelectedCommodity] = useState("semiconductors_mlcc");
+  const detailData = selectedCommodity === "lithium_battery"
+    ? MOCK_LITHIUM_SIGNAL_DETAIL
+    : MOCK_SIGNAL_DETAIL;
 
   // Fetch signals on mount and every 15 minutes
   useEffect(() => {
@@ -244,12 +247,22 @@ export default function RiskIntelligenceView({ switchView }) {
       try {
         setLoading(true);
         const [fwd, reg] = await Promise.all([
-          fetchForwardSignals(),
-          fetchRegimeSignals(),
+          fetchForwardSignals(selectedCommodity),
+          fetchRegimeSignals(selectedCommodity),
         ]);
         setForwardSignals(fwd.signals);
         setRegimeSignals(reg.signals);
-        const profile = computeFullRiskProfile(fwd.signals, reg.signals);
+
+// then inside the load function:
+const forwardWeights = selectedCommodity === "lithium_battery"
+  ? LITHIUM_FORWARD_WEIGHTS
+  : FORWARD_WEIGHTS;
+
+const regimeWeights = selectedCommodity === "lithium_battery"
+  ? LITHIUM_REGIME_WEIGHTS
+  : REGIME_WEIGHTS;
+
+const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights, regimeWeights);
         setScoreResult(profile);
         setLastUpdated(new Date());
         setError(null);
@@ -264,7 +277,7 @@ export default function RiskIntelligenceView({ switchView }) {
     load();
     const interval = setInterval(load, 15 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedCommodity]);
 
   // Route triggered scenario to simulation engine
   function handleLaunchScenario({ scenario, params }) {
@@ -326,6 +339,7 @@ export default function RiskIntelligenceView({ switchView }) {
             <ForwardPressurePanel
               forwardSignals={forwardSignals}
               scoreResult={scoreResult}
+              detailData={detailData}
             />
           )}
 
@@ -333,6 +347,7 @@ export default function RiskIntelligenceView({ switchView }) {
             <RegimeIndexPanel
               regimeSignals={regimeSignals}
               scoreResult={scoreResult}
+              detailData={detailData}
             />
           )}
 

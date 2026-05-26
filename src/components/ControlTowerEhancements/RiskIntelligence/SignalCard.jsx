@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState } from "react";
 import { getRiskBand } from "./riskScoreEngine";
-import { SIGNAL_METADATA, MOCK_SIGNAL_DETAIL } from "./signalSources";
+import { SIGNAL_METADATA } from "./signalSources";
 
 // ── Layer badge config ────────────────────────────────────────────────────────
 const LAYER_CONFIG = {
@@ -83,11 +83,11 @@ function ScoreBar({ value, band }) {
 }
 
 // ── Main SignalCard component ─────────────────────────────────────────────────
-export default function SignalCard({ signalKey, value }) {
+export default function SignalCard({ signalKey, value, detailData }) {
   const [expanded, setExpanded] = useState(false);
 
   const meta   = SIGNAL_METADATA[signalKey];
-  const detail = MOCK_SIGNAL_DETAIL[signalKey];
+  const detail = detailData?.[signalKey];
   const band   = getRiskBand(value);
   const layer  = LAYER_CONFIG[meta?.layer] || LAYER_CONFIG.regime;
 

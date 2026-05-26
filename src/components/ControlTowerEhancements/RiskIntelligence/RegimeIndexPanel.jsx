@@ -143,7 +143,7 @@ function PanelHeader() {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function RegimeIndexPanel({ regimeSignals, scoreResult }) {
+export default function RegimeIndexPanel({ regimeSignals, scoreResult, detailData }) {
   if (!scoreResult) return null;
 
   const { regime } = scoreResult;
@@ -162,7 +162,7 @@ export default function RegimeIndexPanel({ regimeSignals, scoreResult }) {
       {/* Signal cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {sortedSignals.map(([key, value]) => (
-          <SignalCard key={key} signalKey={key} value={value} />
+          <SignalCard key={key} signalKey={key} value={value} detailData={detailData} />
         ))}
       </div>
 

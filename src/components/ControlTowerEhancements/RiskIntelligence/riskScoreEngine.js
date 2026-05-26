@@ -161,9 +161,9 @@ export function evaluateTriggers(forwardSignals, regimeSignals, forwardScore) {
 // Main entry point. Takes raw signal objects and returns a complete
 // risk profile for rendering in RiskIntelligenceView.
 // ─────────────────────────────────────────────────────────────────────────────
-export function computeFullRiskProfile(forwardSignals, regimeSignals) {
-  const forward = scoreLayer(forwardSignals, FORWARD_WEIGHTS);
-  const regime  = scoreLayer(regimeSignals,  REGIME_WEIGHTS);
+export function computeFullRiskProfile(forwardSignals, regimeSignals, forwardWeights = FORWARD_WEIGHTS, regimeWeights = REGIME_WEIGHTS) {
+  const forward = scoreLayer(forwardSignals, forwardWeights);
+  const regime  = scoreLayer(regimeSignals,  regimeWeights);
 
   const regimeMultiplier = deriveRegimeMultiplier(regimeSignals);
 
@@ -206,3 +206,44 @@ export function computeFullRiskProfile(forwardSignals, regimeSignals) {
     },
   };
 }
+
+// ── Lithium & Battery signal weights ─────────────────────────────────────────
+
+export const LITHIUM_FORWARD_WEIGHTS = {
+  cell_capacity_allocation_nlp:  0.22,
+  lithium_futures_curve:         0.20,
+  china_refinery_concentration:  0.18,
+  mining_production_guidance:    0.15,
+  ev_production_forecast_delta:  0.13,
+  battery_policy_pipeline:       0.12,
+};
+
+export const LITHIUM_REGIME_WEIGHTS = {
+  lithium_carbonate_spot: 0.35,
+  lithium_hydroxide_spot: 0.25,
+  cobalt_spot_price:      0.20,
+  cell_lead_times:        0.20,
+};
+
+export const LITHIUM_TRIGGER_CONFIG = {
+  cell_allocation_squeeze: {
+    threshold: 0.65,
+    signal: "cell_capacity_allocation_nlp",
+    minConvergence: 2,
+  },
+  lithium_price_spike: {
+    threshold: 0.70,
+    signal: "lithium_carbonate_spot",
+    minConvergence: 2,
+  },
+  china_refinery_restriction: {
+    threshold: 0.85,
+    signal: "china_refinery_concentration",
+    minConvergence: 3,
+  },
+  ev_demand_cell_gap: {
+    threshold: 0.65,
+    signal: "ev_production_forecast_delta",
+    minConvergence: 2,
+  },
+};
