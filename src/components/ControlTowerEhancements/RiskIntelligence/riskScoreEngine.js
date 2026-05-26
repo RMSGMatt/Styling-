@@ -129,15 +129,12 @@ export function getRiskBand(score) {
 // Enforces convergence — a single signal above threshold is a hypothesis,
 // multiple independent signals converging is a prediction.
 // ─────────────────────────────────────────────────────────────────────────────
-export function evaluateTriggers(forwardSignals, regimeSignals, forwardScore) {
+export function evaluateTriggers(forwardSignals, regimeSignals, forwardScore, triggerConfig = TRIGGER_CONFIG) {
   const allSignals = { ...forwardSignals, ...regimeSignals };
-
-  // Count how many total signals are above their 0.60 stress threshold
   const stressedCount = Object.values(allSignals).filter((v) => v >= 0.60).length;
-
   const results = [];
 
-  for (const [scenarioKey, config] of Object.entries(TRIGGER_CONFIG)) {
+  for (const [scenarioKey, config] of Object.entries(triggerConfig)) {
     const signalValue = allSignals[config.signal] ?? 0;
     const breached = signalValue >= config.threshold;
     const converged = stressedCount >= config.minConvergence;
@@ -162,7 +159,7 @@ export function evaluateTriggers(forwardSignals, regimeSignals, forwardScore) {
 // Main entry point. Takes raw signal objects and returns a complete
 // risk profile for rendering in RiskIntelligenceView.
 // ─────────────────────────────────────────────────────────────────────────────
-export function computeFullRiskProfile(forwardSignals, regimeSignals, forwardWeights = FORWARD_WEIGHTS, regimeWeights = REGIME_WEIGHTS) {
+export function computeFullRiskProfile(forwardSignals, regimeSignals, forwardWeights = FORWARD_WEIGHTS, regimeWeights = REGIME_WEIGHTS, triggerConfig = TRIGGER_CONFIG) {
   const forward = scoreLayer(forwardSignals, forwardWeights);
   const regime  = scoreLayer(regimeSignals,  regimeWeights);
 
@@ -177,7 +174,7 @@ export function computeFullRiskProfile(forwardSignals, regimeSignals, forwardWei
   const forwardBand = getRiskBand(amplifiedForward);
   const regimeBand  = getRiskBand(regime.composite);
 
-  const triggers = evaluateTriggers(forwardSignals, regimeSignals, amplifiedForward);
+  const triggers = evaluateTriggers(forwardSignals, regimeSignals, amplifiedForward, triggerConfig);
 
   const triggeredCount = triggers.filter((t) => t.status === "triggered").length;
   const watchCount     = triggers.filter((t) => t.status === "watch").length;

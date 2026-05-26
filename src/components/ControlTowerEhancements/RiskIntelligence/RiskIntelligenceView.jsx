@@ -8,7 +8,7 @@ import React, { useState, useEffect } from "react";
 import ForwardPressurePanel from "./ForwardPressurePanel";
 import RegimeIndexPanel     from "./RegimeIndexPanel";
 import TriggerQueue         from "./TriggerQueue";
-import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS } from "./riskScoreEngine";
+import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG } from "./riskScoreEngine";
 import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL } from "./signalSources";
 import CommoditySelector from "./CommoditySelector";
 import { COMMODITY_REGISTRY } from "./commodityRegistry";
@@ -253,7 +253,6 @@ export default function RiskIntelligenceView({ switchView }) {
         setForwardSignals(fwd.signals);
         setRegimeSignals(reg.signals);
 
-// then inside the load function:
 const forwardWeights = selectedCommodity === "lithium_battery"
   ? LITHIUM_FORWARD_WEIGHTS
   : FORWARD_WEIGHTS;
@@ -262,7 +261,11 @@ const regimeWeights = selectedCommodity === "lithium_battery"
   ? LITHIUM_REGIME_WEIGHTS
   : REGIME_WEIGHTS;
 
-const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights, regimeWeights);
+const triggerConfig = selectedCommodity === "lithium_battery"
+  ? LITHIUM_TRIGGER_CONFIG
+  : TRIGGER_CONFIG;
+
+const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights, regimeWeights, triggerConfig);
         setScoreResult(profile);
         setLastUpdated(new Date());
         setError(null);

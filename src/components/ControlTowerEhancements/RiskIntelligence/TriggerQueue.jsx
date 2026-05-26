@@ -80,6 +80,52 @@ const SCENARIO_CONFIG = {
       constrained_through:   "mid-2027",
     },
   },
+
+  // ── Lithium & Battery scenarios ───────────────────────────────────────────
+  cell_allocation_squeeze: {
+    label:       "Cell capacity allocation squeeze",
+    description: "CATL and LG Energy Solution committing >80% of 2026 prismatic cell capacity to priority OEMs. Tier 1 battery pack assemblers competing for residual allocation. Simulate impact on battery-dependent production schedules.",
+    icon:        "🔋",
+    defaultParams: {
+      lead_time_multiplier:  1.8,
+      affected_components:   ["Automotive prismatic cells", "Pouch cells", "NMC cathode packs"],
+      duration_weeks:        24,
+      supply_reduction_pct:  0.40,
+    },
+  },
+  lithium_price_spike: {
+    label:       "Lithium spot price spike",
+    description: "Lithium carbonate and hydroxide prices recovering from 2024 lows with contango steepening. Simulate cost escalation impact on battery pack pricing and margin exposure.",
+    icon:        "📈",
+    defaultParams: {
+      cost_multiplier:       1.35,
+      affected_components:   ["Li carbonate", "Li hydroxide", "NMC cathode material"],
+      duration_weeks:        16,
+    },
+  },
+  china_refinery_restriction: {
+    label:       "China lithium refinery restriction",
+    description: "China controls ~65% of global lithium refining. Any export restriction or policy shift is a binary tail event. Simulate supply reduction across refined lithium and cathode material inputs.",
+    icon:        "🚫",
+    defaultParams: {
+      lead_time_multiplier:  4.0,
+      affected_components:   ["Battery-grade lithium", "NMC cathode", "LFP cathode"],
+      duration_weeks:        52,
+      supply_reduction_pct:  0.60,
+      affected_region:       "China",
+    },
+  },
+  ev_demand_cell_gap: {
+    label:       "EV demand vs cell capacity gap",
+    description: "Global EV production forecast outpacing cell capacity commitments by ~8% YoY. Allocation pressure falls on Tier 1 suppliers to smaller OEMs first. Simulate progressive allocation tightening.",
+    icon:        "⚡",
+    defaultParams: {
+      lead_time_multiplier:  2.2,
+      affected_components:   ["Prismatic cells", "Module assemblies", "BMS components"],
+      duration_weeks:        32,
+      supply_reduction_pct:  0.30,
+    },
+  },
 };
 
 // ── Status badge ──────────────────────────────────────────────────────────────
