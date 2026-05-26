@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 
 /**
  * ReportsView – Enhanced Premium UI (Revenue-ready)
@@ -8,8 +8,34 @@ import React, { useMemo } from "react";
  * - Optional bundle + locations support
  */
 
-export default function ReportsView({ simulationHistory }) {
+export default function ReportsView({ simulationHistory, apiBase }) {
   const hasReports = Array.isArray(simulationHistory) && simulationHistory.length > 0;
+  const [bbi, setBbi] = useState(null);
+  const [bbiLoading, setBbiLoading] = useState(false);
+
+  useEffect(() => {
+    if (!hasReports) return;
+    const fetchBbi = async () => {
+      try {
+        setBbiLoading(true);
+        const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+        const res = await fetch(`${apiBase}/api/executive-report/build`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ force: true }),
+        });
+        const data = await res.json();
+        if (data?.report?.metrics?.bbi !== undefined) {
+          setBbi(data.report.metrics.bbi);
+        }
+      } catch (e) {
+        console.warn("BBI fetch failed:", e);
+      } finally {
+        setBbiLoading(false);
+      }
+    };
+    fetchBbi();
+  }, [hasReports, apiBase]);
 
   const getOutputs = (sim) => sim?.output_urls || sim?.outputUrls || {};
   const pickUrl = (outputs, snakeKey, camelKey) =>
@@ -180,6 +206,43 @@ export default function ReportsView({ simulationHistory }) {
                 </p>
               </div>
 
+              {/* BBI Score Hero */}
+              <div className="rounded-2xl border border-[#E5ECE7] overflow-hidden mb-4">
+                <div className={`p-5 flex items-center gap-6 ${
+                  bbi === null ? "bg-[#F9FAF9]" :
+                  bbi >= 80 ? "bg-emerald-50 border-b border-emerald-200" :
+                  bbi >= 60 ? "bg-amber-50 border-b border-amber-200" :
+                  "bg-red-50 border-b border-red-200"
+                }`}>
+                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold border-2 ${
+                    bbi === null ? "bg-white border-gray-200 text-gray-400" :
+                    bbi >= 80 ? "bg-white border-emerald-400 text-emerald-700" :
+                    bbi >= 60 ? "bg-white border-amber-400 text-amber-700" :
+                    "bg-white border-red-400 text-red-700"
+                  }`}>
+                    {bbiLoading ? "..." : bbi !== null ? Math.round(bbi) : "—"}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Network Resilience Score</p>
+                    <p className={`text-2xl font-bold ${
+                      bbi === null ? "text-gray-400" :
+                      bbi >= 80 ? "text-emerald-700" :
+                      bbi >= 60 ? "text-amber-700" :
+                      "text-red-700"
+                    }`}>
+                      {bbiLoading ? "Calculating..." :
+                       bbi === null ? "Not yet calculated" :
+                       bbi >= 80 ? "Network Resilient" :
+                       bbi >= 60 ? "Under Stress" :
+                       "Critical Risk"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Composite score across service level, backorder rate, and exception frequency
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 <div className="rounded-2xl border border-[#E5ECE7] bg-[#F9FAF9] px-4 py-3">
                   <div className="text-[11px] uppercase tracking-wide text-gray-400">Latest Run</div>
