@@ -107,9 +107,10 @@ export function deriveRegimeMultiplier(regimeSignals) {
   const values = Object.values(regimeSignals);
   const above90 = values.filter((v) => v >= 0.90).length;
   const above70 = values.filter((v) => v >= 0.70).length;
+  const above60 = values.filter((v) => v >= 0.60).length;
 
   if (above90 >= 1 || above70 >= 3) return REGIME_MULTIPLIERS.CRISIS;
-  if (above70 >= 2)                  return REGIME_MULTIPLIERS.WATCH;
+  if (above60 >= 2)                  return REGIME_MULTIPLIERS.WATCH;
   return REGIME_MULTIPLIERS.NORMAL;
 }
 
