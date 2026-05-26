@@ -61,11 +61,16 @@ function getRunCreatedAt(run) {
 }
 
 function getRunLabel(run, index = 0) {
+  const runId = getRunId(run);
+  const shortId = runId ? runId.slice(-8) : null;
+  const createdAt = getRunCreatedAt(run);
+  const dateLabel = createdAt ? new Date(createdAt).toLocaleDateString() : null;
   return (
     run?.scenario_name ||
     run?.scenarioName ||
     run?.name ||
     run?.title ||
+    (shortId && dateLabel ? `${dateLabel} — ${shortId}` : null) ||
     `Run ${index + 1}`
   );
 }
@@ -180,8 +185,8 @@ function normalizeExecutiveReport(report, selectedRun) {
 
 function getBbiHealth(score) {
   const value = Number(score || 0);
-  if (value >= 80) return "healthy";
-  if (value >= 60) return "watch";
+  if (value >= 90) return "healthy";
+  if (value >= 72) return "watch";
   return "stressed";
 }
 
@@ -272,8 +277,8 @@ function computeFrontendBbi(selectedRun) {
     totalDemand > 0 ? (peakBacklogUnits / totalDemand) * 100 : 0;
 
   const backlogPenaltyBasis = Math.min(backlogRatePct, 100);
-  const missedDaysPenaltyBasis = Math.min((missedServiceDays / 7) * 100, 100);
-  const ttrPenaltyBasis = Math.min((ttrDays / 7) * 100, 100);
+  const missedDaysPenaltyBasis = Math.min((missedServiceDays / 90) * 100, 100);
+  const ttrPenaltyBasis = Math.min((ttrDays / 30) * 100, 100);
 
   const score =
     0.55 * onTimePct +
@@ -344,7 +349,16 @@ export default function Reports(props) {
   const {
     simulationHistory = [],
     switchView,
+    apiBase = "https://supply-chain-simulator-v2.onrender.com",
   } = props || {};
+
+  const activeScenarioName = (() => {
+    try {
+      return localStorage.getItem("currentScenarioName") || "No active scenario";
+    } catch {
+      return "No active scenario";
+    }
+  })();
 
   const runs = useMemo(() => normalizeRuns(simulationHistory), [simulationHistory]);
 
@@ -397,8 +411,8 @@ export default function Reports(props) {
 
     const frontendBbi = (() => {
       const backlogPenaltyBasis = Math.min(backlogRatePct, 100);
-      const missedDaysPenaltyBasis = Math.min((missedServiceDays / 7) * 100, 100);
-      const ttrPenaltyBasis = Math.min((ttrDays / 7) * 100, 100);
+      const missedDaysPenaltyBasis = Math.min((missedServiceDays / 90) * 100, 100);
+      const ttrPenaltyBasis = Math.min((ttrDays / 30) * 100, 100);
 
       const score =
         0.55 * onTimePct +
@@ -415,13 +429,13 @@ export default function Reports(props) {
       let out = text;
 
       out = out.replace(
-        /Business Balance Index \(BBI\) \d+(\.\d+)?\/100/gi,
+        /Network Resilience Score \(NRS\) \d+(\.\d+)?\/100/gi,
         `BBI Interpretation ${frontendBbi}/100`
       );
 
       out = out.replace(
-        /Business Balance Index:\s*\d+(\.\d+)?\/100/gi,
-        `Business Balance Index: ${frontendBbi}/100`
+        /Network Resilience Score:\s*\d+(\.\d+)?\/100/gi,
+        `Network Resilience Score: ${frontendBbi}/100`
       );
 
       out = out.replace(
@@ -474,7 +488,9 @@ export default function Reports(props) {
   useEffect(() => {
     if (!selectedRun) return;
     console.log("REPORT CHECK", selectedRun);
-  }, [selectedRun]);
+    console.log("🧮 [BBI] raw kpis:", selectedRun?.raw?.kpis);
+    console.log("🧮 [BBI] selectedRunBbi:", selectedRunBbi);
+  }, [selectedRun, selectedRunBbi]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -720,7 +736,7 @@ export default function Reports(props) {
                     >
                       <div className="flex items-center justify-between gap-3 mb-2">
                         <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-300">
-                          Business Balance Index
+                          Network Resilience Score
                         </div>
                         <span className={`text-[10px] px-2 py-1 rounded-full ${selectedRunBbiTone.badgeClass}`}>
                           {selectedRunBbiTone.label}
@@ -844,6 +860,91 @@ export default function Reports(props) {
                         </div>
                       </div>
                     ) : null}
+
+                    {/* PDF Download Button */}
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+
+                            // Fetch countermeasures CSV
+                            let countermeasures = [];
+                            const cmUrl = selectedRun?.raw?.countermeasures || selectedRun?.raw?.countermeasures_output_file_url;
+                            if (cmUrl) {
+                              try {
+                                const cmRes = await fetch(cmUrl);
+                                const cmText = await cmRes.text();
+                                const lines = cmText.trim().split("\n");
+                                const headers = lines[0].split(",").map(h => h.trim().replace(/"/g, ""));
+                                countermeasures = lines.slice(1, 6).map(line => {
+                                  const vals = line.split(",").map(v => v.trim().replace(/"/g, ""));
+                                  const obj = {};
+                                  headers.forEach((h, i) => obj[h] = vals[i] || "");
+                                  return obj;
+                                });
+                              } catch (e) {
+                                console.warn("Countermeasures fetch failed:", e);
+                              }
+                            }
+
+                            const res = await fetch(`${apiBase}/api/report/generate`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({
+                                scenario: selectedRun?.raw?.run_id ? `Nexty Electronics — Run ${selectedRun.raw.run_id.slice(-8)}` : activeScenarioName || "Nexty Electronics Simulation",
+                                networkName: "Nexty Electronics Network",
+                                aiNarrative: (() => {
+                                  const svc = selectedRunKpis?.serviceLevel ?? 0;
+                                  const ttr = selectedRunKpis?.ttrDays ?? 0;
+                                  const rev = selectedRunKpis?.revenueExposure ?? 0;
+                                  const backlog = selectedRunKpis?.unfulfilledDemand ?? 0;
+                                  if (!svc) return selectedRunReport?.sections?.find(s => s.id === "overview")?.body || "";
+                                  return `This simulation run shows on-time service at ${svc.toFixed(1)}%, with a peak backlog of ${backlog.toLocaleString()} units and an estimated revenue exposure of $${rev.toLocaleString()}. Full network recovery is projected at ${ttr} days.`;
+                                })(),
+                                kpis: {
+                                  serviceLevelPct: selectedRunKpis?.serviceLevel ?? 0,
+                                  peakBacklogUnits: selectedRunKpis?.unfulfilledDemand ?? 0,
+                                  timeToRecoverDays: selectedRunKpis?.ttrDays ?? 0,
+                                  timeToSurviveDays: selectedRunKpis?.ttsDays ?? selectedRun?.raw?.kpis?.ttsDays ?? 0,
+                                  demandAtRiskUnits: selectedRunKpis?.demandAtRisk ?? 0,
+                                  revenueExposure: selectedRunKpis?.revenueExposure ?? 0,
+                                },
+                                disruptionSignals: {
+                                facilitiesImpacted: selectedRun?.raw?.kpis?.impactedFacilities ?? 0,
+                                highRiskSkuCount: selectedRun?.raw?.kpis?.unitsAtRisk ?? 0,
+                                occurrenceCount: selectedRun?.raw?.kpis?.occurrenceCount ?? 0,
+                                revenueExposure: selectedRunKpis?.revenueExposure ?? 0,
+                                severityMix: {},
+                                highRiskSkus: [],
+                              },
+                              countermeasures,
+                                runMetadata: {
+                                  runId: selectedRun?.run_id || selectedRun?.id || "",
+                                  timestamp: selectedRun?.timestamp || "",
+                                },
+                              }),
+                            });
+                            if (!res.ok) throw new Error("PDF generation failed");
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `forc_report_${Date.now()}.pdf`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } catch (e) {
+                            console.error("PDF failed:", e);
+                            alert("PDF generation failed. Check console.");
+                          }
+                        }}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition"
+                        style={{ background: "linear-gradient(90deg, #9CF700, #22c55e)", color: "#020617" }}
+                      >
+                        📄 Download PDF Report
+                      </button>
+                    </div>
                   </div>
                 )}
               </>

@@ -17,6 +17,7 @@ import {
 import AdminPanel from "./ControlTowerEhancements/AdminPanel.jsx";
 import ScenarioLibrary from "./ControlTowerEhancements/ScenarioLibrary.jsx";
 import BillingView from "./ControlTowerEhancements/BillingView.jsx";
+import RiskIntelligenceView from "./ControlTowerEhancements/RiskIntelligence/RiskIntelligenceView";
 
 ChartJS.register(
   CategoryScale,
@@ -47,11 +48,9 @@ function UpgradeCtaCard({ plan, onUpgrade }) {
       <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 6 }}>
         🔒 Simulation Repository is Pro+
       </div>
-
       <div style={{ opacity: 0.85, lineHeight: 1.4, marginBottom: 12 }}>
         Upgrade to view past runs, download outputs, and access reporting features.
       </div>
-
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button
           onClick={onUpgrade}
@@ -67,7 +66,6 @@ function UpgradeCtaCard({ plan, onUpgrade }) {
         >
           Upgrade to Pro →
         </button>
-
         <button
           onClick={onUpgrade}
           style={{
@@ -83,7 +81,6 @@ function UpgradeCtaCard({ plan, onUpgrade }) {
           See plans
         </button>
       </div>
-
       <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
         Current plan: <b>{normalizePlan(plan) || "free"}</b>
       </div>
@@ -91,7 +88,6 @@ function UpgradeCtaCard({ plan, onUpgrade }) {
   );
 }
 
-// 🌍 Global facility dataset for Control Tower map
 const GLOBAL_LOCATIONS_URL =
   "https://supply-chain-simulation-files.s3.us-east-2.amazonaws.com/locations.csv";
 
@@ -130,12 +126,10 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
         <span>{label}</span>
       </div>
       {deltaText && (
-        <div className="mt-1.5 text-[11px] font-medium text-gray-500">
-          {deltaText}
-        </div>
+        <div className="mt-1.5 text-[11px] font-medium text-gray-500">{deltaText}</div>
       )}
       <div
-        className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full ${trendColors[trend]}` }
+        className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full ${trendColors[trend]}`}
         title={`Trend: ${trendLabels[trend]}`}
       >
         {trendLabels[trend]}
@@ -146,15 +140,13 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
         </div>
       )}
       <div
-        className={`
-          absolute bottom-0 left-0 w-full h-1.5 rounded-b-xl
-          ${
-            risk === "high"
-              ? "bg-gradient-to-r from-red-500 via-red-400 to-red-300"
-              : risk === "medium"
-              ? "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-200"
-              : ""
-          }`}
+        className={`absolute bottom-0 left-0 w-full h-1.5 rounded-b-xl ${
+          risk === "high"
+            ? "bg-gradient-to-r from-red-500 via-red-400 to-red-300"
+            : risk === "medium"
+            ? "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-200"
+            : ""
+        }`}
         style={{
           background:
             risk === "low" || !risk
@@ -168,6 +160,7 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
     </div>
   );
 }
+
 const FACILITY_MOCK = {
   default: (name) => ({
     name: name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -228,7 +221,6 @@ function FacilityDrawer({ facility, onClose }) {
         className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between" style={{ background: "#0a2e22" }}>
           <div>
             <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "#9FD63A" }}>
@@ -240,13 +232,11 @@ function FacilityDrawer({ facility, onClose }) {
           <button onClick={onClose} className="text-gray-400 hover:text-white mt-1 text-xl leading-none">×</button>
         </div>
 
-        {/* Status banner */}
         <div className="px-6 py-3 flex items-center gap-2 border-b border-gray-100" style={{ background: "#f9fafb" }}>
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: data.statusColor }} />
           <span className="text-sm font-semibold" style={{ color: data.statusColor }}>{data.status}</span>
         </div>
 
-        {/* KPIs */}
         <div className="px-6 py-4 grid grid-cols-2 gap-4 border-b border-gray-100">
           {[
             { label: "Capacity Utilization", value: data.capacity },
@@ -261,7 +251,6 @@ function FacilityDrawer({ facility, onClose }) {
           ))}
         </div>
 
-        {/* Risk + Action */}
         <div className="px-6 py-4 space-y-4 flex-1">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Top Risk</p>
@@ -273,7 +262,6 @@ function FacilityDrawer({ facility, onClose }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100">
           <button
             onClick={onClose}
@@ -290,7 +278,6 @@ function FacilityDrawer({ facility, onClose }) {
 function deriveAlerts(kpis) {
   if (!kpis) return [];
   const alerts = [];
-
   const svc = parseFloat(kpis.serviceLevel);
   const backorders = parseInt(kpis.backorders?.replace(/,/g, ""));
   const revenue = parseFloat(kpis.revenueAtRisk?.replace(/[$M]/g, ""));
@@ -468,11 +455,8 @@ export default function ControlTower({
   switchView,
   simulationHistory,
   onLogout,
-  userPlan, // ✅ allow App.jsx to pass this; fallback to localStorage below
+  userPlan,
 }) {
-  // --------------------------------------
-  // 🔒 Stable handler so MapView never remounts
-  // --------------------------------------
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [tourActive, setTourActive] = useState(() => {
     return localStorage.getItem("forc_tour_done") !== "true";
@@ -487,7 +471,6 @@ export default function ControlTower({
     setSelectedFacility(facility);
   }, []);
 
-  // --- identity / display
   const [userName, setUserName] = useState("");
   const [newsHeadlines, setNewsHeadlines] = useState([]);
 
@@ -509,7 +492,6 @@ export default function ControlTower({
     return () => clearInterval(interval);
   }, []);
 
-  // --- scenario state (synced via localStorage, used by Simulation view)
   const [scenario, setScenario] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("currentScenario") || "{}");
@@ -563,20 +545,15 @@ export default function ControlTower({
     window.location.href = "/simulation";
   }
 
-  // ✅ Resolve plan from props OR localStorage for backward compatibility
   const resolvedPlan =
     normalizePlan(userPlan) || normalizePlan(localStorage.getItem("plan")) || "free";
   const proPlus = isProPlusPlan(resolvedPlan);
 
-  // ✅ Role gate (Admin: B = hidden unless role=admin)
   const resolvedRole = (localStorage.getItem("role") || "").toString().trim().toLowerCase();
   const isAdmin = resolvedRole === "admin";
 
+  const [activeView, setActiveView] = useState("dashboard");
 
-  // --- local navigation inside Control Tower
-  const [activeView, setActiveView] = useState("dashboard"); // 'dashboard' | 'scenario' | 'billing' | 'admin' | 'simulations'
-
-  // --- KPI & charts
   const [kpiRange, setKpiRange] = useState("month");
   const [businessKpis, setBusinessKpis] = useState(null);
 
@@ -594,51 +571,23 @@ export default function ControlTower({
   const [narrativeLoading, setNarrativeLoading] = useState(false);
 
   const chartOptions = [
-    { value: "shipments", label: "📦 Outbound Shipments" },
+    { value: "shipments",   label: "📦 Outbound Shipments" },
     { value: "utilization", label: "🏭 Facility Utilization" },
-    { value: "inventory", label: "📦 Inventory Levels" },
-    { value: "leadTime", label: "📈 Lead Time Trends" },
-    { value: "revenue", label: "💰 Revenue at Risk" },
-    { value: "onTime", label: "🕒 Supplier On-Time Rate" },
-    { value: "expedite", label: "⚡ Expedited Orders" },
+    { value: "inventory",   label: "📦 Inventory Levels" },
+    { value: "leadTime",    label: "📈 Lead Time Trends" },
+    { value: "revenue",     label: "💰 Revenue at Risk" },
+    { value: "onTime",      label: "🕒 Supplier On-Time Rate" },
+    { value: "expedite",    label: "⚡ Expedited Orders" },
   ];
 
   const chartMeta = {
-    shipments: {
-      title: "Outbound Throughput Trend",
-      subtitle: "Network shipment activity across the selected horizon",
-      footer: "Basis: monitored outbound volume",
-    },
-    utilization: {
-      title: "Facility Utilization Trend",
-      subtitle: "Capacity pressure across key operating regions",
-      footer: "Basis: blended facility utilization",
-    },
-    inventory: {
-      title: "Inventory Position Trend",
-      subtitle: "Overall inventory movement across the network",
-      footer: "Basis: monitored inventory levels",
-    },
-    leadTime: {
-      title: "Lead Time Trend",
-      subtitle: "Transit and supplier response timing over time",
-      footer: "Basis: average end-to-end lead time",
-    },
-    revenue: {
-      title: "Revenue at Risk Trend",
-      subtitle: "Estimated business exposure from current network conditions",
-      footer: "Basis: exposure estimate from monitored disruptions",
-    },
-    onTime: {
-      title: "Supplier Reliability Trend",
-      subtitle: "Inbound supplier on-time performance over time",
-      footer: "Basis: supplier on-time delivery rate",
-    },
-    expedite: {
-      title: "Expedite Pressure Trend",
-      subtitle: "Operational stress indicated by expedited order activity",
-      footer: "Basis: expedited order share",
-    },
+    shipments:   { title: "Outbound Throughput Trend",      subtitle: "Network shipment activity across the selected horizon",          footer: "Basis: monitored outbound volume" },
+    utilization: { title: "Facility Utilization Trend",     subtitle: "Capacity pressure across key operating regions",                footer: "Basis: blended facility utilization" },
+    inventory:   { title: "Inventory Position Trend",       subtitle: "Overall inventory movement across the network",                 footer: "Basis: monitored inventory levels" },
+    leadTime:    { title: "Lead Time Trend",                subtitle: "Transit and supplier response timing over time",               footer: "Basis: average end-to-end lead time" },
+    revenue:     { title: "Revenue at Risk Trend",          subtitle: "Estimated business exposure from current network conditions",   footer: "Basis: exposure estimate from monitored disruptions" },
+    onTime:      { title: "Supplier Reliability Trend",     subtitle: "Inbound supplier on-time performance over time",               footer: "Basis: supplier on-time delivery rate" },
+    expedite:    { title: "Expedite Pressure Trend",        subtitle: "Operational stress indicated by expedited order activity",      footer: "Basis: expedited order share" },
   };
 
   useEffect(() => {
@@ -665,212 +614,30 @@ export default function ControlTower({
 
   useEffect(() => {
     const mockData = {
-      day: {
-        totalFacilities: "32.5k",
-        activeIncidents: "135",
-        shipments: "1.3k",
-        disruptionPercent: "3.2%",
-        serviceLevel: "95.8%",
-        avgLeadTime: "6.0",
-        revenueAtRisk: "$4.8M",
-        backorders: "1,250",
-        capacityUtilization: "80.0%",
-        supplierOnTime: "91.2%",
-        expeditedOrders: "5.1%",
-        cycleTime: "9.3",
-      },
-      week: {
-        totalFacilities: "32.5k",
-        activeIncidents: "132",
-        shipments: "2.9k",
-        disruptionPercent: "3.0%",
-        serviceLevel: "96.0%",
-        avgLeadTime: "5.9",
-        revenueAtRisk: "$4.6M",
-        backorders: "1,200",
-        capacityUtilization: "81.0%",
-        supplierOnTime: "91.9%",
-        expeditedOrders: "4.9%",
-        cycleTime: "9.0",
-      },
-      month: {
-        totalFacilities: "32.5k",
-        activeIncidents: "128",
-        shipments: "6.8k",
-        disruptionPercent: "3.1%",
-        serviceLevel: "96.2%",
-        avgLeadTime: "5.7",
-        revenueAtRisk: "$4.3M",
-        backorders: "1,120",
-        capacityUtilization: "82.5%",
-        supplierOnTime: "92.7%",
-        expeditedOrders: "4.6%",
-        cycleTime: "8.4",
-      },
-      ytd: {
-        totalFacilities: "32.5k",
-        activeIncidents: "122",
-        shipments: "48.1k",
-        disruptionPercent: "2.9%",
-        serviceLevel: "96.7%",
-        avgLeadTime: "5.4",
-        revenueAtRisk: "$3.9M",
-        backorders: "980",
-        capacityUtilization: "83.2%",
-        supplierOnTime: "93.1%",
-        expeditedOrders: "4.2%",
-        cycleTime: "7.8",
-      },
+      day:   { totalFacilities: "32.5k", activeIncidents: "135", shipments: "1.3k", disruptionPercent: "3.2%", serviceLevel: "95.8%", avgLeadTime: "6.0",  revenueAtRisk: "$4.8M", backorders: "1,250", capacityUtilization: "80.0%", supplierOnTime: "91.2%", expeditedOrders: "5.1%", cycleTime: "9.3" },
+      week:  { totalFacilities: "32.5k", activeIncidents: "132", shipments: "2.9k", disruptionPercent: "3.0%", serviceLevel: "96.0%", avgLeadTime: "5.9",  revenueAtRisk: "$4.6M", backorders: "1,200", capacityUtilization: "81.0%", supplierOnTime: "91.9%", expeditedOrders: "4.9%", cycleTime: "9.0" },
+      month: { totalFacilities: "32.5k", activeIncidents: "128", shipments: "6.8k", disruptionPercent: "3.1%", serviceLevel: "96.2%", avgLeadTime: "5.7",  revenueAtRisk: "$4.3M", backorders: "1,120", capacityUtilization: "82.5%", supplierOnTime: "92.7%", expeditedOrders: "4.6%", cycleTime: "8.4" },
+      ytd:   { totalFacilities: "32.5k", activeIncidents: "122", shipments: "48.1k",disruptionPercent: "2.9%", serviceLevel: "96.7%", avgLeadTime: "5.4",  revenueAtRisk: "$3.9M", backorders: "980",   capacityUtilization: "83.2%", supplierOnTime: "93.1%", expeditedOrders: "4.2%", cycleTime: "7.8" },
     };
     setBusinessKpis(mockData[kpiRange]);
   }, [kpiRange]);
 
   const kpiMeta = [
-    {
-      key: "totalFacilities",
-      label: "Network Facilities",
-      trend: "up",
-      delta: {
-        day: "Network scope unchanged vs yesterday",
-        week: "Network scope unchanged vs last week",
-        month: "Network scope unchanged vs last month",
-        ytd: "Network scope unchanged vs start of year",
-      },
-    },
-    {
-      key: "activeIncidents",
-      label: "Active Incidents",
-      trend: "down",
-      risk: "high",
-      delta: {
-        day: "↓ 3 vs yesterday",
-        week: "↓ 4 vs last week",
-        month: "↓ 7 vs last month",
-        ytd: "↓ 13 vs start of year",
-      },
-    },
-    {
-      key: "shipments",
-      label: "Outbound Shipments",
-      trend: "neutral",
-      delta: {
-        day: "Flat vs yesterday",
-        week: "↑ 4% vs last week",
-        month: "↑ 7% vs last month",
-        ytd: "↑ 12% vs start of year",
-      },
-    },
-    {
-      key: "disruptionPercent",
-      label: "Disruption %",
-      trend: "up",
-      risk: "high",
-      delta: {
-        day: "↑ 0.1 pts vs yesterday",
-        week: "Flat vs last week",
-        month: "↑ 0.2 pts vs last month",
-        ytd: "↓ 0.3 pts vs start of year",
-      },
-    },
-    {
-      key: "serviceLevel",
-      label: "Service Level",
-      trend: "up",
-      delta: {
-        day: "↑ 0.2 pts vs yesterday",
-        week: "↑ 0.1 pts vs last week",
-        month: "↑ 0.4 pts vs last month",
-        ytd: "↑ 0.9 pts vs start of year",
-      },
-    },
-    {
-      key: "avgLeadTime",
-      label: "Avg Lead Time (days)",
-      trend: "down",
-      delta: {
-        day: "↓ 0.1 days vs yesterday",
-        week: "↓ 0.1 days vs last week",
-        month: "↓ 0.3 days vs last month",
-        ytd: "↓ 0.6 days vs start of year",
-      },
-    },
-    {
-      key: "revenueAtRisk",
-      label: "Revenue at Risk",
-      trend: "up",
-      delta: {
-        day: "↓ $0.2M vs yesterday",
-        week: "↓ $0.2M vs last week",
-        month: "↓ $0.5M vs last month",
-        ytd: "↓ $0.9M vs start of year",
-      },
-    },
-    {
-      key: "backorders",
-      label: "Backorder Volume",
-      trend: "down",
-      risk: "high",
-      delta: {
-        day: "↓ 50 vs yesterday",
-        week: "↓ 80 vs last week",
-        month: "↓ 130 vs last month",
-        ytd: "↓ 270 vs start of year",
-      },
-    },
-    {
-      key: "capacityUtilization",
-      label: "Capacity Utilization",
-      trend: "up",
-      delta: {
-        day: "↑ 0.4 pts vs yesterday",
-        week: "↑ 1.5 pts vs last week",
-        month: "↑ 2.5 pts vs last month",
-        ytd: "↑ 3.2 pts vs start of year",
-      },
-    },
-    {
-      key: "supplierOnTime",
-      label: "Supplier On-Time Rate",
-      trend: "up",
-      delta: {
-        day: "↑ 0.2 pts vs yesterday",
-        week: "↑ 0.7 pts vs last week",
-        month: "↑ 1.1 pts vs last month",
-        ytd: "↑ 1.9 pts vs start of year",
-      },
-    },
-    {
-      key: "expeditedOrders",
-      label: "Expedited Orders",
-      trend: "down",
-      delta: {
-        day: "↓ 0.1 pts vs yesterday",
-        week: "↓ 0.2 pts vs last week",
-        month: "↓ 0.5 pts vs last month",
-        ytd: "↓ 0.9 pts vs start of year",
-      },
-    },
-    {
-      key: "cycleTime",
-      label: "Order Cycle Time (days)",
-      trend: "neutral",
-      delta: {
-        day: "Flat vs yesterday",
-        week: "↓ 0.3 days vs last week",
-        month: "↓ 0.6 days vs last month",
-        ytd: "↓ 1.5 days vs start of year",
-      },
-    },
+    { key: "totalFacilities",    label: "Network Facilities",      trend: "up",      delta: { day: "Network scope unchanged vs yesterday",    week: "Network scope unchanged vs last week",    month: "Network scope unchanged vs last month",    ytd: "Network scope unchanged vs start of year" } },
+    { key: "activeIncidents",    label: "Active Incidents",        trend: "down",    risk: "high", delta: { day: "↓ 3 vs yesterday",          week: "↓ 4 vs last week",          month: "↓ 7 vs last month",          ytd: "↓ 13 vs start of year" } },
+    { key: "shipments",          label: "Outbound Shipments",      trend: "neutral", delta: { day: "Flat vs yesterday",                        week: "↑ 4% vs last week",          month: "↑ 7% vs last month",          ytd: "↑ 12% vs start of year" } },
+    { key: "disruptionPercent",  label: "Disruption %",            trend: "up",      risk: "high", delta: { day: "↑ 0.1 pts vs yesterday",    week: "Flat vs last week",          month: "↑ 0.2 pts vs last month",    ytd: "↓ 0.3 pts vs start of year" } },
+    { key: "serviceLevel",       label: "Service Level",           trend: "up",      delta: { day: "↑ 0.2 pts vs yesterday",                  week: "↑ 0.1 pts vs last week",    month: "↑ 0.4 pts vs last month",    ytd: "↑ 0.9 pts vs start of year" } },
+    { key: "avgLeadTime",        label: "Avg Lead Time (days)",    trend: "down",    delta: { day: "↓ 0.1 days vs yesterday",                 week: "↓ 0.1 days vs last week",   month: "↓ 0.3 days vs last month",   ytd: "↓ 0.6 days vs start of year" } },
+    { key: "revenueAtRisk",      label: "Revenue at Risk",         trend: "up",      delta: { day: "↓ $0.2M vs yesterday",                    week: "↓ $0.2M vs last week",      month: "↓ $0.5M vs last month",      ytd: "↓ $0.9M vs start of year" } },
+    { key: "backorders",         label: "Backorder Volume",        trend: "down",    risk: "high", delta: { day: "↓ 50 vs yesterday",         week: "↓ 80 vs last week",         month: "↓ 130 vs last month",        ytd: "↓ 270 vs start of year" } },
+    { key: "capacityUtilization",label: "Capacity Utilization",    trend: "up",      delta: { day: "↑ 0.4 pts vs yesterday",                  week: "↑ 1.5 pts vs last week",    month: "↑ 2.5 pts vs last month",    ytd: "↑ 3.2 pts vs start of year" } },
+    { key: "supplierOnTime",     label: "Supplier On-Time Rate",   trend: "up",      delta: { day: "↑ 0.2 pts vs yesterday",                  week: "↑ 0.7 pts vs last week",    month: "↑ 1.1 pts vs last month",    ytd: "↑ 1.9 pts vs start of year" } },
+    { key: "expeditedOrders",    label: "Expedited Orders",        trend: "down",    delta: { day: "↓ 0.1 pts vs yesterday",                  week: "↓ 0.2 pts vs last week",    month: "↓ 0.5 pts vs last month",    ytd: "↓ 0.9 pts vs start of year" } },
+    { key: "cycleTime",          label: "Order Cycle Time (days)", trend: "neutral", delta: { day: "Flat vs yesterday",                        week: "↓ 0.3 days vs last week",   month: "↓ 0.6 days vs last month",   ytd: "↓ 1.5 days vs start of year" } },
   ];
 
-  const executiveKpiKeys = [
-    "activeIncidents",
-    "serviceLevel",
-    "revenueAtRisk",
-    "backorders",
-    "avgLeadTime",
-    "supplierOnTime",
-  ];
+  const executiveKpiKeys = ["activeIncidents", "serviceLevel", "revenueAtRisk", "backorders", "avgLeadTime", "supplierOnTime"];
 
   const networkContext = {
     monitoredRegions: 12,
@@ -882,100 +649,41 @@ export default function ControlTower({
   const renderChart = (type) => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
     const chartConfigs = {
-      shipments: { type: Bar, data: [2, 3, 5, 4, 3, 4, 2, 1], label: "Outbound Shipments", color: "#1D625B" },
-      utilization: {
-        type: Line,
-        data: [
-          { label: "East", data: [61, 74, 92, 86, 81, 96, 98, 108], color: "#1D625B" },
-          { label: "West", data: [42, 56, 61, 66, 62, 71, 79, 88], color: "#F59E0B" },
-        ],
-      },
-      inventory: {
-        type: Bar,
-        data: [100, 92, 81, 86, 77, 71, 67, 62],
-        label: "Inventory",
-        color: "#3B82F6",
-      },
-      leadTime: {
-        type: Line,
-        data: [6.0, 5.9, 5.7, 5.8, 5.5, 5.4, 5.2, 5.1],
-        label: "Lead Time (days)",
-        color: "#10B981",
-      },
-      revenue: {
-        type: Bar,
-        data: [4.8, 4.7, 4.5, 4.4, 4.1, 4.0, 3.9, 3.85],
-        label: "Revenue at Risk ($M)",
-        color: "#1D625B",
-      },
-      onTime: {
-        type: Line,
-        data: [91.2, 91.4, 92.0, 92.3, 92.7, 92.9, 93.1, 93.2],
-        label: "On-Time Rate (%)",
-        color: "#6366F1",
-      },
-      expedite: {
-        type: Bar,
-        data: [5.1, 5.0, 4.85, 4.7, 4.65, 4.45, 4.35, 4.2],
-        label: "Expedited Orders (%)",
-        color: "#F59E0B",
-      },
+      shipments:   { type: Bar,  data: [2, 3, 5, 4, 3, 4, 2, 1], label: "Outbound Shipments", color: "#1D625B" },
+      utilization: { type: Line, data: [{ label: "East", data: [61, 74, 92, 86, 81, 96, 98, 108], color: "#1D625B" }, { label: "West", data: [42, 56, 61, 66, 62, 71, 79, 88], color: "#F59E0B" }] },
+      inventory:   { type: Bar,  data: [100, 92, 81, 86, 77, 71, 67, 62], label: "Inventory", color: "#3B82F6" },
+      leadTime:    { type: Line, data: [6.0, 5.9, 5.7, 5.8, 5.5, 5.4, 5.2, 5.1], label: "Lead Time (days)", color: "#10B981" },
+      revenue:     { type: Bar,  data: [4.8, 4.7, 4.5, 4.4, 4.1, 4.0, 3.9, 3.85], label: "Revenue at Risk ($M)", color: "#1D625B" },
+      onTime:      { type: Line, data: [91.2, 91.4, 92.0, 92.3, 92.7, 92.9, 93.1, 93.2], label: "On-Time Rate (%)", color: "#6366F1" },
+      expedite:    { type: Bar,  data: [5.1, 5.0, 4.85, 4.7, 4.65, 4.45, 4.35, 4.2], label: "Expedited Orders (%)", color: "#F59E0B" },
     };
-
     const config = chartConfigs[type];
     if (!config) return null;
-
     const ChartComponent = config.type;
     const dataset = Array.isArray(config.data)
-      ? [
-          {
-            label: config.label,
-            data: config.data,
-            backgroundColor: config.color,
-            borderColor: config.color,
-            fill: false,
-            tension: 0.3,
-          },
-        ]
-      : config.data.map((d) => ({
-          ...d,
-          borderColor: d.color,
-          fill: false,
-          tension: 0.3,
-        }));
-
+      ? [{ label: config.label, data: config.data, backgroundColor: config.color, borderColor: config.color, fill: false, tension: 0.3 }]
+      : config.data.map((d) => ({ ...d, borderColor: d.color, fill: false, tension: 0.3 }));
     return (
       <ChartComponent
         data={{ labels: months, datasets: dataset }}
-        options={{
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: "top" },
-          },
-        }}
+        options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "top" } } }}
       />
     );
   };
 
-  // ✅ CTA action: route inside Control Tower (billing tab)
   const goToBilling = () => setActiveView("billing");
 
   return (
     <div className="flex h-screen bg-[#f9fafb] font-sans overflow-hidden">
-      {/* Sidebar */}
+
+      {/* ── Sidebar ── */}
       <aside className="w-64 bg-[#0a2e22] text-white p-6 space-y-6 h-screen overflow-y-auto">
         <div className="flex items-center justify-center mb-4">
           <img src="/logo.png" alt="FOR-C Logo" className="h-12 w-auto rounded-lg" />
         </div>
 
-        {/* User badge */}
         <div className="flex flex-col items-center space-y-2">
-          <img
-            src="/mj_profile.jpg"
-            alt="User Profile"
-            className="h-20 w-20 rounded-full border-2 border-white shadow-md"
-          />
+          <img src="/mj_profile.jpg" alt="User Profile" className="h-20 w-20 rounded-full border-2 border-white shadow-md" />
           <div className="text-sm font-semibold text-white">{userName || "User"}</div>
           <div className="text-[11px] opacity-80 bg-white/10 rounded px-2 py-0.5">
             {(resolvedPlan || "FREE").toUpperCase()}
@@ -985,24 +693,31 @@ export default function ControlTower({
         <div>
           <h2 className="text-sm uppercase text-gray-300 mb-2">Repository</h2>
           <ul className="space-y-2 text-sm">
+
+            {/* ── v3: Risk Intelligence ── */}
+            <li>
+              <a
+                onClick={() => setActiveView("risk")}
+                className={`block cursor-pointer ${activeView === "risk" ? "text-lime-300" : "hover:underline"}`}
+                style={activeView === "risk" ? {} : { color: "#9FD63A" }}
+              >
+                🔭 Risk Intelligence
+              </a>
+            </li>
+
             <li>
               <a
                 onClick={() => setActiveView("dashboard")}
-                className={`block cursor-pointer ${
-                  activeView === "dashboard" ? "text-lime-300" : "hover:underline"
-                }`}
+                className={`block cursor-pointer ${activeView === "dashboard" ? "text-lime-300" : "hover:underline"}`}
               >
                 📊 Dashboard
               </a>
             </li>
 
-            {/* ✅ NEW: Simulations view */}
             <li>
               <a
                 onClick={() => setActiveView("simulations")}
-                className={`block cursor-pointer ${
-                  activeView === "simulations" ? "text-lime-300" : "hover:underline"
-                }`}
+                className={`block cursor-pointer ${activeView === "simulations" ? "text-lime-300" : "hover:underline"}`}
               >
                 🧪 Simulations
               </a>
@@ -1010,13 +725,8 @@ export default function ControlTower({
 
             <li>
               <a
-                onClick={() => {
-                  syncScenarioFromLocal();
-                  setActiveView("scenario");
-                }}
-                className={`block cursor-pointer ${
-                  activeView === "scenario" ? "text-lime-300" : "hover:underline"
-                }`}
+                onClick={() => { syncScenarioFromLocal(); setActiveView("scenario"); }}
+                className={`block cursor-pointer ${activeView === "scenario" ? "text-lime-300" : "hover:underline"}`}
               >
                 🧪 Scenario Library
               </a>
@@ -1025,9 +735,7 @@ export default function ControlTower({
             <li>
               <a
                 onClick={() => setActiveView("billing")}
-                className={`block cursor-pointer ${
-                  activeView === "billing" ? "text-lime-300" : "hover:underline"
-                }`}
+                className={`block cursor-pointer ${activeView === "billing" ? "text-lime-300" : "hover:underline"}`}
               >
                 💸 Billing
               </a>
@@ -1043,46 +751,46 @@ export default function ControlTower({
               <li>
                 <a
                   onClick={() => setActiveView("admin")}
-                  className={`block cursor-pointer ${
-                    activeView === "admin" ? "text-lime-300" : "hover:underline"
-                  }`}
+                  className={`block cursor-pointer ${activeView === "admin" ? "text-lime-300" : "hover:underline"}`}
                 >
                   🛠 Admin
                 </a>
               </li>
             )}
 
-
             <li>
               <a onClick={() => switchView("simulation")} className="hover:underline block cursor-pointer">
                 🚀 Launch Simulation
               </a>
             </li>
+
             <li>
               <a onClick={() => switchView("about")} className="hover:underline block cursor-pointer">
                 📘 About FOR-C
               </a>
             </li>
+
             <li>
-              
-              <a  onClick={() => { setTourActive(true); setActiveView("dashboard"); }}
+              <a
+                onClick={() => { setTourActive(true); setActiveView("dashboard"); }}
                 className="block cursor-pointer hover:underline"
                 style={{ color: "#9FD63A" }}
               >
                 🗺 Start Tour
               </a>
             </li>
+
           </ul>
         </div>
       </aside>
 
-      {/* Main column */}
+      {/* ── Main column ── */}
       <main className="flex-1 min-w-0 min-h-0 flex flex-col">
+
         {/* Sticky header */}
         <div className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
           <div className="flex items-center justify-between px-6 py-3">
             <h1 className="text-2xl font-bold text-[#1D625B]">Control Tower</h1>
-
             <button
               onClick={onLogout || (() => {})}
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100"
@@ -1101,6 +809,15 @@ export default function ControlTower({
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-6">
+
+          {/* ── v3: Risk Intelligence view ── */}
+          {activeView === "risk" && (
+            <section className="mt-2">
+              <RiskIntelligenceView switchView={switchView} />
+            </section>
+          )}
+
+          {/* ── Dashboard ── */}
           {activeView === "dashboard" && (
             <>
               <div className="mb-2 text-lg text-gray-700">
@@ -1108,8 +825,23 @@ export default function ControlTower({
               </div>
 
               {scenarioName && (
-                <div className="mt-1 mb-4 text-sm text-gray-600">
+                <div className="mt-1 mb-4 text-sm text-gray-600 flex items-center gap-2">
                   Active scenario: <span className="font-semibold">{scenarioName}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        localStorage.removeItem("forc_active_scenario");
+                        localStorage.removeItem("currentScenarioJSON");
+                        localStorage.removeItem("currentScenarioName");
+                      } catch {}
+                      setScenarioName("");
+                    }}
+                    className="ml-1 text-gray-400 hover:text-red-500 transition text-xs font-bold"
+                    title="Clear active scenario"
+                  >
+                    ✕
+                  </button>
                 </div>
               )}
 
@@ -1117,25 +849,26 @@ export default function ControlTower({
                 <div id="tour-map" className="lg:col-span-2 h-96 rounded overflow-hidden shadow border border-gray-300">
 
                   {newsHeadlines.length > 0 && (
-                <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
-                  <div className="flex items-center">
-                    <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
-                      LIVE INTEL
-                    </div>
-                    <div className="overflow-hidden flex-1 relative">
-                      <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 90s linear infinite", display: "inline-flex" }}>
-                        {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
-                          <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
-                            <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
-                            {h.title}
-                          </a>
-                        ))}
+                    <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
+                      <div className="flex items-center">
+                        <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
+                          LIVE INTEL
+                        </div>
+                        <div className="overflow-hidden flex-1 relative">
+                          <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 90s linear infinite", display: "inline-flex" }}>
+                            {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
+                              <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
+                                <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
+                                {h.title}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
                       </div>
+                      <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
                     </div>
-                  </div>
-                  <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
-                </div>
-              )}
+                  )}
+
                   <MapView
                     locationsUrl={simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
                     onFacilitySelect={handleFacilitySelect}
@@ -1143,14 +876,10 @@ export default function ControlTower({
                 </div>
 
                 <div className="bg-white rounded-xl shadow border border-gray-200 p-4">
-                  <h2 className="text-lg font-bold text-[#1D625B] mb-2">
-                    Network Health Summary
-                  </h2>
-
+                  <h2 className="text-lg font-bold text-[#1D625B] mb-2">Network Health Summary</h2>
                   <div className="text-sm text-gray-600 mb-3">
                     Executive overview of current supply chain performance and disruption exposure.
                   </div>
-
                   <ul className="space-y-3">
                     <li className="flex items-center justify-between">
                       <span className="text-xs text-gray-500">Active Incidents</span>
@@ -1181,13 +910,9 @@ export default function ControlTower({
                         FOR-C Network Intelligence
                       </p>
                       {narrativeLoading ? (
-                        <p className="text-sm animate-pulse" style={{ color: "#e2e8e0" }}>
-                          Analyzing network conditions...
-                        </p>
+                        <p className="text-sm animate-pulse" style={{ color: "#e2e8e0" }}>Analyzing network conditions...</p>
                       ) : (
-                        <p className="text-sm leading-relaxed" style={{ color: "#e2e8e0" }}>
-                          {ctNarrative}
-                        </p>
+                        <p className="text-sm leading-relaxed" style={{ color: "#e2e8e0" }}>{ctNarrative}</p>
                       )}
                     </div>
                   </div>
@@ -1224,7 +949,6 @@ export default function ControlTower({
               </section>
 
               <div className="flex justify-end mb-4">
-                
                 <div className="space-x-2">
                   {["day", "week", "month", "ytd"].map((range) => (
                     <button
@@ -1254,7 +978,9 @@ export default function ControlTower({
                     <p className="text-sm font-semibold text-white">Supplier disruption affecting {businessKpis?.activeIncidents} facilities — expedite constrained component path before backlog accelerates.</p>
                   </div>
                 </div>
-                <button onClick={() => switchView("simulation")} className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition" style={{ background: "#9CF700", color: "#020617" }}>Run Simulation →</button>
+                <button onClick={() => switchView("simulation")} className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition" style={{ background: "#9CF700", color: "#020617" }}>
+                  Run Simulation →
+                </button>
               </div>
 
               {businessKpis && (
@@ -1262,15 +988,10 @@ export default function ControlTower({
                   <section className="mb-6">
                     <div className="flex items-end justify-between mb-3">
                       <div>
-                        <h2 className="text-xl font-semibold text-[#1D625B]">
-                          Executive KPIs
-                        </h2>
-                        <div className="text-sm text-gray-500">
-                          Highest-signal network metrics for leadership review
-                        </div>
+                        <h2 className="text-xl font-semibold text-[#1D625B]">Executive KPIs</h2>
+                        <div className="text-sm text-gray-500">Highest-signal network metrics for leadership review</div>
                       </div>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {executiveKpiKeys.map((key) => (
                         <KpiCard
@@ -1286,128 +1007,61 @@ export default function ControlTower({
                   </section>
 
                   <section className="space-y-8 mb-6">
-                  <div>
-                    <div
-                      className="flex items-center justify-between cursor-pointer group"
-                      onClick={() => toggleKpiSection("fulfillment")}
-                    >
-                      <h2 className="text-xl font-semibold text-[#1D625B] mb-2">
-                        📦 Fulfillment & Inventory
-                      </h2>
-                      <span className="text-sm text-gray-500 group-hover:underline">
-                        {kpiSectionVisibility.fulfillment ? "Hide" : "Show"}
-                      </span>
-                    </div>
-                    <div
-                      className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        kpiSectionVisibility.fulfillment
-                          ? "max-h-[1000px] opacity-100"
-                          : "max-h-0 opacity-0"
-                      }`}
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                        {["totalFacilities", "shipments", "backorders", "serviceLevel"].map((key) => (
-                          <KpiCard
-                            key={key}
-                            value={businessKpis[key]}
-                            label={kpiMeta.find((k) => k.key === key)?.label}
-                            trend={kpiMeta.find((k) => k.key === key)?.trend}
-                            risk={kpiMeta.find((k) => k.key === key)?.risk}
-                          />
-                        ))}
+                    <div>
+                      <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleKpiSection("fulfillment")}>
+                        <h2 className="text-xl font-semibold text-[#1D625B] mb-2">📦 Fulfillment & Inventory</h2>
+                        <span className="text-sm text-gray-500 group-hover:underline">{kpiSectionVisibility.fulfillment ? "Hide" : "Show"}</span>
+                      </div>
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${kpiSectionVisibility.fulfillment ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                          {["totalFacilities", "shipments", "backorders", "serviceLevel"].map((key) => (
+                            <KpiCard key={key} value={businessKpis[key]} label={kpiMeta.find((k) => k.key === key)?.label} trend={kpiMeta.find((k) => k.key === key)?.trend} risk={kpiMeta.find((k) => k.key === key)?.risk} />
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <div
-                      className="flex items-center justify-between cursor-pointer group"
-                      onClick={() => toggleKpiSection("production")}
-                    >
-                      <h2 className="text-xl font-semibold text-[#1D625B] mb-2">
-                        🏭 Production & Disruption
-                      </h2>
-                      <span className="text-sm text-gray-500 group-hover:underline">
-                        {kpiSectionVisibility.production ? "Hide" : "Show"}
-                      </span>
-                    </div>
-                    <div
-                      className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        kpiSectionVisibility.production
-                          ? "max-h-[1000px] opacity-100"
-                          : "max-h-0 opacity-0"
-                      }`}
-                    >
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {["disruptionPercent", "capacityUtilization", "avgLeadTime", "cycleTime"].map(
-                          (key) => (
-                            <KpiCard
-                              key={key}
-                              value={businessKpis[key]}
-                              label={kpiMeta.find((k) => k.key === key)?.label}
-                              trend={kpiMeta.find((k) => k.key === key)?.trend}
-                              risk={kpiMeta.find((k) => k.key === key)?.risk}
-                            />
-                          )
-                        )}
+                    <div>
+                      <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleKpiSection("production")}>
+                        <h2 className="text-xl font-semibold text-[#1D625B] mb-2">🏭 Production & Disruption</h2>
+                        <span className="text-sm text-gray-500 group-hover:underline">{kpiSectionVisibility.production ? "Hide" : "Show"}</span>
+                      </div>
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${kpiSectionVisibility.production ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                          {["disruptionPercent", "capacityUtilization", "avgLeadTime", "cycleTime"].map((key) => (
+                            <KpiCard key={key} value={businessKpis[key]} label={kpiMeta.find((k) => k.key === key)?.label} trend={kpiMeta.find((k) => k.key === key)?.trend} risk={kpiMeta.find((k) => k.key === key)?.risk} />
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <div
-                      className="flex items-center justify-between cursor-pointer group"
-                      onClick={() => toggleKpiSection("cost")}
-                    >
-                      <h2 className="text-xl font-semibold text-[#1D625B] mb-2">
-                        💰 Cost & Service Metrics
-                      </h2>
-                      <span className="text-sm text-gray-500 group-hover:underline">
-                        {kpiSectionVisibility.cost ? "Hide" : "Show"}
-                      </span>
-                    </div>
-                    <div
-                      className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        kpiSectionVisibility.cost ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
-                      }`}
-                    >
-                      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                        {["revenueAtRisk", "supplierOnTime", "expeditedOrders", "activeIncidents"].map(
-                          (key) => (
-                            <KpiCard
-                              key={key}
-                              value={businessKpis[key]}
-                              label={kpiMeta.find((k) => k.key === key)?.label}
-                              trend={kpiMeta.find((k) => k.key === key)?.trend}
-                              risk={kpiMeta.find((k) => k.key === key)?.risk}
-                            />
-                          )
-                        )}
+                    <div>
+                      <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleKpiSection("cost")}>
+                        <h2 className="text-xl font-semibold text-[#1D625B] mb-2">💰 Cost & Service Metrics</h2>
+                        <span className="text-sm text-gray-500 group-hover:underline">{kpiSectionVisibility.cost ? "Hide" : "Show"}</span>
+                      </div>
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${kpiSectionVisibility.cost ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
+                        <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                          {["revenueAtRisk", "supplierOnTime", "expeditedOrders", "activeIncidents"].map((key) => (
+                            <KpiCard key={key} value={businessKpis[key]} label={kpiMeta.find((k) => k.key === key)?.label} trend={kpiMeta.find((k) => k.key === key)?.trend} risk={kpiMeta.find((k) => k.key === key)?.risk} />
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </section>
+                  </section>
                 </>
               )}
 
               <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[chartType1, chartType2].map((type, i) => (
-                  <div
-                    key={i}
-                    className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden"
-                  >
+                  <div key={i} className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
                     <div className="px-4 pt-4 pb-3 border-b border-gray-100">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div>
-                          <div className="text-base font-semibold text-[#1D625B]">
-                            {chartMeta[type]?.title || "Trend View"}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {chartMeta[type]?.subtitle || "Operational performance trend"}
-                          </div>
+                          <div className="text-base font-semibold text-[#1D625B]">{chartMeta[type]?.title || "Trend View"}</div>
+                          <div className="text-xs text-gray-500 mt-1">{chartMeta[type]?.subtitle || "Operational performance trend"}</div>
                         </div>
                       </div>
-
                       <Select
                         options={chartOptions}
                         value={chartOptions.find((opt) => opt.value === type)}
@@ -1415,13 +1069,9 @@ export default function ControlTower({
                         className="mb-0"
                       />
                     </div>
-
                     <div className="p-4">
-                      <div className="h-[320px]">
-                        {renderChart(type)}
-                      </div>
+                      <div className="h-[320px]">{renderChart(type)}</div>
                     </div>
-
                     <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex items-center justify-between">
                       <span>{chartMeta[type]?.footer || "Basis: monitored performance"}</span>
                       <span>Period: Jan–Aug</span>
@@ -1432,21 +1082,17 @@ export default function ControlTower({
             </>
           )}
 
-          {/* ✅ NEW: Simulations view with Upgrade CTA */}
+          {/* ── Simulations ── */}
           {activeView === "simulations" && (
             <section className="mt-2">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-xl font-semibold text-[#1D625B]">🧪 Simulation Repository</h2>
                 {!proPlus && (
-                  <button
-                    onClick={goToBilling}
-                    className="rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50"
-                  >
+                  <button onClick={goToBilling} className="rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50">
                     Upgrade
                   </button>
                 )}
               </div>
-
               {!proPlus ? (
                 <div className="rounded-2xl bg-[#1D625B] text-white p-5">
                   <UpgradeCtaCard plan={resolvedPlan} onUpgrade={goToBilling} />
@@ -1455,47 +1101,30 @@ export default function ControlTower({
                 <div className="space-y-3">
                   {Array.isArray(simulationHistory) && simulationHistory.length > 0 ? (
                     simulationHistory.map((run, idx) => (
-                      <div
-                        key={run.id || run.created_at || idx}
-                        className="bg-white border rounded-xl p-4 shadow-sm"
-                      >
+                      <div key={run.id || run.created_at || idx} className="bg-white border rounded-xl p-4 shadow-sm">
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-bold text-[#1D625B]">
-                              {run.name || `Simulation Run #${idx + 1}`}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {run.created_at || run.timestamp || ""}
-                            </div>
+                            <div className="font-bold text-[#1D625B]">{run.name || `Simulation Run #${idx + 1}`}</div>
+                            <div className="text-xs text-gray-500">{run.created_at || run.timestamp || ""}</div>
                           </div>
-
-                          <button
-                            onClick={() => switchView?.("simulation")}
-                            className="rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50"
-                            title="Open Simulation Dashboard"
-                          >
+                          <button onClick={() => switchView?.("simulation")} className="rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50">
                             Open →
                           </button>
                         </div>
-
                         <div className="mt-3 text-sm text-gray-600">
-                          Outputs:{" "}
-                          <span className="font-mono">
-                            {Object.keys(run.output_urls || run.urls || {}).length} files
-                          </span>
+                          Outputs: <span className="font-mono">{Object.keys(run.output_urls || run.urls || {}).length} files</span>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="bg-white border rounded-xl p-4 text-gray-600">
-                      No runs yet.
-                    </div>
+                    <div className="bg-white border rounded-xl p-4 text-gray-600">No runs yet.</div>
                   )}
                 </div>
               )}
             </section>
           )}
 
+          {/* ── Scenario Library ── */}
           {activeView === "scenario" && (
             <section className="mt-10">
               <ScenarioLibrary
@@ -1506,12 +1135,14 @@ export default function ControlTower({
             </section>
           )}
 
+          {/* ── Billing ── */}
           {activeView === "billing" && (
             <section className="mt-10">
               <BillingView switchView={switchView} />
             </section>
           )}
 
+          {/* ── Admin ── */}
           {activeView === "admin" && isAdmin && (
             <section className="mt-10">
               <AdminPanel />
@@ -1521,20 +1152,21 @@ export default function ControlTower({
         </div>
       </main>
 
-    {tourActive && activeView === "dashboard" && (
-      <OnboardingTour
-        steps={TOUR_STEPS_CONTROL_TOWER}
-        onFinish={finishTour}
-        onSkip={finishTour}
-      />
-    )}
+      {tourActive && activeView === "dashboard" && (
+        <OnboardingTour
+          steps={TOUR_STEPS_CONTROL_TOWER}
+          onFinish={finishTour}
+          onSkip={finishTour}
+        />
+      )}
 
-    {selectedFacility && (
-      <FacilityDrawer
-        facility={selectedFacility}
-        onClose={() => setSelectedFacility(null)}
-      />
-    )}
-  </div>
-);
+      {selectedFacility && (
+        <FacilityDrawer
+          facility={selectedFacility}
+          onClose={() => setSelectedFacility(null)}
+        />
+      )}
+
+    </div>
+  );
 }

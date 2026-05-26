@@ -2110,7 +2110,7 @@ setSimulationHistory((prev) => {
       ) : view === "about" ? (
         <AboutUs switchView={setView} />
       ) : view === "reports" ? (
-        <Reports simulationHistory={simulationHistory} switchView={setView} />
+        <Reports simulationHistory={simulationHistory} switchView={setView} apiBase={API_BASE} />
       ) : (
         <ControlTower
           onLogout={handleLogout}
