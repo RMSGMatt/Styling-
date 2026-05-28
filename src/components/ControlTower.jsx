@@ -978,8 +978,36 @@ export default function ControlTower({
                     <p className="text-sm font-semibold text-white">Supplier disruption affecting {businessKpis?.activeIncidents} facilities — expedite constrained component path before backlog accelerates.</p>
                   </div>
                 </div>
-                <button onClick={() => switchView("simulation")} className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition" style={{ background: "#9CF700", color: "#020617" }}>
-                  Run Simulation →
+                <button
+                  onClick={() => {
+                    try {
+                      const baselineScenario = {
+                        name: "Control Tower Baseline",
+                        disruptionScenarios: [],
+                        demandAdjustments: [],
+                        laneAdjustments: [],
+                        inventoryPolicies: [],
+                        meta: {
+                          source: "control_tower",
+                          serviceLevel: businessKpis?.serviceLevel,
+                          revenueAtRisk: businessKpis?.revenueAtRisk,
+                          activeIncidents: businessKpis?.activeIncidents,
+                          backorders: businessKpis?.backorders,
+                          notes: `Launched from Control Tower. Baseline: ${businessKpis?.serviceLevel} service level, ${businessKpis?.revenueAtRisk} revenue at risk.`,
+                        },
+                      };
+                      localStorage.setItem("forc_active_scenario", JSON.stringify(baselineScenario));
+                      localStorage.setItem("currentScenarioJSON", JSON.stringify(baselineScenario));
+                      localStorage.setItem("currentScenarioName", "Control Tower Baseline");
+                    } catch (e) {
+                      console.warn("Could not pre-populate scenario:", e);
+                    }
+                    switchView("simulation");
+                  }}
+                  className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition"
+                  style={{ background: "#9CF700", color: "#020617" }}
+                >
+                  Simulate This Risk →
                 </button>
               </div>
 
@@ -1100,22 +1128,73 @@ export default function ControlTower({
               ) : (
                 <div className="space-y-3">
                   {Array.isArray(simulationHistory) && simulationHistory.length > 0 ? (
-                    simulationHistory.map((run, idx) => (
-                      <div key={run.id || run.created_at || idx} className="bg-white border rounded-xl p-4 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-bold text-[#1D625B]">{run.name || `Simulation Run #${idx + 1}`}</div>
-                            <div className="text-xs text-gray-500">{run.created_at || run.timestamp || ""}</div>
+                    simulationHistory.map((run, idx) => {
+                      const kpis = run?.kpis || run?.raw?.kpis || {};
+                      const svc = Number(kpis?.onTimeFulfillment ?? kpis?.serviceLevelPct ?? 0);
+                      const ttr = Number(kpis?.ttrDays ?? kpis?.timeToRecoverDays ?? 0);
+                      const rev = Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 0);
+                      const nrs = (() => {
+                        if (!svc) return null;
+                        const backlog = Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0);
+                        const demand = Number(kpis?.serviceTruth?.totalDemand ?? 0);
+                        const missed = Number(kpis?.missedServiceDays ?? 0);
+                        const backlogPct = demand > 0 ? (backlog / demand) * 100 : 0;
+                        const score = 0.55 * svc + 0.20 * (100 - Math.min(backlogPct, 100)) + 0.15 * (100 - Math.min((missed / 90) * 100, 100)) + 0.10 * (100 - Math.min((ttr / 30) * 100, 100));
+                        return Math.max(0, Math.min(100, score)).toFixed(0);
+                      })();
+                      const nrsColor = !nrs ? "#9CA3AF" : nrs >= 90 ? "#16a34a" : nrs >= 72 ? "#d97706" : "#dc2626";
+                      const nrsLabel = !nrs ? "No data" : nrs >= 90 ? "Resilient" : nrs >= 72 ? "Watch" : "Stressed";
+                      const scenarioName = run?.name || run?.raw?.scenario_name || run?.scenario_name;
+                      const runLabel = scenarioName || `Baseline Run`;
+                      const runId = (run?.id || run?.run_id || run?.created_at || "").slice(-8);
+
+                      return (
+                        <div key={run.id || run.created_at || idx} className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {nrs && (
+                                <div className="shrink-0 w-10 h-10 rounded-xl flex flex-col items-center justify-center border-2"
+                                  style={{ borderColor: nrsColor, background: `${nrsColor}10` }}>
+                                  <span className="text-[11px] font-bold leading-none" style={{ color: nrsColor }}>{nrs}</span>
+                                  <span className="text-[8px] leading-none mt-0.5" style={{ color: nrsColor }}>NRS</span>
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <div className="font-bold text-[#1D625B] truncate">{runLabel}</div>
+                                <div className="text-xs text-gray-400">{run.created_at || run.timestamp || ""} {runId && `· ${runId}`}</div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => switchView?.("simulation")}
+                              className="shrink-0 rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50"
+                            >
+                              Open →
+                            </button>
                           </div>
-                          <button onClick={() => switchView?.("simulation")} className="rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50">
-                            Open →
-                          </button>
+
+                          {svc > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${svc >= 95 ? "bg-green-50 text-green-700" : svc >= 80 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
+                                Service {svc.toFixed(1)}%
+                              </span>
+                              {ttr > 0 && (
+                                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${ttr <= 7 ? "bg-green-50 text-green-700" : ttr <= 30 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
+                                  TTR {ttr}d
+                                </span>
+                              )}
+                              {rev > 0 && (
+                                <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-orange-50 text-orange-700">
+                                  ${rev >= 1000 ? `${(rev/1000).toFixed(0)}K` : rev} exposure
+                                </span>
+                              )}
+                              <span className="px-2 py-1 rounded-lg text-xs font-semibold" style={{ background: `${nrsColor}15`, color: nrsColor }}>
+                                {nrsLabel}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div className="mt-3 text-sm text-gray-600">
-                          Outputs: <span className="font-mono">{Object.keys(run.output_urls || run.urls || {}).length} files</span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="bg-white border rounded-xl p-4 text-gray-600">No runs yet.</div>
                   )}

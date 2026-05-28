@@ -553,11 +553,6 @@ export default function ScenarioLibrary({ userPlan, getCurrentScenario, onApplyS
             )}
           </div>
         </div>
-
-        {/* Footer note */}
-        <div className="mt-4 text-xs text-slate-400">
-          Tip: If “compare runs” reuses the same S3 URLs, multiple runs can appear identical. You’ll want unique output keys per run.
-        </div>
       </div>
 
       {/* Modal */}
