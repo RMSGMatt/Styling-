@@ -86,11 +86,9 @@ async function buildExecutiveReportAfterSim(payload = {}) {
       sessionStorage.getItem("token");
 
     if (!token) {
-      console.warn("⚠️ [ExecutiveReport] No token — skipping build");
       return null;
     }
 
-    console.log("🛠️ [ExecutiveReport] Auto-building after simulation...");
 
     const res = await fetch(`${API_ROOT}/api/executive-report/build`, {
       method: "POST",
@@ -108,14 +106,11 @@ async function buildExecutiveReportAfterSim(payload = {}) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      console.error("❌ [ExecutiveReport] Auto-build failed:", res.status, data);
       return null;
     }
 
-    console.log("✅ [ExecutiveReport] Auto-build success:", data);
     return data;
   } catch (err) {
-    console.error("❌ [ExecutiveReport] Auto-build error:", err);
     return null;
   }
 }
@@ -158,9 +153,7 @@ async function loadCsvToJson(url, setter) {
     const text = await res.text();
     const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
     setter(data);
-    console.log(`✅ Parsed ${url.split("/").pop()}:`, data.length, "rows");
   } catch (err) {
-    console.error("⚠️ Failed to load CSV:", url, err);
   }
 }
 
@@ -515,7 +508,6 @@ export default function App() {
       try {
         localStorage.setItem("forc_local_runs_v1", JSON.stringify(nextHistory));
       } catch (err) {
-        console.warn("❌ [persistRunKpis] Failed to persist KPI payload", err);
       }
 
       return nextHistory;
@@ -531,21 +523,17 @@ export default function App() {
 
       if (hasScenario) {
         localStorage.setItem("currentScenarioJSON", JSON.stringify(scenarioData));
-        console.log("🧪 [App] Scenario synced → localStorage + ref", scenarioData);
         setLastRunScenarioData(scenarioData);
       } else {
         localStorage.removeItem("currentScenarioJSON");
-        console.log("🧪 [App] Scenario cleared (baseline)");
       }
     } catch (e) {
-      console.warn("⚠️ [App] Failed to sync scenario to localStorage:", e);
     }
   }, [scenarioData]);
 
   // Upgrade gate handler
   useEffect(() => {
     setUpgradeHandler(({ required, plan }) => {
-      console.log("💳 [UpgradeGate] Triggered:", { required, plan });
       setUpgradeGate({
         open: true,
         required: required || ["pro"],
@@ -574,7 +562,6 @@ export default function App() {
         const decoded = jwtDecode(token);
         setUserRole(decoded?.role || "user");
       } catch (e) {
-        console.error("❌ Failed to decode JWT:", e);
         setUserRole("user");
       }
 
@@ -586,7 +573,6 @@ export default function App() {
 
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          console.error("❌ /api/me failed:", res.status, data);
           return;
         }
 
@@ -600,7 +586,6 @@ export default function App() {
         if (isProPlusPlan(planFromDb)) {
           await fetchSimulationHistory(); // merges into state
         } else {
-          console.log("🔒 Skipping /api/simulations on Free plan (using local history).");
         }
       } catch (err) {
         console.error("❌ Failed to fetch /api/me:", err);
@@ -640,7 +625,6 @@ export default function App() {
   };
 
   const handleFacilityClick = (facilityName) => {
-    console.log("🏭 [App] Facility selected:", facilityName);
     setSelectedFacility(facilityName);
   };
 
@@ -667,11 +651,9 @@ export default function App() {
     } catch (err) {
       const status = err?.response?.status;
       if (status === 401 || status === 403) {
-        console.log("🔒 /api/simulations blocked (plan gating). Using local history.");
         setSimulationHistory(loadLocalRunsSafe());
         return;
       }
-      console.error("❌ Error fetching simulation history:", err);
       setSimulationHistory(loadLocalRunsSafe());
     }
   };
@@ -679,7 +661,6 @@ export default function App() {
   // Robust chart data loader — single source of truth
   const loadFilteredChart = async (urls, outputType, skuFilterRaw) => {
     try {
-      console.log("📥 [Chart] Loading", outputType, "for", skuFilterRaw);
 
       const skuFilter = Array.isArray(skuFilterRaw)
         ? skuFilterRaw.filter(Boolean).map((s) => lower(s))
@@ -692,26 +673,12 @@ export default function App() {
         urls?.[`${outputType}.csv`] ||
         Object.values(urls || {})[0];
 
-      console.log("📊 [Chart] chosen url", {
-        outputType,
-        url,
-        urlKeys: Object.keys(urls || {}),
-        selectedFacility,
-        skuFilterRaw,
-      });
-
       if (!url) {
         console.warn("⚠️ [Chart] No CSV URL for type:", outputType);
         return;
       }
 
       const results = await fetchCsvRows(url);
-
-      console.log("📊 [Chart] csv rows loaded", {
-        outputType,
-        rowCount: results.length,
-        sample: results[0],
-      });
 
       if (!results.length) {
         console.warn("⚠️ [Chart] CSV empty:", url);
@@ -765,17 +732,6 @@ export default function App() {
         return skuMatch && facilityMatch;
       });
 
-      console.log("📊 [Chart] filtered rows", {
-        outputType,
-        filteredCount: filtered.length,
-        skuFilter,
-        selectedFacility,
-        dateKey,
-        skuKey,
-        valueKey,
-        sampleFiltered: filtered[0],
-      });
-
       const dateSet = [...new Set(filtered.map((r) => r[dateKey]))].filter(Boolean).sort();
 
       const skuGroups = {};
@@ -795,32 +751,6 @@ export default function App() {
         borderWidth: 2,
         tension: 0.25,
       }));
-
-      console.log("📊 [Chart] final datasets", {
-        outputType,
-        labelsCount: dateSet.length,
-        datasetCount: datasets.length,
-        firstDataset: datasets[0],
-      });
-
-      if (outputType === "inventory") {
-        console.log(
-          "🧪 [Inventory Debug JSON]",
-          JSON.stringify(
-            {
-              dateKey,
-              skuKey,
-              valueKey,
-              sampleRow: results[0],
-              firstFilteredRow: filtered[0],
-              firstDatasetLabel: datasets[0]?.label,
-              firstDatasetData: datasets[0]?.data?.slice(0, 10),
-            },
-            null,
-            2
-          )
-        );
-      }
 
       setChartData({ labels: dateSet, datasets });
 
@@ -973,10 +903,8 @@ export default function App() {
             const parsed = Papa.parse(demandText, { header: true, skipEmptyLines: true });
             demandRows = Array.isArray(parsed.data) ? parsed.data : [];
           } else {
-            console.warn("⚠️ [KPI] No uploaded demand file found; service KPI demand truth unavailable.");
           }
         } catch (e) {
-          console.warn("⚠️ [KPI] Failed to parse uploaded demand file:", e);
         }
 
         const demandSample = demandRows[0] || {};
@@ -1201,7 +1129,6 @@ export default function App() {
             allKpis.inventoryBuffer = allKpis.estimatedDaysCoverage;
           }
         } catch (e) {
-          console.warn("⚠️ [KPI] inventoryBuffer calc failed:", e);
           allKpis.estimatedDaysCoverage = "N/A";
           allKpis.inventoryBuffer = allKpis.estimatedDaysCoverage;
         }
@@ -1279,21 +1206,6 @@ export default function App() {
         allKpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
         allKpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
         allKpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
-console.log("📦 [KPI] Service truth JSON:", JSON.stringify(serviceTruth, null, 2));
-
-      // OLD LOG BELOW (for reference)
-      console.log("📦 [KPI] Service truth (legacy):", {
-          totalDemand,
-          fulfilledCustomerShip,
-          missedDemandQty,
-          backorderVolume,
-          estimatedRevenueExposure,
-          endingBacklogExposure,
-          fulfillmentPercentRaw: (100 * fulfillmentFracRaw).toFixed(1),
-          fulfillmentPercentClamped: (100 * fulfillmentFrac).toFixed(1),
-          customerShipRowCount: customerShipRows.length,
-          demandFacilities: Array.from(demandFacilities),
-        });
       }
       // ----- COST TO SERVE + EXPEDITE RATIO (flow output, all flow types) -----
       if (urls.flow_output_file_url) {
@@ -1384,7 +1296,6 @@ console.log("📦 [KPI] Service truth JSON:", JSON.stringify(serviceTruth, null,
             allKpis.timeToRecovery = "N/A";
           }
         } catch (e) {
-          console.warn("⚠️ [KPI] timeToRecovery calc failed:", e);
           allKpis.timeToRecovery = "N/A";
         }
       }
@@ -1400,8 +1311,6 @@ console.log("📦 [KPI] Service truth JSON:", JSON.stringify(serviceTruth, null,
         }
         return 0;
       };
-
-console.log("KPI_DEBUG_DUMP", allKpis);
 
       const serviceTruth =
         allKpis?.serviceTruth ??
@@ -1518,14 +1427,6 @@ console.log("KPI_DEBUG_DUMP", allKpis);
         sumRevenueFromImpactRows(disruptionImpactRowsForRevenue) ||
         0;
 
-      console.log("[Revenue Debug] projectedImpactRowsForRevenue sample:", projectedImpactRowsForRevenue?.[0]);
-      console.log("[Revenue Debug] disruptionImpactRowsForRevenue sample:", disruptionImpactRowsForRevenue?.[0]);
-      console.log("[KPI Revenue] rowLevelRevenueExposure:", rowLevelRevenueExposure);
-
-
-
-
-
       const finalKpis = {
         ...allKpis,
         ...normalizedServiceKpis,
@@ -1569,7 +1470,6 @@ console.log("KPI_DEBUG_DUMP", allKpis);
 
         setScenarioImpactSummary(summary);
       } catch (e) {
-        console.warn("⚠️ Failed to build scenario impact summary:", e);
         setScenarioImpactSummary(null);
       }
 
@@ -1582,11 +1482,9 @@ console.log("KPI_DEBUG_DUMP", allKpis);
       kpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
 
       
-console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
       persistRunKpis(latestRunIdRef.current, finalKpis);
       setKpis(finalKpis);
     } catch (err) {
-      console.error("❌ [KPI] Failed KPI pipeline:", err);
     }
   };
 
@@ -1631,18 +1529,12 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
 
             if (hasScenario) {
               fd.append("scenario", JSON.stringify(activeScenario));
-              console.log("🧪 [App] Applying scenario to simulation:", activeScenario);
             } else {
-              console.log("🧪 [App] No scenario applied (baseline run)");
             }
           } catch (e) {
-            console.warn("⚠️ [App] Scenario attach failed, falling back to localStorage:", e);
             const scenarioRaw = localStorage.getItem("currentScenarioJSON");
             if (scenarioRaw) fd.append("scenario", scenarioRaw);
           }
-
-          console.log("🧾 [App] FormData keys:");
-          for (const [k] of fd.entries()) console.log("  -", k);
 
           return fd;
         })();
@@ -1692,11 +1584,6 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
           raw.locations_output_file_url || raw.locations_output || raw.locations_url || raw.locations,
       };
 
-      console.log("✅ [App] Simulation complete (normalized):", {
-        keys: Object.keys(normalizedUrls || {}),
-        normalizedUrls,
-      });
-
       // Update locationsUrl
       const locUrl =
         normalizedUrls.locations_output_file_url ||
@@ -1708,15 +1595,12 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
 
       if (locUrl) {
         const cacheBusted = `${locUrl}?v=${Date.now()}`;
-        console.log("🗺️ [App] Updating locationsUrl →", cacheBusted);
         setLocationsUrl(cacheBusted);
       } else {
-        console.warn("⚠️ No dynamic locations URL found in simulation output.");
       }
 
       // Commit urls to state
       setPostRunPhase("seeding");
-      console.log("🧪 [setOutputUrls normalizedUrls]", normalizedUrls);
       setOutputUrls(normalizedUrls);
 
       // Save run locally immediately (so history is never empty)
@@ -1746,7 +1630,6 @@ console.log("KPI_FINAL_UI_PAYLOAD_JSON", JSON.stringify(finalKpis, null, 2));
 try {
   localStorage.setItem("forc_latest_run", JSON.stringify(entry));
 } catch (e) {
-  console.warn("Failed to persist latest run", e);
 }
       // 🔥 Build report BEFORE inserting run
       const reportResult = await buildExecutiveReportAfterSim({
@@ -1821,10 +1704,8 @@ setSimulationHistory((prev) => {
         if (normalizedUrls?.inventory_output_file_url) {
           seededSkus = await extractAndSetSkuOptions(normalizedUrls.inventory_output_file_url);
         } else {
-          console.warn("⚠️ [PostRun] No inventory_output_file_url available to seed SKUs.");
         }
       } catch (e) {
-        console.warn("⚠️ [PostRun] SKU seed failed:", e);
       }
 
       setPostRunPhase("primed");
@@ -1840,7 +1721,6 @@ setSimulationHistory((prev) => {
       try {
         await parseSimulationPanels(normalizedUrls);
       } catch (e) {
-        console.warn("⚠️ parseSimulationPanels failed:", e);
       }
 
       // Prefer backend KPIs if present
@@ -1852,7 +1732,6 @@ setSimulationHistory((prev) => {
       }
 
       setSimulationStatus("done");
-      console.log("✅ [App] Simulation workflow finished successfully.");
       setTimeout(() => setSimulationStatus("idle"), 3000);
     } catch (error) {
       const status = error?.response?.status;
@@ -1867,13 +1746,6 @@ setSimulationHistory((prev) => {
         setSimulationStatus("idle");
         return;
       }
-
-      console.error("❌ [App] Simulation API call failed:", {
-        status,
-        data,
-        message: error?.message,
-        stack: error?.stack,
-      });
 
       alert(
         `Simulation failed (${status || "no status"}). ` +
@@ -1896,7 +1768,6 @@ setSimulationHistory((prev) => {
       const options = skus.map((sku) => ({ label: sku, value: sku }));
 
       if (options.length === 0) {
-        console.warn("⚠️ [SKU Seed] No SKUs found, forcing primed");
         setPostRunPhase("primed");
         return [];
       }
@@ -1912,7 +1783,6 @@ setSimulationHistory((prev) => {
       }
       return seeded;
     } catch (err) {
-      console.error("❌ Failed to extract SKUs:", err);
       setPostRunPhase("primed");
       return [];
     }
@@ -1922,36 +1792,24 @@ setSimulationHistory((prev) => {
   useEffect(() => {
     const urls = outputUrls;
 
-    console.log("🧪 [PostRun] outputUrls keys:", Object.keys(urls || {}));
-    console.log("🧪 [PostRun] sample urls:", {
-      inventory: urls?.inventory_output_file_url,
-      production: urls?.production_output_file_url,
-      flow: urls?.flow_output_file_url,
-      occurrence: urls?.occurrence_output_file_url,
-    });
-
     if (!urls) return;
 
     if (postRunPhase === "idle" && justPrimedRef.current) {
       justPrimedRef.current = false;
-      console.log("⏭️ [PostRun] Skipping immediate post-primed rerun");
       return;
     }
 
     if (postRunPhase === "seeding") {
-      console.log("⏳ [PostRun] Seeding SKUs — holding KPI/chart recompute...");
       return;
     }
 
     const effectiveSkus = getEffectiveSkus(selectedSku, skuOptions);
     const demoSkus = getDemoSkus(effectiveSkus);
     if (!demoSkus || demoSkus.length === 0) {
-      console.log("⏳ [PostRun] Waiting for SKU seed before KPI/chart recompute...");
       return;
     }
 
     if (postRunPhase === "primed") {
-      console.log("✅ [PostRun] Primed — running deterministic KPI+chart recompute once...");
 
       if (!backendKpisRef.current || !kpis || Object.keys(kpis).length === 0) {
         runAllKpiUpdates(urls, demoSkus);
@@ -1986,13 +1844,11 @@ setSimulationHistory((prev) => {
         await extractAndSetSkuOptions(urls[`${selectedOutputType}_output_file_url`]);
       }
     } catch (e) {
-      console.warn("⚠️ [ReloadRun] SKU seed failed:", e);
     }
 
     try {
       await parseSimulationPanels(urls);
     } catch (e) {
-      console.warn("⚠️ [ReloadRun] parseSimulationPanels failed:", e);
     }
 
     setPostRunPhase("primed");
@@ -2035,10 +1891,8 @@ setSimulationHistory((prev) => {
       if (isProPlusPlan(plan)) {
         fetchSimulationHistory();
       } else {
-        console.log("🔒 Skipping /api/simulations on Free plan (login). Using local history.");
       }
     } catch (e) {
-      console.error("❌ Failed to decode JWT on login:", e);
     }
   };
 

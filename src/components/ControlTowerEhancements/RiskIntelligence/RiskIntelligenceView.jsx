@@ -1,42 +1,53 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // RiskIntelligenceView.jsx
 // FOR-C v3 · Risk Intelligence — parent view
-// Assembles ForwardPressurePanel, RegimeIndexPanel, and TriggerQueue
-// into a tabbed layout wired into ControlTower's activeView routing.
+// Assembles ForwardPressurePanel, RegimeIndexPanel, TriggerQueue,
+// and CorridorRiskPanel into a tabbed layout.
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState, useEffect } from "react";
 import ForwardPressurePanel from "./ForwardPressurePanel";
 import RegimeIndexPanel     from "./RegimeIndexPanel";
 import TriggerQueue         from "./TriggerQueue";
+import CorridorRiskPanel    from "./CorridorRiskPanel";
 import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG } from "./riskScoreEngine";
 import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL } from "./signalSources";
 import CommoditySelector from "./CommoditySelector";
 import { COMMODITY_REGISTRY } from "./commodityRegistry";
+
 // ── Tab config ────────────────────────────────────────────────────────────────
 const TABS = [
   {
-    key:   "forward",
-    label: "Forward signals",
-    badge: "Predictive",
+    key:         "forward",
+    label:       "Forward signals",
+    badge:       "Predictive",
     badgeColor:  "#185FA5",
     badgeBg:     "#E6F1FB",
     badgeBorder: "#85B7EB",
     description: "Leading indicators · 3–18 months ahead of impact",
   },
   {
-    key:   "regime",
-    label: "Current conditions",
-    badge: "Confirmation",
+    key:         "regime",
+    label:       "Current conditions",
+    badge:       "Confirmation",
     badgeColor:  "#5F5E5A",
     badgeBg:     "#F1EFE8",
     badgeBorder: "#B4B2A9",
     description: "Market regime · Calibrates simulation baseline",
   },
   {
-    key:   "triggers",
-    label: "Scenario queue",
-    badge: null,
+    key:         "triggers",
+    label:       "Scenario queue",
+    badge:       null,
     description: "Converged signals awaiting human approval",
+  },
+  {
+    key:         "corridor",
+    label:       "Corridor Risk",
+    badge:       "AI",
+    badgeColor:  "#185FA5",
+    badgeBg:     "#E6F1FB",
+    badgeBorder: "#85B7EB",
+    description: "Geopolitical risk scoring for trade corridors into the US",
   },
 ];
 
@@ -49,20 +60,14 @@ function SummaryBar({ scoreResult, lastUpdated }) {
   const rBand = regime.band;
 
   return (
-    <div style={{
-      display:      "flex",
-      gap:          12,
-      flexWrap:     "wrap",
-      marginBottom: 20,
-    }}>
+    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
       {/* Forward score */}
       <div style={{
-        flex:         1,
-        minWidth:     160,
-        background:   "#ffffff",
-        border:       `1.5px solid ${fBand.border}`,
+        flex: 1, minWidth: 160,
+        background: "#ffffff",
+        border: `1.5px solid ${fBand.border}`,
         borderRadius: 10,
-        padding:      "12px 16px",
+        padding: "12px 16px",
       }}>
         <div style={{ fontSize: 10, color: "#888780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Forward pressure
@@ -70,27 +75,18 @@ function SummaryBar({ scoreResult, lastUpdated }) {
         <div style={{ fontSize: 28, fontWeight: 500, color: fBand.color, lineHeight: 1 }}>
           {forward.amplified.toFixed(2)}
         </div>
-        <span style={{
-          fontSize: 10,
-          padding: "2px 8px",
-          borderRadius: 20,
-          background: fBand.bg,
-          color: fBand.color,
-          display: "inline-block",
-          marginTop: 4,
-        }}>
+        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: fBand.bg, color: fBand.color, display: "inline-block", marginTop: 4 }}>
           {fBand.label}
         </span>
       </div>
 
       {/* Regime */}
       <div style={{
-        flex:         1,
-        minWidth:     160,
-        background:   "#ffffff",
-        border:       `0.5px solid ${rBand.border}`,
+        flex: 1, minWidth: 160,
+        background: "#ffffff",
+        border: `0.5px solid ${rBand.border}`,
         borderRadius: 10,
-        padding:      "12px 16px",
+        padding: "12px 16px",
       }}>
         <div style={{ fontSize: 10, color: "#888780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Market regime
@@ -105,22 +101,16 @@ function SummaryBar({ scoreResult, lastUpdated }) {
 
       {/* Trigger summary */}
       <div style={{
-        flex:         1,
-        minWidth:     160,
-        background:   summary.triggeredCount > 0 ? "#FCEBEB" : "#F1EFE8",
-        border:       `0.5px solid ${summary.triggeredCount > 0 ? "#E24B4A" : "#D3D1C7"}`,
+        flex: 1, minWidth: 160,
+        background: summary.triggeredCount > 0 ? "#FCEBEB" : "#F1EFE8",
+        border: `0.5px solid ${summary.triggeredCount > 0 ? "#E24B4A" : "#D3D1C7"}`,
         borderRadius: 10,
-        padding:      "12px 16px",
+        padding: "12px 16px",
       }}>
         <div style={{ fontSize: 10, color: "#888780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Scenario queue
         </div>
-        <div style={{
-          fontSize: 28,
-          fontWeight: 500,
-          color: summary.triggeredCount > 0 ? "#A32D2D" : "#3B6D11",
-          lineHeight: 1,
-        }}>
+        <div style={{ fontSize: 28, fontWeight: 500, color: summary.triggeredCount > 0 ? "#A32D2D" : "#3B6D11", lineHeight: 1 }}>
           {summary.triggeredCount}
         </div>
         <div style={{ fontSize: 11, color: "#888780", marginTop: 4 }}>
@@ -130,12 +120,11 @@ function SummaryBar({ scoreResult, lastUpdated }) {
 
       {/* Signal coverage */}
       <div style={{
-        flex:         1,
-        minWidth:     160,
-        background:   "#ffffff",
-        border:       "0.5px solid #D3D1C7",
+        flex: 1, minWidth: 160,
+        background: "#ffffff",
+        border: "0.5px solid #D3D1C7",
         borderRadius: 10,
-        padding:      "12px 16px",
+        padding: "12px 16px",
       }}>
         <div style={{ fontSize: 10, color: "#888780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Signal coverage
@@ -153,60 +142,40 @@ function SummaryBar({ scoreResult, lastUpdated }) {
 }
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
-function TabBar({ active, onChange, triggeredCount, watchCount }) {
+function TabBar({ active, onChange, triggeredCount }) {
   return (
-    <div style={{
-      display:      "flex",
-      gap:          2,
-      marginBottom: 20,
-      borderBottom: "0.5px solid #D3D1C7",
-    }}>
+    <div style={{ display: "flex", gap: 2, marginBottom: 20, borderBottom: "0.5px solid #D3D1C7" }}>
       {TABS.map((tab) => {
         const isActive = active === tab.key;
         const count = tab.key === "triggers" ? triggeredCount : null;
-
         return (
           <button
             key={tab.key}
             onClick={() => onChange(tab.key)}
             style={{
-              padding:        "10px 16px",
-              background:     "transparent",
-              border:         "none",
-              borderBottom:   isActive ? "2px solid #1D625B" : "2px solid transparent",
-              cursor:         "pointer",
-              display:        "flex",
-              alignItems:     "center",
-              gap:            6,
-              color:          isActive ? "#1D625B" : "#888780",
-              fontWeight:     isActive ? 500 : 400,
-              fontSize:       13,
-              transition:     "color 0.15s",
-              whiteSpace:     "nowrap",
+              padding: "10px 16px",
+              background: "transparent",
+              border: "none",
+              borderBottom: isActive ? "2px solid #1D625B" : "2px solid transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              color: isActive ? "#1D625B" : "#888780",
+              fontWeight: isActive ? 500 : 400,
+              fontSize: 13,
+              transition: "color 0.15s",
+              whiteSpace: "nowrap",
             }}
           >
             {tab.label}
             {count > 0 && (
-              <span style={{
-                fontSize:     10,
-                fontWeight:   500,
-                padding:      "1px 6px",
-                borderRadius: 20,
-                background:   "#FCEBEB",
-                color:        "#A32D2D",
-              }}>
+              <span style={{ fontSize: 10, fontWeight: 500, padding: "1px 6px", borderRadius: 20, background: "#FCEBEB", color: "#A32D2D" }}>
                 {count}
               </span>
             )}
             {tab.badge && (
-              <span style={{
-                fontSize:     10,
-                padding:      "1px 6px",
-                borderRadius: 20,
-                background:   tab.badgeBg,
-                color:        tab.badgeColor,
-                border:       `0.5px solid ${tab.badgeBorder}`,
-              }}>
+              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 20, background: tab.badgeBg, color: tab.badgeColor, border: `0.5px solid ${tab.badgeBorder}` }}>
                 {tab.badge}
               </span>
             )}
@@ -229,14 +198,15 @@ function LoadingState() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function RiskIntelligenceView({ switchView }) {
-  const [activeTab,      setActiveTab]      = useState("forward");
-  const [forwardSignals, setForwardSignals] = useState(null);
-  const [regimeSignals,  setRegimeSignals]  = useState(null);
-  const [scoreResult,    setScoreResult]    = useState(null);
-  const [loading,        setLoading]        = useState(true);
-  const [lastUpdated,    setLastUpdated]    = useState(null);
-  const [error,          setError]          = useState(null);
+  const [activeTab,         setActiveTab]         = useState("forward");
+  const [forwardSignals,    setForwardSignals]    = useState(null);
+  const [regimeSignals,     setRegimeSignals]     = useState(null);
+  const [scoreResult,       setScoreResult]       = useState(null);
+  const [loading,           setLoading]           = useState(true);
+  const [lastUpdated,       setLastUpdated]       = useState(null);
+  const [error,             setError]             = useState(null);
   const [selectedCommodity, setSelectedCommodity] = useState("semiconductors_mlcc");
+
   const detailData = selectedCommodity === "lithium_battery"
     ? MOCK_LITHIUM_SIGNAL_DETAIL
     : MOCK_SIGNAL_DETAIL;
@@ -253,24 +223,15 @@ export default function RiskIntelligenceView({ switchView }) {
         setForwardSignals(fwd.signals);
         setRegimeSignals(reg.signals);
 
-const forwardWeights = selectedCommodity === "lithium_battery"
-  ? LITHIUM_FORWARD_WEIGHTS
-  : FORWARD_WEIGHTS;
+        const forwardWeights = selectedCommodity === "lithium_battery" ? LITHIUM_FORWARD_WEIGHTS : FORWARD_WEIGHTS;
+        const regimeWeights  = selectedCommodity === "lithium_battery" ? LITHIUM_REGIME_WEIGHTS  : REGIME_WEIGHTS;
+        const triggerConfig  = selectedCommodity === "lithium_battery" ? LITHIUM_TRIGGER_CONFIG  : TRIGGER_CONFIG;
 
-const regimeWeights = selectedCommodity === "lithium_battery"
-  ? LITHIUM_REGIME_WEIGHTS
-  : REGIME_WEIGHTS;
-
-const triggerConfig = selectedCommodity === "lithium_battery"
-  ? LITHIUM_TRIGGER_CONFIG
-  : TRIGGER_CONFIG;
-
-const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights, regimeWeights, triggerConfig);
+        const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights, regimeWeights, triggerConfig);
         setScoreResult(profile);
         setLastUpdated(new Date());
         setError(null);
       } catch (e) {
-        console.error("[RiskIntelligence] Signal fetch failed:", e);
         setError("Signal fetch failed. Displaying last known state.");
       } finally {
         setLoading(false);
@@ -288,6 +249,8 @@ const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights,
       const scenarioPayload = { name: scenario, ...params, source: "risk_intelligence_trigger" };
       localStorage.setItem("currentScenario",     JSON.stringify(scenarioPayload));
       localStorage.setItem("currentScenarioName", scenario);
+      // Also set the format that SimulationDashboard reads
+      localStorage.setItem("currentScenarioJSON", JSON.stringify(scenarioPayload));
     } catch {}
     if (switchView) switchView("simulation");
   }
@@ -303,41 +266,49 @@ const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights,
           <h2 style={{ fontSize: 22, fontWeight: 500, color: "#1D625B", margin: 0 }}>
             Risk Intelligence
           </h2>
-          <CommoditySelector
-            selected={selectedCommodity}
-            onChange={setSelectedCommodity}
-          />
+          {/* Hide commodity selector on corridor tab — it has its own */}
+          {activeTab !== "corridor" && (
+            <CommoditySelector
+              selected={selectedCommodity}
+              onChange={setSelectedCommodity}
+            />
+          )}
         </div>
         <p style={{ fontSize: 13, color: "#888780", margin: 0, lineHeight: 1.6 }}>
-          Two-layer predictive risk model. Forward signals identify what's building upstream 3–18 months ahead. Current conditions confirm the regime your network is operating in today.
+          {activeTab === "corridor"
+            ? "AI-scored geopolitical risk for trade corridors into the United States. Select a country and commodity — score 7 risk variables and simulate the downstream impact in one click."
+            : "Two-layer predictive risk model. Forward signals identify what's building upstream 3–18 months ahead. Current conditions confirm the regime your network is operating in today."}
         </p>
-        {lastUpdated && (
+        {lastUpdated && activeTab !== "corridor" && (
           <div style={{ fontSize: 11, color: "#B4B2A9", marginTop: 6 }}>
             Last updated: {lastUpdated.toLocaleTimeString()} ·{" "}
             <span style={{ color: "#9FD63A" }}>Live</span>
           </div>
         )}
-        {error && (
+        {error && activeTab !== "corridor" && (
           <div style={{ fontSize: 11, color: "#854F0B", marginTop: 4 }}>{error}</div>
         )}
       </div>
 
-      {loading ? (
+      {/* Summary bar — hidden on corridor tab */}
+      {activeTab !== "corridor" && !loading && (
+        <SummaryBar scoreResult={scoreResult} lastUpdated={lastUpdated} />
+      )}
+
+      {/* Tab navigation */}
+      <TabBar
+        active={activeTab}
+        onChange={setActiveTab}
+        triggeredCount={triggeredCount}
+      />
+
+      {/* Tab content */}
+      {activeTab === "corridor" ? (
+        <CorridorRiskPanel onLaunchScenario={handleLaunchScenario} />
+      ) : loading ? (
         <LoadingState />
       ) : (
         <>
-          {/* Summary bar */}
-          <SummaryBar scoreResult={scoreResult} lastUpdated={lastUpdated} />
-
-          {/* Tab navigation */}
-          <TabBar
-            active={activeTab}
-            onChange={setActiveTab}
-            triggeredCount={triggeredCount}
-            watchCount={watchCount}
-          />
-
-          {/* Tab content */}
           {activeTab === "forward" && forwardSignals && (
             <ForwardPressurePanel
               forwardSignals={forwardSignals}
@@ -345,7 +316,6 @@ const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights,
               detailData={detailData}
             />
           )}
-
           {activeTab === "regime" && regimeSignals && (
             <RegimeIndexPanel
               regimeSignals={regimeSignals}
@@ -353,7 +323,6 @@ const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights,
               detailData={detailData}
             />
           )}
-
           {activeTab === "triggers" && scoreResult && (
             <TriggerQueue
               triggers={scoreResult.triggers}

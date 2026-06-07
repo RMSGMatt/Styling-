@@ -26,7 +26,6 @@ export function getApiBase() {
       rawEnv: rawEnv ? `${String(rawEnv).slice(0, 60)}…` : "",
       hasEnv: Boolean(envBase),
     };
-    console.log("[apiBase] fingerprint:", window.__API_BASE_FINGERPRINT__);
   }
 
   // 1) If env exists, always use it

@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-console.log(">>> Loaded ScenarioLibrary from [ControlTowerEnhancements]");
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { showToast } from "../Toasts";
