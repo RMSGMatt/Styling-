@@ -632,7 +632,7 @@ export default function App() {
   const fetchSimulationHistory = async () => {
     try {
       const res = await apiClient.get("/api/simulations");
-      const remote = Array.isArray(res.data) ? res.data : [];
+      const remote = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.simulations) ? res.data.simulations : [];
       const local = loadLocalRunsSafe();
 
       // merge (prefer remote)
@@ -648,6 +648,21 @@ export default function App() {
       ];
 
       setSimulationHistory(merged);
+      // Merge backend kpis_json fields into kpis state
+      try {
+        const latest = merged?.[0];
+        const backendKpis = latest?.kpis_json
+          ? (typeof latest.kpis_json === "string" ? JSON.parse(latest.kpis_json) : latest.kpis_json)
+          : null;
+        console.log("🔍 backendKpis:", backendKpis, "latest:", latest?.timestamp, "remote.length:", remote.length);
+        if (backendKpis) {
+          setKpis((prev) => ({
+            ...prev,
+            worstWeeklyServicePct: Number(backendKpis.worstWeeklyServicePct ?? 0),
+            falseConfidenceDays:   Number(backendKpis.falseConfidenceDays   ?? 0),
+          }));
+        }
+      } catch {}
     } catch (err) {
       const status = err?.response?.status;
       if (status === 401 || status === 403) {
@@ -1889,7 +1904,23 @@ setSimulationHistory((prev) => {
       setUserRole(decoded.role || "user");
 
       if (isProPlusPlan(plan)) {
-        fetchSimulationHistory();
+        fetchSimulationHistory().then(() => {
+          // After history loads, merge backend kpis_json into kpis state
+          // so worstWeeklyServicePct and falseConfidenceDays are available
+          try {
+            const latest = simulationHistory?.[0];
+            const backendKpis = latest?.kpis_json
+              ? (typeof latest.kpis_json === "string" ? JSON.parse(latest.kpis_json) : latest.kpis_json)
+              : null;
+            if (backendKpis) {
+              setKpis((prev) => ({
+                ...prev,
+                worstWeeklyServicePct: Number(backendKpis.worstWeeklyServicePct ?? prev?.worstWeeklyServicePct ?? 0),
+                falseConfidenceDays: Number(backendKpis.falseConfidenceDays ?? prev?.falseConfidenceDays ?? 0),
+              }));
+            }
+          } catch {}
+        });
       } else {
       }
     } catch (e) {
@@ -1912,6 +1943,8 @@ setSimulationHistory((prev) => {
             timeToRecoverDays: Number(kpis?.ttrDays ?? kpis?.timeToRecoverDays ?? 0),
             timeToSurviveDays: Number(kpis?.ttsDays ?? kpis?.timeToSurviveDays ?? 0),
             revenueExposure: Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 0),
+            worstWeeklyServicePct: Number(kpis?.worstWeeklyServicePct ?? (() => { try { const k = typeof simulationHistory?.[0]?.kpis_json === "string" ? JSON.parse(simulationHistory[0].kpis_json) : simulationHistory?.[0]?.kpis_json; return k?.worstWeeklyServicePct ?? 0; } catch { return 0; } })()),
+            falseConfidenceDays: Number(kpis?.falseConfidenceDays ?? (() => { try { const k = typeof simulationHistory?.[0]?.kpis_json === "string" ? JSON.parse(simulationHistory[0].kpis_json) : simulationHistory?.[0]?.kpis_json; return k?.falseConfidenceDays ?? 0; } catch { return 0; } })()),
           }}
           handleFileChange={handleFileChange}
           handleSubmit={handleSubmit}

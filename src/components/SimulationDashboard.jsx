@@ -922,6 +922,8 @@ export default function SimulationDashboard({
   const execLateUnits = Number(exec.demandAtRiskUnits || 0);
   const execPeakBacklog = Number(exec.unfulfilledDemandUnits || 0);
   const execMissedServiceDays = Number(exec.missedServiceDays || 0);
+  const execWorstWeeklyPct = Number(exec.worstWeeklyServicePct || 0);
+  const execFalseConfidenceDays = Number(exec.falseConfidenceDays || 0);
   const execTtrDays = Number(exec.timeToRecoverDays || 0);
   const execTtsDays = Number(exec.timeToSurviveDays || 0);
   const execRevenueExposure = Number(exec.revenueExposure || 0);
@@ -1221,6 +1223,8 @@ export default function SimulationDashboard({
     missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
     timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
     timeToSurviveDays: Number(kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? 0),
+    worstWeeklyServicePct: Number(kpis?.worstWeeklyServicePct ?? 0),
+    falseConfidenceDays: Number(kpis?.falseConfidenceDays ?? 0),
     revenueExposure: Number(kpis?.revenueExposure ?? 0),
     estimatedRevenueExposure: Number(kpis?.estimatedRevenueExposure ?? 0),
   };
@@ -1272,13 +1276,15 @@ export default function SimulationDashboard({
             <p className="text-sm leading-6 text-slate-200 mb-6">{aiNarrativeLoading ? "Generating executive narrative..." : aiNarrative || narrativeSummary}</p>
 
             {/* KPI cards */}
-            <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-6">
+            <div className="grid grid-cols-2 xl:grid-cols-7 gap-3 mb-6">
               {[
-                { label: "Service Level", value: `${execOnTimePct.toFixed(1)}%`, color: execOnTimePct < 80 ? "text-red-400" : execOnTimePct < 97 ? "text-yellow-400" : "text-green-400" },
-                { label: "Demand at Risk", value: execLateUnits.toLocaleString(), color: isHealthy ? "text-emerald-300" : "text-orange-300" },
-                { label: "Peak Backlog", value: execPeakBacklog.toLocaleString(), color: isHealthy ? "text-emerald-300" : "text-amber-300" },
-                { label: "Time to Recover", value: `${execTtrDays} days`, color: isHealthy ? "text-emerald-300" : "text-rose-300" },
-                { label: "Time to Survive", value: `${execTtsDays} days`, color: isHealthy ? "text-emerald-300" : "text-purple-300" },
+                { label: "Service Level",      value: `${Math.round(execOnTimePct)}%`,                                                                                              color: execOnTimePct < 80 ? "text-red-400" : execOnTimePct < 97 ? "text-yellow-400" : "text-green-400" },
+                { label: "Demand at Risk",      value: Math.round(execLateUnits).toLocaleString(),                                                                                  color: isHealthy ? "text-emerald-300" : "text-orange-300" },
+                { label: "Peak Backlog",        value: Math.round(execPeakBacklog).toLocaleString(),                                                                                color: isHealthy ? "text-emerald-300" : "text-amber-300" },
+                { label: "Time to Recover",     value: `${Math.round(execTtrDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-rose-300" },
+                { label: "Time to Survive",     value: `${Math.round(execTtsDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-purple-300" },
+                { label: "Worst Week",          value: execWorstWeeklyPct > 0 ? `${Math.round(execWorstWeeklyPct)}%` : "—",                                                         color: isHealthy ? "text-emerald-300" : execWorstWeeklyPct < 50 ? "text-red-400" : "text-orange-300" },
+                { label: "False Confidence",    value: execFalseConfidenceDays > 0 ? `${Math.round(execFalseConfidenceDays)}d` : "—",                                               color: isHealthy ? "text-emerald-300" : "text-orange-300" },
               ].map((kpi) => (
                 <div key={kpi.label} className={`rounded-xl border bg-black/20 p-3 ${isHealthy ? "border-emerald-900/40" : "border-slate-700/50"}`}>
                   <p className="text-[11px] uppercase tracking-wide text-slate-400">{kpi.label}</p>
