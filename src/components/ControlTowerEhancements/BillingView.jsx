@@ -387,7 +387,7 @@ export default function BillingView() {
 
           <PricingCard
             name="Pro"
-            price="$49"
+            price="$1,500"
             cta={
               currentPlan === "pro"
                 ? busyPortal
@@ -413,7 +413,7 @@ export default function BillingView() {
 
           <PricingCard
             name="Enterprise"
-            price="$199"
+            price="$5,000"
             cta={
               currentPlan === "enterprise"
                 ? busyPortal
