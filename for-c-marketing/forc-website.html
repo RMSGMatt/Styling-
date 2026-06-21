@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FOR-C — Decisions Under Pressure</title>
+  <meta name="description" content="Supply chain intelligence for automotive Tier 1 suppliers. Simulate any disruption against your real network in minutes." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --charcoal: #111B21; --charcoal-mid: #1A2B24; --charcoal-light: #162219;
+      --lime: #9FD63A; --mint: #2EC4A6; --white: #FFFFFF; --offwhite: #E8F2EC;
+      --midgrey: #7A9488; --lightgrey: #F2F4F7; --red: #F87171; --darkgreen: #0D1A14;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: var(--charcoal); color: var(--white); overflow-x: hidden; }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px; height: 64px;
+      background: rgba(17,27,33,0.94); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(159,214,58,0.12);
+    }
+    .nav-wordmark { font-family:'Montserrat',sans-serif; font-size:22px; font-weight:800; color:var(--lime); text-decoration:none; }
+    .nav-links { display:flex; align-items:center; gap:32px; }
+    .nav-links a { font-size:13px; font-weight:500; color:var(--midgrey); text-decoration:none; transition:color .2s; }
+    .nav-links a:hover { color:var(--white); }
+    .nav-cta { background:var(--lime) !important; color:var(--charcoal) !important; padding:8px 20px; border-radius:6px; font-weight:700 !important; }
+
+    /* HERO */
+    .hero {
+      min-height:100vh; display:flex; flex-direction:column; align-items:center;
+      justify-content:center; text-align:center; padding:120px 24px 80px;
+      background:radial-gradient(ellipse 80% 60% at 50% 0%, #1A2B24 0%, var(--charcoal) 70%);
+      position:relative;
+    }
+    .hero::before { content:''; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--lime); }
+    .hero-wordmark { font-family:'Montserrat',sans-serif; font-size:52px; font-weight:800; color:var(--lime); letter-spacing:-1px; margin-bottom:8px; }
+    .hero-tagline-small { font-size:13px; font-weight:600; letter-spacing:.2em; text-transform:uppercase; color:var(--mint); margin-bottom:40px; }
+    .hero h1 { font-family:'Montserrat',sans-serif; font-size:clamp(30px,5vw,52px); font-weight:800; line-height:1.1; color:var(--white); max-width:740px; }
+    .hero h1 span { color:var(--lime); }
+    .hero-sub { margin-top:24px; font-size:clamp(15px,2vw,18px); color:var(--offwhite); max-width:560px; line-height:1.65; }
+    .hero-actions { display:flex; gap:14px; margin-top:40px; flex-wrap:wrap; justify-content:center; }
+    .btn-primary { background:var(--lime); color:var(--charcoal); padding:14px 32px; border-radius:8px; font-family:'Montserrat',sans-serif; font-size:15px; font-weight:700; text-decoration:none; transition:opacity .2s; }
+    .btn-primary:hover { opacity:.88; }
+    .btn-outline { border:1.5px solid rgba(159,214,58,.4); color:var(--offwhite); padding:14px 32px; border-radius:8px; font-family:'Montserrat',sans-serif; font-size:15px; font-weight:600; text-decoration:none; transition:border-color .2s,color .2s; }
+    .btn-outline:hover { border-color:var(--lime); color:var(--lime); }
+    .hero-proof { margin-top:56px; display:flex; gap:40px; flex-wrap:wrap; justify-content:center; }
+    .proof-stat .val { font-family:'Montserrat',sans-serif; font-size:32px; font-weight:800; color:var(--lime); display:block; }
+    .proof-stat .lbl { font-size:11px; font-weight:500; color:var(--midgrey); text-transform:uppercase; letter-spacing:.08em; margin-top:4px; }
+    .proof-divider { width:1px; background:rgba(255,255,255,.1); }
+
+    /* SECTIONS */
+    section { padding:96px 24px; }
+    .container { max-width:1060px; margin:0 auto; }
+    .section-label { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--lime); margin-bottom:16px; }
+    .section-title { font-family:'Montserrat',sans-serif; font-size:clamp(26px,3.5vw,38px); font-weight:800; line-height:1.15; color:var(--white); max-width:640px; }
+    .section-sub { margin-top:16px; font-size:16px; line-height:1.6; color:var(--midgrey); max-width:560px; }
+
+    /* MANDATE */
+    .mandate-band { background:var(--darkgreen); border-top:1px solid rgba(46,196,166,.18); border-bottom:1px solid rgba(46,196,166,.18); padding:40px 24px; }
+    .mandate-inner { max-width:1060px; margin:0 auto; display:flex; align-items:center; gap:48px; flex-wrap:wrap; }
+    .mandate-label { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--mint); white-space:nowrap; }
+    .mandate-text { font-size:15px; line-height:1.6; color:var(--offwhite); flex:1; min-width:280px; }
+    .mandate-text strong { color:var(--white); }
+
+    /* PROPS */
+    .props-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; margin-top:48px; }
+    .prop-card { background:var(--charcoal-light); border:1px solid rgba(255,255,255,.07); border-radius:12px; padding:28px 24px; position:relative; overflow:hidden; transition:border-color .2s,transform .2s; }
+    .prop-card:hover { border-color:rgba(159,214,58,.3); transform:translateY(-2px); }
+    .prop-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:12px 12px 0 0; }
+    .prop-card.lime::before { background:var(--lime); }
+    .prop-card.mint::before { background:var(--mint); }
+    .prop-card.white::before { background:rgba(255,255,255,.4); }
+    .prop-card h3 { font-family:'Montserrat',sans-serif; font-size:18px; font-weight:700; margin-bottom:12px; }
+    .prop-card.lime h3 { color:var(--lime); }
+    .prop-card.mint h3 { color:var(--mint); }
+    .prop-card.white h3 { color:var(--white); }
+    .prop-card p { font-size:14px; line-height:1.65; color:var(--offwhite); }
+
+    /* USE CASES */
+    .usecases { background:var(--lightgrey); }
+    .uc-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; margin-top:48px; }
+    .uc-card { background:#fff; border-radius:10px; padding:24px 20px; border-top:4px solid var(--lime); box-shadow:0 2px 12px rgba(0,0,0,.06); transition:box-shadow .2s,transform .2s; }
+    .uc-card:hover { box-shadow:0 8px 32px rgba(0,0,0,.1); transform:translateY(-2px); }
+    .uc-card h3 { font-family:'Montserrat',sans-serif; font-size:16px; font-weight:700; color:var(--charcoal); margin-bottom:12px; }
+    .uc-card p { font-size:13.5px; line-height:1.6; color:#445544; }
+
+    /* ROI */
+    .roi-section { background:var(--lightgrey); padding-top:0; }
+    .roi-banner { background:var(--charcoal); border-radius:10px; padding:22px 32px; text-align:center; margin-bottom:20px; }
+    .roi-banner .big { font-family:'Montserrat',sans-serif; font-size:18px; font-weight:800; color:var(--lime); }
+    .roi-banner .sub { font-size:13px; color:var(--midgrey); margin-top:6px; }
+    .contrast-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+    .contrast-card { border-radius:10px; padding:22px 20px; }
+    .contrast-card.without { background:#FEF2F2; border-top:5px solid var(--red); }
+    .contrast-card.with    { background:#F0FDF4; border-top:5px solid var(--lime); }
+    .contrast-card h4 { font-family:'Montserrat',sans-serif; font-size:14px; font-weight:700; margin-bottom:14px; }
+    .contrast-card.without h4 { color:#991B1B; }
+    .contrast-card.with    h4 { color:#14532D; }
+    .contrast-card ul { list-style:none; display:flex; flex-direction:column; gap:10px; }
+    .contrast-card li { font-size:13.5px; line-height:1.4; display:flex; align-items:flex-start; gap:8px; }
+    .contrast-card.without li { color:#7F1D1D; }
+    .contrast-card.with    li { color:#14532D; }
+    .contrast-card li::before { content:''; display:block; width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+    .contrast-card.without li::before { background:var(--red); }
+    .contrast-card.with    li::before { background:#16A34A; }
+    .contrast-closer { background:#E8F5EE; border:1px solid #B0D8C0; border-radius:8px; padding:18px 24px; text-align:center; font-family:'Montserrat',sans-serif; font-size:14px; font-weight:700; color:#1A4A2A; font-style:italic; }
+
+    /* QUOTE */
+    .quote-band { background:var(--darkgreen); border-top:1px solid rgba(159,214,58,.1); border-bottom:1px solid rgba(159,214,58,.1); padding:56px 24px; text-align:center; }
+    .quote-text { font-family:'Montserrat',sans-serif; font-size:clamp(18px,2.5vw,26px); font-weight:700; font-style:italic; color:var(--lime); max-width:720px; margin:0 auto; line-height:1.4; }
+    .quote-source { margin-top:14px; font-size:13px; color:var(--midgrey); }
+
+    /* HOW */
+    .how-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px; margin-top:48px; }
+    .how-card { background:var(--charcoal-light); border:1px solid rgba(255,255,255,.06); border-radius:10px; padding:24px 20px; }
+    .how-num { font-family:'Montserrat',sans-serif; font-size:28px; font-weight:800; color:rgba(159,214,58,.25); margin-bottom:12px; }
+    .how-card h3 { font-family:'Montserrat',sans-serif; font-size:15px; font-weight:700; color:var(--white); margin-bottom:8px; }
+    .how-card p { font-size:13.5px; line-height:1.6; color:var(--midgrey); }
+
+    /* PILOT + CONTACT */
+    .pilot-section { background:var(--lightgrey); }
+    .pilot-box { background:var(--charcoal); border-radius:14px; border:1.5px solid rgba(159,214,58,.3); padding:48px 40px; max-width:760px; margin:0 auto; }
+    .pilot-box h2 { font-family:'Montserrat',sans-serif; font-size:26px; font-weight:800; color:var(--lime); margin-bottom:14px; }
+    .pilot-box > p { font-size:15px; line-height:1.65; color:var(--offwhite); margin-bottom:20px; }
+    .pilot-tags { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:32px; }
+    .pilot-tag { font-size:12px; font-weight:700; color:var(--mint); background:rgba(46,196,166,.1); border:1px solid rgba(46,196,166,.25); padding:5px 12px; border-radius:20px; }
+    .contact-form { display:flex; flex-direction:column; gap:14px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-group { display:flex; flex-direction:column; gap:6px; }
+    .form-group label { font-size:12px; font-weight:600; color:var(--midgrey); text-transform:uppercase; letter-spacing:.06em; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:7px; padding:11px 14px; font-family:'Inter',sans-serif; font-size:14px; color:var(--white); outline:none; transition:border-color .2s; width:100%; }
+    .form-group input::placeholder, .form-group textarea::placeholder { color:rgba(255,255,255,.25); }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color:var(--lime); }
+    .form-group select option { background:var(--charcoal); color:var(--white); }
+    .form-group textarea { resize:vertical; min-height:90px; }
+    .form-submit { background:var(--lime); color:var(--charcoal); padding:14px 32px; border-radius:8px; border:none; cursor:pointer; font-family:'Montserrat',sans-serif; font-size:15px; font-weight:700; transition:opacity .2s; align-self:flex-start; }
+    .form-submit:hover { opacity:.88; }
+    .form-note { font-size:12px; color:var(--midgrey); }
+    .form-success { display:none; background:rgba(159,214,58,.1); border:1px solid rgba(159,214,58,.3); border-radius:8px; padding:16px 20px; color:var(--lime); font-size:14px; font-weight:600; }
+
+    /* FOOTER */
+    footer { background:var(--darkgreen); border-top:1px solid rgba(159,214,58,.1); padding:40px 24px; }
+    .footer-inner { max-width:1060px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; }
+    .footer-brand { font-family:'Montserrat',sans-serif; font-size:20px; font-weight:800; color:var(--lime); }
+    .footer-sub { font-size:12px; color:var(--midgrey); margin-top:2px; }
+    .footer-links { display:flex; gap:24px; flex-wrap:wrap; }
+    .footer-links a { font-size:12px; color:var(--midgrey); text-decoration:none; transition:color .2s; }
+    .footer-links a:hover { color:var(--white); }
+    .footer-copy { font-size:11px; color:rgba(122,148,136,.45); }
+
+    /* RESPONSIVE */
+    @media (max-width:640px) {
+      nav { padding:0 20px; }
+      .nav-links { display:none; }
+      .contrast-grid { grid-template-columns:1fr; }
+      .form-row { grid-template-columns:1fr; }
+      .proof-divider { display:none; }
+      .pilot-box { padding:28px 20px; }
+    }
+
+    /* REVEAL */
+    .reveal { opacity:0; transform:translateY(22px); transition:opacity .55s ease,transform .55s ease; }
+    .reveal.visible { opacity:1; transform:none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-wordmark" href="#">FOR-C</a>
+  <div class="nav-links">
+    <a href="#mandate">The Mandate</a>
+    <a href="#usecases">Use Cases</a>
+    <a href="#roi">Why FOR-C</a>
+    <a href="#how">How It Works</a>
+    <a href="#contact" class="nav-cta">Request a Demo</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-wordmark">FOR-C</div>
+  <div class="hero-tagline-small">Decisions Under Pressure</div>
+  <h1>Your supply chain<br>has a blind spot.<br><span>FOR-C removes it.</span></h1>
+  <p class="hero-sub">Supply chain intelligence for automotive Tier 1 suppliers — built by practitioners, for the people who get the call when the line stops.</p>
+  <div class="hero-actions">
+    <a href="#contact" class="btn-primary">Request a Demo</a>
+    <a href="#how" class="btn-outline">See How It Works</a>
+  </div>
+  <div class="hero-proof">
+    <div class="proof-stat">
+      <span class="val">105d</span>
+      <span class="lbl">False Confidence Window</span>
+    </div>
+    <div class="proof-divider"></div>
+    <div class="proof-stat">
+      <span class="val">42%</span>
+      <span class="lbl">Worst Week Service Floor</span>
+    </div>
+    <div class="proof-divider"></div>
+    <div class="proof-stat">
+      <span class="val">&lt;10min</span>
+      <span class="lbl">Time to First Simulation</span>
+    </div>
+    <div class="proof-divider"></div>
+    <div class="proof-stat">
+      <span class="val">Tier N</span>
+      <span class="lbl">Full Network Visibility</span>
+    </div>
+  </div>
+</section>
+
+<!-- MANDATE BAND -->
+<div class="mandate-band" id="mandate">
+  <div class="mandate-inner">
+    <div class="mandate-label">OEM Tier N Mandate</div>
+    <p class="mandate-text">Ford, GM, Stellantis, and Toyota NA are requiring Tier 1 suppliers to map and demonstrate visibility into their Tier 2 and Tier 3 supply base. The question coming next is not <strong>"can you show us the map?"</strong> — it's <strong>"what happens to our production line if any node on that map fails?"</strong> FOR-C answers that question.</p>
+  </div>
+</div>
+
+<!-- VALUE PROPS -->
+<section>
+  <div class="container">
+    <div class="section-label">What FOR-C Delivers</div>
+    <h2 class="section-title">Built for decisions.<br>Not just visibility.</h2>
+    <p class="section-sub">Most tools tell you a risk exists. FOR-C tells you what it does to your production line — and what to do about it.</p>
+    <div class="props-grid">
+      <div class="prop-card lime reveal">
+        <h3>See it coming.</h3>
+        <p>Model any disruption against your real network before it happens. Taiwan blockade. Japan earthquake. Sole-source failure. Know the impact in minutes, not weeks.</p>
+      </div>
+      <div class="prop-card mint reveal">
+        <h3>Show your OEM customers.</h3>
+        <p>Ford, GM, and Toyota are requiring Tier N supply chain visibility. FOR-C gives you simulation data — not assumptions — to back up your contingency plan.</p>
+      </div>
+      <div class="prop-card white reveal">
+        <h3>Make the call with confidence.</h3>
+        <p>When leadership asks "what happens if X fails" you have an answer. KPI scorecard, blast radius, countermeasures, and a board-ready PDF in one click.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- USE CASES -->
+<section class="usecases" id="usecases">
+  <div class="container">
+    <div class="section-label" style="color:#1A4A2A;">Scenarios</div>
+    <h2 class="section-title" style="color:var(--charcoal);">Run the scenario<br>before it runs you.</h2>
+    <p class="section-sub" style="color:#445544;">Any disruption. Any network. Any duration. FOR-C simulates the downstream impact so you can act before the line stops.</p>
+    <div class="uc-grid">
+      <div class="uc-card reveal">
+        <h3>Taiwan / Japan Geopolitical Risk</h3>
+        <p>Model semiconductor fab shutdowns across your ECU and sensor supply base. Know your survival buffer and worst-case service floor before your OEM audit.</p>
+      </div>
+      <div class="uc-card reveal">
+        <h3>Sole-Source Supplier Failure</h3>
+        <p>One supplier goes bankrupt or loses certification. FOR-C shows you the cascade — which plants go down, in what order, and how long you have to act.</p>
+      </div>
+      <div class="uc-card reveal">
+        <h3>OEM Compliance Preparation</h3>
+        <p>Generate simulation-backed contingency documentation for Ford Q1, GM BIQS, and Toyota NAPCP supplier assessments in hours, not weeks.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROI + CONTRAST -->
+<section class="roi-section" id="roi">
+  <div class="container">
+    <div class="section-label" style="color:#1A4A2A;">The Business Case</div>
+    <h2 class="section-title reveal" style="color:var(--charcoal);">The teams using FOR-C<br>don't just manage risk —<br><span style="color:#1A6B3A;">they lead with it.</span></h2>
+    <div style="margin-top:36px;">
+      <div class="roi-banner reveal">
+        <div class="big">A single automotive line-stop event costs $50,000–$500,000 per hour.</div>
+        <div class="sub">One avoided disruption pays for years of FOR-C. The ROI conversation is short.</div>
+      </div>
+      <div class="contrast-grid reveal">
+        <div class="contrast-card without">
+          <h4>Without FOR-C</h4>
+          <ul>
+            <li>Disruptions surface weeks after they start</li>
+            <li>Contingency plans built in spreadsheets</li>
+            <li>OEM audits answered with assumptions</li>
+            <li>Line-stop risk invisible until it's too late</li>
+            <li>Recovery measured in months</li>
+          </ul>
+        </div>
+        <div class="contrast-card with">
+          <h4>With FOR-C</h4>
+          <ul>
+            <li>Impact modeled before it reaches your line</li>
+            <li>Simulation-backed data, OEM-ready in minutes</li>
+            <li>Contingency plan with KPI evidence attached</li>
+            <li>False confidence window visible — act early</li>
+            <li>Recovery pre-planned before the event</li>
+          </ul>
+        </div>
+      </div>
+      <div class="contrast-closer reveal">While competitors run manual reviews, your team runs a scenario in 10 minutes and walks into the OEM meeting with data.</div>
+    </div>
+  </div>
+</section>
+
+<!-- QUOTE BAND -->
+<div class="quote-band">
+  <p class="quote-text reveal">"105 days of a green dashboard — then the line misses at 42% service in a single week."</p>
+  <p class="quote-source reveal">Live simulation — 11-facility automotive electronics network, 90-day Taiwan disruption scenario</p>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="container">
+    <div class="section-label">Process</div>
+    <h2 class="section-title">From data to decision<br>in under 10 minutes.</h2>
+    <div class="how-grid">
+      <div class="how-card reveal">
+        <div class="how-num">01</div>
+        <h3>Upload your network</h3>
+        <p>Locations, lanes, BOM, processes, demand — your actual supply chain data. CSV upload, no integration required.</p>
+      </div>
+      <div class="how-card reveal">
+        <div class="how-num">02</div>
+        <h3>Define the disruption</h3>
+        <p>Any facility, any severity, any duration. Taiwan blockade, Japan earthquake, supplier bankruptcy — you set the scenario.</p>
+      </div>
+      <div class="how-card reveal">
+        <div class="how-num">03</div>
+        <h3>Run the simulation</h3>
+        <p>MRP-driven engine models every node, every day, every SKU across your full Tier N network. Results in minutes.</p>
+      </div>
+      <div class="how-card reveal">
+        <div class="how-num">04</div>
+        <h3>Act on the output</h3>
+        <p>7-metric KPI scorecard, cascade blast radius, countermeasure rankings, and one-click executive PDF ready for your OEM.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PILOT + CONTACT -->
+<section class="pilot-section" id="pilot">
+  <div class="container">
+    <div class="pilot-box" id="contact">
+      <h2>Pilot Program — Now Accepting Applications</h2>
+      <p>We're working with a select group of Tier 1 automotive suppliers on scoped pilot engagements built around your actual network and supply base. You walk away with simulation results for your highest-priority disruption scenario, a full KPI scorecard, and OEM-ready contingency documentation.</p>
+      <div class="pilot-tags">
+        <span class="pilot-tag">Custom-scoped</span>
+        <span class="pilot-tag">Results in days</span>
+        <span class="pilot-tag">No long-term commitment</span>
+        <span class="pilot-tag">OEM-ready deliverables</span>
+      </div>
+      <form class="contact-form" id="contactForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name</label>
+            <input type="text" name="firstName" placeholder="First name" required />
+          </div>
+          <div class="form-group">
+            <label>Last Name</label>
+            <input type="text" name="lastName" placeholder="Last name" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Work Email</label>
+            <input type="email" name="email" placeholder="you@company.com" required />
+          </div>
+          <div class="form-group">
+            <label>Company</label>
+            <input type="text" name="company" placeholder="Your company" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Role</label>
+            <select name="role">
+              <option value="">Select your role</option>
+              <option>VP / Director, Supply Chain</option>
+              <option>VP / Director, Procurement</option>
+              <option>VP / Director, Operations</option>
+              <option>Senior Manager / Manager</option>
+              <option>Supply Chain Analyst</option>
+              <option>Procurement Engineer</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Primary Scenario</label>
+            <select name="scenario">
+              <option value="">Select a scenario</option>
+              <option>Taiwan / Japan geopolitical risk</option>
+              <option>Sole-source supplier exposure</option>
+              <option>OEM Tier N compliance</option>
+              <option>General supply chain resilience</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Anything else? (optional)</label>
+          <textarea name="message" placeholder="Tell us about your network, current challenges, or what you'd like to simulate..."></textarea>
+        </div>
+        <button type="submit" class="form-submit">Request a Demo →</button>
+        <p class="form-note">We'll respond within one business day. No pitch deck — just a live simulation on a network that looks like yours.</p>
+        <div class="form-success" id="formSuccess">✓ Thanks — we'll be in touch within one business day.</div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand">FOR-C</div>
+      <div class="footer-sub">Decisions Under Pressure</div>
+    </div>
+    <div class="footer-links">
+      <a href="mailto:matt.loy@for-c.com">matt.loy@for-c.com</a>
+      <a href="#contact">Request a Demo</a>
+      <a href="#how">How It Works</a>
+      <a href="#mandate">OEM Mandate</a>
+    </div>
+    <p class="footer-copy">© 2026 FOR-C. All rights reserved.</p>
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+  // Contact form
+  document.getElementById('contactForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('.form-submit');
+    const orig = btn.textContent;
+    btn.textContent = 'Sending…'; btn.disabled = true;
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd.entries());
+    try {
+      // Replace YOUR_FORM_ID with Formspree endpoint after setup at formspree.io
+      const res = await fetch('https://formspree.io/f/YOUR_FORM_ID', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      // Mailto fallback
+      const sub = encodeURIComponent(`FOR-C Demo Request — ${data.company || ''}`);
+      const body = encodeURIComponent(`Name: ${data.firstName} ${data.lastName}\nEmail: ${data.email}\nCompany: ${data.company}\nRole: ${data.role}\nScenario: ${data.scenario}\n\n${data.message || ''}`);
+      window.open(`mailto:matt.loy@for-c.com?subject=${sub}&body=${body}`);
+    }
+    e.target.style.display = 'none';
+    document.getElementById('formSuccess').style.display = 'block';
+  });
+</script>
+</body>
+</html>

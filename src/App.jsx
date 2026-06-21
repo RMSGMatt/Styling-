@@ -654,7 +654,6 @@ export default function App() {
         const backendKpis = latest?.kpis_json
           ? (typeof latest.kpis_json === "string" ? JSON.parse(latest.kpis_json) : latest.kpis_json)
           : null;
-        console.log("🔍 backendKpis:", backendKpis, "latest:", latest?.timestamp, "remote.length:", remote.length);
         if (backendKpis) {
           setKpis((prev) => ({
             ...prev,

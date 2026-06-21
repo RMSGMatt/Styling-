@@ -1353,7 +1353,7 @@ export default function SimulationDashboard({
                           scenario: runName || "Supply Chain Disruption Scenario",
                           networkName: "Nexty Electronics Network",
                           aiNarrative: aiNarrative || narrativeSummary,
-                          kpis: { serviceLevelPct: execOnTimePct, peakBacklogUnits: execPeakBacklog, timeToRecoverDays: execTtrDays, timeToSurviveDays: execTtsDays, demandAtRiskUnits: execLateUnits, revenueExposure: execRevenueExposure },
+                          kpis: { serviceLevelPct: execOnTimePct, peakBacklogUnits: execPeakBacklog, timeToRecoverDays: execTtrDays, timeToSurviveDays: execTtsDays, demandAtRiskUnits: execLateUnits, revenueExposure: execRevenueExposure, worstWeeklyServicePct: execWorstWeeklyPct, falseConfidenceDays: execFalseConfidenceDays },
                           suggestedScenarios,
                           disruptionSignals: {
                             facilitiesImpacted: Array.isArray(disruptionImpactData) ? new Set(disruptionImpactData.map(r => r.facility || r.Facility).filter(Boolean)).size : 0,
