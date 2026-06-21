@@ -9,6 +9,7 @@ import ForwardPressurePanel from "./ForwardPressurePanel";
 import RegimeIndexPanel     from "./RegimeIndexPanel";
 import TriggerQueue         from "./TriggerQueue";
 import CorridorRiskPanel    from "./CorridorRiskPanel";
+import BestPlaceToBuyPanel  from "./BestPlaceToBuyPanel";
 import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG } from "./riskScoreEngine";
 import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL } from "./signalSources";
 import CommoditySelector from "./CommoditySelector";
@@ -48,6 +49,15 @@ const TABS = [
     badgeBg:     "#E6F1FB",
     badgeBorder: "#85B7EB",
     description: "Geopolitical risk scoring for trade corridors into the US",
+  },
+  {
+    key:         "bestplace",
+    label:       "Best Place to Buy",
+    badge:       "AI",
+    badgeColor:  "#185FA5",
+    badgeBg:     "#E6F1FB",
+    badgeBorder: "#85B7EB",
+    description: "Ranked sourcing recommendation — risk-scored, availability-gated",
   },
 ];
 
@@ -267,7 +277,7 @@ export default function RiskIntelligenceView({ switchView }) {
             Risk Intelligence
           </h2>
           {/* Hide commodity selector on corridor tab — it has its own */}
-          {activeTab !== "corridor" && (
+          {activeTab !== "corridor" && activeTab !== "bestplace" && (
             <CommoditySelector
               selected={selectedCommodity}
               onChange={setSelectedCommodity}
@@ -277,21 +287,23 @@ export default function RiskIntelligenceView({ switchView }) {
         <p style={{ fontSize: 13, color: "#888780", margin: 0, lineHeight: 1.6 }}>
           {activeTab === "corridor"
             ? "AI-scored geopolitical risk for trade corridors into the United States. Select a country and commodity — score 7 risk variables and simulate the downstream impact in one click."
+            : activeTab === "bestplace"
+            ? "Ranks every country that actually produces the selected commodity by corridor risk, lowest first. Countries with no production presence are excluded — not just scored low."
             : "Two-layer predictive risk model. Forward signals identify what's building upstream 3–18 months ahead. Current conditions confirm the regime your network is operating in today."}
         </p>
-        {lastUpdated && activeTab !== "corridor" && (
+        {lastUpdated && activeTab !== "corridor" && activeTab !== "bestplace" && (
           <div style={{ fontSize: 11, color: "#B4B2A9", marginTop: 6 }}>
             Last updated: {lastUpdated.toLocaleTimeString()} ·{" "}
             <span style={{ color: "#9FD63A" }}>Live</span>
           </div>
         )}
-        {error && activeTab !== "corridor" && (
+        {error && activeTab !== "corridor" && activeTab !== "bestplace" && (
           <div style={{ fontSize: 11, color: "#854F0B", marginTop: 4 }}>{error}</div>
         )}
       </div>
 
       {/* Summary bar — hidden on corridor tab */}
-      {activeTab !== "corridor" && !loading && (
+      {activeTab !== "corridor" && activeTab !== "bestplace" && !loading && (
         <SummaryBar scoreResult={scoreResult} lastUpdated={lastUpdated} />
       )}
 
@@ -305,6 +317,8 @@ export default function RiskIntelligenceView({ switchView }) {
       {/* Tab content */}
       {activeTab === "corridor" ? (
         <CorridorRiskPanel onLaunchScenario={handleLaunchScenario} />
+      ) : activeTab === "bestplace" ? (
+        <BestPlaceToBuyPanel onLaunchScenario={handleLaunchScenario} />
       ) : loading ? (
         <LoadingState />
       ) : (
