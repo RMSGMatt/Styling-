@@ -127,6 +127,10 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
     return data.result;
   }, []);
 
+  // Run scoring with bounded concurrency so we don't serialize N sequential
+  // LLM-backed API calls, but also don't fire 20+ requests simultaneously.
+  const CONCURRENCY = 4;
+
   const runAnalysis = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -134,30 +138,41 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
     setHasRun(true);
     setProgress({ done: 0, total: viableOrigins.length });
 
-    const scored = [];
-    for (const origin of viableOrigins) {
-      try {
-        const result = await scoreOrigin(origin, selectedCommodity);
-        const compositeScore = Math.round(
-          Object.entries(result.scores).reduce(
-            (acc, [key, val]) => acc + val * (selectedCommodity.weights[key] || 0),
-            0
-          )
-        );
-        scored.push({ origin, result, compositeScore });
-      } catch (e) {
-        scored.push({ origin, result: null, compositeScore: null, error: e.message });
+    const scored = new Array(viableOrigins.length);
+    let cursor = 0;
+    let doneCount = 0;
+
+    async function worker() {
+      while (cursor < viableOrigins.length) {
+        const i = cursor++;
+        const origin = viableOrigins[i];
+        try {
+          const result = await scoreOrigin(origin, selectedCommodity);
+          const compositeScore = Math.round(
+            Object.entries(result.scores).reduce(
+              (acc, [key, val]) => acc + val * (selectedCommodity.weights[key] || 0),
+              0
+            )
+          );
+          scored[i] = { origin, result, compositeScore };
+        } catch (e) {
+          scored[i] = { origin, result: null, compositeScore: null, error: e.message };
+        }
+        doneCount++;
+        setProgress((p) => ({ ...p, done: doneCount }));
       }
-      setProgress((p) => ({ ...p, done: p.done + 1 }));
     }
 
-    scored.sort((a, b) => {
+    const workers = Array.from({ length: Math.min(CONCURRENCY, viableOrigins.length) }, worker);
+    await Promise.all(workers);
+
+    const ranked = scored.filter(Boolean).sort((a, b) => {
       if (a.compositeScore === null) return 1;
       if (b.compositeScore === null) return -1;
       return a.compositeScore - b.compositeScore;
     });
 
-    setResults(scored);
+    setResults(ranked);
     setLoading(false);
   }, [viableOrigins, selectedCommodity, scoreOrigin]);
 
