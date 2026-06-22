@@ -243,11 +243,27 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
         <div style={{
           display: "flex", gap: 10, alignItems: "flex-start",
           background: "#F6F8FF", border: "0.5px solid #DBEAFE", borderRadius: 8,
-          padding: "12px 16px", marginBottom: 16,
+          padding: "12px 16px", marginBottom: 10,
         }}>
           <span style={{ fontSize: 14, flexShrink: 0 }}>ℹ️</span>
           <div style={{ fontSize: 12, color: "#1D4ED8", lineHeight: 1.6 }}>
             {availabilityNote}
+          </div>
+        </div>
+
+        {/* Data provenance disclaimer — production tiers are reference data,
+            not licensed trade statistics. Flagging this clearly avoids a
+            customer mistaking this for audit-grade sourcing data. */}
+        <div style={{
+          display: "flex", gap: 10, alignItems: "flex-start",
+          background: "#FFFBEB", border: "0.5px solid #FDE68A", borderRadius: 8,
+          padding: "10px 16px", marginBottom: 16,
+        }}>
+          <span style={{ fontSize: 13, flexShrink: 0 }}>⚠️</span>
+          <div style={{ fontSize: 11, color: "#92400E", lineHeight: 1.5 }}>
+            Production tiers shown here are based on industry-standard reference data,
+            not licensed trade statistics. Verify against your actual qualified supplier
+            base before using this for sourcing or compliance decisions.
           </div>
         </div>
 
