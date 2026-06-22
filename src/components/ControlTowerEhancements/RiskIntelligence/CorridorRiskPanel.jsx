@@ -389,22 +389,44 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                 </div>
 
                 {/* Composite score */}
-                <div style={{
-                  background: "#FAFAF8",
-                  border: `0.5px solid ${riskColor(compositeScore)}40`,
-                  borderTop: `3px solid ${riskColor(compositeScore)}`,
-                  borderRadius: 10,
-                  padding: "14px 20px",
-                  textAlign: "center",
-                  minWidth: 130,
-                }}>
-                  <div style={{ fontSize: 44, fontWeight: 600, color: riskColor(compositeScore), lineHeight: 1 }}>
-                    {compositeScore}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch" }}>
+                  <div style={{
+                    background: "#FAFAF8",
+                    border: `0.5px solid ${riskColor(compositeScore)}40`,
+                    borderTop: `3px solid ${riskColor(compositeScore)}`,
+                    borderRadius: 10,
+                    padding: "14px 20px",
+                    textAlign: "center",
+                    minWidth: 130,
+                  }}>
+                    <div style={{ fontSize: 44, fontWeight: 600, color: riskColor(compositeScore), lineHeight: 1 }}>
+                      {compositeScore}
+                    </div>
+                    <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: riskColor(compositeScore), marginTop: 4 }}>
+                      {riskLabel(compositeScore)} RISK
+                    </div>
+                    <div style={{ fontSize: 9, color: "#B4B2A9", marginTop: 4 }}>Composite / 100</div>
                   </div>
-                  <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: riskColor(compositeScore), marginTop: 4 }}>
-                    {riskLabel(compositeScore)} RISK
-                  </div>
-                  <div style={{ fontSize: 9, color: "#B4B2A9", marginTop: 4 }}>Composite / 100</div>
+
+                  {result.state_dept_advisory && (
+                    <div style={{
+                      background: "#FAFAF8",
+                      border: `0.5px solid ${result.state_dept_advisory.color}40`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      textAlign: "center",
+                    }}>
+                      <div style={{ fontSize: 8, color: "#888780", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                        State Dept Advisory
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: result.state_dept_advisory.color, marginTop: 2 }}>
+                        Level {result.state_dept_advisory.level}
+                      </div>
+                      <div style={{ fontSize: 8, color: "#B4B2A9" }}>
+                        {result.state_dept_advisory.label}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
