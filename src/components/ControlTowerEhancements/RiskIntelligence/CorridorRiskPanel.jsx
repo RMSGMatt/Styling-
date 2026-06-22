@@ -417,6 +417,42 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                 padding: "14px 18px",
                 marginBottom: 20,
               }}>
+                {result.uflpa?.flagged && (
+                  <div style={{
+                    background: result.uflpa.matched_entity ? "#FEF2F2" : "#FFFBEB",
+                    border: `1.5px solid ${result.uflpa.matched_entity ? "#FCA5A5" : "#FDE68A"}`,
+                    borderRadius: 8,
+                    padding: "14px 18px",
+                    marginBottom: 16,
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-start",
+                  }}>
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>
+                      {result.uflpa.matched_entity ? "🚫" : "⚠️"}
+                    </span>
+                    <div>
+                      <div style={{
+                        fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase",
+                        fontWeight: 700,
+                        color: result.uflpa.matched_entity ? "#991B1B" : "#92400E",
+                        marginBottom: 4,
+                      }}>
+                        {result.uflpa.matched_entity ? "UFLPA Entity List Match" : "UFLPA Advisory"}
+                      </div>
+                      <div style={{
+                        fontSize: 12, lineHeight: 1.6,
+                        color: result.uflpa.matched_entity ? "#7F1D1D" : "#78350F",
+                      }}>
+                        {result.uflpa.reason}
+                      </div>
+                      <div style={{ fontSize: 9, color: "#B4B2A9", marginTop: 6 }}>
+                        Source: DHS UFLPA Entity List via OpenSanctions.org — refreshed every 24 hours.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ fontSize: 9, color: "#888780", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
                   Executive Summary
                 </div>
