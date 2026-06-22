@@ -10,6 +10,7 @@ import RegimeIndexPanel     from "./RegimeIndexPanel";
 import TriggerQueue         from "./TriggerQueue";
 import CorridorRiskPanel    from "./CorridorRiskPanel";
 import BestPlaceToBuyPanel  from "./BestPlaceToBuyPanel";
+import CountryWatchListPanel from "./CountryWatchListPanel";
 import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG } from "./riskScoreEngine";
 import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL } from "./signalSources";
 import CommoditySelector from "./CommoditySelector";
@@ -58,6 +59,15 @@ const TABS = [
     badgeBg:     "#E6F1FB",
     badgeBorder: "#85B7EB",
     description: "Ranked sourcing recommendation — risk-scored, availability-gated",
+  },
+  {
+    key:         "watchlist",
+    label:       "Country Watch List",
+    badge:       "AI",
+    badgeColor:  "#185FA5",
+    badgeBg:     "#E6F1FB",
+    badgeBorder: "#85B7EB",
+    description: "Commodity-agnostic country risk ranking",
   },
 ];
 
@@ -276,8 +286,8 @@ export default function RiskIntelligenceView({ switchView }) {
           <h2 style={{ fontSize: 22, fontWeight: 500, color: "#1D625B", margin: 0 }}>
             Risk Intelligence
           </h2>
-          {/* Hide commodity selector on corridor tab — it has its own */}
-          {activeTab !== "corridor" && activeTab !== "bestplace" && (
+          {/* Commodity selector — hidden on corridor, bestplace, and watchlist tabs */}
+          {activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && (
             <CommoditySelector
               selected={selectedCommodity}
               onChange={setSelectedCommodity}
@@ -289,15 +299,17 @@ export default function RiskIntelligenceView({ switchView }) {
             ? "AI-scored geopolitical risk for trade corridors into the United States. Select a country and commodity — score 7 risk variables and simulate the downstream impact in one click."
             : activeTab === "bestplace"
             ? "Ranks every country that actually produces the selected commodity by corridor risk, lowest first. Countries with no production presence are excluded — not just scored low."
+            : activeTab === "watchlist"
+            ? "A standing, commodity-agnostic risk ranking of every tracked country — geopolitical, political, disaster, and chokepoint exposure only."
             : "Two-layer predictive risk model. Forward signals identify what's building upstream 3–18 months ahead. Current conditions confirm the regime your network is operating in today."}
         </p>
-        {lastUpdated && activeTab !== "corridor" && activeTab !== "bestplace" && (
+        {lastUpdated && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && (
           <div style={{ fontSize: 11, color: "#B4B2A9", marginTop: 6 }}>
             Last updated: {lastUpdated.toLocaleTimeString()} ·{" "}
             <span style={{ color: "#9FD63A" }}>Live</span>
           </div>
         )}
-        {error && activeTab !== "corridor" && activeTab !== "bestplace" && (
+        {error && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && (
           <div style={{ fontSize: 11, color: "#854F0B", marginTop: 4 }}>{error}</div>
         )}
       </div>
@@ -319,6 +331,8 @@ export default function RiskIntelligenceView({ switchView }) {
         <CorridorRiskPanel onLaunchScenario={handleLaunchScenario} />
       ) : activeTab === "bestplace" ? (
         <BestPlaceToBuyPanel onLaunchScenario={handleLaunchScenario} />
+      ) : activeTab === "watchlist" ? (
+        <CountryWatchListPanel onSelectCountry={(origin) => { setActiveTab("corridor"); }} />
       ) : loading ? (
         <LoadingState />
       ) : (
