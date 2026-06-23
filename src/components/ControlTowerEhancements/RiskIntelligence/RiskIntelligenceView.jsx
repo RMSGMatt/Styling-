@@ -11,6 +11,7 @@ import TriggerQueue         from "./TriggerQueue";
 import CorridorRiskPanel    from "./CorridorRiskPanel";
 import BestPlaceToBuyPanel  from "./BestPlaceToBuyPanel";
 import CountryWatchListPanel from "./CountryWatchListPanel";
+import SupplierScreeningPanel from "./SupplierScreeningPanel";
 import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG } from "./riskScoreEngine";
 import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL } from "./signalSources";
 import CommoditySelector from "./CommoditySelector";
@@ -68,6 +69,15 @@ const TABS = [
     badgeBg:     "#E6F1FB",
     badgeBorder: "#85B7EB",
     description: "Commodity-agnostic country risk ranking",
+  },
+  {
+    key:         "supplierlist",
+    label:       "Supplier Screening",
+    badge:       "AI",
+    badgeColor:  "#185FA5",
+    badgeBg:     "#E6F1FB",
+    badgeBorder: "#85B7EB",
+    description: "Upload and screen your actual supplier list",
   },
 ];
 
@@ -333,6 +343,8 @@ export default function RiskIntelligenceView({ switchView }) {
         <BestPlaceToBuyPanel onLaunchScenario={handleLaunchScenario} />
       ) : activeTab === "watchlist" ? (
         <CountryWatchListPanel onSelectCountry={(origin) => { setActiveTab("corridor"); }} />
+      ) : activeTab === "supplierlist" ? (
+        <SupplierScreeningPanel />
       ) : loading ? (
         <LoadingState />
       ) : (
