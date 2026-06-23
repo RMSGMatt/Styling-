@@ -297,7 +297,7 @@ export default function RiskIntelligenceView({ switchView }) {
             Risk Intelligence
           </h2>
           {/* Commodity selector — hidden on corridor, bestplace, and watchlist tabs */}
-          {activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && (
+          {activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
             <CommoditySelector
               selected={selectedCommodity}
               onChange={setSelectedCommodity}
@@ -313,19 +313,19 @@ export default function RiskIntelligenceView({ switchView }) {
             ? "A standing, commodity-agnostic risk ranking of every tracked country — geopolitical, political, disaster, and chokepoint exposure only."
             : "Two-layer predictive risk model. Forward signals identify what's building upstream 3–18 months ahead. Current conditions confirm the regime your network is operating in today."}
         </p>
-        {lastUpdated && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && (
+        {lastUpdated && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
           <div style={{ fontSize: 11, color: "#B4B2A9", marginTop: 6 }}>
             Last updated: {lastUpdated.toLocaleTimeString()} ·{" "}
             <span style={{ color: "#9FD63A" }}>Live</span>
           </div>
         )}
-        {error && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && (
+        {error && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
           <div style={{ fontSize: 11, color: "#854F0B", marginTop: 4 }}>{error}</div>
         )}
       </div>
 
       {/* Summary bar — hidden on corridor tab */}
-      {activeTab !== "corridor" && activeTab !== "bestplace" && !loading && (
+      {activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && !loading && (
         <SummaryBar scoreResult={scoreResult} lastUpdated={lastUpdated} />
       )}
 
