@@ -629,6 +629,27 @@ export default function App() {
   };
 
   // Remote history (Pro+) — merge with local
+  // The /api/simulations endpoint returns flat field names (flow_url,
+  // disruption_impact_url, countermeasures_url, etc.). Everywhere else in
+  // the app — the download links in SimulationDashboard.jsx and
+  // onReloadRun below — expects a nested outputUrls.{name}_output_file_url
+  // shape instead. Without this translation, every download link/button
+  // sourced from remote history silently renders href={undefined}.
+  const normalizeRemoteRunUrls = (r) => ({
+    ...r,
+    outputUrls: {
+      flow_output_file_url: r.flow_url ?? r.outputUrls?.flow_output_file_url,
+      inventory_output_file_url: r.inventory_url ?? r.outputUrls?.inventory_output_file_url,
+      production_output_file_url: r.production_url ?? r.outputUrls?.production_output_file_url,
+      occurrence_output_file_url: r.occurrence_url ?? r.outputUrls?.occurrence_output_file_url,
+      disruption_impact_output_file_url: r.disruption_impact_url ?? r.outputUrls?.disruption_impact_output_file_url,
+      projected_impact_output_file_url: r.projected_impact_url ?? r.outputUrls?.projected_impact_output_file_url,
+      runout_risk_output_file_url: r.runout_risk_url ?? r.outputUrls?.runout_risk_output_file_url,
+      countermeasures_output_file_url: r.countermeasures_url ?? r.outputUrls?.countermeasures_output_file_url,
+      locations_output_file_url: r.locations_url ?? r.outputUrls?.locations_output_file_url,
+    },
+  });
+
   const fetchSimulationHistory = async () => {
     try {
       const res = await apiClient.get("/api/simulations");
@@ -638,7 +659,7 @@ export default function App() {
       // merge (prefer remote)
       const merged = [
 
-        ...remote.map((r) => ({ ...r, _source: "remote" })),
+        ...remote.map((r) => ({ ...normalizeRemoteRunUrls(r), _source: "remote" })),
         ...local
           .filter((lr) => {
             const lid = lr?.id || lr?.run_id;
@@ -1498,6 +1519,18 @@ export default function App() {
       
       persistRunKpis(latestRunIdRef.current, finalKpis);
       setKpis(finalKpis);
+
+      // worstWeeklyServicePct and falseConfidenceDays are only ever sourced
+      // from simulationHistory[0]'s persisted kpis_json (see executiveKpis
+      // construction below) — they are never recomputed in the client-side
+      // allKpis/finalKpis pipeline above. Without this refresh, those two
+      // cards stay frozen on whatever run was newest at page load, even
+      // after running fresh simulations in the same session.
+      if (isProPlusPlan(userPlan)) {
+        try {
+          await fetchSimulationHistory();
+        } catch {}
+      }
     } catch (err) {
     }
   };

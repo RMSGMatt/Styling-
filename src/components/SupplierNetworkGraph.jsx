@@ -10,6 +10,57 @@ const RISK_COLOR = {
 
 const NODE_RADIUS = 28;
 
+// Roll a raw runout-risk time series up to ONE classification per
+// (facility, sku) for the whole analysis window — must match the same
+// logic used in SimulationDashboard.jsx (Severity Mix / High-Risk SKUs) and
+// CascadeView.jsx, or the Network Graph's node colors will disagree with
+// the dashboard cards.
+//
+// Requires HIGH_RISK_MIN_DAYS distinct High-risk days before classifying as
+// High. A single isolated shortfall day (normal demand/lead-time noise,
+// happens even in a clean baseline run) downgrades to Medium instead of
+// branding that SKU "High" for the whole run.
+const HIGH_RISK_MIN_DAYS = 2;
+
+function classifyFacilitySkuRisk(rows) {
+  const groups = new Map();
+  for (const r of (rows || [])) {
+    const facility = (r.facility || r.Facility || "").toString().trim();
+    const sku = (r.sku || r.SKU || "").toString().trim();
+    if (!facility) continue;
+    const key = `${facility}__${sku}`;
+    const level = (r.risk_level || r.riskLevel || "low").toString().toLowerCase().trim();
+    let g = groups.get(key);
+    if (!g) { g = { facility, sku, highDays: 0, mediumDays: 0 }; groups.set(key, g); }
+    if (level === "high") g.highDays += 1;
+    else if (level === "medium" || level === "med") g.mediumDays += 1;
+  }
+  const out = [];
+  for (const g of groups.values()) {
+    let level;
+    if (g.highDays >= HIGH_RISK_MIN_DAYS) level = "high";
+    else if (g.highDays >= 1 || g.mediumDays >= 1) level = "medium";
+    else level = "low";
+    out.push({ facility: g.facility, sku: g.sku, risk_level: level });
+  }
+  return out;
+}
+
+function snapshotFacilityRisk(runoutRiskData) {
+  const skuLevel = classifyFacilitySkuRisk(runoutRiskData);
+  const map = {};
+  for (const row of skuLevel) {
+    const facility = row.facility;
+    const risk = row.risk_level;
+    const current = map[facility] || "low";
+    if (risk === "high" || (risk === "medium" && current === "low")) {
+      map[facility] = risk;
+    }
+  }
+  return map;
+}
+
+
 // ── Build force graph data from lanes + runout risk ───────────────────
 function buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsData, lanesData) {
   if (!bomData?.length) return { nodes: [], links: [] };
@@ -22,17 +73,7 @@ function buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsDat
     if (facility && sku) skuToFacility[String(sku).trim()] = String(facility).trim();
   }
 
-  const facilityRisk = {};
-  for (const row of (runoutRiskData || [])) {
-    const facility = String(row.facility || row.Facility || "").trim();
-    const risk = String(row.risk_level || row.riskLevel || "low").toLowerCase();
-    if (facility) {
-      const current = facilityRisk[facility] || "low";
-      if (risk === "high" || (risk === "medium" && current === "low")) {
-        facilityRisk[facility] = risk;
-      }
-    }
-  }
+  const facilityRisk = snapshotFacilityRisk(runoutRiskData);
 
   const edgeMap = new Map();
   const facilitySet = new Set();
@@ -99,18 +140,7 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
     return new Set(scenarios.map(s => String(s.facility || "").trim()).filter(Boolean));
   }, [scenarioData]);
 
-  const facilityRisk = useMemo(() => {
-    const map = {};
-    for (const row of (runoutRiskData || [])) {
-      const facility = String(row.facility || row.Facility || "").trim();
-      const risk = String(row.risk_level || row.riskLevel || "low").toLowerCase();
-      if (facility) {
-        const current = map[facility] || "low";
-        if (risk === "high" || (risk === "medium" && current === "low")) map[facility] = risk;
-      }
-    }
-    return map;
-  }, [runoutRiskData]);
+  const facilityRisk = useMemo(() => snapshotFacilityRisk(runoutRiskData), [runoutRiskData]);
 
   const { pos, edges } = useMemo(() => {
     if (!lanesData?.length) return { pos: {}, edges: [] };

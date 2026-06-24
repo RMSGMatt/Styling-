@@ -5,6 +5,55 @@ import { Line } from "react-chartjs-2";
 import Select from "react-select";
 import Papa from "papaparse";
 import DecisionNarrativePanel from "./DecisionNarrativePanel";
+
+// Roll a raw runout-risk time series up to ONE classification per
+// (facility, sku) for the whole analysis window. This must be the single
+// source of truth used by Severity Mix, High-Risk SKUs, the Network Graph,
+// Cascade View, and the Actions tab — they must never disagree.
+//
+// Why not "any High day ever" and not "the day with lowest days_until_runout":
+//   - "lowest days_until_runout" silently discards real shortfall days that
+//     don't happen to coincide with the lowest-runout day — makes real
+//     disruptions look safer than they are.
+//   - "any High day ever" treats one isolated, immediately-recovered
+//     shortfall (normal demand/lead-time noise, happens even in a clean
+//     baseline run) the same as 40+ sustained High days in a real
+//     disruption — both get branded "High" forever.
+// Instead: require a minimum number of distinct High-risk days before
+// calling it High. A lone blip downgrades to Medium (still visible, not
+// hidden) instead of either disappearing or dominating the dashboard.
+const HIGH_RISK_MIN_DAYS = 2;
+
+function classifyFacilitySkuRisk(rows) {
+  const groups = new Map();
+  for (const r of (rows || [])) {
+    const facility = (r.facility || r.Facility || "").toString().trim();
+    const sku = (r.sku || r.SKU || "").toString().trim();
+    if (!facility) continue;
+    const key = `${facility}__${sku}`;
+    const level = (r.risk_level || r.RiskLevel || "low").toString().toLowerCase().trim();
+    const days = Number(r.days_until_runout ?? 9999);
+    let g = groups.get(key);
+    if (!g) {
+      g = { facility, sku, highDays: 0, mediumDays: 0, lowDays: 0, minDays: days, sampleRow: r };
+      groups.set(key, g);
+    }
+    if (level === "high") g.highDays += 1;
+    else if (level === "medium" || level === "med") g.mediumDays += 1;
+    else g.lowDays += 1;
+    if (days < g.minDays) { g.minDays = days; g.sampleRow = r; }
+  }
+
+  const out = [];
+  for (const g of groups.values()) {
+    let finalLevel;
+    if (g.highDays >= HIGH_RISK_MIN_DAYS) finalLevel = "high";
+    else if (g.highDays >= 1 || g.mediumDays >= 1) finalLevel = "medium";
+    else finalLevel = "low";
+    out.push({ ...g.sampleRow, facility: g.facility, sku: g.sku, risk_level: finalLevel, days_until_runout: g.minDays });
+  }
+  return out;
+}
 import {
   Chart as ChartJS,
   LineElement,
@@ -445,18 +494,14 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
     return Number(exec?.demandAtRiskUnits ?? 0) * 100;
   })();
 
-  const highRiskSkus = [...new Set(runoutRows.filter((r) => (r.risk_level || r.RiskLevel || "").toString().toLowerCase().includes("high")).map((r) => (r.sku || r.SKU || "Unknown SKU").toString().trim()))];
+  const uniqueRunoutRows = classifyFacilitySkuRisk(runoutRows)
+    .sort((a, b) => Number(a.days_until_runout ?? 9999) - Number(b.days_until_runout ?? 9999));
 
-  const uniqueRunoutRows = Array.from(
-    runoutRows.reduce((map, r) => {
-      const key = `${r.sku || r.SKU}__${r.facility || r.Facility}`;
-      const existing = map.get(key);
-      const days = Number(r.days_until_runout ?? 9999);
-      const existingDays = existing ? Number(existing.days_until_runout ?? 9999) : 9999;
-      if (!existing || days < existingDays) map.set(key, r);
-      return map;
-    }, new Map()).values()
-  ).sort((a, b) => Number(a.days_until_runout ?? 9999) - Number(b.days_until_runout ?? 9999));
+  const highRiskSkus = [...new Set(
+    uniqueRunoutRows
+      .filter((r) => (r.risk_level || r.RiskLevel || "").toString().toLowerCase().trim() === "high")
+      .map((r) => (r.sku || r.SKU || "Unknown SKU").toString().trim())
+  )];
 
   const riskDistribution = uniqueRunoutRows.reduce((acc, row) => {
     const level = (row.risk_level || row.riskLevel || "").toString().toLowerCase().trim();
@@ -481,9 +526,24 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
         <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400">Service Degradation</p>
           <p className="text-3xl font-bold tracking-tight">
-            <span className={!hasNarrativeRun ? "text-slate-400" : execOnTimePct >= 97 ? "text-emerald-400" : execOnTimePct < 80 ? "text-red-400" : "text-yellow-400"}>
-              {!hasNarrativeRun ? <span className="opacity-40">—</span> : execOnTimePct >= 97 ? "None" : `-${(100 - execOnTimePct).toFixed(1)}pp`}
-            </span>
+            {(() => {
+              const isDegraded = execOnTimePct < 97;
+              const hasEarlyRisk = riskDistribution.high > 0 || riskDistribution.medium > 0;
+              if (!hasNarrativeRun) {
+                return <span className="text-slate-400"><span className="opacity-40">—</span></span>;
+              }
+              if (isDegraded) {
+                return (
+                  <span className={execOnTimePct < 80 ? "text-red-400" : "text-yellow-400"}>
+                    {`-${(100 - execOnTimePct).toFixed(1)}pp`}
+                  </span>
+                );
+              }
+              if (hasEarlyRisk) {
+                return <span className="text-amber-400">Early Risk</span>;
+              }
+              return <span className="text-emerald-400">None</span>;
+            })()}
           </p>
         </div>
         <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
@@ -535,16 +595,8 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
   const exec = executiveKpis || {};
   const execOnTimePct = Number(exec.serviceLevelPct || 0);
 
-  const uniqueRunoutRows = Array.from(
-    runoutRows.reduce((map, r) => {
-      const key = `${r.sku || r.SKU}__${r.facility || r.Facility}`;
-      const existing = map.get(key);
-      const days = Number(r.days_until_runout ?? 9999);
-      const existingDays = existing ? Number(existing.days_until_runout ?? 9999) : 9999;
-      if (!existing || days < existingDays) map.set(key, r);
-      return map;
-    }, new Map()).values()
-  ).sort((a, b) => Number(a.days_until_runout ?? 9999) - Number(b.days_until_runout ?? 9999));
+  const uniqueRunoutRows = classifyFacilitySkuRisk(runoutRows)
+    .sort((a, b) => Number(a.days_until_runout ?? 9999) - Number(b.days_until_runout ?? 9999));
 
   const uniqueRunoutRiskSkus = [...new Set(runoutRows.map((r) => (r.sku || r.SKU || "").toString().trim()).filter(Boolean))];
 
@@ -1284,7 +1336,7 @@ export default function SimulationDashboard({
                 { label: "Time to Recover",     value: `${Math.round(execTtrDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-rose-300" },
                 { label: "Time to Survive",     value: `${Math.round(execTtsDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-purple-300" },
                 { label: "Worst Week",          value: execWorstWeeklyPct > 0 ? `${Math.round(execWorstWeeklyPct)}%` : "—",                                                         color: isHealthy ? "text-emerald-300" : execWorstWeeklyPct < 50 ? "text-red-400" : "text-orange-300" },
-                { label: "False Confidence",    value: execFalseConfidenceDays > 0 ? `${Math.round(execFalseConfidenceDays)}d` : "—",                                               color: isHealthy ? "text-emerald-300" : "text-orange-300" },
+                { label: "False Confidence",    value: (execFalseConfidenceDays > 0 && execWorstWeeklyPct < 99.5) ? `${Math.round(execFalseConfidenceDays)}d` : "—",                    color: isHealthy ? "text-emerald-300" : "text-orange-300" },
               ].map((kpi) => (
                 <div key={kpi.label} className={`rounded-xl border bg-black/20 p-3 ${isHealthy ? "border-emerald-900/40" : "border-slate-700/50"}`}>
                   <p className="text-[11px] uppercase tracking-wide text-slate-400">{kpi.label}</p>
@@ -1358,7 +1410,7 @@ export default function SimulationDashboard({
                           disruptionSignals: {
                             facilitiesImpacted: Array.isArray(disruptionImpactData) ? new Set(disruptionImpactData.map(r => r.facility || r.Facility).filter(Boolean)).size : 0,
                             highRiskSkuCount: Array.isArray(runoutRiskData) ? new Set(runoutRiskData.filter(r => (r.risk_level || "").toLowerCase().includes("high")).map(r => r.sku || r.SKU)).size : 0,
-                            highRiskSkus: Array.isArray(runoutRiskData) ? [...new Set(runoutRiskData.filter(r => (r.risk_level || "").toLowerCase().includes("high")).map(r => r.sku || r.SKU))].slice(0, 5) : [],
+                            highRiskSkus: Array.isArray(runoutRiskData) ? [...new Set(classifyFacilitySkuRisk(runoutRiskData).filter(r => r.risk_level === "high").map(r => r.sku))].slice(0, 5) : [],
                             occurrenceCount: Array.isArray(disruptionImpactData) ? disruptionImpactData.length : 0,
                             revenueExposure: execRevenueExposure,
                             severityMix: Array.isArray(runoutRiskData) ? runoutRiskData.reduce((acc, r) => { const l = (r.risk_level || "").toLowerCase(); if (l.includes("high")) acc.high = (acc.high || 0) + 1; else if (l.includes("med")) acc.medium = (acc.medium || 0) + 1; else if (l.includes("low")) acc.low = (acc.low || 0) + 1; return acc; }, {}) : {},
