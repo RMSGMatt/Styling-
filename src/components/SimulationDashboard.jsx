@@ -596,9 +596,23 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
   const execOnTimePct = Number(exec.serviceLevelPct || 0);
 
   const uniqueRunoutRows = classifyFacilitySkuRisk(runoutRows)
-    .sort((a, b) => Number(a.days_until_runout ?? 9999) - Number(b.days_until_runout ?? 9999));
+    .sort((a, b) => {
+      const rank = { high: 3, medium: 2, med: 2, low: 1 };
+      const aRank = rank[(a.risk_level || "").toLowerCase().trim()] ?? 0;
+      const bRank = rank[(b.risk_level || "").toLowerCase().trim()] ?? 0;
+      if (bRank !== aRank) return bRank - aRank;
+      return Number(a.days_until_runout ?? 9999) - Number(b.days_until_runout ?? 9999);
+    });
 
-  const uniqueRunoutRiskSkus = [...new Set(runoutRows.map((r) => (r.sku || r.SKU || "").toString().trim()).filter(Boolean))];
+  const uniqueRunoutRiskSkus = [...new Set(
+    uniqueRunoutRows
+      .filter((r) => {
+        const level = (r.risk_level || r.RiskLevel || "").toString().toLowerCase().trim();
+        return level === "high" || level === "medium" || level === "med";
+      })
+      .map((r) => (r.sku || r.SKU || "").toString().trim())
+      .filter(Boolean)
+  )];
 
   const candidateActions = [];
   const seenActionKeys = new Set();
@@ -1270,7 +1284,7 @@ export default function SimulationDashboard({
 
   const executiveKpisForPanels = {
     serviceLevelPct: Number(kpis?.serviceLevelPct ?? kpis?.onTimeFulfillment ?? 0),
-    demandAtRiskUnits: Number(kpis?.peakBacklogUnits ?? kpis?.lateFulfilledUnits ?? kpis?.unitsAtRisk ?? 0),
+    demandAtRiskUnits: Number(kpis?.demandAtRiskUnits ?? kpis?.occurrenceUnfulfilledUnits ?? kpis?.unitsAtRisk ?? kpis?.peakBacklogUnits ?? 0),
     unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0),
     missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
     timeToRecoverDays: Number(kpis?.timeToRecoverDays ?? kpis?.ttrDays ?? 0),
@@ -1279,6 +1293,14 @@ export default function SimulationDashboard({
     falseConfidenceDays: Number(kpis?.falseConfidenceDays ?? 0),
     revenueExposure: Number(kpis?.revenueExposure ?? 0),
     estimatedRevenueExposure: Number(kpis?.estimatedRevenueExposure ?? 0),
+    // Run context — dates/duration, not performance numbers. Lets False
+    // Confidence ("105 days") be read alongside real calendar dates
+    // instead of as an abstract duration.
+    simulationStartDate: kpis?.simulationStartDate ?? null,
+    simulationEndDate: kpis?.simulationEndDate ?? null,
+    horizonWeeks: kpis?.horizonWeeks ?? null,
+    disruptionStartDate: kpis?.disruptionStartDate ?? null,
+    firstServiceImpactDate: kpis?.firstServiceImpactDate ?? null,
   };
 
   // ── Tab content renderers ──────────────────────────────────────────
@@ -1343,6 +1365,26 @@ export default function SimulationDashboard({
                   <p className={`text-2xl font-bold tracking-tight ${kpi.color}`}>{kpi.value}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Run Context — pairs abstract durations (TTR, TTS, False
+                Confidence) with real calendar dates from this specific run */}
+            <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-3 mb-6">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-2">Run Context</p>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
+                {[
+                  { label: "Simulation Start", value: kpis?.simulationStartDate ?? "—" },
+                  { label: "Horizon", value: kpis?.horizonWeeks ? `${kpis.horizonWeeks}w` : "—" },
+                  { label: "Disruption Start", value: kpis?.disruptionStartDate ?? "—" },
+                  { label: "First Service Impact", value: kpis?.firstServiceImpactDate ?? "—" },
+                  { label: "Simulation End", value: kpis?.simulationEndDate ?? "—" },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <p className="text-[10px] text-slate-500">{item.label}</p>
+                    <p className="text-xs font-medium text-slate-300">{item.value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Safety Stock summary card → navigates to Actions tab */}
@@ -1581,18 +1623,47 @@ export default function SimulationDashboard({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
             {[
               { label: "Service Level", value: typeof kpis?.onTimeFulfillment === 'number' ? `${kpis.onTimeFulfillment.toFixed(1)}%` : '-', color: "text-green-400" },
-              { label: "Demand at Risk", value: kpis?.peakBacklogUnits ?? kpis?.unitsAtRisk ?? '-', color: "text-yellow-400" },
+              { label: "Demand at Risk", value: formatNumber(kpis?.demandAtRiskUnits ?? kpis?.occurrenceUnfulfilledUnits ?? kpis?.unitsAtRisk ?? kpis?.peakBacklogUnits ?? 0, { zeroIsDash: true }), color: "text-yellow-400" },
               { label: "Revenue Exposure", value: formatCurrencyCompact(kpis?.revenueExposure ?? 0), color: "text-red-400" },
-              { label: "Peak Backlog", value: kpis?.peakBacklog ?? '-', color: "text-orange-400" },
+              { label: "Peak Backlog", value: formatNumber(kpis?.peakBacklog ?? 0, { zeroIsDash: true }), color: "text-orange-400" },
               { label: "TTR", value: `${kpis?.timeToRecoverDays ?? '-'}d`, color: "text-blue-400" },
               { label: "TTS", value: `${kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? '-'}d`, color: "text-purple-400" },
-              { label: "Status", value: scenarioData?.name ? "Scenario Active" : "Baseline", color: "text-slate-300" },
+              { label: "Status", value: (() => {
+                  const curOnTime = Number(kpis?.onTimeFulfillment ?? 100);
+                  const curBacklogVal = Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0);
+                  // A scenario name alone doesn't mean impact actually occurred,
+                  // and a missing name doesn't mean nothing happened — judge by
+                  // the run's own numbers first, falling back to scenarioData
+                  // only when the KPIs themselves show no degradation.
+                  if (curOnTime < 99.5 || curBacklogVal > 0) return "Under Stress";
+                  return scenarioData?.name ? "Scenario Active" : "Baseline";
+                })(), color: "text-slate-300" },
             ].map((item) => (
               <div key={item.label} className="bg-slate-800/70 border border-slate-700 rounded-lg p-3 text-center">
                 <p className="text-xs text-slate-400">{item.label}</p>
                 <p className={`text-sm font-semibold ${item.color}`}>{item.value}</p>
               </div>
             ))}
+          </div>
+
+          {/* Run Context — pairs abstract durations (TTR, TTS, False
+              Confidence) with real calendar dates from this specific run */}
+          <div className="bg-slate-800/30 border border-slate-700/60 rounded-lg p-3 mb-6">
+            <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Run Context</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
+              {[
+                { label: "Simulation Start", value: kpis?.simulationStartDate ?? "—" },
+                { label: "Horizon", value: kpis?.horizonWeeks ? `${kpis.horizonWeeks}w` : "—" },
+                { label: "Disruption Start", value: kpis?.disruptionStartDate ?? "—" },
+                { label: "First Service Impact", value: kpis?.firstServiceImpactDate ?? "—" },
+                { label: "Simulation End", value: kpis?.simulationEndDate ?? "—" },
+              ].map((item) => (
+                <div key={item.label}>
+                  <p className="text-[10px] text-slate-500">{item.label}</p>
+                  <p className="text-xs font-medium text-slate-300">{item.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Before vs After */}
@@ -1621,7 +1692,7 @@ export default function SimulationDashboard({
               const baseRev = Number(baseKpis?.revenueExposure ?? 0); const curRev = Number(kpis?.revenueExposure ?? 0); const revDelta = curRev - baseRev;
               const baseTtr = Number(baseKpis?.ttrDays ?? baseKpis?.timeToRecoverDays ?? 0); const curTtr = Number(kpis?.ttrDays ?? kpis?.timeToRecoverDays ?? 0); const ttrDelta = curTtr - baseTtr;
               const curBacklog = Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0); const baseBacklog = Number(baseKpis?.peakBacklogUnits ?? 0); const backlogDelta = curBacklog - baseBacklog;
-              const curRisk = Number(kpis?.peakBacklogUnits ?? 0); const baseRisk = Number(baseKpis?.peakBacklogUnits ?? 0); const riskDelta = curRisk - baseRisk;
+              const curRisk = Number(kpis?.demandAtRiskUnits ?? kpis?.occurrenceUnfulfilledUnits ?? kpis?.peakBacklogUnits ?? 0); const baseRisk = Number(baseKpis?.demandAtRiskUnits ?? baseKpis?.occurrenceUnfulfilledUnits ?? baseKpis?.peakBacklogUnits ?? 0); const riskDelta = curRisk - baseRisk;
               const deltaColor = (val, lowerIsBetter = false) => { if (val === 0) return "text-slate-400"; return (lowerIsBetter ? val > 0 : val < 0) ? "text-red-400" : "text-emerald-400"; };
               const deltaSign = (val) => Number(val) > 0 ? `+${val}` : `${val}`;
               const impactLabel = !hasBaseline ? "Select baseline" : svcDelta < -10 ? "High Impact" : svcDelta < -3 ? "Moderate Impact" : svcDelta < 0 ? "Low Impact" : "No Impact";
@@ -1630,9 +1701,9 @@ export default function SimulationDashboard({
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
                   {[
                     { label: "Service", cur: curSvc > 0 ? `${curSvc.toFixed(1)}%` : '-', delta: hasBaseline ? `${deltaSign(svcDelta.toFixed(1))}%` : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(svcDelta) : "text-slate-500" },
-                    { label: "Risk", cur: curRisk > 0 ? curRisk : '-', delta: hasBaseline ? deltaSign(riskDelta) + " units" : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(riskDelta, true) : "text-slate-500" },
+                    { label: "Risk", cur: curRisk > 0 ? formatNumber(curRisk) : '-', delta: hasBaseline ? deltaSign(Math.round(riskDelta)) + " units" : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(riskDelta, true) : "text-slate-500" },
                     { label: "Revenue", cur: formatCurrencyCompact(curRev), delta: hasBaseline ? (revDelta >= 0 ? `+${formatCurrencyCompact(revDelta)}` : formatCurrencyCompact(revDelta)) : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(revDelta, true) : "text-slate-500" },
-                    { label: "Backlog", cur: curBacklog > 0 ? curBacklog : '-', delta: hasBaseline ? deltaSign(backlogDelta) + " units" : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(backlogDelta, true) : "text-slate-500" },
+                    { label: "Backlog", cur: curBacklog > 0 ? formatNumber(curBacklog) : '-', delta: hasBaseline ? deltaSign(Math.round(backlogDelta)) + " units" : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(backlogDelta, true) : "text-slate-500" },
                     { label: "TTR", cur: curTtr > 0 ? `${curTtr}d` : '-', delta: hasBaseline ? deltaSign(ttrDelta) + "d" : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(ttrDelta, true) : "text-slate-500" },
                     { label: "Impact", cur: impactLabel, delta: null, deltaClass: impactColor, curClass: impactColor },
                   ].map((item) => (

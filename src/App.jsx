@@ -680,6 +680,11 @@ export default function App() {
             ...prev,
             worstWeeklyServicePct: Number(backendKpis.worstWeeklyServicePct ?? 0),
             falseConfidenceDays:   Number(backendKpis.falseConfidenceDays   ?? 0),
+            simulationStartDate: backendKpis.simulationStartDate ?? prev?.simulationStartDate ?? null,
+            simulationEndDate: backendKpis.simulationEndDate ?? prev?.simulationEndDate ?? null,
+            horizonWeeks: backendKpis.horizonWeeks ?? prev?.horizonWeeks ?? null,
+            disruptionStartDate: backendKpis.disruptionStartDate ?? prev?.disruptionStartDate ?? null,
+            firstServiceImpactDate: backendKpis.firstServiceImpactDate ?? prev?.firstServiceImpactDate ?? null,
           }));
         }
       } catch {}
@@ -1240,7 +1245,38 @@ export default function App() {
         allKpis.unitsAtRisk = Number(serviceTruth?.lateFulfilledUnits || 0);
         allKpis.peakBacklogUnits = Number(serviceTruth?.peakBacklogUnits || 0);
         allKpis.peakBacklog = Number(serviceTruth?.peakBacklogUnits || 0);
+        // ----- DEMAND AT RISK (true exposure metric) -----
+        // Sum of that day's NEW demand (not backlog level) across every
+        // facility/SKU/day that ended with any standing unmet demand —
+        // i.e., total units of customer commitment touched by the
+        // disruption, whether eventually shipped on time, late, or still
+        // outstanding. This accumulates across every degraded day rather
+        // than capturing a single peak snapshot, so it stays meaningfully
+        // distinct from Peak Backlog even when SKUs are disrupted in sync
+        // (a single shared upstream cause hitting correlated SKUs on the
+        // same days, which makes any peak-based metric collapse to the
+        // same number as Peak Backlog by construction).
+        let demandAtRiskUnits = 0;
+        flowRows.forEach((r) => {
+          const sku = normalizeSku(r[flowSkuKey] || r.sku);
+          const skuMatch = skuFilter.length === 0 || skuFilter.includes(sku);
+          if (!skuMatch) return;
+
+          const ft = lower(r[flowTypeKey] || r.flow_type || r.type);
+          const isCustomerShip =
+            ft === "customer_ship" || ft === "customer ship" || ft === "customership";
+          if (!isCustomerShip) return;
+
+          const backlogOutVal = toNum(r[backlogOutKey] ?? r.backlog_out ?? 0);
+          if (backlogOutVal <= 0) return;
+
+          const demandVal = toNum(r.demand ?? r.Demand ?? 0);
+          demandAtRiskUnits += demandVal;
+        });
+        allKpis.demandAtRiskUnits = demandAtRiskUnits;
+
         allKpis.missedServiceDays = Number(serviceTruth?.daysWithMissedService || 0);
+
       }
       // ----- COST TO SERVE + EXPEDITE RATIO (flow output, all flow types) -----
       if (urls.flow_output_file_url) {
@@ -1311,6 +1347,10 @@ export default function App() {
         });
 
         allKpis.occurrenceCount = `${filtered.length}`;
+        allKpis.occurrenceUnfulfilledUnits = filtered.reduce(
+          (sum, r) => sum + toNum(r.unfulfilled ?? r.Unfulfilled ?? 0),
+          0
+        );
 
         // ----- TIME TO RECOVERY (occurrence-span based) -----
         try {
@@ -1471,7 +1511,7 @@ export default function App() {
 
       const executiveKpis = {
   serviceLevelPct: Number(allKpis?.onTimeFulfillment ?? 0),
-  demandAtRiskUnits: Number(allKpis?.peakBacklogUnits ?? allKpis?.lateFulfilledUnits ?? 0),
+  demandAtRiskUnits: Number(allKpis?.demandAtRiskUnits ?? allKpis?.occurrenceUnfulfilledUnits ?? allKpis?.lateFulfilledUnits ?? allKpis?.peakBacklogUnits ?? 0),
   unfulfilledDemandUnits: Number(allKpis?.peakBacklogUnits ?? 0),
   missedServiceDays: Number(allKpis?.missedServiceDays ?? 0),
   timeToRecoverDays: Number(allKpis?.ttrDays ?? allKpis?.timeToRecoverDays ?? 0),
@@ -1949,6 +1989,11 @@ setSimulationHistory((prev) => {
                 ...prev,
                 worstWeeklyServicePct: Number(backendKpis.worstWeeklyServicePct ?? prev?.worstWeeklyServicePct ?? 0),
                 falseConfidenceDays: Number(backendKpis.falseConfidenceDays ?? prev?.falseConfidenceDays ?? 0),
+                simulationStartDate: backendKpis.simulationStartDate ?? prev?.simulationStartDate ?? null,
+                simulationEndDate: backendKpis.simulationEndDate ?? prev?.simulationEndDate ?? null,
+                horizonWeeks: backendKpis.horizonWeeks ?? prev?.horizonWeeks ?? null,
+                disruptionStartDate: backendKpis.disruptionStartDate ?? prev?.disruptionStartDate ?? null,
+                firstServiceImpactDate: backendKpis.firstServiceImpactDate ?? prev?.firstServiceImpactDate ?? null,
               }));
             }
           } catch {}
@@ -1969,7 +2014,7 @@ setSimulationHistory((prev) => {
           lastRunScenarioData={lastRunScenarioData}
           executiveKpis={{
             serviceLevelPct: Number(kpis?.onTimeFulfillment ?? 0),
-            demandAtRiskUnits: Number(kpis?.peakBacklogUnits ?? kpis?.lateFulfilledUnits ?? 0),
+            demandAtRiskUnits: Number(kpis?.demandAtRiskUnits ?? kpis?.occurrenceUnfulfilledUnits ?? kpis?.lateFulfilledUnits ?? kpis?.peakBacklogUnits ?? 0),
             unfulfilledDemandUnits: Number(kpis?.peakBacklogUnits ?? 0),
             missedServiceDays: Number(kpis?.missedServiceDays ?? 0),
             timeToRecoverDays: Number(kpis?.ttrDays ?? kpis?.timeToRecoverDays ?? 0),
@@ -1977,6 +2022,11 @@ setSimulationHistory((prev) => {
             revenueExposure: Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 0),
             worstWeeklyServicePct: Number(kpis?.worstWeeklyServicePct ?? (() => { try { const k = typeof simulationHistory?.[0]?.kpis_json === "string" ? JSON.parse(simulationHistory[0].kpis_json) : simulationHistory?.[0]?.kpis_json; return k?.worstWeeklyServicePct ?? 0; } catch { return 0; } })()),
             falseConfidenceDays: Number(kpis?.falseConfidenceDays ?? (() => { try { const k = typeof simulationHistory?.[0]?.kpis_json === "string" ? JSON.parse(simulationHistory[0].kpis_json) : simulationHistory?.[0]?.kpis_json; return k?.falseConfidenceDays ?? 0; } catch { return 0; } })()),
+            simulationStartDate: kpis?.simulationStartDate ?? null,
+            simulationEndDate: kpis?.simulationEndDate ?? null,
+            horizonWeeks: kpis?.horizonWeeks ?? null,
+            disruptionStartDate: kpis?.disruptionStartDate ?? null,
+            firstServiceImpactDate: kpis?.firstServiceImpactDate ?? null,
           }}
           handleFileChange={handleFileChange}
           handleSubmit={handleSubmit}
