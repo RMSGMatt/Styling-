@@ -95,6 +95,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
   const [progress,          setProgress]          = useState({ done: 0, total: 0 });
   const [error,             setError]             = useState(null);
   const [hasRun,            setHasRun]            = useState(false);
+  const [upgradeRequired,   setUpgradeRequired]   = useState(false);
 
   const viableOrigins   = useMemo(() => filterViableOrigins(ORIGINS, selectedCommodity.id), [selectedCommodity]);
   const excludedOrigins = useMemo(() => getExcludedOrigins(ORIGINS, selectedCommodity.id), [selectedCommodity]);
@@ -123,6 +124,18 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
         is_bulk:         true,  // signals Enterprise gate — bulk scan, not a single ad-hoc lookup
       }),
     });
+
+    // 402 means plan gate — throw a special sentinel so runAnalysis
+    // can catch it and show an upgrade prompt instead of N individual
+    // "scoring unavailable" rows which give no useful signal to the user.
+    if (res.status === 402) {
+      const gateData = await res.json().catch(() => ({}));
+      const err = new Error("upgrade_required");
+      err.isUpgradeRequired = true;
+      err.gateData = gateData;
+      throw err;
+    }
+
     const data = await res.json();
     if (data.status !== "success") throw new Error(data.error || `Scoring failed for ${origin.name}`);
     return data.result;
@@ -137,6 +150,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
     setError(null);
     setResults([]);
     setHasRun(true);
+    setUpgradeRequired(false);
     setProgress({ done: 0, total: viableOrigins.length });
 
     const scored = new Array(viableOrigins.length);
@@ -157,6 +171,12 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
           );
           scored[i] = { origin, result, compositeScore };
         } catch (e) {
+          if (e.isUpgradeRequired) {
+            // Plan gate fired — stop all workers and show upgrade prompt
+            setUpgradeRequired(true);
+            setLoading(false);
+            return;
+          }
           scored[i] = { origin, result: null, compositeScore: null, error: e.message };
         }
         doneCount++;
@@ -309,6 +329,32 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
         {error && !loading && (
           <div style={{ padding: "12px 16px", background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, color: "#DC2626", fontSize: 12, marginBottom: 16 }}>
             ⚠ {error}
+          </div>
+        )}
+
+        {upgradeRequired && !loading && (
+          <div style={{
+            padding: "20px 24px", borderRadius: 12,
+            background: "rgba(86,244,177,0.08)", border: "1px solid rgba(86,244,177,0.22)",
+            display: "flex", flexDirection: "column", gap: 10, marginBottom: 16,
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#1D625B" }}>
+              🔒 Enterprise plan required
+            </div>
+            <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>
+              Best Place to Buy performs a bulk scan across all viable sourcing origins — this feature requires an Enterprise plan. Upgrade to access unlimited bulk corridor scoring, Country Watch List scanning, and Supplier Screening.
+            </div>
+            <button
+              onClick={() => window.location.href = "/billing"}
+              style={{
+                alignSelf: "flex-start",
+                background: "rgba(86,244,177,0.95)", border: "none",
+                color: "#062014", borderRadius: 8, padding: "8px 16px",
+                fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              Upgrade to Enterprise →
+            </button>
           </div>
         )}
 

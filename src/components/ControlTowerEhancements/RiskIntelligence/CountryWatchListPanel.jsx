@@ -73,6 +73,7 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [hasRun,   setHasRun]   = useState(false);
   const [expanded, setExpanded] = useState(null);
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
 
   const scoreCountry = useCallback(async (origin) => {
     const token =
@@ -94,9 +95,14 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
         commodity_label: "General Sourcing Risk",
         commodity_id:    "general",
         weights:         GENERIC_WEIGHTS,
-        is_bulk:         true,  // signals Enterprise gate — bulk scan, not a single ad-hoc lookup
+        is_bulk:         true,
       }),
     });
+    if (res.status === 402) {
+      const err = new Error("upgrade_required");
+      err.isUpgradeRequired = true;
+      throw err;
+    }
     const data = await res.json();
     if (data.status !== "success") throw new Error(data.error || `Scoring failed for ${origin.name}`);
     return data.result;
@@ -108,6 +114,7 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
     setLoading(true);
     setHasRun(true);
     setResults([]);
+    setUpgradeRequired(false);
     setProgress({ done: 0, total: ORIGINS.length });
 
     const scored = new Array(ORIGINS.length);
@@ -128,6 +135,11 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
           );
           scored[i] = { origin, result, compositeScore };
         } catch (e) {
+          if (e.isUpgradeRequired) {
+            setUpgradeRequired(true);
+            setLoading(false);
+            return;
+          }
           scored[i] = { origin, result: null, compositeScore: null, error: e.message };
         }
         doneCount++;
@@ -193,6 +205,32 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
             <div style={{ fontSize: 12, color: "#888780" }}>
               Scoring country {progress.done} of {progress.total}...
             </div>
+          </div>
+        )}
+
+        {upgradeRequired && !loading && (
+          <div style={{
+            padding: "20px 24px", borderRadius: 12,
+            background: "rgba(86,244,177,0.08)", border: "1px solid rgba(86,244,177,0.22)",
+            display: "flex", flexDirection: "column", gap: 10, marginBottom: 16,
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#1D625B" }}>
+              🔒 Enterprise plan required
+            </div>
+            <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>
+              Country Watch List bulk scanning requires an Enterprise plan. Upgrade to access unlimited bulk corridor scoring across all sourcing countries, Supplier Screening, and Best Place to Buy.
+            </div>
+            <button
+              onClick={() => window.location.href = "/billing"}
+              style={{
+                alignSelf: "flex-start",
+                background: "rgba(86,244,177,0.95)", border: "none",
+                color: "#062014", borderRadius: 8, padding: "8px 16px",
+                fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              Upgrade to Enterprise →
+            </button>
           </div>
         )}
 
