@@ -30,7 +30,7 @@ export default function BillingSuccess() {
       for (let i = 0; i < 8 && !cancelled; i++) {
         setTries((t) => t + 1);
         try {
-          const res = await fetch(`${API}/api/me`, {
+          const res = await fetch(`${API}/auth/me`, {
             headers: {
               "Authorization": `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}`,
               "Content-Type": "application/json",

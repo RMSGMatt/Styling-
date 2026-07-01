@@ -567,7 +567,7 @@ export default function App() {
 
       // 2) Fetch DB-truth user info
       try {
-        const res = await fetch(`${API_ROOT}/api/me`, {
+        const res = await fetch(`${API_ROOT}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
