@@ -1681,9 +1681,15 @@ export default function App() {
         null;
 
       if (locUrl) {
-        const cacheBusted = `${locUrl}?v=${Date.now()}`;
+        // Strip any previously-appended cache-buster (&v= or ?v=) before
+        // adding a new one — on a second run in the same session, locUrl
+        // may already contain ?v=... from run 1's cache-bust, causing
+        // a double-? URL (?X-Amz-...?v=...?v=...) that breaks S3 presigned
+        // signature verification with a 403.
+        const strippedUrl = locUrl.replace(/[?&]v=\d+$/, "");
+        const separator = strippedUrl.includes("?") ? "&" : "?";
+        const cacheBusted = `${strippedUrl}${separator}v=${Date.now()}`;
         setLocationsUrl(cacheBusted);
-      } else {
       }
 
       // Commit urls to state
@@ -1789,7 +1795,7 @@ setSimulationHistory((prev) => {
       let seededSkus = null;
       try {
         if (normalizedUrls?.inventory_output_file_url) {
-          seededSkus = await extractAndSetSkuOptions(normalizedUrls.inventory_output_file_url);
+          seededSkus = await extractAndSetSkuOptions(normalizedUrls.inventory_output_file_url, true);
         } else {
         }
       } catch (e) {
@@ -1869,7 +1875,7 @@ setSimulationHistory((prev) => {
   };
 
   // Extract SKUs and build options
-  const extractAndSetSkuOptions = async (url) => {
+  const extractAndSetSkuOptions = async (url, forceReseed = false) => {
     if (!url) return;
     try {
       const rows = await fetchCsvRows(url);
@@ -1883,15 +1889,15 @@ setSimulationHistory((prev) => {
       }
 
       setSkuOptions(options);
-      const seeded =
-        selectedSku && selectedSku.length > 0
-          ? Array.isArray(selectedSku) ? selectedSku : [selectedSku]
-          : options.map((o) => o.value);
+      const seeded = options.map((o) => o.value);
+      const shouldReseed = forceReseed || !selectedSku || selectedSku.length === 0;
 
-      if (!selectedSku || selectedSku.length === 0) {
+      if (shouldReseed) {
         setSelectedSku(seeded);
       }
-      return seeded;
+      return shouldReseed
+        ? seeded
+        : (Array.isArray(selectedSku) ? selectedSku : [selectedSku]);
     } catch (err) {
       setPostRunPhase("primed");
       return [];
