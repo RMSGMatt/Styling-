@@ -1971,11 +1971,12 @@ setSimulationHistory((prev) => {
 
     try {
       const decoded = jwtDecode(token);
-      const plan = decoded.plan || "free";
-      setUserPlan(plan);
+      // Only use the JWT for role (fast, low-stakes) — never for plan,
+      // since the JWT may be stale after a Stripe upgrade. Plan comes
+      // exclusively from /api/me below, which reads the live DB value.
       setUserRole(decoded.role || "user");
 
-      if (isProPlusPlan(plan)) {
+      if (isProPlusPlan(decoded.plan || "free")) {
         fetchSimulationHistory().then(() => {
           // After history loads, merge backend kpis_json into kpis state
           // so worstWeeklyServicePct and falseConfidenceDays are available
