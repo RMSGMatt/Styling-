@@ -94,6 +94,7 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
         commodity_label: "General Sourcing Risk",
         commodity_id:    "general",
         weights:         GENERIC_WEIGHTS,
+        is_bulk:         true,  // signals Enterprise gate — bulk scan, not a single ad-hoc lookup
       }),
     });
     const data = await res.json();

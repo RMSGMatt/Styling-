@@ -120,6 +120,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
         commodity_label: commodity.label,
         commodity_id:    commodity.id,
         weights:         commodity.weights,
+        is_bulk:         true,  // signals Enterprise gate — bulk scan, not a single ad-hoc lookup
       }),
     });
     const data = await res.json();
