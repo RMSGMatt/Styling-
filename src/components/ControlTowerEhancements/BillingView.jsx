@@ -403,10 +403,11 @@ export default function BillingView() {
             disabled={currentPlan === "pro" ? busyPortal : busyPro}
             highlight={currentPlan === "pro"}
             features={[
-              "Unlimited simulations",
-              "Upload your CSVs",
-              "Priority email support",
-              "Downloadable reports",
+              "Up to 10 simulations/month",
+              "Networks up to 5 facilities / 15 SKUs",
+              "War Room scenario builder",
+              "Corridor Risk single-country lookup",
+              "Up to 3 executive PDF reports/month",
             ]}
             foot="Perfect for teams that need more volume and flexibility."
           />
@@ -431,10 +432,10 @@ export default function BillingView() {
             disabled={currentPlan === "enterprise" ? busyPortal : busyEnt}
             highlight={currentPlan === "enterprise"}
             features={[
-              "Everything in Pro",
-              "Role-based access control",
+              "Everything in Pro — unlimited",
+              "Full Risk Intelligence Suite (Country Watch List, Supplier Screening, Best Place to Buy)",
               "Dedicated success manager",
-              "SLA + audit logs",
+              "Priority SLA support",
             ]}
             foot="For organizations with controls, scale, and support needs."
           />
