@@ -1825,10 +1825,33 @@ setSimulationHistory((prev) => {
       const data = error?.response?.data;
 
       if (status === 402) {
+        // The backend returns different 402 shapes depending on what fired:
+        // - plan_required decorator: { error: "upgrade_required", required: ["pro"] }
+        // - complexity/run cap gate: { error: "upgrade_required", limit: "complexity"|"monthly_runs" }
+        // - bulk corridor gate: { error: "upgrade_required", limit: "bulk_corridor" }
+        // Map all of these to the right tier label for the modal.
+        const limit = data?.limit;
+        const requiredTier =
+          data?.required ||
+          (limit === "complexity" || limit === "monthly_runs" || limit === "bulk_corridor"
+            ? ["enterprise"]
+            : ["pro"]);
+
+        // Build a human-readable explanation of WHY they're being blocked.
+        const limitMessage =
+          limit === "complexity"
+            ? `Your network (${data?.facilities} facilities, ${data?.skus} SKUs) exceeds the Pro plan limit of ${data?.max_facilities} facilities / ${data?.max_skus} SKUs.`
+            : limit === "monthly_runs"
+            ? `You've used ${data?.used} of ${data?.max} simulation runs this month.`
+            : limit === "bulk_corridor"
+            ? "Country Watch List and Best Place to Buy bulk scanning require an Enterprise plan."
+            : null;
+
         setUpgradeGate({
           open: true,
-          required: data?.required || ["pro"],
-          plan: data?.plan || "free",
+          required: requiredTier,
+          plan: data?.plan || userPlan || "free",
+          limitMessage,
         });
         setSimulationStatus("idle");
         return;
@@ -2096,6 +2119,7 @@ setSimulationHistory((prev) => {
         open={upgradeGate.open}
         required={upgradeGate.required}
         plan={upgradeGate.plan}
+        limitMessage={upgradeGate.limitMessage || null}
         onClose={() => setUpgradeGate((p) => ({ ...p, open: false }))}
         onBackToControlTower={() => {
           setUpgradeGate((p) => ({ ...p, open: false }));

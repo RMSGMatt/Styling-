@@ -6,6 +6,7 @@ export default function UpgradeModal({
   open,
   required = ["pro"],
   plan = "free",
+  limitMessage = null,
   onClose,
   onBackToControlTower,
 }) {
@@ -152,8 +153,17 @@ export default function UpgradeModal({
             lineHeight: 1.45,
           }}
         >
-          <b>FOR-C Pro</b> unlocks simulations, scenario save/load, and full report downloads. If
-          you already subscribed, use <b>Manage Billing</b>.
+          {limitMessage && (
+            <div style={{ marginBottom: 8, color: "rgba(230,247,239,0.85)" }}>
+              {limitMessage}
+            </div>
+          )}
+          {requiredLabel === "enterprise" || (Array.isArray(required) && required.includes("enterprise") && !required.includes("pro")) ? (
+            <span><b>FOR-C Enterprise</b> includes unlimited simulations, full Risk Intelligence Suite (Country Watch List, Supplier Screening, Best Place to Buy), and unlimited reports.</span>
+          ) : (
+            <span><b>FOR-C Pro</b> unlocks simulations, scenario save/load, and full report downloads.</span>
+          )}
+          {" "}If you already subscribed, use <b>Manage Billing</b>.
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
@@ -170,7 +180,7 @@ export default function UpgradeModal({
               cursor: busy ? "not-allowed" : "pointer",
             }}
           >
-            {busy ? "Working…" : "Upgrade"}
+            {busy ? "Working…" : `Upgrade to ${requiredLabel === "enterprise" || (Array.isArray(required) && required.includes("enterprise") && !required.includes("pro")) ? "Enterprise" : "Pro"}`}
           </button>
 
           <button
