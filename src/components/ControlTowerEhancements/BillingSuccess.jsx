@@ -30,9 +30,9 @@ export default function BillingSuccess() {
       for (let i = 0; i < 8 && !cancelled; i++) {
         setTries((t) => t + 1);
         try {
-          const res = await fetch(`${API}/auth/me`, {
+          const res = await fetch(`${API}/api/me`, {
             headers: {
-              "Authorization": `Bearer ${localStorage.getItem("token") || ""}`,
+              "Authorization": `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}`,
               "Content-Type": "application/json",
             },
           });
@@ -40,7 +40,9 @@ export default function BillingSuccess() {
           if (res.ok && (me?.plan === "pro" || me?.plan === "enterprise")) {
             setStatus(`✅ Upgrade complete — your plan is now ${me.plan.toUpperCase()}. Redirecting…`);
             await sleep(1000);
-            nav("/billing", { replace: true });
+            // Force a full page reload so App.jsx re-runs boot() and picks
+            // up the new plan from /api/me rather than the stale JWT token.
+            window.location.href = "/control-tower";
             return;
           }
         } catch {
