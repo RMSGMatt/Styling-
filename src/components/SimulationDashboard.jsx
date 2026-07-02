@@ -1440,9 +1440,10 @@ export default function SimulationDashboard({
                   type="button"
                   onClick={async () => {
                     try {
+                      const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
                       const res = await fetch(`${API_BASE}/api/report/generate`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                         body: JSON.stringify({
                           scenario: runName || "Supply Chain Disruption Scenario",
                           networkName: "Nexty Electronics Network",
