@@ -1076,7 +1076,7 @@ export default function SimulationDashboard({
   }, [files.locations]);
 
   useEffect(() => {
-    if (!files.lanes) return;
+    if (!files.lanes) { setParsedLanesData([]); return; }
     const reader = new FileReader();
     reader.onload = (e) => { const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true }); setParsedLanesData(parsed.data || []); };
     reader.readAsText(files.lanes);
@@ -1888,7 +1888,7 @@ export default function SimulationDashboard({
             <div className="lg:col-span-2 rounded-2xl p-4 border" style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "#143629" }}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-slate-50">📂 Simulation Inputs</h2>
-                <button type="button" onClick={() => { ["demand", "disruptions", "locations", "processes", "bom", "locationMaterials"].forEach((key) => handleFileChange(key, null)); }} className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition" style={{ borderColor: "#355e52", color: "#E2E8F0", backgroundColor: "rgba(2, 6, 23, 0.45)" }}>Clear All</button>
+                <button type="button" onClick={() => { ["demand", "disruptions", "locations", "processes", "bom", "locationMaterials", "lanes"].forEach((key) => handleFileChange(key, null)); }} className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition" style={{ borderColor: "#355e52", color: "#E2E8F0", backgroundColor: "rgba(2, 6, 23, 0.45)" }}>Clear All</button>
               </div>
               
                 <a href="/forc-sample-data.zip" download className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-xs font-semibold border transition mb-3" style={{ borderColor: "#2EC4A6", color: "#2EC4A6", background: "rgba(46,196,166,0.07)" }}>📦 Download Sample Data</a>
