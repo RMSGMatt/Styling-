@@ -468,7 +468,7 @@ export default function MapView({
 
     const MAP_STYLE =
       import.meta?.env?.VITE_MAPBOX_STYLE ||
-      "mapbox://styles/mapbox/dark-v11";
+      "mapbox://styles/mapbox/satellite-streets-v12";
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -498,12 +498,32 @@ export default function MapView({
         map.setRenderWorldCopies(false);
 
         map.setFog({
-          range: [0.8, 8],
-          "horizon-blend": 0.25,
-          color: "#0b1020",
-          "high-color": "#1b2b4f",
+          range: [0.6, 9],
+          "horizon-blend": 0.35,
+          color: "#050B14",
+          "high-color": "#0F3A2E",
           "space-color": "#000000",
+          "star-intensity": 0.25,
         });
+
+        // 🎨 Recolor base style layers so the globe reads as a branded
+        // "data surface" rather than default Mapbox dark-v11 gray.
+        // Wrapped defensively since layer ids can shift between style versions.
+        const tryPaint = (layerId, prop, value) => {
+          try {
+            if (map.getLayer(layerId)) map.setPaintProperty(layerId, prop, value);
+          } catch (e) {
+            /* layer/property not present in this style version — skip */
+          }
+        };
+        tryPaint("background", "background-color", "#04060A");
+        tryPaint("water", "fill-color", "#050B14");
+        tryPaint("land", "background-color", "#101720");
+        tryPaint("landcover", "fill-color", "#121B26");
+        tryPaint("landuse", "fill-color", "#121B26");
+        tryPaint("national-park", "fill-color", "#101720");
+        tryPaint("admin-0-boundary", "line-color", "rgba(159,214,58,0.18)");
+        tryPaint("admin-1-boundary", "line-color", "rgba(148,163,184,0.10)");
 
         // ⬆️ Push globe upward more to avoid bottom clipping
         map.setPadding({
@@ -731,10 +751,18 @@ export default function MapView({
 
       {/* ✅ Map container MUST have explicit height */}
       <div
-        ref={mapContainerRef}
-        className="w-full rounded-2xl overflow-hidden border border-slate-800 shadow-sm"
-        style={{ height }}
-      />
+        className="relative w-full rounded-2xl overflow-hidden"
+        style={{
+          boxShadow:
+            "0 0 60px rgba(159,214,58,0.06), 0 0 0 1px rgba(30,39,51,1), inset 0 0 80px rgba(0,0,0,0.35)",
+        }}
+      >
+        <div
+          ref={mapContainerRef}
+          className="w-full"
+          style={{ height }}
+        />
+      </div>
     </div>
   );
 }
