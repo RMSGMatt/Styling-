@@ -214,7 +214,7 @@ export default function MapView({
         el.style.width = "14px";
         el.style.height = "14px";
         el.style.borderRadius = "999px";
-        el.style.background = "#1D625B";
+        el.style.background = "#9FD63A";
         el.style.border = "2px solid white";
         el.style.boxShadow = "0 2px 10px rgba(0,0,0,0.25)";
         el.style.cursor = "pointer";
@@ -290,7 +290,7 @@ export default function MapView({
             .setPopup(
               new mapboxgl.Popup({ offset: 18 }).setHTML(
                 `<div style="max-width:260px">
-                   <div style="font-weight:800;color:#1D625B;margin-bottom:4px">${title}</div>
+                   <div style="font-weight:800;color:#111820;margin-bottom:4px">${title}</div>
                    <div style="font-size:12px;line-height:1.35;color:#334155">
                      ${props.description || props.headline || props.areaDesc || ""}
                    </div>
@@ -667,8 +667,8 @@ export default function MapView({
             onClick={() => toggle("facilities")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
               layerVisibility.facilities
-                ? "bg-[#1D625B] text-white border-[#1D625B]"
-                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+                ? "bg-[rgba(159,214,58,0.15)] text-[#9FD63A] border-[rgba(159,214,58,0.5)]"
+                : "bg-slate-900/50 text-slate-300 border-slate-700"
             }`}
           >
             🏭 Facilities
@@ -678,8 +678,8 @@ export default function MapView({
             onClick={() => toggle("usgs")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
               layerVisibility.usgs
-                ? "bg-[#1D625B] text-white border-[#1D625B]"
-                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+                ? "bg-[rgba(159,214,58,0.15)] text-[#9FD63A] border-[rgba(159,214,58,0.5)]"
+                : "bg-slate-900/50 text-slate-300 border-slate-700"
             }`}
           >
             🌐 USGS Quakes
@@ -690,8 +690,8 @@ export default function MapView({
             onClick={() => toggle("noaa")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
               layerVisibility.noaa
-                ? "bg-[#1D625B] text-white border-[#1D625B]"
-                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+                ? "bg-[rgba(159,214,58,0.15)] text-[#9FD63A] border-[rgba(159,214,58,0.5)]"
+                : "bg-slate-900/50 text-slate-300 border-slate-700"
             }`}
           >
             ⚠️ NOAA
@@ -701,8 +701,8 @@ export default function MapView({
             onClick={() => toggle("gdacs")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
               layerVisibility.gdacs
-                ? "bg-[#1D625B] text-white border-[#1D625B]"
-                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+                ? "bg-[rgba(159,214,58,0.15)] text-[#9FD63A] border-[rgba(159,214,58,0.5)]"
+                : "bg-slate-900/50 text-slate-300 border-slate-700"
             }`}
           >
             🌍 GDACS
@@ -712,8 +712,8 @@ export default function MapView({
             onClick={() => toggle("live")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
               layerVisibility.live
-                ? "bg-[#1D625B] text-white border-[#1D625B]"
-                : "bg-white text-[#1D625B] border-[#D8E5DD]"
+                ? "bg-[rgba(159,214,58,0.15)] text-[#9FD63A] border-[rgba(159,214,58,0.5)]"
+                : "bg-slate-900/50 text-slate-300 border-slate-700"
             }`}
           >
             🔥 Live Incidents
@@ -721,7 +721,7 @@ export default function MapView({
 
           <button
             onClick={recenter}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-[#1D625B] border-[#D8E5DD] hover:bg-[#F4F8F6]"
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-slate-900/50 text-slate-300 border-slate-700 hover:border-lime-400/40 hover:bg-slate-800/60"
             title="Re-center: fits to facilities if available, otherwise returns to full globe"
           >
             🎯 Re-center
@@ -732,7 +732,7 @@ export default function MapView({
       {/* ✅ Map container MUST have explicit height */}
       <div
         ref={mapContainerRef}
-        className="w-full rounded-2xl overflow-hidden border border-[#D8E5DD] shadow-sm"
+        className="w-full rounded-2xl overflow-hidden border border-slate-800 shadow-sm"
         style={{ height }}
       />
     </div>

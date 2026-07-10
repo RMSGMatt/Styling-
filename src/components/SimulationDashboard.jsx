@@ -6,22 +6,6 @@ import Select from "react-select";
 import Papa from "papaparse";
 import DecisionNarrativePanel from "./DecisionNarrativePanel";
 
-// Roll a raw runout-risk time series up to ONE classification per
-// (facility, sku) for the whole analysis window. This must be the single
-// source of truth used by Severity Mix, High-Risk SKUs, the Network Graph,
-// Cascade View, and the Actions tab — they must never disagree.
-//
-// Why not "any High day ever" and not "the day with lowest days_until_runout":
-//   - "lowest days_until_runout" silently discards real shortfall days that
-//     don't happen to coincide with the lowest-runout day — makes real
-//     disruptions look safer than they are.
-//   - "any High day ever" treats one isolated, immediately-recovered
-//     shortfall (normal demand/lead-time noise, happens even in a clean
-//     baseline run) the same as 40+ sustained High days in a real
-//     disruption — both get branded "High" forever.
-// Instead: require a minimum number of distinct High-risk days before
-// calling it High. A lone blip downgrades to Medium (still visible, not
-// hidden) instead of either disappearing or dominating the dashboard.
 const HIGH_RISK_MIN_DAYS = 2;
 
 function classifyFacilitySkuRisk(rows) {
@@ -83,9 +67,6 @@ ChartJS.register(
   TimeScale
 );
 
-// ===============================
-// KPI display helpers
-// ===============================
 function _toNumberLoose(v) {
   if (v === null || v === undefined) return NaN;
   if (typeof v === "number") return v;
@@ -159,9 +140,6 @@ function safeArray(input) {
   return [input];
 }
 
-// ===============================
-// Overlay helpers
-// ===============================
 function pickOutputUrlForType(sim, outputType) {
   const u = sim?.outputUrls || sim?.output_urls || sim?.urls || {};
   if (outputType === "inventory") return u.inventory_output_file_url;
@@ -250,9 +228,6 @@ function buildOverlaySeriesFromCsvText(csvText, { outputType, selectedSkus, sele
   return { labels, datasets };
 }
 
-// ===============================
-// Tab nav component
-// ===============================
 const TABS = [
   { id: "impact", label: "📊 Impact Summary" },
   { id: "intelligence", label: "🔎 Intelligence" },
@@ -263,7 +238,7 @@ const TABS = [
 
 function TabNav({ activeTab, setActiveTab, hasRun }) {
   return (
-    <div className="flex gap-1 flex-wrap border-b mb-6" style={{ borderColor: "#123528" }}>
+    <div className="flex gap-1 flex-wrap border-b mb-6" style={{ borderColor: "#1E2733" }}>
       {TABS.map((tab) => {
         const isActive = activeTab === tab.id;
         const isDisabled = !hasRun;
@@ -291,9 +266,6 @@ function TabNav({ activeTab, setActiveTab, hasRun }) {
   );
 }
 
-// ===============================
-// Safety Stock Panel
-// ===============================
 function SafetyStockPanel({ kpis, apiBase, hasRun }) {
   const [targetSL, setTargetSL] = React.useState(95);
   const [result, setResult] = React.useState(null);
@@ -336,7 +308,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun }) {
   const slColor = slColors[targetSL] || "#9FD63A";
 
   return (
-    <div className="rounded-2xl border p-4" style={{ background: "linear-gradient(145deg, rgba(13,31,24,0.97), rgba(6,37,26,0.95))", borderColor: "rgba(159,214,58,0.2)" }}>
+    <div className="rounded-2xl border p-4" style={{ background: "linear-gradient(145deg, rgba(19,24,31,0.97), rgba(13,17,22,0.95))", borderColor: "rgba(159,214,58,0.2)" }}>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-lime-400 mb-1">🛡️ Resilience Optimizer</p>
@@ -402,9 +374,6 @@ function SafetyStockPanel({ kpis, apiBase, hasRun }) {
   );
 }
 
-// ===============================
-// Safety Stock Summary Card (for Impact Summary tab)
-// ===============================
 function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions }) {
   const [result, setResult] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
@@ -439,7 +408,7 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions }) 
   return (
     <div
       className="rounded-2xl border p-4 cursor-pointer hover:border-lime-400/40 transition-all"
-      style={{ background: "linear-gradient(145deg, rgba(13,31,24,0.97), rgba(6,37,26,0.95))", borderColor: "rgba(159,214,58,0.2)" }}
+      style={{ background: "linear-gradient(145deg, rgba(19,24,31,0.97), rgba(13,17,22,0.95))", borderColor: "rgba(159,214,58,0.2)" }}
       onClick={onNavigateToActions}
     >
       <div className="flex items-center justify-between mb-3">
@@ -477,9 +446,6 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions }) 
   );
 }
 
-// ===============================
-// Disruption Panels
-// ===============================
 function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiveKpis, hasNarrativeRun }) {
   const impactRows = safeArray(disruptionImpactData);
   const runoutRows = safeArray(runoutRiskData);
@@ -515,7 +481,7 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
   const firstImpactedFacility = impactRows[0]?.facility || impactRows[0]?.Facility || (impactRows[0] ? "First impacted facility" : "No disruptions recorded");
 
   return (
-    <div className="border rounded-2xl p-5 shadow-lg" style={{ background: "linear-gradient(145deg, rgba(3,18,14,0.96), rgba(6,37,26,0.96))", borderColor: "#173b30" }}>
+    <div className="border rounded-2xl p-5 shadow-lg" style={{ background: "linear-gradient(145deg, rgba(17,22,29,0.96), rgba(11,14,19,0.96))", borderColor: "#1E2733" }}>
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
           <span style={{ color: "#FFB200" }}>🔎 Disruption Signals</span>
@@ -523,7 +489,7 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
         <span className="text-xs text-slate-300">Powered by latest simulation run</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400">Service Degradation</p>
           <p className="text-3xl font-bold tracking-tight">
             {(() => {
@@ -546,25 +512,25 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
             })()}
           </p>
         </div>
-        <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400">Facilities Impacted</p>
           <p className="text-3xl font-bold tracking-tight text-white">{facilitiesImpacted || 0}</p>
         </div>
-        <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400">Revenue Exposure</p>
           <p className="text-3xl font-bold tracking-tight font-bold" style={{ color: "#9CF700" }}>{formatCurrencyCompact(revenueExposureDisplayValue, { zeroIsDash: false })}</p>
         </div>
-        <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400">High-Risk SKUs</p>
           <p className="text-3xl font-bold tracking-tight text-rose-400">{highRiskSkus.length}</p>
         </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs text-slate-300">
-        <div className="bg-slate-900/70 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/70 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="font-semibold mb-2 text-slate-50">📍 First Impacted Facility</p>
           <p>{firstImpactedFacility}</p>
         </div>
-        <div className="bg-slate-900/70 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/70 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="font-semibold mb-2 text-slate-50">📊 Severity Mix</p>
           <p>
             <span className="text-rose-400 font-semibold">High:</span> {riskDistribution.high} &nbsp;|&nbsp;
@@ -573,7 +539,7 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
             <span className="text-slate-300 font-semibold">Unk:</span> {riskDistribution.unknown}
           </p>
         </div>
-        <div className="bg-slate-900/70 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/70 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="font-semibold mb-2 text-slate-50">🎯 High-Risk SKUs (Examples)</p>
           {highRiskSkus.length === 0 ? (
             <p className="text-slate-300">No high-risk SKUs in this scenario.</p>
@@ -634,7 +600,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
   }
 
   return (
-    <div className="border rounded-2xl p-5 shadow-lg" style={{ background: "linear-gradient(145deg, rgba(3,18,14,0.96), rgba(7,54,38,0.96))", borderColor: "#173b30" }}>
+    <div className="border rounded-2xl p-5 shadow-lg" style={{ background: "linear-gradient(145deg, rgba(17,22,29,0.96), rgba(11,14,19,0.96))", borderColor: "#1E2733" }}>
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
           <span className="text-emerald-300">🛡️ Material Risk & Actions</span>
@@ -642,21 +608,20 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
         <span className="text-xs text-slate-300">Scenario-aware outputs</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-        <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400">SKUs at Runout Risk</p>
           <p className="text-3xl font-bold tracking-tight text-rose-400">{uniqueRunoutRiskSkus.length}</p>
         </div>
-        <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400">Recommended Actions</p>
           <p className="text-3xl font-bold tracking-tight text-emerald-400">{candidateActions.length}</p>
         </div>
-        <div className="bg-slate-900/50 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+        <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400">Service Level (On-Time)</p>
           <p className="text-3xl font-bold tracking-tight text-sky-400">{formatPercent(execOnTimePct, { zeroIsDash: false, digits: 1 })}</p>
         </div>
       </div>
 
-      {/* Sub-tabs */}
       <div className="flex gap-1 mb-4">
         {[{ id: "countermeasures", label: "✅ Countermeasures" }, { id: "safetystock", label: "🛡️ Safety Stock" }].map((tab) => (
           <button
@@ -676,7 +641,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
 
       {mraTab === "countermeasures" && (
         <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.35fr] gap-4 text-xs text-slate-300">
-          <div className="bg-slate-900/70 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+          <div className="bg-slate-900/70 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
             <p className="font-semibold mb-2 text-slate-50">🔍 Highest Runout Risk (Top 3)</p>
             {uniqueRunoutRows.length === 0 ? (
               <p className="text-slate-300">No SKUs flagged for runout.</p>
@@ -692,7 +657,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
               </ul>
             )}
           </div>
-          <div className="bg-slate-900/70 border border-slate-600 hover:border-emerald-400/70 hover:bg-slate-800/60 transition rounded-xl p-3">
+          <div className="bg-slate-900/70 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
             <p className="font-semibold mb-2 text-slate-50">✅ Suggested Countermeasures (Examples)</p>
             {candidateActions.length === 0 ? (
               <p className="text-slate-300">No countermeasures generated yet for this scenario.</p>
@@ -719,9 +684,6 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
   );
 }
 
-// ===============================
-// Scenario Comparison
-// ===============================
 function ScenarioComparison({ runA, runB }) {
   const [kpisA, setKpisA] = useState(null);
   const [kpisB, setKpisB] = useState(null);
@@ -803,7 +765,7 @@ function ScenarioComparison({ runA, runB }) {
         <div className="rounded-xl overflow-hidden border border-slate-700">
           <table className="w-full text-xs">
             <thead>
-              <tr style={{ background: "rgba(15,30,24,0.9)" }}>
+              <tr style={{ background: "rgba(20,25,32,0.9)" }}>
                 <th className="text-left px-4 py-2 text-slate-400 font-semibold uppercase tracking-wider">Metric</th>
                 <th className="text-center px-4 py-2 font-semibold" style={{ color: "#9CF700" }}>Baseline</th>
                 <th className="text-center px-4 py-2 font-semibold" style={{ color: "#2EC4A6" }}>Comparison</th>
@@ -817,7 +779,7 @@ function ScenarioComparison({ runA, runB }) {
                 const aWins = Number.isFinite(na) && Number.isFinite(nb) && (m.better === "higher" ? na > nb : na < nb);
                 const bWins = Number.isFinite(na) && Number.isFinite(nb) && (m.better === "higher" ? nb > na : nb < na);
                 return (
-                  <tr key={m.key} style={{ background: i % 2 === 0 ? "rgba(10,25,20,0.6)" : "rgba(15,30,24,0.4)" }}>
+                  <tr key={m.key} style={{ background: i % 2 === 0 ? "rgba(15,19,25,0.6)" : "rgba(20,25,32,0.4)" }}>
                     <td className="px-4 py-3 text-slate-300 font-medium">{m.label}</td>
                     <td className={`px-4 py-3 text-center font-bold ${aWins ? "text-emerald-400" : "text-slate-300"}`}>{a}</td>
                     <td className={`px-4 py-3 text-center font-bold ${bWins ? "text-emerald-400" : "text-slate-300"}`}>{b}</td>
@@ -835,9 +797,6 @@ function ScenarioComparison({ runA, runB }) {
   );
 }
 
-// ===============================
-// Run Card
-// ===============================
 function RunCard({ sim, globalIdx, svcLevel, ttr, onReloadRun, formatRunLabel }) {
   const [showDownloads, setShowDownloads] = useState(false);
   return (
@@ -885,9 +844,6 @@ function RunCard({ sim, globalIdx, svcLevel, ttr, onReloadRun, formatRunLabel })
   );
 }
 
-// ===============================
-// Tour
-// ===============================
 const TOUR_STEPS_SIMULATION = [
   { id: "scenario-builder", title: "Build a Disruption Scenario", body: "Define what breaks — which facility, how severe, how long. FOR-C simulates the downstream impact across your entire network.", target: "tour-scenario-builder", position: "bottom" },
   { id: "disruption-signals", title: "Disruption Signals", body: "Instant KPI impact from the simulation — service degradation, revenue exposure, facilities impacted, high-risk SKUs.", target: "tour-disruption-signals", position: "bottom" },
@@ -918,7 +874,7 @@ function SimTour({ steps, onFinish, onSkip }) {
     return () => { el.style.outline = ""; el.style.outlineOffset = ""; };
   }, [step, current]);
   return (
-    <div className="fixed z-[100] w-80 rounded-2xl shadow-2xl p-5" style={{ top: pos.top, left: pos.left, background: "#0a2e22", border: "1px solid rgba(159,214,58,0.4)" }}>
+    <div className="fixed z-[100] w-80 rounded-2xl shadow-2xl p-5" style={{ top: pos.top, left: pos.left, background: "#141A21", border: "1px solid rgba(159,214,58,0.4)" }}>
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] uppercase tracking-widest" style={{ color: "#9FD63A" }}>FOR-C Tour · Step {step + 1} of {steps.length}</p>
         <button onClick={onSkip} className="text-gray-500 hover:text-white text-xs">Skip</button>
@@ -937,9 +893,6 @@ function SimTour({ steps, onFinish, onSkip }) {
   );
 }
 
-// ===============================
-// Main SimulationDashboard
-// ===============================
 export default function SimulationDashboard({
   handleFileChange,
   handleSubmit,
@@ -997,7 +950,6 @@ export default function SimulationDashboard({
   const hasNarrativeRun = execOnTimePct > 0 || execLateUnits > 0 || execPeakBacklog > 0 || execTtrDays > 0 || execRevenueExposure > 0;
   const isHealthy = hasNarrativeRun && execOnTimePct >= 97;
 
-  // Auto-switch to Impact Summary when a run completes
   useEffect(() => {
     if (simulationStatus === "done") {
       setActiveTab("impact");
@@ -1293,9 +1245,6 @@ export default function SimulationDashboard({
     falseConfidenceDays: Number(kpis?.falseConfidenceDays ?? 0),
     revenueExposure: Number(kpis?.revenueExposure ?? 0),
     estimatedRevenueExposure: Number(kpis?.estimatedRevenueExposure ?? 0),
-    // Run context — dates/duration, not performance numbers. Lets False
-    // Confidence ("105 days") be read alongside real calendar dates
-    // instead of as an abstract duration.
     simulationStartDate: kpis?.simulationStartDate ?? null,
     simulationEndDate: kpis?.simulationEndDate ?? null,
     horizonWeeks: kpis?.horizonWeeks ?? null,
@@ -1303,11 +1252,8 @@ export default function SimulationDashboard({
     firstServiceImpactDate: kpis?.firstServiceImpactDate ?? null,
   };
 
-  // ── Tab content renderers ──────────────────────────────────────────
-
   const renderImpactSummary = () => (
     <div className="space-y-6">
-      {/* Narrative header */}
       <div
         className="rounded-2xl p-5 shadow-xl border"
         style={{
@@ -1349,7 +1295,6 @@ export default function SimulationDashboard({
           <>
             <p className="text-sm leading-6 text-slate-200 mb-6">{aiNarrativeLoading ? "Generating executive narrative..." : aiNarrative || narrativeSummary}</p>
 
-            {/* KPI cards */}
             <div className="grid grid-cols-2 xl:grid-cols-7 gap-3 mb-6">
               {[
                 { label: "Service Level",      value: `${Math.round(execOnTimePct)}%`,                                                                                              color: execOnTimePct < 80 ? "text-red-400" : execOnTimePct < 97 ? "text-yellow-400" : "text-green-400" },
@@ -1367,8 +1312,6 @@ export default function SimulationDashboard({
               ))}
             </div>
 
-            {/* Run Context — pairs abstract durations (TTR, TTS, False
-                Confidence) with real calendar dates from this specific run */}
             <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-3 mb-6">
               <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-2">Run Context</p>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
@@ -1387,7 +1330,6 @@ export default function SimulationDashboard({
               </div>
             </div>
 
-            {/* Safety Stock summary card → navigates to Actions tab */}
             <SafetyStockSummaryCard
               kpis={kpis}
               apiBase={API_BASE}
@@ -1395,13 +1337,11 @@ export default function SimulationDashboard({
               onNavigateToActions={() => setActiveTab("actions")}
             />
 
-            {/* Why this matters */}
             <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-4 mt-4">
               <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400 mb-2">Why this matters</p>
               <p className="text-sm leading-6 text-slate-200">{narrativeWhyText}</p>
             </div>
 
-            {/* Recommended actions */}
             <div className={`rounded-xl border p-4 mt-4 ${isHealthy ? "border-emerald-700/40 bg-emerald-950/20" : "border-emerald-900/35 bg-emerald-950/20"}`}>
               <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-300/90 mb-2">Recommended action</p>
               <ul className="space-y-2 text-sm text-slate-200">
@@ -1434,7 +1374,6 @@ export default function SimulationDashboard({
                 </div>
               )}
 
-              {/* Generate Report */}
               <div className="mt-4 flex justify-end">
                 <button
                   type="button"
@@ -1491,7 +1430,7 @@ export default function SimulationDashboard({
         executiveKpis={executiveKpisForPanels}
         hasNarrativeRun={hasNarrativeRun}
       />
-      <div className="rounded-2xl p-5 shadow-xl border" style={{ background: "linear-gradient(170deg, rgba(4,24,18,0.98), rgba(4,28,21,0.98))", borderColor: "#123528" }}>
+      <div className="rounded-2xl p-5 shadow-xl border" style={{ background: "linear-gradient(170deg, rgba(18,23,30,0.98), rgba(12,15,20,0.98))", borderColor: "#1E2733" }}>
         <h2 className="text-sm font-semibold text-slate-50 mb-1">🕸️ Supplier Network Graph</h2>
         <p className="text-xs text-slate-300 mb-4">Facility-level supply chain topology derived from your BOM and locations data. Node color indicates risk level from the latest simulation run.</p>
         <SupplierNetworkGraph
@@ -1523,7 +1462,7 @@ export default function SimulationDashboard({
     <div className="space-y-6 simulation-chart-container">
       <style>{`.simulation-chart-container .select__placeholder,.simulation-chart-container .select__single-value{color:#111827!important;opacity:1!important;font-weight:600!important}.simulation-chart-container canvas{color:#eafff4!important}`}</style>
 
-      <div className="rounded-2xl p-5 shadow-xl border" style={{ background: "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(4,27,21,0.98))", borderColor: "#123528" }}>
+      <div className="rounded-2xl p-5 shadow-xl border" style={{ background: "linear-gradient(160deg, rgba(18,23,30,0.98), rgba(12,15,20,0.98))", borderColor: "#1E2733" }}>
         <h2 className="text-sm font-semibold text-slate-50 mb-1">📈 Operational Performance Trends</h2>
         <p className="text-xs text-slate-300 mb-4">Explore how inventory, production, and service levels evolve across the network.</p>
 
@@ -1569,8 +1508,7 @@ export default function SimulationDashboard({
         </div>
       </div>
 
-      {/* Run comparison */}
-      <div className="rounded-2xl p-5 shadow-xl border" style={{ background: "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(4,27,21,0.98))", borderColor: "#123528" }}>
+      <div className="rounded-2xl p-5 shadow-xl border" style={{ background: "linear-gradient(160deg, rgba(18,23,30,0.98), rgba(12,15,20,0.98))", borderColor: "#1E2733" }}>
         <h2 className="text-sm font-semibold text-slate-50 mb-4">🔀 Compare Simulation Runs</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <div>
@@ -1600,7 +1538,7 @@ export default function SimulationDashboard({
 
   const renderWarRoom = () => (
     <div className="space-y-6">
-      <div className="rounded-2xl p-5 border" style={{ background: "linear-gradient(140deg, rgba(4,24,18,0.98), rgba(5,36,26,0.98))", borderColor: "#143629" }}>
+      <div className="rounded-2xl p-5 border" style={{ background: "linear-gradient(140deg, rgba(18,23,30,0.98), rgba(12,15,20,0.98))", borderColor: "#1E2733" }}>
         <h2 className="text-sm font-semibold text-slate-50 mb-2">🧪 Scenario Builder</h2>
         <p className="text-xs text-slate-300 mb-4">Configure demand shocks, disruption injections, and inventory policies, then apply them to the next simulation run.</p>
 
@@ -1632,10 +1570,6 @@ export default function SimulationDashboard({
               { label: "Status", value: (() => {
                   const curOnTime = Number(kpis?.onTimeFulfillment ?? 100);
                   const curBacklogVal = Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0);
-                  // A scenario name alone doesn't mean impact actually occurred,
-                  // and a missing name doesn't mean nothing happened — judge by
-                  // the run's own numbers first, falling back to scenarioData
-                  // only when the KPIs themselves show no degradation.
                   if (curOnTime < 99.5 || curBacklogVal > 0) return "Under Stress";
                   return scenarioData?.name ? "Scenario Active" : "Baseline";
                 })(), color: "text-slate-300" },
@@ -1647,8 +1581,6 @@ export default function SimulationDashboard({
             ))}
           </div>
 
-          {/* Run Context — pairs abstract durations (TTR, TTS, False
-              Confidence) with real calendar dates from this specific run */}
           <div className="bg-slate-800/30 border border-slate-700/60 rounded-lg p-3 mb-6">
             <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Run Context</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
@@ -1667,12 +1599,11 @@ export default function SimulationDashboard({
             </div>
           </div>
 
-          {/* Before vs After */}
           <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-slate-400">Before vs After (Scenario Impact)</p>
               <select
-                className="text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded px-2 py-1 focus:outline-none focus:border-emerald-500"
+                className="text-xs bg-slate-700 border border-slate-600 text-slate-200 rounded px-2 py-1 focus:outline-none focus:border-lime-400"
                 onChange={(e) => setBaselineRunIndex(e.target.value !== "" ? Number(e.target.value) : null)}
                 defaultValue=""
               >
@@ -1736,7 +1667,6 @@ export default function SimulationDashboard({
           )}
         </div>
 
-        {/* Save/Load */}
         <div className="mt-4 flex flex-wrap gap-2 items-center text-xs">
           <input
             type="text"
@@ -1761,7 +1691,7 @@ export default function SimulationDashboard({
                 setSavedScenarios(res.data || []);
               } catch (err) { alert(`Save failed: ${err?.response?.data?.message || err?.message || "Unknown error"}`); }
             }}
-            className="px-3 py-1.5 rounded-md font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-900"
+            className="px-3 py-1.5 rounded-md font-semibold bg-lime-400 hover:bg-lime-300 text-slate-900"
           >💾 Save</button>
           <select value={selectedScenarioId || ""} onChange={(e) => setSelectedScenarioId(e.target.value)} className="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-200">
             <option value="">Saved...</option>
@@ -1785,8 +1715,7 @@ export default function SimulationDashboard({
         </div>
       </div>
 
-      {/* Simulation History */}
-      <div className="rounded-2xl p-5 shadow-xl border" style={{ background: "linear-gradient(170deg, rgba(4,24,18,0.98), rgba(4,28,21,0.98))", borderColor: "#123528" }}>
+      <div className="rounded-2xl p-5 shadow-xl border" style={{ background: "linear-gradient(170deg, rgba(18,23,30,0.98), rgba(12,15,20,0.98))", borderColor: "#1E2733" }}>
         <h2 className="text-sm font-semibold text-slate-50 mb-1">🗂 Simulation History</h2>
         <p className="text-xs text-slate-300 mb-4">Reload previous simulation output files and compare scenarios.</p>
         {(!Array.isArray(simulationHistory) || simulationHistory.length === 0) ? (
@@ -1801,9 +1730,9 @@ export default function SimulationDashboard({
               return <RunCard key={globalIdx} sim={sim} globalIdx={globalIdx} svcLevel={svcLevel} ttr={ttr} onReloadRun={onReloadRun} formatRunLabel={formatRunLabel} />;
             })}
             <div className="flex items-center justify-between pt-2">
-              <button type="button" onClick={() => setHistoryPage((p) => Math.max(1, p - 1))} disabled={historyPage === 1} className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition" style={{ borderColor: historyPage === 1 ? "rgba(71,85,105,0.35)" : "#355e52", color: historyPage === 1 ? "#64748b" : "#E2E8F0", backgroundColor: "rgba(2,6,23,0.45)", cursor: historyPage === 1 ? "not-allowed" : "pointer" }}>← Previous</button>
+              <button type="button" onClick={() => setHistoryPage((p) => Math.max(1, p - 1))} disabled={historyPage === 1} className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition" style={{ borderColor: historyPage === 1 ? "rgba(71,85,105,0.35)" : "#2A3542", color: historyPage === 1 ? "#64748b" : "#E2E8F0", backgroundColor: "rgba(2,6,23,0.45)", cursor: historyPage === 1 ? "not-allowed" : "pointer" }}>← Previous</button>
               <p className="text-xs text-slate-400">Page {historyPage} of {totalHistoryPages}</p>
-              <button type="button" onClick={() => setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))} disabled={historyPage === totalHistoryPages} className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition" style={{ borderColor: historyPage === totalHistoryPages ? "rgba(71,85,105,0.35)" : "#355e52", color: historyPage === totalHistoryPages ? "#64748b" : "#E2E8F0", backgroundColor: "rgba(2,6,23,0.45)", cursor: historyPage === totalHistoryPages ? "not-allowed" : "pointer" }}>Next →</button>
+              <button type="button" onClick={() => setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))} disabled={historyPage === totalHistoryPages} className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition" style={{ borderColor: historyPage === totalHistoryPages ? "rgba(71,85,105,0.35)" : "#2A3542", color: historyPage === totalHistoryPages ? "#64748b" : "#E2E8F0", backgroundColor: "rgba(2,6,23,0.45)", cursor: historyPage === totalHistoryPages ? "not-allowed" : "pointer" }}>Next →</button>
             </div>
           </div>
         )}
@@ -1838,12 +1767,9 @@ export default function SimulationDashboard({
     }
   };
 
-  // ── Main render ───────────────────────────────────────────────────
-
   return (
-    <div className="min-h-screen text-slate-50 flex flex-col" style={{ background: "radial-gradient(circle at top left, #0B3D2E 0, #020617 40%, #020617 100%)" }}>
-      {/* Header */}
-      <header className="border-b shadow-lg" style={{ borderColor: "#0f2b22", background: "linear-gradient(90deg, #020617 0%, #0B3D2E 45%, #020617 100%)" }}>
+    <div className="min-h-screen text-slate-50 flex flex-col" style={{ background: "radial-gradient(circle at top left, #1A2028 0, #0B0F13 40%, #0B0F13 100%)" }}>
+      <header className="border-b shadow-lg" style={{ borderColor: "#1E2733", background: "linear-gradient(90deg, #0B0F13 0%, #161B22 45%, #0B0F13 100%)" }}>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight text-white flex items-center gap-2">
@@ -1854,7 +1780,7 @@ export default function SimulationDashboard({
           </div>
           <div className="flex items-center gap-3">
             {!presentationMode && (
-              <button type="button" className="px-3 py-1.5 rounded-full text-xs border transition text-slate-200 hover:text-white" style={{ borderColor: "#1f3f33", backgroundColor: "rgba(2, 6, 23, 0.6)" }} onClick={() => switchView("control")}>
+              <button type="button" className="px-3 py-1.5 rounded-full text-xs border transition text-slate-200 hover:text-white" style={{ borderColor: "#2A3542", backgroundColor: "rgba(2, 6, 23, 0.6)" }} onClick={() => switchView("control")}>
                 ⬅ Back to Control Tower
               </button>
             )}
@@ -1870,10 +1796,8 @@ export default function SimulationDashboard({
 
       <main ref={mainRef} className={`flex-1 max-w-7xl mx-auto px-4 py-4 space-y-6 ${presentationMode ? "text-lg" : "text-sm"}`}>
 
-        {/* ── LAYER 1: Persistent header zone ── */}
         <section className={`grid grid-cols-1 gap-4 ${presentationMode ? "" : "lg:grid-cols-5"}`}>
-          {/* Map */}
-          <div className={`${presentationMode ? "col-span-1" : "lg:col-span-3"} rounded-2xl p-4 shadow-xl border`} style={{ background: "linear-gradient(135deg, rgba(5,25,20,0.98), rgba(7,46,34,0.98))", borderColor: "#123528" }}>
+          <div className={`${presentationMode ? "col-span-1" : "lg:col-span-3"} rounded-2xl p-4 shadow-xl border`} style={{ background: "linear-gradient(135deg, rgba(18,23,30,0.98), rgba(12,15,20,0.98))", borderColor: "#1E2733" }}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold flex items-center gap-2 text-slate-50"><span style={{ color: "#9CF700" }}>🌐 Network Map</span></h2>
               <div className="text-[11px] text-slate-400">Updated {new Date().toLocaleTimeString()}</div>
@@ -1883,12 +1807,11 @@ export default function SimulationDashboard({
             </div>
           </div>
 
-          {/* Inputs */}
           {!presentationMode && (
-            <div className="lg:col-span-2 rounded-2xl p-4 border" style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "#143629" }}>
+            <div className="lg:col-span-2 rounded-2xl p-4 border" style={{ background: "linear-gradient(150deg, rgba(18,23,30,0.98), rgba(12,15,20,0.98))", borderColor: "#1E2733" }}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-slate-50">📂 Simulation Inputs</h2>
-                <button type="button" onClick={() => { ["demand", "disruptions", "locations", "processes", "bom", "locationMaterials", "lanes"].forEach((key) => handleFileChange(key, null)); }} className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition" style={{ borderColor: "#355e52", color: "#E2E8F0", backgroundColor: "rgba(2, 6, 23, 0.45)" }}>Clear All</button>
+                <button type="button" onClick={() => { ["demand", "disruptions", "locations", "processes", "bom", "locationMaterials", "lanes"].forEach((key) => handleFileChange(key, null)); }} className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition" style={{ borderColor: "#2A3542", color: "#E2E8F0", backgroundColor: "rgba(2, 6, 23, 0.45)" }}>Clear All</button>
               </div>
               
                 <a href="/forc-sample-data.zip" download className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-xs font-semibold border transition mb-3" style={{ borderColor: "#2EC4A6", color: "#2EC4A6", background: "rgba(46,196,166,0.07)" }}>📦 Download Sample Data</a>
@@ -1901,14 +1824,14 @@ export default function SimulationDashboard({
                     </div>
                     <div className="flex items-center gap-1">
                       <input key={`upload-${key}-${files[key]?.name || "empty"}`} id={`upload-${key}`} type="file" accept=".csv" onChange={(e) => handleFileChange(key, e.target.files[0])} className="hidden" />
-                      <label htmlFor={`upload-${key}`} className="cursor-pointer px-3 py-1 rounded-md text-[11px] border text-slate-200 hover:bg-slate-800/70 transition" style={{ borderColor: "#355e52", backgroundColor: "rgba(2,6,23,0.55)" }}>Upload</label>
+                      <label htmlFor={`upload-${key}`} className="cursor-pointer px-3 py-1 rounded-md text-[11px] border text-slate-200 hover:bg-slate-800/70 transition" style={{ borderColor: "#2A3542", backgroundColor: "rgba(2,6,23,0.55)" }}>Upload</label>
                       {files[key] ? <button type="button" onClick={() => handleFileChange(key, null)} className="h-7 w-7 rounded-md text-[12px] font-bold border transition" style={{ borderColor: "rgba(248,113,113,0.45)", color: "#fca5a5", backgroundColor: "rgba(127,29,29,0.18)" }} title={`Clear ${label}`}>×</button> : null}
                     </div>
                   </div>
                 ))}
               </div>
-              <input type="text" value={runName} onChange={(e) => setRunName(e.target.value)} placeholder="Name this run (e.g. Taiwan Blockade July)" className="mt-3 w-full px-3 py-2 rounded-lg text-sm bg-slate-800 border border-slate-600 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
-              <button type="button" onClick={() => { try { localStorage.removeItem("forc_active_scenario"); localStorage.removeItem("currentScenarioJSON"); } catch { } setScenarioData(null); alert("✅ Baseline cleared — next run will use uploaded files only."); }} className="mt-3 w-full py-2 rounded-xl text-xs font-semibold border transition" style={{ borderColor: "#355e52", color: "#94a3b8", background: "rgba(2,6,23,0.45)" }}>
+              <input type="text" value={runName} onChange={(e) => setRunName(e.target.value)} placeholder="Name this run (e.g. Taiwan Blockade July)" className="mt-3 w-full px-3 py-2 rounded-lg text-sm bg-slate-800 border border-slate-600 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-lime-400" />
+              <button type="button" onClick={() => { try { localStorage.removeItem("forc_active_scenario"); localStorage.removeItem("currentScenarioJSON"); } catch { } setScenarioData(null); alert("✅ Baseline cleared — next run will use uploaded files only."); }} className="mt-3 w-full py-2 rounded-xl text-xs font-semibold border transition" style={{ borderColor: "#2A3542", color: "#94a3b8", background: "rgba(2,6,23,0.45)" }}>
                 🔄 Clear to Baseline
               </button>
               <button
@@ -1924,8 +1847,7 @@ export default function SimulationDashboard({
           )}
         </section>
 
-        {/* ── LAYER 2: Tabbed results zone ── */}
-        <div className="rounded-2xl border p-5 shadow-xl" style={{ background: "linear-gradient(160deg, rgba(4,20,15,0.99), rgba(3,16,12,0.99))", borderColor: "#123528" }}>
+        <div className="rounded-2xl border p-5 shadow-xl" style={{ background: "linear-gradient(160deg, rgba(16,20,26,0.99), rgba(10,13,17,0.99))", borderColor: "#1E2733" }}>
           <TabNav activeTab={activeTab} setActiveTab={setActiveTab} hasRun={hasNarrativeRun} />
           {renderTabContent()}
         </div>
