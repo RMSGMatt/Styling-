@@ -37,30 +37,28 @@ function UpgradeCtaCard({ plan, onUpgrade }) {
   return (
     <div
       style={{
-        border: "1px solid rgba(255,255,255,0.12)",
+        border: "1px solid rgba(159,214,58,0.2)",
         borderRadius: 18,
         padding: 18,
-        background: "rgba(255,255,255,0.06)",
-        boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
-        backdropFilter: "blur(8px)",
+        background: "rgba(9,25,19,0.6)",
       }}
     >
-      <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 6 }}>
+      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6, color: "#E2E8F0" }}>
         🔒 Simulation Repository is Pro+
       </div>
-      <div style={{ opacity: 0.85, lineHeight: 1.4, marginBottom: 12 }}>
+      <div style={{ color: "#94A3B8", lineHeight: 1.4, marginBottom: 12 }}>
         Upgrade to view past runs, download outputs, and access reporting features.
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button
           onClick={onUpgrade}
           style={{
-            background: "#0f5e4a",
-            color: "white",
+            background: "linear-gradient(90deg,#9CF700,#22c55e)",
+            color: "#020617",
             border: "none",
             padding: "10px 14px",
             borderRadius: 12,
-            fontWeight: 900,
+            fontWeight: 700,
             cursor: "pointer",
           }}
         >
@@ -70,19 +68,19 @@ function UpgradeCtaCard({ plan, onUpgrade }) {
           onClick={onUpgrade}
           style={{
             background: "transparent",
-            color: "#b7f7d8",
-            border: "1px solid rgba(183,247,216,0.35)",
+            color: "#9FD63A",
+            border: "1px solid rgba(159,214,58,0.35)",
             padding: "10px 14px",
             borderRadius: 12,
-            fontWeight: 900,
+            fontWeight: 700,
             cursor: "pointer",
           }}
         >
           See plans
         </button>
       </div>
-      <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-        Current plan: <b>{normalizePlan(plan) || "free"}</b>
+      <div style={{ marginTop: 10, fontSize: 12, color: "#64748B" }}>
+        Current plan: <b style={{ color: "#94A3B8" }}>{normalizePlan(plan) || "free"}</b>
       </div>
     </div>
   );
@@ -94,12 +92,11 @@ const GLOBAL_LOCATIONS_URL =
 function KpiCard({ value, label, risk, trend, deltaText }) {
   const trendLabels = { up: "Improving", down: "Declining", neutral: "Stable" };
   const trendColors = {
-    up: "bg-green-100 text-green-700",
-    down: "bg-yellow-100 text-yellow-700",
-    neutral: "bg-gray-100 text-gray-700",
+    up: "bg-emerald-500/15 text-emerald-300",
+    down: "bg-amber-500/15 text-amber-300",
+    neutral: "bg-slate-500/15 text-slate-300",
   };
-  const riskClass =
-    risk === "high" ? "border-l-4 border-red-400" : "border-l-4 border-[#1D625B]";
+  const accentColor = risk === "high" ? "#EF4444" : risk === "medium" ? "#F59E0B" : "#9FD63A";
 
   const iconMap = {
     shipments: "📦",
@@ -115,18 +112,20 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
 
   return (
     <div
-      className={`bg-gradient-to-br from-white to-[#e8f8f5] p-3.5 rounded-xl shadow-sm relative transition duration-200 ease-in-out transform hover:-translate-y-1 hover:shadow-lg ${riskClass}`}
+      className="relative overflow-hidden rounded-2xl border p-3.5 transition duration-200 ease-in-out transform hover:-translate-y-1"
+      style={{ background: "linear-gradient(145deg, rgba(13,31,24,0.85), rgba(6,37,26,0.75))", borderColor: "rgba(148,163,184,0.15)" }}
       title={`${label} - Click for details`}
     >
-      <div className="text-[2.25rem] leading-none font-extrabold text-[#1D625B]" title={`Current value: ${value}`}>
+      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: accentColor }} />
+      <div className="text-[2.25rem] leading-none font-extrabold" style={{ color: "#E2E8F0" }} title={`Current value: ${value}`}>
         {value}
       </div>
-      <div className="text-[13px] text-gray-600 flex items-center gap-1 mt-1" title={`Metric: ${label}`}>
+      <div className="text-[13px] flex items-center gap-1 mt-1" style={{ color: "#94A3B8" }} title={`Metric: ${label}`}>
         <span>{icon}</span>
         <span>{label}</span>
       </div>
       {deltaText && (
-        <div className="mt-1.5 text-[11px] font-medium text-gray-500">{deltaText}</div>
+        <div className="mt-1.5 text-[11px] font-medium" style={{ color: "#64748B" }}>{deltaText}</div>
       )}
       <div
         className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full ${trendColors[trend]}`}
@@ -135,28 +134,10 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
         {trendLabels[trend]}
       </div>
       {risk === "high" && (
-        <div className="absolute top-8 right-2 text-red-500 animate-pulse" title="High Risk KPI">
+        <div className="absolute top-8 right-2 text-red-400 animate-pulse" title="High Risk KPI">
           ⚠️
         </div>
       )}
-      <div
-        className={`absolute bottom-0 left-0 w-full h-1.5 rounded-b-xl ${
-          risk === "high"
-            ? "bg-gradient-to-r from-red-500 via-red-400 to-red-300"
-            : risk === "medium"
-            ? "bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-200"
-            : ""
-        }`}
-        style={{
-          background:
-            risk === "low" || !risk
-              ? "linear-gradient(to right, #1D625B, #2e7c6f, #4ba392)"
-              : undefined,
-          opacity: 0.9,
-          filter: "blur(0.2px)",
-        }}
-        title={`Severity: ${risk || "low"}`}
-      />
     </div>
   );
 }
@@ -218,43 +199,44 @@ function FacilityDrawer({ facility, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
       <div
-        className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col"
+        className="relative w-full max-w-md h-full flex flex-col"
+        style={{ background: "#0B1512" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between" style={{ background: "#0a2e22" }}>
+        <div className="px-6 py-4 border-b flex items-start justify-between" style={{ background: "#0a2e22", borderColor: "#143629" }}>
           <div>
             <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "#9FD63A" }}>
               Facility Intelligence
             </p>
             <h2 className="text-lg font-bold text-white">{data.name}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">{data.location}</p>
+            <p className="text-xs mt-0.5" style={{ color: "#64748B" }}>{data.location}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white mt-1 text-xl leading-none">×</button>
+          <button onClick={onClose} className="mt-1 text-xl leading-none transition" style={{ color: "#64748B" }}>×</button>
         </div>
 
-        <div className="px-6 py-3 flex items-center gap-2 border-b border-gray-100" style={{ background: "#f9fafb" }}>
+        <div className="px-6 py-3 flex items-center gap-2 border-b" style={{ background: "rgba(9,25,19,0.6)", borderColor: "#143629" }}>
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: data.statusColor }} />
           <span className="text-sm font-semibold" style={{ color: data.statusColor }}>{data.status}</span>
         </div>
 
-        <div className="px-6 py-4 grid grid-cols-2 gap-4 border-b border-gray-100">
+        <div className="px-6 py-4 grid grid-cols-2 gap-4 border-b" style={{ borderColor: "#143629" }}>
           {[
             { label: "Capacity Utilization", value: data.capacity },
             { label: "Active Incidents", value: data.incidents },
             { label: "Supplier On-Time", value: data.onTime },
             { label: "Avg Lead Time", value: data.leadTime },
           ].map((kpi) => (
-            <div key={kpi.label} className="bg-gray-50 rounded-xl p-3">
-              <div className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">{kpi.label}</div>
-              <div className="text-lg font-extrabold text-[#1D625B]">{kpi.value}</div>
+            <div key={kpi.label} className="rounded-xl p-3" style={{ background: "rgba(9,25,19,0.5)" }}>
+              <div className="text-[10px] uppercase tracking-wide mb-1" style={{ color: "#64748B" }}>{kpi.label}</div>
+              <div className="text-lg font-extrabold" style={{ color: "#9FD63A" }}>{kpi.value}</div>
             </div>
           ))}
         </div>
 
         <div className="px-6 py-4 space-y-4 flex-1">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Top Risk</p>
-            <p className="text-sm text-gray-700">{data.topRisk}</p>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>Top Risk</p>
+            <p className="text-sm" style={{ color: "#CBD5E1" }}>{data.topRisk}</p>
           </div>
           <div className="rounded-xl px-4 py-3" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
             <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#9FD63A" }}>Recommended Action</p>
@@ -262,10 +244,11 @@ function FacilityDrawer({ facility, onClose }) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100">
+        <div className="px-6 py-4 border-t" style={{ borderColor: "#143629" }}>
           <button
             onClick={onClose}
-            className="w-full py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50"
+            className="w-full py-2 rounded-xl text-sm font-semibold border transition"
+            style={{ borderColor: "#355e52", color: "#94A3B8", background: "rgba(2,6,23,0.45)" }}
           >
             Close
           </button>
@@ -303,8 +286,8 @@ function deriveAlerts(kpis) {
 }
 
 const ALERT_CONFIG = {
-  watch:    { color: "#92400e", bg: "#fef3c7", border: "#fbbf24", icon: "🟡", label: "WATCH" },
-  act:      { color: "#7f1d1d", bg: "#fee2e2", border: "#f87171", icon: "🔴", label: "ACT" },
+  watch:    { color: "#FCD34D", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.4)", icon: "🟡", label: "WATCH" },
+  act:      { color: "#FCA5A5", bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.4)", icon: "🔴", label: "ACT" },
   escalate: { color: "#fff",    bg: "#7f1d1d", border: "#ef4444", icon: "🚨", label: "ESCALATE" },
 };
 
@@ -313,9 +296,9 @@ function AlertStrip({ kpis }) {
   const alerts = deriveAlerts(kpis).filter((a) => !dismissed.includes(a.id));
 
   if (!alerts.length) return (
-    <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2 text-sm" style={{ background: "#f0fdf4", border: "1px solid #86efac" }}>
+    <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2 text-sm" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
       <span>✅</span>
-      <span className="text-green-700 font-medium">All KPIs within normal thresholds</span>
+      <span className="font-medium" style={{ color: "#86efac" }}>All KPIs within normal thresholds</span>
     </div>
   );
 
@@ -674,7 +657,7 @@ export default function ControlTower({
   const goToBilling = () => setActiveView("billing");
 
   return (
-    <div className="flex h-screen bg-[#f9fafb] font-sans overflow-hidden">
+    <div className="flex h-screen font-sans overflow-hidden" style={{ background: "radial-gradient(circle at top left, #0B3D2E 0, #020617 40%, #020617 100%)" }}>
 
       {/* ── Sidebar ── */}
       <aside className="w-64 bg-[#0a2e22] text-white p-6 space-y-6 h-screen overflow-y-auto">
@@ -788,12 +771,13 @@ export default function ControlTower({
       <main className="flex-1 min-w-0 min-h-0 flex flex-col">
 
         {/* Sticky header */}
-        <div className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
+        <div className="sticky top-0 z-10 border-b backdrop-blur" style={{ background: "rgba(2,6,23,0.85)", borderColor: "#123528" }}>
           <div className="flex items-center justify-between px-6 py-3">
-            <h1 className="text-2xl font-bold text-[#1D625B]">Control Tower</h1>
+            <h1 className="text-2xl font-bold" style={{ color: "#9FD63A" }}>Control Tower</h1>
             <button
               onClick={onLogout || (() => {})}
-              className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm font-medium transition"
+              style={{ color: "#94A3B8", borderColor: "#355e52", background: "rgba(2,6,23,0.45)" }}
               title="Sign out"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -820,13 +804,13 @@ export default function ControlTower({
           {/* ── Dashboard ── */}
           {activeView === "dashboard" && (
             <>
-              <div className="mb-2 text-lg text-gray-700">
-                Welcome back, <strong>{userName}</strong> 👋
+              <div className="mb-2 text-lg" style={{ color: "#94A3B8" }}>
+                Welcome back, <strong style={{ color: "#E2E8F0" }}>{userName}</strong> 👋
               </div>
 
               {scenarioName && (
-                <div className="mt-1 mb-4 text-sm text-gray-600 flex items-center gap-2">
-                  Active scenario: <span className="font-semibold">{scenarioName}</span>
+                <div className="mt-1 mb-4 text-sm flex items-center gap-2" style={{ color: "#94A3B8" }}>
+                  Active scenario: <span className="font-semibold" style={{ color: "#E2E8F0" }}>{scenarioName}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -837,7 +821,8 @@ export default function ControlTower({
                       } catch {}
                       setScenarioName("");
                     }}
-                    className="ml-1 text-gray-400 hover:text-red-500 transition text-xs font-bold"
+                    className="ml-1 hover:text-red-400 transition text-xs font-bold"
+                    style={{ color: "#64748B" }}
                     title="Clear active scenario"
                   >
                     ✕
@@ -846,7 +831,7 @@ export default function ControlTower({
               )}
 
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div id="tour-map" className="lg:col-span-2 h-96 rounded overflow-hidden shadow border border-gray-300">
+                <div id="tour-map" className="lg:col-span-2 h-96 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
 
                   {newsHeadlines.length > 0 && (
                     <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
@@ -875,27 +860,27 @@ export default function ControlTower({
                   />
                 </div>
 
-                <div className="bg-white rounded-xl shadow border border-gray-200 p-4">
-                  <h2 className="text-lg font-bold text-[#1D625B] mb-2">Network Health Summary</h2>
-                  <div className="text-sm text-gray-600 mb-3">
+                <div className="rounded-xl border p-4" style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "#143629" }}>
+                  <h2 className="text-lg font-bold mb-2" style={{ color: "#9FD63A" }}>Network Health Summary</h2>
+                  <div className="text-sm mb-3" style={{ color: "#94A3B8" }}>
                     Executive overview of current supply chain performance and disruption exposure.
                   </div>
                   <ul className="space-y-3">
                     <li className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">Active Incidents</span>
-                      <span className="text-base font-extrabold text-red-500">{businessKpis?.activeIncidents}</span>
+                      <span className="text-xs" style={{ color: "#64748B" }}>Active Incidents</span>
+                      <span className="text-base font-extrabold text-red-400">{businessKpis?.activeIncidents}</span>
                     </li>
                     <li className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">Service Level</span>
-                      <span className="text-base font-extrabold text-[#1D625B]">{businessKpis?.serviceLevel}</span>
+                      <span className="text-xs" style={{ color: "#64748B" }}>Service Level</span>
+                      <span className="text-base font-extrabold" style={{ color: "#9FD63A" }}>{businessKpis?.serviceLevel}</span>
                     </li>
                     <li className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">Revenue Exposure</span>
-                      <span className="text-base font-extrabold text-amber-600">{businessKpis?.revenueAtRisk}</span>
+                      <span className="text-xs" style={{ color: "#64748B" }}>Revenue Exposure</span>
+                      <span className="text-base font-extrabold text-amber-400">{businessKpis?.revenueAtRisk}</span>
                     </li>
                     <li className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">Backorders</span>
-                      <span className="text-base font-extrabold text-red-400">{businessKpis?.backorders}</span>
+                      <span className="text-xs" style={{ color: "#64748B" }}>Backorders</span>
+                      <span className="text-base font-extrabold text-red-300">{businessKpis?.backorders}</span>
                     </li>
                   </ul>
                 </div>
@@ -922,27 +907,27 @@ export default function ControlTower({
               <div id="tour-alerts"><AlertStrip kpis={businessKpis} /></div>
 
               <section className="mb-5">
-                <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3">
+                <div className="rounded-2xl border px-4 py-3" style={{ background: "rgba(9,25,19,0.5)", borderColor: "#143629" }}>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
                     <div>
-                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Regions Monitored</div>
-                      <div className="font-semibold text-gray-800">{networkContext.monitoredRegions}</div>
+                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Regions Monitored</div>
+                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{networkContext.monitoredRegions}</div>
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Active Feeds</div>
-                      <div className="font-semibold text-gray-800">{networkContext.activeFeeds.join(" • ")}</div>
+                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Active Feeds</div>
+                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{networkContext.activeFeeds.join(" • ")}</div>
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Network Scope</div>
-                      <div className="font-semibold text-gray-800">{businessKpis?.totalFacilities || "—"} facilities</div>
+                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Network Scope</div>
+                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{businessKpis?.totalFacilities || "—"} facilities</div>
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Refresh Cadence</div>
-                      <div className="font-semibold text-gray-800">{networkContext.refreshCadence}</div>
+                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Refresh Cadence</div>
+                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{networkContext.refreshCadence}</div>
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-wide text-gray-400">Last Refresh</div>
-                      <div className="font-semibold text-gray-800">{new Date().toLocaleTimeString()} {networkContext.timezoneLabel}</div>
+                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Last Refresh</div>
+                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{new Date().toLocaleTimeString()} {networkContext.timezoneLabel}</div>
                     </div>
                   </div>
                 </div>
@@ -954,11 +939,12 @@ export default function ControlTower({
                     <button
                       key={range}
                       onClick={() => setKpiRange(range)}
-                      className={`px-3 py-1 rounded font-semibold text-sm ${
+                      className="px-3 py-1 rounded font-semibold text-sm transition"
+                      style={
                         kpiRange === range
-                          ? "bg-[#1D625B] text-white"
-                          : "bg-white text-[#1D625B] border border-[#1D625B]"
-                      }`}
+                          ? { background: "#9FD63A", color: "#111B21" }
+                          : { background: "rgba(9,25,19,0.5)", color: "#9FD63A", border: "1px solid rgba(159,214,58,0.35)" }
+                      }
                     >
                       {range.toUpperCase()}
                     </button>
@@ -966,7 +952,7 @@ export default function ControlTower({
                 </div>
               </div>
 
-              <div className="text-xs text-gray-500 mb-3">
+              <div className="text-xs mb-3" style={{ color: "#64748B" }}>
                 Last updated: {new Date().toLocaleString()}
               </div>
 
@@ -1016,8 +1002,8 @@ export default function ControlTower({
                   <section className="mb-6">
                     <div className="flex items-end justify-between mb-3">
                       <div>
-                        <h2 className="text-xl font-semibold text-[#1D625B]">Executive KPIs</h2>
-                        <div className="text-sm text-gray-500">Highest-signal network metrics for leadership review</div>
+                        <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Executive KPIs</h2>
+                        <div className="text-sm" style={{ color: "#64748B" }}>Highest-signal network metrics for leadership review</div>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1037,8 +1023,8 @@ export default function ControlTower({
                   <section className="space-y-8 mb-6">
                     <div>
                       <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleKpiSection("fulfillment")}>
-                        <h2 className="text-xl font-semibold text-[#1D625B] mb-2">📦 Fulfillment & Inventory</h2>
-                        <span className="text-sm text-gray-500 group-hover:underline">{kpiSectionVisibility.fulfillment ? "Hide" : "Show"}</span>
+                        <h2 className="text-xl font-semibold mb-2" style={{ color: "#9FD63A" }}>📦 Fulfillment & Inventory</h2>
+                        <span className="text-sm group-hover:underline" style={{ color: "#64748B" }}>{kpiSectionVisibility.fulfillment ? "Hide" : "Show"}</span>
                       </div>
                       <div className={`transition-all duration-300 ease-in-out overflow-hidden ${kpiSectionVisibility.fulfillment ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -1051,8 +1037,8 @@ export default function ControlTower({
 
                     <div>
                       <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleKpiSection("production")}>
-                        <h2 className="text-xl font-semibold text-[#1D625B] mb-2">🏭 Production & Disruption</h2>
-                        <span className="text-sm text-gray-500 group-hover:underline">{kpiSectionVisibility.production ? "Hide" : "Show"}</span>
+                        <h2 className="text-xl font-semibold mb-2" style={{ color: "#9FD63A" }}>🏭 Production & Disruption</h2>
+                        <span className="text-sm group-hover:underline" style={{ color: "#64748B" }}>{kpiSectionVisibility.production ? "Hide" : "Show"}</span>
                       </div>
                       <div className={`transition-all duration-300 ease-in-out overflow-hidden ${kpiSectionVisibility.production ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1065,8 +1051,8 @@ export default function ControlTower({
 
                     <div>
                       <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleKpiSection("cost")}>
-                        <h2 className="text-xl font-semibold text-[#1D625B] mb-2">💰 Cost & Service Metrics</h2>
-                        <span className="text-sm text-gray-500 group-hover:underline">{kpiSectionVisibility.cost ? "Hide" : "Show"}</span>
+                        <h2 className="text-xl font-semibold mb-2" style={{ color: "#9FD63A" }}>💰 Cost & Service Metrics</h2>
+                        <span className="text-sm group-hover:underline" style={{ color: "#64748B" }}>{kpiSectionVisibility.cost ? "Hide" : "Show"}</span>
                       </div>
                       <div className={`transition-all duration-300 ease-in-out overflow-hidden ${kpiSectionVisibility.cost ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
                         <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -1082,12 +1068,12 @@ export default function ControlTower({
 
               <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[chartType1, chartType2].map((type, i) => (
-                  <div key={i} className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
-                    <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                  <div key={i} className="rounded-2xl border overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(4,27,21,0.98))", borderColor: "#123528" }}>
+                    <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: "#143629" }}>
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div>
-                          <div className="text-base font-semibold text-[#1D625B]">{chartMeta[type]?.title || "Trend View"}</div>
-                          <div className="text-xs text-gray-500 mt-1">{chartMeta[type]?.subtitle || "Operational performance trend"}</div>
+                          <div className="text-base font-semibold" style={{ color: "#9FD63A" }}>{chartMeta[type]?.title || "Trend View"}</div>
+                          <div className="text-xs mt-1" style={{ color: "#64748B" }}>{chartMeta[type]?.subtitle || "Operational performance trend"}</div>
                         </div>
                       </div>
                       <Select
@@ -1100,7 +1086,7 @@ export default function ControlTower({
                     <div className="p-4">
                       <div className="h-[320px]">{renderChart(type)}</div>
                     </div>
-                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex items-center justify-between">
+                    <div className="px-4 py-3 border-t text-xs flex items-center justify-between" style={{ borderColor: "#143629", background: "rgba(2,6,23,0.4)", color: "#64748B" }}>
                       <span>{chartMeta[type]?.footer || "Basis: monitored performance"}</span>
                       <span>Period: Jan–Aug</span>
                     </div>
@@ -1114,15 +1100,15 @@ export default function ControlTower({
           {activeView === "simulations" && (
             <section className="mt-2">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xl font-semibold text-[#1D625B]">🧪 Simulation Repository</h2>
+                <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>🧪 Simulation Repository</h2>
                 {!proPlus && (
-                  <button onClick={goToBilling} className="rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50">
+                  <button onClick={goToBilling} className="rounded-xl border px-3 py-1.5 text-sm font-semibold transition" style={{ color: "#9FD63A", borderColor: "rgba(159,214,58,0.35)", background: "rgba(9,25,19,0.5)" }}>
                     Upgrade
                   </button>
                 )}
               </div>
               {!proPlus ? (
-                <div className="rounded-2xl bg-[#1D625B] text-white p-5">
+                <div className="rounded-2xl p-5" style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", border: "1px solid #143629" }}>
                   <UpgradeCtaCard plan={resolvedPlan} onUpgrade={goToBilling} />
                 </div>
               ) : (
@@ -1149,24 +1135,25 @@ export default function ControlTower({
                       const runId = (run?.id || run?.run_id || run?.created_at || "").slice(-8);
 
                       return (
-                        <div key={run.id || run.created_at || idx} className="bg-white border rounded-xl p-4 shadow-sm hover:shadow-md transition">
+                        <div key={run.id || run.created_at || idx} className="rounded-xl border p-4 transition hover:-translate-y-0.5" style={{ background: "linear-gradient(145deg, rgba(13,31,24,0.85), rgba(6,37,26,0.75))", borderColor: "rgba(148,163,184,0.15)" }}>
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
                               {nrs && (
                                 <div className="shrink-0 w-10 h-10 rounded-xl flex flex-col items-center justify-center border-2"
-                                  style={{ borderColor: nrsColor, background: `${nrsColor}10` }}>
+                                  style={{ borderColor: nrsColor, background: `${nrsColor}18` }}>
                                   <span className="text-[11px] font-bold leading-none" style={{ color: nrsColor }}>{nrs}</span>
                                   <span className="text-[8px] leading-none mt-0.5" style={{ color: nrsColor }}>NRS</span>
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <div className="font-bold text-[#1D625B] truncate">{runLabel}</div>
-                                <div className="text-xs text-gray-400">{run.created_at || run.timestamp || ""} {runId && `· ${runId}`}</div>
+                                <div className="font-bold truncate" style={{ color: "#9FD63A" }}>{runLabel}</div>
+                                <div className="text-xs" style={{ color: "#64748B" }}>{run.created_at || run.timestamp || ""} {runId && `· ${runId}`}</div>
                               </div>
                             </div>
                             <button
                               onClick={() => switchView?.("simulation")}
-                              className="shrink-0 rounded-xl border px-3 py-1.5 text-sm font-semibold text-[#1D625B] hover:bg-gray-50"
+                              className="shrink-0 rounded-xl border px-3 py-1.5 text-sm font-semibold transition"
+                              style={{ color: "#9FD63A", borderColor: "rgba(159,214,58,0.35)", background: "rgba(9,25,19,0.5)" }}
                             >
                               Open →
                             </button>
@@ -1174,20 +1161,20 @@ export default function ControlTower({
 
                           {svc > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
-                              <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${svc >= 95 ? "bg-green-50 text-green-700" : svc >= 80 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
+                              <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${svc >= 95 ? "bg-emerald-500/15 text-emerald-300" : svc >= 80 ? "bg-amber-500/15 text-amber-300" : "bg-red-500/15 text-red-300"}`}>
                                 Service {svc.toFixed(1)}%
                               </span>
                               {ttr > 0 && (
-                                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${ttr <= 7 ? "bg-green-50 text-green-700" : ttr <= 30 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
+                                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${ttr <= 7 ? "bg-emerald-500/15 text-emerald-300" : ttr <= 30 ? "bg-amber-500/15 text-amber-300" : "bg-red-500/15 text-red-300"}`}>
                                   TTR {ttr}d
                                 </span>
                               )}
                               {rev > 0 && (
-                                <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-orange-50 text-orange-700">
+                                <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-orange-500/15 text-orange-300">
                                   ${rev >= 1000 ? `${(rev/1000).toFixed(0)}K` : rev} exposure
                                 </span>
                               )}
-                              <span className="px-2 py-1 rounded-lg text-xs font-semibold" style={{ background: `${nrsColor}15`, color: nrsColor }}>
+                              <span className="px-2 py-1 rounded-lg text-xs font-semibold" style={{ background: `${nrsColor}18`, color: nrsColor }}>
                                 {nrsLabel}
                               </span>
                             </div>
@@ -1196,7 +1183,7 @@ export default function ControlTower({
                       );
                     })
                   ) : (
-                    <div className="bg-white border rounded-xl p-4 text-gray-600">No runs yet.</div>
+                    <div className="rounded-xl border p-4" style={{ background: "rgba(9,25,19,0.5)", borderColor: "#143629", color: "#94A3B8" }}>No runs yet.</div>
                   )}
                 </div>
               )}
