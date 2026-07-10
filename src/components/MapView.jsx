@@ -468,7 +468,7 @@ export default function MapView({
 
     const MAP_STYLE =
       import.meta?.env?.VITE_MAPBOX_STYLE ||
-      "mapbox://styles/mapbox/satellite-streets-v12";
+      "mapbox://styles/mapbox/dark-v11";
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
