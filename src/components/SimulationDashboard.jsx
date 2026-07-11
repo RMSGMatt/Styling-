@@ -275,10 +275,10 @@ function TabNav({ activeTab, setActiveTab, hasRun }) {
 function buildSafetyStockPayload(lanesRows, locationMaterialsRows) {
   // TEMP DEBUG — remove once the safety-stock data-wiring issue is confirmed fixed.
   console.log("[FORC-DEBUG] buildSafetyStockPayload called");
-  console.log("[FORC-DEBUG] raw lanesRows:", lanesRows?.length, "rows. First row:", lanesRows?.[0]);
-  console.log("[FORC-DEBUG] raw lanesRows keys:", lanesRows?.[0] ? Object.keys(lanesRows[0]) : "no rows");
-  console.log("[FORC-DEBUG] raw locationMaterialsRows:", locationMaterialsRows?.length, "rows. First row:", locationMaterialsRows?.[0]);
-  console.log("[FORC-DEBUG] raw locationMaterialsRows keys:", locationMaterialsRows?.[0] ? Object.keys(locationMaterialsRows[0]) : "no rows");
+  console.log("[FORC-DEBUG] raw lanesRows:", lanesRows?.length, "rows. First row JSON:", JSON.stringify(lanesRows?.[0]));
+  console.log("[FORC-DEBUG] raw lanesRows keys JSON:", JSON.stringify(lanesRows?.[0] ? Object.keys(lanesRows[0]) : "no rows"));
+  console.log("[FORC-DEBUG] raw locationMaterialsRows:", locationMaterialsRows?.length, "rows. First row JSON:", JSON.stringify(locationMaterialsRows?.[0]));
+  console.log("[FORC-DEBUG] raw locationMaterialsRows keys JSON:", JSON.stringify(locationMaterialsRows?.[0] ? Object.keys(locationMaterialsRows[0]) : "no rows"));
 
   const lanes = (lanesRows || [])
     .filter((r) => r.from_facility && r.to_facility && r.sku)
