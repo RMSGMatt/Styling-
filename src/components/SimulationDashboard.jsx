@@ -272,9 +272,7 @@ function TabNav({ activeTab, setActiveTab, hasRun }) {
 // template (lanes.csv: from_facility,to_facility,sku,lead_time_days,lane_type;
 // location_materials.csv: facility,sku,initial inventory) — filtered
 // defensively in case of blank trailing rows from CSV parsing.
-function buildSafetyStockPayload(lanesRows, locationMaterialsRows) {
-  // TEMP DEBUG — remove once the safety-stock data-wiring issue is confirmed fixed.
-
+function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, bomRows) {
   // Different CSV exports across runs use inconsistent header casing/naming
   // (confirmed: one file used "facility,sku,initial inventory", another used
   // "Facility,SKU,quantity"). Look up fields case-insensitively across known
@@ -306,11 +304,43 @@ function buildSafetyStockPayload(lanesRows, locationMaterialsRows) {
     }))
     .filter((i) => i.facility && i.sku);
 
+  // demand.csv is a time series (Date, Facility, SKU, Quantity) — one row per
+  // day/facility/SKU. The optimizer needs a single mean + std-dev per SKU
+  // (network-wide daily demand), so: sum quantity across facilities for each
+  // SKU on each date, then take the mean/std of those daily totals.
+  const dailyTotalsBySku = {};
+  for (const r of demandRows || []) {
+    const date = pickField(r, ["date"]);
+    const sku = pickField(r, ["sku", "material"]);
+    const qty = Number(pickField(r, ["quantity", "qty"])) || 0;
+    if (!date || !sku) continue;
+    dailyTotalsBySku[sku] = dailyTotalsBySku[sku] || {};
+    dailyTotalsBySku[sku][date] = (dailyTotalsBySku[sku][date] || 0) + qty;
+  }
+  const demand = {};
+  const demand_sigma = {};
+  for (const sku of Object.keys(dailyTotalsBySku)) {
+    const values = Object.values(dailyTotalsBySku[sku]);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
+    demand[sku] = mean;
+    demand_sigma[sku] = Math.sqrt(variance);
+  }
 
-  return { lanes, inventory };
+  // bom.csv (parent, component, quantity) drives how demand for a finished
+  // good rolls up into demand for the raw materials that feed it.
+  const bom = (bomRows || [])
+    .map((r) => ({
+      parent: pickField(r, ["parent"]),
+      component: pickField(r, ["component"]),
+      quantity: Number(pickField(r, ["quantity", "qty"])) || 1,
+    }))
+    .filter((b) => b.parent && b.component);
+
+  return { lanes, inventory, demand, demand_sigma, bom };
 }
 
-function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsData }) {
+function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsData, demandData, bomData }) {
   const [targetSL, setTargetSL] = React.useState(95);
   const [result, setResult] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
@@ -318,9 +348,9 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
 
   const fetchOptimization = React.useCallback(async (sl) => {
     if (!hasRun) return;
-    const { lanes, inventory } = buildSafetyStockPayload(lanesData, locationMaterialsData);
-    if (lanes.length === 0 || inventory.length === 0) {
-      setError("Upload lanes.csv and location_materials.csv for this run to enable safety stock optimization.");
+    const { lanes, inventory, demand, demand_sigma, bom } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
+    if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
+      setError("Upload lanes.csv, location_materials.csv, and demand.csv for this run to enable safety stock optimization.");
       setResult(null);
       return;
     }
@@ -337,6 +367,9 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
           revenue_at_risk: revenueAtRisk > 0 ? revenueAtRisk * 12 : 847000,
           lanes,
           inventory,
+          demand,
+          demand_sigma,
+          bom,
         }),
       });
       const data = await res.json();
@@ -347,7 +380,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
     } finally {
       setLoading(false);
     }
-  }, [hasRun, apiBase, lanesData, locationMaterialsData]);
+  }, [hasRun, apiBase, lanesData, locationMaterialsData, demandData, bomData]);
 
   React.useEffect(() => {
     if (hasRun) fetchOptimization(targetSL);
@@ -370,16 +403,16 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
           <div className="flex items-center gap-3">
             <div className="text-center">
               <p className="text-[10px] text-slate-400">Additional Cost</p>
-              <p className="text-lg font-bold text-white">${rec.total_additional_cost_usd?.toLocaleString()}</p>
+              <p className="text-lg font-bold text-white">{formatCurrencyCompact(rec.total_additional_cost_usd)}</p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-slate-400">Revenue Protected</p>
-              <p className="text-lg font-bold" style={{ color: slColor }}>${(rec.revenue_protected_usd / 1000).toFixed(0)}K</p>
+              <p className="text-lg font-bold" style={{ color: slColor }}>{formatCurrencyCompact(rec.revenue_protected_usd)}</p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-slate-400">ROI</p>
               <p className="text-lg font-bold" style={{ color: slColor }}>
-                {rec.roi === Infinity || rec.roi > 9999 ? "∞" : `${rec.roi}x`}
+                {rec.roi == null || rec.roi === Infinity || rec.roi > 9999 ? "∞" : `${rec.roi}x`}
               </p>
             </div>
           </div>
@@ -426,14 +459,14 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
   );
 }
 
-function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, lanesData, locationMaterialsData }) {
+function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, lanesData, locationMaterialsData, demandData, bomData }) {
   const [result, setResult] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
     if (!hasRun) return;
-    const { lanes, inventory } = buildSafetyStockPayload(lanesData, locationMaterialsData);
-    if (lanes.length === 0 || inventory.length === 0) {
+    const { lanes, inventory, demand, demand_sigma, bom } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
+    if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
       // Summary card silently stays empty if this run's network data isn't
       // available yet — the Actions tab panel below surfaces the clear message.
       return;
@@ -451,6 +484,9 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
             revenue_at_risk: revenueAtRisk > 0 ? revenueAtRisk * 12 : 847000,
             lanes,
             inventory,
+            demand,
+            demand_sigma,
+            bom,
           }),
         });
         const data = await res.json();
@@ -462,7 +498,7 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
       }
     };
     fetch95();
-  }, [hasRun, apiBase, lanesData, locationMaterialsData]);
+  }, [hasRun, apiBase, lanesData, locationMaterialsData, demandData, bomData]);
 
   if (!hasRun) return null;
 
@@ -488,16 +524,16 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-slate-900/50 rounded-xl p-3 text-center">
             <p className="text-[10px] text-slate-400 mb-1">Additional Cost</p>
-            <p className="text-base font-bold text-white">${rec.total_additional_cost_usd?.toLocaleString()}</p>
+            <p className="text-base font-bold text-white">{formatCurrencyCompact(rec.total_additional_cost_usd)}</p>
           </div>
           <div className="bg-slate-900/50 rounded-xl p-3 text-center">
             <p className="text-[10px] text-slate-400 mb-1">Revenue Protected</p>
-            <p className="text-base font-bold" style={{ color: "#2EC4A6" }}>${(rec.revenue_protected_usd / 1000).toFixed(0)}K</p>
+            <p className="text-base font-bold" style={{ color: "#2EC4A6" }}>{formatCurrencyCompact(rec.revenue_protected_usd)}</p>
           </div>
           <div className="bg-slate-900/50 rounded-xl p-3 text-center">
             <p className="text-[10px] text-slate-400 mb-1">ROI at 95% SL</p>
             <p className="text-base font-bold" style={{ color: "#9FD63A" }}>
-              {rec.roi === Infinity || rec.roi > 9999 ? "∞" : `${rec.roi}x`}
+              {rec.roi == null || rec.roi === Infinity || rec.roi > 9999 ? "∞" : `${rec.roi}x`}
             </p>
           </div>
         </div>
@@ -618,7 +654,7 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
   );
 }
 
-function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis, kpis, apiBase, hasNarrativeRun, lanesData, locationMaterialsData }) {
+function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis, kpis, apiBase, hasNarrativeRun, lanesData, locationMaterialsData, demandData, bomData }) {
   const [mraTab, setMraTab] = React.useState("countermeasures");
   const runoutRows = safeArray(runoutRiskData);
   const exec = executiveKpis || {};
@@ -741,7 +777,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
       )}
 
       {mraTab === "safetystock" && (
-        <SafetyStockPanel kpis={kpis} apiBase={apiBase} hasRun={hasNarrativeRun} lanesData={lanesData} locationMaterialsData={locationMaterialsData} />
+        <SafetyStockPanel kpis={kpis} apiBase={apiBase} hasRun={hasNarrativeRun} lanesData={lanesData} locationMaterialsData={locationMaterialsData} demandData={demandData} bomData={bomData} />
       )}
     </div>
   );
@@ -1075,6 +1111,7 @@ export default function SimulationDashboard({
   const [parsedLocationsData, setParsedLocationsData] = useState([]);
   const [parsedLanesData, setParsedLanesData] = useState([]);
   const [parsedLocationMaterialsData, setParsedLocationMaterialsData] = useState([]);
+  const [parsedDemandData, setParsedDemandData] = useState([]);
 
   useEffect(() => {
     if (!files.bom) return;
@@ -1082,6 +1119,13 @@ export default function SimulationDashboard({
     reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedBomData(parsed.data || []); };
     reader.readAsText(files.bom);
   }, [files.bom]);
+
+  useEffect(() => {
+    if (!files.demand) { setParsedDemandData([]); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedDemandData(parsed.data || []); };
+    reader.readAsText(files.demand);
+  }, [files.demand]);
 
   useEffect(() => {
     if (!files.locations) return;
@@ -1400,6 +1444,8 @@ export default function SimulationDashboard({
               onNavigateToActions={() => setActiveTab("actions")}
               lanesData={parsedLanesData}
               locationMaterialsData={parsedLocationMaterialsData}
+              demandData={parsedDemandData}
+              bomData={parsedBomData}
             />
 
             <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-4 mt-4">
@@ -1522,6 +1568,8 @@ export default function SimulationDashboard({
       hasNarrativeRun={hasNarrativeRun}
       lanesData={parsedLanesData}
       locationMaterialsData={parsedLocationMaterialsData}
+      demandData={parsedDemandData}
+      bomData={parsedBomData}
     />
   );
 
