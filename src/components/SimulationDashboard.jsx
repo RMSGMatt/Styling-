@@ -178,7 +178,7 @@ function formatRunLabel(sim, idx) {
 }
 
 function buildOverlaySeriesFromCsvText(csvText, { outputType, selectedSkus, selectedFacility, runLabelPrefix, style = {} }) {
-  const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+  const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() });
   const rows = parsed.data || [];
   const getSku = (r) => r.sku ?? r.SKU ?? r.Sku ?? r.part ?? r.Part ?? r.item ?? r.Item;
   const getFacility = (r) => r.facility ?? r.Facility ?? r.plant ?? r.Plant ?? r.site ?? r.Site;
@@ -266,7 +266,35 @@ function TabNav({ activeTab, setActiveTab, hasRun }) {
   );
 }
 
-function SafetyStockPanel({ kpis, apiBase, hasRun }) {
+// Transforms the raw uploaded lanes.csv / location_materials.csv rows (as
+// parsed by Papa.parse) into the exact shape /api/safety-stock/optimize
+// expects. Column names come straight from the app's own sample-data
+// template (lanes.csv: from_facility,to_facility,sku,lead_time_days,lane_type;
+// location_materials.csv: facility,sku,initial inventory) — filtered
+// defensively in case of blank trailing rows from CSV parsing.
+function buildSafetyStockPayload(lanesRows, locationMaterialsRows) {
+  const lanes = (lanesRows || [])
+    .filter((r) => r.from_facility && r.to_facility && r.sku)
+    .map((r) => ({
+      from_facility: r.from_facility,
+      to_facility: r.to_facility,
+      sku: r.sku,
+      lead_time_days: Number(r.lead_time_days) || 0,
+      lane_type: (r.lane_type || "domestic").toLowerCase(),
+    }));
+
+  const inventory = (locationMaterialsRows || [])
+    .filter((r) => r.facility && r.sku)
+    .map((r) => ({
+      facility: r.facility,
+      sku: r.sku,
+      quantity: Number(r["initial inventory"]) || 0,
+    }));
+
+  return { lanes, inventory };
+}
+
+function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsData }) {
   const [targetSL, setTargetSL] = React.useState(95);
   const [result, setResult] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
@@ -274,6 +302,12 @@ function SafetyStockPanel({ kpis, apiBase, hasRun }) {
 
   const fetchOptimization = React.useCallback(async (sl) => {
     if (!hasRun) return;
+    const { lanes, inventory } = buildSafetyStockPayload(lanesData, locationMaterialsData);
+    if (lanes.length === 0 || inventory.length === 0) {
+      setError("Upload lanes.csv and location_materials.csv for this run to enable safety stock optimization.");
+      setResult(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -285,6 +319,8 @@ function SafetyStockPanel({ kpis, apiBase, hasRun }) {
         body: JSON.stringify({
           target_service_level: sl / 100,
           revenue_at_risk: revenueAtRisk > 0 ? revenueAtRisk * 12 : 847000,
+          lanes,
+          inventory,
         }),
       });
       const data = await res.json();
@@ -295,7 +331,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun }) {
     } finally {
       setLoading(false);
     }
-  }, [hasRun, apiBase]);
+  }, [hasRun, apiBase, lanesData, locationMaterialsData]);
 
   React.useEffect(() => {
     if (hasRun) fetchOptimization(targetSL);
@@ -374,12 +410,18 @@ function SafetyStockPanel({ kpis, apiBase, hasRun }) {
   );
 }
 
-function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions }) {
+function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, lanesData, locationMaterialsData }) {
   const [result, setResult] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
     if (!hasRun) return;
+    const { lanes, inventory } = buildSafetyStockPayload(lanesData, locationMaterialsData);
+    if (lanes.length === 0 || inventory.length === 0) {
+      // Summary card silently stays empty if this run's network data isn't
+      // available yet — the Actions tab panel below surfaces the clear message.
+      return;
+    }
     setLoading(true);
     const fetch95 = async () => {
       try {
@@ -388,7 +430,12 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions }) 
         const res = await fetch(`${apiBase}/api/safety-stock/optimize`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ target_service_level: 0.95, revenue_at_risk: revenueAtRisk > 0 ? revenueAtRisk * 12 : 847000 }),
+          body: JSON.stringify({
+            target_service_level: 0.95,
+            revenue_at_risk: revenueAtRisk > 0 ? revenueAtRisk * 12 : 847000,
+            lanes,
+            inventory,
+          }),
         });
         const data = await res.json();
         if (data.ok) setResult(data);
@@ -399,7 +446,7 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions }) 
       }
     };
     fetch95();
-  }, [hasRun, apiBase]);
+  }, [hasRun, apiBase, lanesData, locationMaterialsData]);
 
   if (!hasRun) return null;
 
@@ -555,7 +602,7 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
   );
 }
 
-function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis, kpis, apiBase, hasNarrativeRun }) {
+function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis, kpis, apiBase, hasNarrativeRun, lanesData, locationMaterialsData }) {
   const [mraTab, setMraTab] = React.useState("countermeasures");
   const runoutRows = safeArray(runoutRiskData);
   const exec = executiveKpis || {};
@@ -678,7 +725,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
       )}
 
       {mraTab === "safetystock" && (
-        <SafetyStockPanel kpis={kpis} apiBase={apiBase} hasRun={hasNarrativeRun} />
+        <SafetyStockPanel kpis={kpis} apiBase={apiBase} hasRun={hasNarrativeRun} lanesData={lanesData} locationMaterialsData={locationMaterialsData} />
       )}
     </div>
   );
@@ -699,7 +746,7 @@ function ScenarioComparison({ runA, runB }) {
       if (flowUrl) {
         const res = await fetch(flowUrl);
         const text = await res.text();
-        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() });
         const rows = parsed.data || [];
         const customerRows = rows.filter(r => { const ft = String(r.flow_type || r.FlowType || "").toLowerCase(); return ft === "customer_ship" || ft === "customer ship"; });
         const shipped = customerRows.reduce((s, r) => s + (_toNumberLoose(r.shipped || r.flow || 0)), 0);
@@ -713,7 +760,7 @@ function ScenarioComparison({ runA, runB }) {
       if (inventoryUrl) {
         const res = await fetch(inventoryUrl);
         const text = await res.text();
-        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() });
         const rows = parsed.data || [];
         const invCol = Object.keys(rows[0] || {}).find(k => k.toLowerCase().includes("inventory"));
         if (invCol) {
@@ -726,7 +773,7 @@ function ScenarioComparison({ runA, runB }) {
       if (occurrenceUrl) {
         const res = await fetch(occurrenceUrl);
         const text = await res.text();
-        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() });
         occurrences = String((parsed.data || []).length);
       }
     } catch (e) { }
@@ -1016,28 +1063,28 @@ export default function SimulationDashboard({
   useEffect(() => {
     if (!files.bom) return;
     const reader = new FileReader();
-    reader.onload = (e) => { const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true }); setParsedBomData(parsed.data || []); };
+    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedBomData(parsed.data || []); };
     reader.readAsText(files.bom);
   }, [files.bom]);
 
   useEffect(() => {
     if (!files.locations) return;
     const reader = new FileReader();
-    reader.onload = (e) => { const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true }); setParsedLocationsData(parsed.data || []); };
+    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedLocationsData(parsed.data || []); };
     reader.readAsText(files.locations);
   }, [files.locations]);
 
   useEffect(() => {
     if (!files.lanes) { setParsedLanesData([]); return; }
     const reader = new FileReader();
-    reader.onload = (e) => { const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true }); setParsedLanesData(parsed.data || []); };
+    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedLanesData(parsed.data || []); };
     reader.readAsText(files.lanes);
   }, [files.lanes]);
 
   useEffect(() => {
     if (!files.locationMaterials) return;
     const reader = new FileReader();
-    reader.onload = (e) => { const parsed = Papa.parse(e.target.result, { header: true, skipEmptyLines: true }); setParsedLocationMaterialsData(parsed.data || []); };
+    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedLocationMaterialsData(parsed.data || []); };
     reader.readAsText(files.locationMaterials);
   }, [files.locationMaterials]);
 
@@ -1183,7 +1230,7 @@ export default function SimulationDashboard({
         let transformedDisruptions = originalDisruptionsText;
         let transformedLocMaterials = originalLocMaterialsText;
         if (isValidCsvText(originalDemandText) && scenarioData?.demandAdjustments?.length) {
-          const parsed = Papa.parse(originalDemandText, { header: true, skipEmptyLines: true });
+          const parsed = Papa.parse(originalDemandText, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() });
           const rows = parsed.data || [];
           scenarioData.demandAdjustments.forEach((adj) => { rows.forEach((row) => { const sku = row.sku || row.SKU; const facility = row.facility || row.Facility || row.plant || row.Plant; const matchesSku = !adj.sku || sku?.toString().trim() === adj.sku.trim(); const matchesFacility = !adj.facility || facility?.toString().trim() === adj.facility.trim(); if (matchesSku && matchesFacility) { const original = Number(row.demand || row.Demand || 0) || 0; const delta = adj.changeType === "absolute" ? Number(adj.value || 0) : (Number(adj.value || 0) / 100) * original; row.demand = original + delta; } }); });
           transformedDemand = Papa.unparse(rows);
@@ -1194,7 +1241,7 @@ export default function SimulationDashboard({
           transformedDisruptions = Papa.unparse(scenarioRows, { columns: ["facility", "start_date", "end_date", "severity", "production_impact", "shipping_impact"] });
         }
         if (isValidCsvText(originalLocMaterialsText) && scenarioData?.inventoryPolicies?.length) {
-          const parsed = Papa.parse(originalLocMaterialsText, { header: true, skipEmptyLines: true });
+          const parsed = Papa.parse(originalLocMaterialsText, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() });
           const rows = parsed.data || [];
           scenarioData.inventoryPolicies.forEach((policy) => { rows.forEach((row) => { const sku = row.sku || row.SKU; const facility = row.facility || row.Facility || row.plant || row.Plant; const matchesSku = !policy.sku || sku?.toString().trim() === policy.sku.trim(); const matchesFacility = !policy.facility || facility?.toString().trim() === policy.facility.trim(); if (matchesSku && matchesFacility) { if (policy.reorderPoint !== undefined) row.reorder_point = policy.reorderPoint; if (policy.safetyStock !== undefined) row.safety_stock = policy.safetyStock; } }); });
           transformedLocMaterials = Papa.unparse(rows);
@@ -1335,6 +1382,8 @@ export default function SimulationDashboard({
               apiBase={API_BASE}
               hasRun={hasNarrativeRun}
               onNavigateToActions={() => setActiveTab("actions")}
+              lanesData={parsedLanesData}
+              locationMaterialsData={parsedLocationMaterialsData}
             />
 
             <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-4 mt-4">
@@ -1455,6 +1504,8 @@ export default function SimulationDashboard({
       kpis={kpis}
       apiBase={API_BASE}
       hasNarrativeRun={hasNarrativeRun}
+      lanesData={parsedLanesData}
+      locationMaterialsData={parsedLocationMaterialsData}
     />
   );
 
