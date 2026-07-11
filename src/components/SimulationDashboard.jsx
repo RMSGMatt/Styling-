@@ -274,11 +274,6 @@ function TabNav({ activeTab, setActiveTab, hasRun }) {
 // defensively in case of blank trailing rows from CSV parsing.
 function buildSafetyStockPayload(lanesRows, locationMaterialsRows) {
   // TEMP DEBUG — remove once the safety-stock data-wiring issue is confirmed fixed.
-  console.log("[FORC-DEBUG] buildSafetyStockPayload called");
-  console.log("[FORC-DEBUG] raw lanesRows:", lanesRows?.length, "rows. First row JSON:", JSON.stringify(lanesRows?.[0]));
-  console.log("[FORC-DEBUG] raw lanesRows keys JSON:", JSON.stringify(lanesRows?.[0] ? Object.keys(lanesRows[0]) : "no rows"));
-  console.log("[FORC-DEBUG] raw locationMaterialsRows:", locationMaterialsRows?.length, "rows. First row JSON:", JSON.stringify(locationMaterialsRows?.[0]));
-  console.log("[FORC-DEBUG] raw locationMaterialsRows keys JSON:", JSON.stringify(locationMaterialsRows?.[0] ? Object.keys(locationMaterialsRows[0]) : "no rows"));
 
   // Different CSV exports across runs use inconsistent header casing/naming
   // (confirmed: one file used "facility,sku,initial inventory", another used
@@ -311,7 +306,6 @@ function buildSafetyStockPayload(lanesRows, locationMaterialsRows) {
     }))
     .filter((i) => i.facility && i.sku);
 
-  console.log("[FORC-DEBUG] filtered lanes:", lanes.length, "filtered inventory:", inventory.length);
 
   return { lanes, inventory };
 }
@@ -1097,18 +1091,16 @@ export default function SimulationDashboard({
   }, [files.locations]);
 
   useEffect(() => {
-    console.log("[FORC-DEBUG] files.lanes effect fired. files.lanes =", files.lanes);
     if (!files.lanes) { setParsedLanesData([]); return; }
     const reader = new FileReader();
-    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); console.log("[FORC-DEBUG] lanes.csv parsed:", parsed.data?.length, "rows. errors:", parsed.errors); setParsedLanesData(parsed.data || []); };
+    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedLanesData(parsed.data || []); };
     reader.readAsText(files.lanes);
   }, [files.lanes]);
 
   useEffect(() => {
-    console.log("[FORC-DEBUG] files.locationMaterials effect fired. files.locationMaterials =", files.locationMaterials);
     if (!files.locationMaterials) return;
     const reader = new FileReader();
-    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); console.log("[FORC-DEBUG] location_materials.csv parsed:", parsed.data?.length, "rows. errors:", parsed.errors); setParsedLocationMaterialsData(parsed.data || []); };
+    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedLocationMaterialsData(parsed.data || []); };
     reader.readAsText(files.locationMaterials);
   }, [files.locationMaterials]);
 
