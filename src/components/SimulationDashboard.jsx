@@ -280,23 +280,36 @@ function buildSafetyStockPayload(lanesRows, locationMaterialsRows) {
   console.log("[FORC-DEBUG] raw locationMaterialsRows:", locationMaterialsRows?.length, "rows. First row JSON:", JSON.stringify(locationMaterialsRows?.[0]));
   console.log("[FORC-DEBUG] raw locationMaterialsRows keys JSON:", JSON.stringify(locationMaterialsRows?.[0] ? Object.keys(locationMaterialsRows[0]) : "no rows"));
 
+  // Different CSV exports across runs use inconsistent header casing/naming
+  // (confirmed: one file used "facility,sku,initial inventory", another used
+  // "Facility,SKU,quantity"). Look up fields case-insensitively across known
+  // variants instead of assuming one fixed schema.
+  const pickField = (row, candidates) => {
+    const keys = Object.keys(row || {});
+    for (const candidate of candidates) {
+      const match = keys.find((k) => k.toLowerCase().trim() === candidate.toLowerCase());
+      if (match !== undefined && row[match] !== undefined && row[match] !== "") return row[match];
+    }
+    return undefined;
+  };
+
   const lanes = (lanesRows || [])
-    .filter((r) => r.from_facility && r.to_facility && r.sku)
     .map((r) => ({
-      from_facility: r.from_facility,
-      to_facility: r.to_facility,
-      sku: r.sku,
-      lead_time_days: Number(r.lead_time_days) || 0,
-      lane_type: (r.lane_type || "domestic").toLowerCase(),
-    }));
+      from_facility: pickField(r, ["from_facility", "origin", "from"]),
+      to_facility: pickField(r, ["to_facility", "destination", "to"]),
+      sku: pickField(r, ["sku", "material", "part_number", "part"]),
+      lead_time_days: Number(pickField(r, ["lead_time_days", "lead time (days)", "lead_time", "lead time"])) || 0,
+      lane_type: String(pickField(r, ["lane_type", "lane type", "type"]) || "domestic").toLowerCase(),
+    }))
+    .filter((l) => l.from_facility && l.to_facility && l.sku);
 
   const inventory = (locationMaterialsRows || [])
-    .filter((r) => r.facility && r.sku)
     .map((r) => ({
-      facility: r.facility,
-      sku: r.sku,
-      quantity: Number(r["initial inventory"]) || 0,
-    }));
+      facility: pickField(r, ["facility", "location", "plant"]),
+      sku: pickField(r, ["sku", "material", "part_number", "part"]),
+      quantity: Number(pickField(r, ["quantity", "initial inventory", "qty", "on_hand", "inventory"])) || 0,
+    }))
+    .filter((i) => i.facility && i.sku);
 
   console.log("[FORC-DEBUG] filtered lanes:", lanes.length, "filtered inventory:", inventory.length);
 
