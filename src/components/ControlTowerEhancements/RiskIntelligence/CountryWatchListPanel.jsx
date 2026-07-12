@@ -161,15 +161,15 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
   }, [scoreCountry]);
 
   const S = {
-    wrap: { background: "#ffffff", border: "0.5px solid #D3D1C7", borderRadius: 12, overflow: "hidden" },
-    header: { padding: "20px 24px", borderBottom: "0.5px solid #D3D1C7" },
+    wrap: { background: "#141B23", border: "0.5px solid #1E2733", borderRadius: 12, overflow: "hidden" },
+    header: { padding: "20px 24px", borderBottom: "0.5px solid #1E2733" },
     body: { padding: "20px 24px" },
   };
 
   return (
     <div style={S.wrap}>
       <div style={S.header}>
-        <div style={{ fontSize: 13, color: "#888780", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 13, color: "#7A8A99", lineHeight: 1.6 }}>
           A standing, commodity-agnostic risk ranking of every tracked sourcing country —
           geopolitical alignment, political stability, natural disaster exposure, chokepoint
           dependency, and infrastructure quality. This reflects country-level risk only;
@@ -198,11 +198,11 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "32px 0" }}>
             <div style={{
               width: 32, height: 32, borderRadius: "50%",
-              border: "2px solid #D3D1C7", borderTop: "2px solid #1D625B",
+              border: "2px solid #1E2733", borderTop: "2px solid #9FD63A",
               animation: "forc-cwl-spin 0.9s linear infinite",
             }} />
             <style>{`@keyframes forc-cwl-spin { to { transform: rotate(360deg); } }`}</style>
-            <div style={{ fontSize: 12, color: "#888780" }}>
+            <div style={{ fontSize: 12, color: "#7A8A99" }}>
               Scoring country {progress.done} of {progress.total}...
             </div>
           </div>
@@ -214,10 +214,10 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
             background: "rgba(86,244,177,0.08)", border: "1px solid rgba(86,244,177,0.22)",
             display: "flex", flexDirection: "column", gap: 10, marginBottom: 16,
           }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#1D625B" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#9FD63A" }}>
               🔒 Enterprise plan required
             </div>
-            <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5 }}>
               Country Watch List bulk scanning requires an Enterprise plan. Upgrade to access unlimited bulk corridor scoring across all sourcing countries, Supplier Screening, and Best Place to Buy.
             </div>
             <button
@@ -261,7 +261,7 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
               {results.map((entry, idx) => {
                 if (entry.compositeScore === null) {
                   return (
-                    <div key={entry.origin.code} style={{ padding: "10px 14px", background: "#FAFAF8", border: "0.5px solid #EDECEA", borderRadius: 8, fontSize: 11, color: "#B4B2A9" }}>
+                    <div key={entry.origin.code} style={{ padding: "10px 14px", background: "#141B23", border: "0.5px solid #1E2733", borderRadius: 8, fontSize: 11, color: "#55606B" }}>
                       {entry.origin.flag} {entry.origin.name} — scoring unavailable
                     </div>
                   );
@@ -272,8 +272,8 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
                   <div
                     key={entry.origin.code}
                     style={{
-                      background: "#FAFAF8",
-                      border: "0.5px solid #EDECEA",
+                      background: "#141B23",
+                      border: "0.5px solid #1E2733",
                       borderLeft: `3px solid ${color}`,
                       borderRadius: 8,
                       overflow: "hidden",
@@ -286,13 +286,13 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
                         padding: "12px 16px", cursor: "pointer",
                       }}
                     >
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#B4B2A9", minWidth: 24 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#55606B", minWidth: 24 }}>
                         #{idx + 1}
                       </div>
                       <span style={{ fontSize: 18 }}>{entry.origin.flag}</span>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: "#2C2C2A" }}>{entry.origin.name}</div>
-                        <div style={{ fontSize: 10, color: "#B4B2A9" }}>{entry.origin.region}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "#F1F5F9" }}>{entry.origin.name}</div>
+                        <div style={{ fontSize: 10, color: "#55606B" }}>{entry.origin.region}</div>
                       </div>
                       {entry.result?.state_dept_advisory && (
                         <span style={{
@@ -307,8 +307,8 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
                       {entry.result?.uflpa?.flagged && (
                         <span style={{
                           fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 20,
-                          background: entry.result.uflpa.matched_entity ? "#FEE2E2" : "#FEF3C7",
-                          color: entry.result.uflpa.matched_entity ? "#991B1B" : "#92400E",
+                          background: entry.result.uflpa.matched_entity ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.1)",
+                          color: entry.result.uflpa.matched_entity ? "#F87171" : "#FBBF24",
                         }}>
                           {entry.result.uflpa.matched_entity ? "UFLPA MATCH" : "UFLPA ADVISORY"}
                         </span>
@@ -321,22 +321,22 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
                           {riskLabel(entry.compositeScore)}
                         </div>
                       </div>
-                      <div style={{ fontSize: 14, color: "#B4B2A9", transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
+                      <div style={{ fontSize: 14, color: "#55606B", transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
                         ▸
                       </div>
                     </div>
 
                     {isExpanded && entry.result && (
-                      <div style={{ padding: "0 16px 16px 16px", borderTop: "0.5px solid #EDECEA" }}>
-                        <div style={{ fontSize: 11.5, color: "#3B3A37", lineHeight: 1.7, padding: "12px 0 8px" }}>
+                      <div style={{ padding: "0 16px 16px 16px", borderTop: "0.5px solid #1E2733" }}>
+                        <div style={{ fontSize: 11.5, color: "#C7D0D9", lineHeight: 1.7, padding: "12px 0 8px" }}>
                           {entry.result.executive_summary}
                         </div>
                         {onSelectCountry && (
                           <button
                             onClick={(e) => { e.stopPropagation(); onSelectCountry(entry.origin); }}
                             style={{
-                              fontSize: 11, fontWeight: 600, color: "#1D625B",
-                              background: "#E8F0EE", border: "0.5px solid #9FD63A",
+                              fontSize: 11, fontWeight: 600, color: "#9FD63A",
+                              background: "rgba(159,214,58,0.1)", border: "0.5px solid #9FD63A",
                               borderRadius: 6, padding: "6px 12px", cursor: "pointer",
                             }}
                           >

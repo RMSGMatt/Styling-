@@ -56,7 +56,7 @@ export const COMMODITY_REGISTRY = [
 ];
 
 export const STATUS_CONFIG = {
-  live:         { label: "Live",         color: "#3B6D11", bg: "#EAF3DE", border: "#97C459" },
-  beta:         { label: "Beta",         color: "#854F0B", bg: "#FAEEDA", border: "#EF9F27" },
-  coming_soon:  { label: "Coming soon",  color: "#5F5E5A", bg: "#F1EFE8", border: "#B4B2A9" },
+  live:         { label: "Live",         color: "#4ADE80", bg: "rgba(74,222,128,0.1)", border: "rgba(74,222,128,0.4)" },
+  beta:         { label: "Beta",         color: "#FBBF24", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.4)" },
+  coming_soon:  { label: "Coming soon",  color: "#C7D0D9", bg: "#1A2129", border: "#55606B" },
 };

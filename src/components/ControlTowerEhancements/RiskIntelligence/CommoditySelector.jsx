@@ -34,13 +34,13 @@ export default function CommoditySelector({ selected, onChange }) {
           alignItems:   "center",
           gap:          8,
           padding:      "8px 14px",
-          background:   "#ffffff",
-          border:       "0.5px solid #D3D1C7",
+          background:   "#141B23",
+          border:       "0.5px solid #1E2733",
           borderRadius: 10,
           cursor:       "pointer",
           fontSize:     13,
           fontWeight:   500,
-          color:        "#2C2C2A",
+          color:        "#F1F5F9",
           minWidth:     260,
           justifyContent: "space-between",
         }}
@@ -59,7 +59,7 @@ export default function CommoditySelector({ selected, onChange }) {
             {STATUS_CONFIG[current.status].label}
           </span>
         </div>
-        <span style={{ color: "#888780", fontSize: 11 }}>{open ? "▲" : "▼"}</span>
+        <span style={{ color: "#7A8A99", fontSize: 11 }}>{open ? "▲" : "▼"}</span>
       </button>
 
       {/* Dropdown */}
@@ -69,8 +69,8 @@ export default function CommoditySelector({ selected, onChange }) {
           top:          "calc(100% + 6px)",
           left:         0,
           zIndex:       200,
-          background:   "#ffffff",
-          border:       "0.5px solid #D3D1C7",
+          background:   "#141B23",
+          border:       "0.5px solid #1E2733",
           borderRadius: 12,
           boxShadow:    "0 4px 24px rgba(0,0,0,0.10)",
           minWidth:     320,
@@ -82,10 +82,10 @@ export default function CommoditySelector({ selected, onChange }) {
                 padding:    "8px 14px 4px",
                 fontSize:   10,
                 fontWeight: 500,
-                color:      "#888780",
+                color:      "#7A8A99",
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
-                background: "#F1EFE8",
+                background: "#1A2129",
               }}>
                 {category}
               </div>
@@ -105,13 +105,13 @@ export default function CommoditySelector({ selected, onChange }) {
                       padding:    "10px 14px",
                       cursor:     isDisabled ? "default" : "pointer",
                       opacity:    isDisabled ? 0.5 : 1,
-                      background: isSelected ? "#EAF3DE" : "transparent",
-                      borderLeft: isSelected ? "3px solid #639922" : "3px solid transparent",
+                      background: isSelected ? "rgba(74,222,128,0.1)" : "transparent",
+                      borderLeft: isSelected ? "3px solid #9FD63A" : "3px solid transparent",
                       transition: "background 0.15s",
                     }}
                     onMouseEnter={(e) => {
                       if (!isDisabled && !isSelected)
-                        e.currentTarget.style.background = "#F1EFE8";
+                        e.currentTarget.style.background = "#1A2129";
                     }}
                     onMouseLeave={(e) => {
                       if (!isSelected)
@@ -126,7 +126,7 @@ export default function CommoditySelector({ selected, onChange }) {
                         gap:        6,
                         marginBottom: 2,
                       }}>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: "#2C2C2A" }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: "#F1F5F9" }}>
                           {commodity.label}
                         </span>
                         <span style={{
@@ -140,7 +140,7 @@ export default function CommoditySelector({ selected, onChange }) {
                           {cfg.label}
                         </span>
                       </div>
-                      <div style={{ fontSize: 11, color: "#888780", lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 11, color: "#7A8A99", lineHeight: 1.4 }}>
                         {commodity.description}
                       </div>
                     </div>
@@ -153,9 +153,9 @@ export default function CommoditySelector({ selected, onChange }) {
           <div style={{
             padding:    "8px 14px",
             fontSize:   11,
-            color:      "#888780",
-            background: "#F1EFE8",
-            borderTop:  "0.5px solid #D3D1C7",
+            color:      "#7A8A99",
+            background: "#1A2129",
+            borderTop:  "0.5px solid #1E2733",
           }}>
             More commodities added each quarter · Request a commodity →
           </div>

@@ -14,7 +14,7 @@ import { getApiBase } from "../../../config/apiBase";
 const API_BASE = getApiBase();
 
 const riskColor = (score) => {
-  if (score === null || score === undefined) return "#B4B2A9";
+  if (score === null || score === undefined) return "#55606B";
   if (score >= 75) return "#ef4444";
   if (score >= 55) return "#f97316";
   if (score >= 35) return "#eab308";
@@ -102,15 +102,15 @@ export default function SupplierScreeningPanel() {
   }, [file]);
 
   const S = {
-    wrap: { background: "#ffffff", border: "0.5px solid #D3D1C7", borderRadius: 12, overflow: "hidden" },
-    header: { padding: "20px 24px", borderBottom: "0.5px solid #D3D1C7" },
+    wrap: { background: "#141B23", border: "0.5px solid #1E2733", borderRadius: 12, overflow: "hidden" },
+    header: { padding: "20px 24px", borderBottom: "0.5px solid #1E2733" },
     body: { padding: "20px 24px" },
   };
 
   return (
     <div style={S.wrap}>
       <div style={S.header}>
-        <div style={{ fontSize: 13, color: "#888780", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 13, color: "#7A8A99", lineHeight: 1.6 }}>
           Upload your actual supplier list and screen every row against the same
           authoritative signals used throughout Risk Intelligence — UFLPA Entity List,
           State Department Travel Advisories, and AI-scored corridor risk. Results are
@@ -121,13 +121,13 @@ export default function SupplierScreeningPanel() {
       <div style={S.body}>
         {!results && !loading && (
           <div style={{
-            border: "1.5px dashed #D3D1C7",
+            border: "1.5px dashed #1E2733",
             borderRadius: 10,
             padding: "32px 24px",
             textAlign: "center",
           }}>
             <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.4 }}>📄</div>
-            <div style={{ fontSize: 13, color: "#5F5E5A", marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: "#C7D0D9", marginBottom: 16 }}>
               Upload a CSV with columns: <code>supplier_name</code>, <code>country_code</code>,
               and optionally <code>commodity_category</code>.
             </div>
@@ -144,7 +144,7 @@ export default function SupplierScreeningPanel() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 style={{
-                  background: "#F1EFE8", color: "#1D625B", border: "0.5px solid #9FD63A",
+                  background: "#1A2129", color: "#9FD63A", border: "0.5px solid #9FD63A",
                   borderRadius: 8, padding: "10px 18px", fontSize: 12, fontWeight: 600,
                   cursor: "pointer",
                 }}
@@ -155,7 +155,7 @@ export default function SupplierScreeningPanel() {
               <button
                 onClick={downloadSample}
                 style={{
-                  background: "none", color: "#888780", border: "0.5px solid #D3D1C7",
+                  background: "none", color: "#7A8A99", border: "0.5px solid #1E2733",
                   borderRadius: 8, padding: "10px 18px", fontSize: 12, fontWeight: 500,
                   cursor: "pointer",
                 }}
@@ -185,18 +185,18 @@ export default function SupplierScreeningPanel() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 0" }}>
             <div style={{
               width: 32, height: 32, borderRadius: "50%",
-              border: "2px solid #D3D1C7", borderTop: "2px solid #1D625B",
+              border: "2px solid #1E2733", borderTop: "2px solid #9FD63A",
               animation: "forc-ssp-spin 0.9s linear infinite",
             }} />
             <style>{`@keyframes forc-ssp-spin { to { transform: rotate(360deg); } }`}</style>
-            <div style={{ fontSize: 12, color: "#888780" }}>
+            <div style={{ fontSize: 12, color: "#7A8A99" }}>
               Screening suppliers against UFLPA, State Dept, and corridor risk...
             </div>
           </div>
         )}
 
         {error && !loading && (
-          <div style={{ padding: "12px 16px", background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, color: "#DC2626", fontSize: 12, marginBottom: 16 }}>
+          <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.12)", border: "0.5px solid rgba(239,68,68,0.4)", borderRadius: 8, color: "#DC2626", fontSize: 12, marginBottom: 16 }}>
             ⚠ {error}
           </div>
         )}
@@ -204,16 +204,16 @@ export default function SupplierScreeningPanel() {
         {results && !loading && (
           <>
             <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, background: "#F1EFE8", color: "#5F5E5A", fontWeight: 500 }}>
+              <div style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, background: "#1A2129", color: "#C7D0D9", fontWeight: 500 }}>
                 {summary.total_screened} screened
               </div>
               {summary.uflpa_flagged > 0 && (
-                <div style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, background: "#FEE2E2", color: "#991B1B", fontWeight: 600 }}>
+                <div style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, background: "rgba(239,68,68,0.12)", color: "#F87171", fontWeight: 600 }}>
                   🚫 {summary.uflpa_flagged} UFLPA flagged
                 </div>
               )}
               {summary.high_or_critical_risk > 0 && (
-                <div style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, background: "#FFF7ED", color: "#9A3412", fontWeight: 600 }}>
+                <div style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, background: "rgba(245,158,11,0.12)", color: "#FDBA74", fontWeight: 600 }}>
                   ⚠ {summary.high_or_critical_risk} high/critical risk
                 </div>
               )}
@@ -221,8 +221,8 @@ export default function SupplierScreeningPanel() {
                 onClick={() => { setResults(null); setSummary(null); setFile(null); }}
                 style={{
                   marginLeft: "auto",
-                  fontSize: 11, color: "#888780", background: "none",
-                  border: "0.5px solid #D3D1C7", borderRadius: 20,
+                  fontSize: 11, color: "#7A8A99", background: "none",
+                  border: "0.5px solid #1E2733", borderRadius: 20,
                   padding: "6px 14px", cursor: "pointer",
                 }}
               >
@@ -239,8 +239,8 @@ export default function SupplierScreeningPanel() {
                   <div
                     key={r.row}
                     style={{
-                      background: "#FAFAF8",
-                      border: "0.5px solid #EDECEA",
+                      background: "#141B23",
+                      border: "0.5px solid #1E2733",
                       borderLeft: `3px solid ${color}`,
                       borderRadius: 8,
                       overflow: "hidden",
@@ -254,10 +254,10 @@ export default function SupplierScreeningPanel() {
                       }}
                     >
                       <div style={{ flex: 1, minWidth: 160 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: "#2C2C2A" }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "#F1F5F9" }}>
                           {r.supplier_name}
                         </div>
-                        <div style={{ fontSize: 10, color: "#B4B2A9" }}>
+                        <div style={{ fontSize: 10, color: "#55606B" }}>
                           {r.country_code} · {r.commodity_category}
                         </div>
                       </div>
@@ -265,8 +265,8 @@ export default function SupplierScreeningPanel() {
                       {r.uflpa?.flagged && (
                         <span style={{
                           fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 20,
-                          background: r.uflpa.matched_entity ? "#FEE2E2" : "#FEF3C7",
-                          color: r.uflpa.matched_entity ? "#991B1B" : "#92400E",
+                          background: r.uflpa.matched_entity ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.1)",
+                          color: r.uflpa.matched_entity ? "#F87171" : "#FBBF24",
                         }}>
                           {r.uflpa.matched_entity ? "UFLPA MATCH" : "UFLPA ADVISORY"}
                         </span>
@@ -292,25 +292,25 @@ export default function SupplierScreeningPanel() {
                         </div>
                       </div>
 
-                      <div style={{ fontSize: 14, color: "#B4B2A9", transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
+                      <div style={{ fontSize: 14, color: "#55606B", transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
                         ▸
                       </div>
                     </div>
 
                     {isExpanded && (
-                      <div style={{ padding: "0 16px 16px 16px", borderTop: "0.5px solid #EDECEA" }}>
+                      <div style={{ padding: "0 16px 16px 16px", borderTop: "0.5px solid #1E2733" }}>
                         {r.error && (
                           <div style={{ fontSize: 11, color: "#DC2626", padding: "10px 0 4px" }}>
                             ⚠ {r.error}
                           </div>
                         )}
                         {r.executive_summary && (
-                          <div style={{ fontSize: 11.5, color: "#3B3A37", lineHeight: 1.7, padding: "12px 0 4px" }}>
+                          <div style={{ fontSize: 11.5, color: "#C7D0D9", lineHeight: 1.7, padding: "12px 0 4px" }}>
                             {r.executive_summary}
                           </div>
                         )}
                         {r.state_dept_advisory?.summary && (
-                          <div style={{ fontSize: 10.5, color: "#888780", lineHeight: 1.6, padding: "8px 0 4px" }}>
+                          <div style={{ fontSize: 10.5, color: "#7A8A99", lineHeight: 1.6, padding: "8px 0 4px" }}>
                             <strong>State Dept:</strong> {r.state_dept_advisory.summary}
                           </div>
                         )}

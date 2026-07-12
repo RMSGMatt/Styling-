@@ -13,7 +13,7 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
 
   return (
     <div style={{
-      background:   "#ffffff",
+      background:   "#141B23",
       border:       `1.5px solid ${band.border}`,
       borderRadius: 12,
       padding:      "16px 20px",
@@ -21,7 +21,7 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <div style={{ fontSize: 11, color: "#888780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+          <div style={{ fontSize: 11, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
             Forward pressure index
           </div>
           <div style={{ fontSize: 40, fontWeight: 500, color: band.color, lineHeight: 1 }}>
@@ -43,7 +43,7 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
         </div>
 
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, color: "#888780", marginBottom: 4 }}>Regime multiplier</div>
+          <div style={{ fontSize: 11, color: "#7A8A99", marginBottom: 4 }}>Regime multiplier</div>
           <div style={{ fontSize: 18, fontWeight: 500, color: regimeMultiplier.color }}>
             {regimeMultiplier.multiplier}×
           </div>
@@ -66,7 +66,7 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
         <div style={{
           width: "100%",
           height: 6,
-          background: "#F1EFE8",
+          background: "#1A2129",
           borderRadius: 3,
           overflow: "hidden",
         }}>
@@ -78,7 +78,7 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
             transition: "width 0.8s ease",
           }} />
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10, color: "#B4B2A9" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10, color: "#55606B" }}>
           <span>Nominal</span>
           <span>Elevated</span>
           <span>High</span>
@@ -87,7 +87,7 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
       </div>
 
       {/* Raw vs amplified */}
-      <div style={{ marginTop: 10, fontSize: 11, color: "#888780" }}>
+      <div style={{ marginTop: 10, fontSize: 11, color: "#7A8A99" }}>
         Raw score: {score.toFixed(2)} × {regimeMultiplier.multiplier} regime multiplier = {amplified.toFixed(2)} amplified
       </div>
     </div>
@@ -104,17 +104,17 @@ function PanelHeader() {
           fontWeight: 500,
           padding: "2px 8px",
           borderRadius: 20,
-          background: "#E6F1FB",
-          color: "#185FA5",
-          border: "0.5px solid #85B7EB",
+          background: "rgba(91,155,213,0.12)",
+          color: "#7DB8F0",
+          border: "0.5px solid rgba(91,155,213,0.4)",
         }}>
           Forward signals
         </span>
-        <span style={{ fontSize: 11, color: "#888780" }}>
+        <span style={{ fontSize: 11, color: "#7A8A99" }}>
           Leading indicators · 3–18 months ahead of impact
         </span>
       </div>
-      <p style={{ fontSize: 12, color: "#5F5E5A", margin: 0, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12, color: "#C7D0D9", margin: 0, lineHeight: 1.6 }}>
         These signals sit upstream of any observable shortage. A movement here today means your Tier 1 or Tier 2 customers feel it in 3–18 months. Act on these before confirmation signals fire.
       </p>
     </div>
@@ -157,10 +157,10 @@ export default function ForwardPressurePanel({ forwardSignals, scoreResult, deta
         flexWrap: "wrap",
       }}>
         {[
-          { label: "Critical", count: critical,  color: "#A32D2D", bg: "#FCEBEB" },
-          { label: "High",     count: high,      color: "#A32D2D", bg: "#FCEBEB" },
-          { label: "Elevated", count: elevated,  color: "#854F0B", bg: "#FAEEDA" },
-          { label: "Nominal",  count: nominal,   color: "#3B6D11", bg: "#EAF3DE" },
+          { label: "Critical", count: critical,  color: "#F87171", bg: "rgba(239,68,68,0.12)" },
+          { label: "High",     count: high,      color: "#F87171", bg: "rgba(239,68,68,0.12)" },
+          { label: "Elevated", count: elevated,  color: "#FBBF24", bg: "rgba(245,158,11,0.12)" },
+          { label: "Nominal",  count: nominal,   color: "#4ADE80", bg: "rgba(74,222,128,0.1)" },
         ].map(({ label, count, color, bg }) => (
           <div key={label} style={{
             fontSize: 11,
@@ -186,10 +186,10 @@ export default function ForwardPressurePanel({ forwardSignals, scoreResult, deta
       <div style={{
         marginTop: 14,
         padding: "10px 14px",
-        background: "#F1EFE8",
+        background: "#1A2129",
         borderRadius: 8,
         fontSize: 11,
-        color: "#5F5E5A",
+        color: "#C7D0D9",
         lineHeight: 1.6,
       }}>
         <strong>Methodology:</strong> Forward score is a weighted composite of six independent leading indicators, amplified by the current market regime multiplier. Trigger queue fires only on signal convergence — a minimum of two signals above threshold — to avoid false positives from single-signal noise.

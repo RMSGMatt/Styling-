@@ -23,18 +23,18 @@ const TABS = [
     key:         "forward",
     label:       "Forward signals",
     badge:       "Predictive",
-    badgeColor:  "#185FA5",
-    badgeBg:     "#E6F1FB",
-    badgeBorder: "#85B7EB",
+    badgeColor:  "#7DB8F0",
+    badgeBg:     "rgba(91,155,213,0.12)",
+    badgeBorder: "rgba(91,155,213,0.4)",
     description: "Leading indicators · 3–18 months ahead of impact",
   },
   {
     key:         "regime",
     label:       "Current conditions",
     badge:       "Confirmation",
-    badgeColor:  "#5F5E5A",
-    badgeBg:     "#F1EFE8",
-    badgeBorder: "#B4B2A9",
+    badgeColor:  "#C7D0D9",
+    badgeBg:     "#1A2129",
+    badgeBorder: "#55606B",
     description: "Market regime · Calibrates simulation baseline",
   },
   {
@@ -47,36 +47,36 @@ const TABS = [
     key:         "corridor",
     label:       "Corridor Risk",
     badge:       "AI",
-    badgeColor:  "#185FA5",
-    badgeBg:     "#E6F1FB",
-    badgeBorder: "#85B7EB",
+    badgeColor:  "#7DB8F0",
+    badgeBg:     "rgba(91,155,213,0.12)",
+    badgeBorder: "rgba(91,155,213,0.4)",
     description: "Geopolitical risk scoring for trade corridors into the US",
   },
   {
     key:         "bestplace",
     label:       "Best Place to Buy",
     badge:       "AI",
-    badgeColor:  "#185FA5",
-    badgeBg:     "#E6F1FB",
-    badgeBorder: "#85B7EB",
+    badgeColor:  "#7DB8F0",
+    badgeBg:     "rgba(91,155,213,0.12)",
+    badgeBorder: "rgba(91,155,213,0.4)",
     description: "Ranked sourcing recommendation — risk-scored, availability-gated",
   },
   {
     key:         "watchlist",
     label:       "Country Watch List",
     badge:       "AI",
-    badgeColor:  "#185FA5",
-    badgeBg:     "#E6F1FB",
-    badgeBorder: "#85B7EB",
+    badgeColor:  "#7DB8F0",
+    badgeBg:     "rgba(91,155,213,0.12)",
+    badgeBorder: "rgba(91,155,213,0.4)",
     description: "Commodity-agnostic country risk ranking",
   },
   {
     key:         "supplierlist",
     label:       "Supplier Screening",
     badge:       "AI",
-    badgeColor:  "#185FA5",
-    badgeBg:     "#E6F1FB",
-    badgeBorder: "#85B7EB",
+    badgeColor:  "#7DB8F0",
+    badgeBg:     "rgba(91,155,213,0.12)",
+    badgeBorder: "rgba(91,155,213,0.4)",
     description: "Upload and screen your actual supplier list",
   },
 ];
@@ -94,12 +94,12 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       {/* Forward score */}
       <div style={{
         flex: 1, minWidth: 160,
-        background: "#ffffff",
+        background: "#141B23",
         border: `1.5px solid ${fBand.border}`,
         borderRadius: 10,
         padding: "12px 16px",
       }}>
-        <div style={{ fontSize: 10, color: "#888780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        <div style={{ fontSize: 10, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Forward pressure
         </div>
         <div style={{ fontSize: 28, fontWeight: 500, color: fBand.color, lineHeight: 1 }}>
@@ -113,18 +113,18 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       {/* Regime */}
       <div style={{
         flex: 1, minWidth: 160,
-        background: "#ffffff",
+        background: "#141B23",
         border: `0.5px solid ${rBand.border}`,
         borderRadius: 10,
         padding: "12px 16px",
       }}>
-        <div style={{ fontSize: 10, color: "#888780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        <div style={{ fontSize: 10, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Market regime
         </div>
         <div style={{ fontSize: 20, fontWeight: 500, color: regime.multiplier.color, lineHeight: 1.2 }}>
           {regime.multiplier.label}
         </div>
-        <div style={{ fontSize: 11, color: "#888780", marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: "#7A8A99", marginTop: 4 }}>
           {regime.multiplier.multiplier}× multiplier applied
         </div>
       </div>
@@ -132,18 +132,18 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       {/* Trigger summary */}
       <div style={{
         flex: 1, minWidth: 160,
-        background: summary.triggeredCount > 0 ? "#FCEBEB" : "#F1EFE8",
-        border: `0.5px solid ${summary.triggeredCount > 0 ? "#E24B4A" : "#D3D1C7"}`,
+        background: summary.triggeredCount > 0 ? "rgba(239,68,68,0.12)" : "#1A2129",
+        border: `0.5px solid ${summary.triggeredCount > 0 ? "rgba(239,68,68,0.4)" : "#1E2733"}`,
         borderRadius: 10,
         padding: "12px 16px",
       }}>
-        <div style={{ fontSize: 10, color: "#888780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        <div style={{ fontSize: 10, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Scenario queue
         </div>
-        <div style={{ fontSize: 28, fontWeight: 500, color: summary.triggeredCount > 0 ? "#A32D2D" : "#3B6D11", lineHeight: 1 }}>
+        <div style={{ fontSize: 28, fontWeight: 500, color: summary.triggeredCount > 0 ? "#F87171" : "#4ADE80", lineHeight: 1 }}>
           {summary.triggeredCount}
         </div>
-        <div style={{ fontSize: 11, color: "#888780", marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: "#7A8A99", marginTop: 4 }}>
           triggered · {summary.watchCount} watch
         </div>
       </div>
@@ -151,19 +151,19 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       {/* Signal coverage */}
       <div style={{
         flex: 1, minWidth: 160,
-        background: "#ffffff",
-        border: "0.5px solid #D3D1C7",
+        background: "#141B23",
+        border: "0.5px solid #1E2733",
         borderRadius: 10,
         padding: "12px 16px",
       }}>
-        <div style={{ fontSize: 10, color: "#888780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        <div style={{ fontSize: 10, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Signal coverage
         </div>
-        <div style={{ fontSize: 28, fontWeight: 500, color: "#2C2C2A", lineHeight: 1 }}>
+        <div style={{ fontSize: 28, fontWeight: 500, color: "#F1F5F9", lineHeight: 1 }}>
           {summary.stressedSignalCount}
-          <span style={{ fontSize: 14, color: "#888780" }}>/{summary.totalSignalCount}</span>
+          <span style={{ fontSize: 14, color: "#7A8A99" }}>/{summary.totalSignalCount}</span>
         </div>
-        <div style={{ fontSize: 11, color: "#888780", marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: "#7A8A99", marginTop: 4 }}>
           signals above stress threshold
         </div>
       </div>
@@ -174,7 +174,7 @@ function SummaryBar({ scoreResult, lastUpdated }) {
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 function TabBar({ active, onChange, triggeredCount }) {
   return (
-    <div style={{ display: "flex", gap: 2, marginBottom: 20, borderBottom: "0.5px solid #D3D1C7" }}>
+    <div style={{ display: "flex", gap: 2, marginBottom: 20, borderBottom: "0.5px solid #1E2733" }}>
       {TABS.map((tab) => {
         const isActive = active === tab.key;
         const count = tab.key === "triggers" ? triggeredCount : null;
@@ -186,12 +186,12 @@ function TabBar({ active, onChange, triggeredCount }) {
               padding: "10px 16px",
               background: "transparent",
               border: "none",
-              borderBottom: isActive ? "2px solid #1D625B" : "2px solid transparent",
+              borderBottom: isActive ? "2px solid #9FD63A" : "2px solid transparent",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               gap: 6,
-              color: isActive ? "#1D625B" : "#888780",
+              color: isActive ? "#9FD63A" : "#7A8A99",
               fontWeight: isActive ? 500 : 400,
               fontSize: 13,
               transition: "color 0.15s",
@@ -200,7 +200,7 @@ function TabBar({ active, onChange, triggeredCount }) {
           >
             {tab.label}
             {count > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 500, padding: "1px 6px", borderRadius: 20, background: "#FCEBEB", color: "#A32D2D" }}>
+              <span style={{ fontSize: 10, fontWeight: 500, padding: "1px 6px", borderRadius: 20, background: "rgba(239,68,68,0.12)", color: "#F87171" }}>
                 {count}
               </span>
             )}
@@ -219,7 +219,7 @@ function TabBar({ active, onChange, triggeredCount }) {
 // ── Loading state ─────────────────────────────────────────────────────────────
 function LoadingState() {
   return (
-    <div style={{ padding: "40px 0", textAlign: "center", color: "#888780" }}>
+    <div style={{ padding: "40px 0", textAlign: "center", color: "#7A8A99" }}>
       <div style={{ fontSize: 24, marginBottom: 12 }}>⟳</div>
       <div style={{ fontSize: 13 }}>Loading risk signals...</div>
     </div>
@@ -293,7 +293,7 @@ export default function RiskIntelligenceView({ switchView }) {
       {/* Page header */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 500, color: "#1D625B", margin: 0 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 500, color: "#9FD63A", margin: 0 }}>
             Risk Intelligence
           </h2>
           {/* Commodity selector — hidden on corridor, bestplace, and watchlist tabs */}
@@ -304,7 +304,7 @@ export default function RiskIntelligenceView({ switchView }) {
             />
           )}
         </div>
-        <p style={{ fontSize: 13, color: "#888780", margin: 0, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 13, color: "#7A8A99", margin: 0, lineHeight: 1.6 }}>
           {activeTab === "corridor"
             ? "AI-scored geopolitical risk for trade corridors into the United States. Select a country and commodity — score 7 risk variables and simulate the downstream impact in one click."
             : activeTab === "bestplace"
@@ -314,13 +314,13 @@ export default function RiskIntelligenceView({ switchView }) {
             : "Two-layer predictive risk model. Forward signals identify what's building upstream 3–18 months ahead. Current conditions confirm the regime your network is operating in today."}
         </p>
         {lastUpdated && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
-          <div style={{ fontSize: 11, color: "#B4B2A9", marginTop: 6 }}>
+          <div style={{ fontSize: 11, color: "#55606B", marginTop: 6 }}>
             Last updated: {lastUpdated.toLocaleTimeString()} ·{" "}
             <span style={{ color: "#9FD63A" }}>Live</span>
           </div>
         )}
         {error && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
-          <div style={{ fontSize: 11, color: "#854F0B", marginTop: 4 }}>{error}</div>
+          <div style={{ fontSize: 11, color: "#FBBF24", marginTop: 4 }}>{error}</div>
         )}
       </div>
 

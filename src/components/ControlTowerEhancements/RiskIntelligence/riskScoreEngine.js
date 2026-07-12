@@ -30,17 +30,17 @@ export const REGIME_WEIGHTS = {
 // ── Regime multiplier thresholds ─────────────────────────────────────────────
 // Applied to the forward score to amplify during confirmed stress periods.
 export const REGIME_MULTIPLIERS = {
-  NORMAL: { label: "Normal",       multiplier: 1.0,  color: "#3B6D11", bg: "#EAF3DE" },
-  WATCH:  { label: "Watch",        multiplier: 1.3,  color: "#854F0B", bg: "#FAEEDA" },
-  CRISIS: { label: "Crisis",       multiplier: 1.6,  color: "#A32D2D", bg: "#FCEBEB" },
+  NORMAL: { label: "Normal",       multiplier: 1.0,  color: "#4ADE80", bg: "rgba(74,222,128,0.1)" },
+  WATCH:  { label: "Watch",        multiplier: 1.3,  color: "#FBBF24", bg: "rgba(245,158,11,0.12)" },
+  CRISIS: { label: "Crisis",       multiplier: 1.6,  color: "#F87171", bg: "rgba(239,68,68,0.12)" },
 };
 
 // ── Risk score bands ──────────────────────────────────────────────────────────
 export const RISK_BANDS = [
-  { max: 0.35, label: "Nominal",  color: "#3B6D11", bg: "#EAF3DE", border: "#639922" },
-  { max: 0.60, label: "Elevated", color: "#854F0B", bg: "#FAEEDA", border: "#EF9F27" },
-  { max: 0.80, label: "High",     color: "#A32D2D", bg: "#FCEBEB", border: "#E24B4A" },
-  { max: 1.00, label: "Critical", color: "#791F1F", bg: "#F7C1C1", border: "#A32D2D" },
+  { max: 0.35, label: "Nominal",  color: "#4ADE80", bg: "rgba(74,222,128,0.1)", border: "#9FD63A" },
+  { max: 0.60, label: "Elevated", color: "#FBBF24", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.4)" },
+  { max: 0.80, label: "High",     color: "#F87171", bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.4)" },
+  { max: 1.00, label: "Critical", color: "#F87171", bg: "rgba(239,68,68,0.18)", border: "#F87171" },
 ];
 
 // ── Trigger thresholds ────────────────────────────────────────────────────────
