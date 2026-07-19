@@ -2081,6 +2081,14 @@ setSimulationHistory((prev) => {
     const openedRunId = entry?.run_id || entry?.id || null;
     setCurrentlyViewedRunId(openedRunId);
     console.log("[FORC-DEBUG] currentlyViewedRunId set to:", openedRunId);
+    // Without this, the KPI-recompute useEffect (which watches outputUrls/
+    // postRunPhase) sees backendKpisRef.current as falsy and redundantly
+    // re-derives onTimeFulfillment/demandAtRiskUnits/timeToRecoverDays from
+    // raw CSV fetches via runAllKpiUpdates — a completely separate
+    // computation from the correct kpis_json data just merged above, and one
+    // that silently produces wrong results whenever those CSV fetches fail
+    // (e.g. expired presigned S3 URLs on an older run, exactly as seen here).
+    backendKpisRef.current = true;
     const urls = entry.output_urls || entry.outputUrls || entry.urls || {};
     setChartData(null);
 
