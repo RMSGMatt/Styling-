@@ -1103,7 +1103,10 @@ export default function SimulationDashboard({
   const runsPerPage = 5;
 
   const exec = executiveKpis || {};
+  console.log("[FORC-DEBUG] raw executiveKpis prop:", executiveKpis);
+  console.log("[FORC-DEBUG] exec.serviceLevelPct:", exec.serviceLevelPct, "typeof:", typeof exec.serviceLevelPct);
   const execOnTimePct = Number(exec.serviceLevelPct || 0);
+  console.log("[FORC-DEBUG] computed execOnTimePct:", execOnTimePct);
   const execLateUnits = Number(exec.demandAtRiskUnits || 0);
   const execPeakBacklog = Number(exec.unfulfilledDemandUnits || 0);
   const execMissedServiceDays = Number(exec.missedServiceDays || 0);
