@@ -1731,6 +1731,18 @@ export default function App() {
       const res = await apiClient.post("/api/run", formData);
       const payload = res.data || {};
 
+      // Set this BEFORE setPostRunPhase("primed") below, not after the
+      // CSV-loading awaits that follow it. setPostRunPhase("primed") triggers
+      // the KPI-recompute useEffect, and there's a real async gap (the
+      // Promise.all + parseSimulationPanels awaits) between that phase
+      // transition and where this flag used to get set — enough time for
+      // React to run that effect while backendKpisRef.current was still
+      // false, triggering a redundant raw-CSV recompute (runAllKpiUpdates)
+      // that could race with and overwrite the correct payload.kpis-derived
+      // values, including onTimeFulfillment, with values computed from
+      // CSV data that may not even be fully available yet.
+      backendKpisRef.current = !!(payload.kpis && Object.keys(payload.kpis || {}).length > 0);
+
       // unwrap urls
       let raw = payload.output_urls || payload.urls || payload.outputUrls || payload;
       if (
