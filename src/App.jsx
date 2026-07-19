@@ -392,6 +392,13 @@ export default function App() {
   const [selectedBaselineRunId, setSelectedBaselineRunId] = useState("");
   const [summaryStats, setSummaryStats] = useState({});
   const [kpis, setKpis] = useState({});
+  // Tracks which run's data is currently displayed, as distinct from
+  // "the most recent run in history." Without this, any background
+  // history refresh (login, periodic refetch, etc.) silently overwrites
+  // a deliberately-opened older run's KPIs with the newest run's numbers,
+  // because several setKpis call sites backfill from simulationHistory[0]
+  // with no way to tell that the user has since opened something else.
+  const [currentlyViewedRunId, setCurrentlyViewedRunId] = useState(null);
 
   // ===============================
   // BASELINE KPI SELECTION LOGIC
@@ -685,10 +692,18 @@ export default function App() {
       ];
 
       setSimulationHistory(merged);
-      // Merge backend kpis_json fields into kpis state
+      // Merge backend kpis_json fields into kpis state — but only when the
+      // user isn't actively viewing a specific older run (currentlyViewedRunId
+      // unset, or it matches the latest run anyway). Without this guard, any
+      // background refresh of this list — page load, login/token refresh,
+      // periodic refetch — silently overwrites a deliberately-opened run's
+      // KPIs with whatever is now most recent, discarding what "Open" loaded.
       try {
         const latest = merged?.[0];
-        const backendKpis = latest?.kpis_json
+        const latestId = latest?.run_id || latest?.id || null;
+        const shouldBackfill = !currentlyViewedRunId || currentlyViewedRunId === latestId;
+        console.log("[FORC-DEBUG] history-refresh kpis guard — currentlyViewedRunId:", currentlyViewedRunId, "latestId:", latestId, "shouldBackfill:", shouldBackfill);
+        const backendKpis = shouldBackfill && latest?.kpis_json
           ? (typeof latest.kpis_json === "string" ? JSON.parse(latest.kpis_json) : latest.kpis_json)
           : null;
         if (backendKpis) {
@@ -1643,6 +1658,7 @@ export default function App() {
       // call below re-merges them back in — and that only fires for Pro/Enterprise
       // plans, so free-tier sessions would lose them with no recovery at all.
       setKpis((prev) => ({ ...prev, ...finalKpis }));
+      if (latestRunIdRef.current) setCurrentlyViewedRunId(latestRunIdRef.current);
 
       // worstWeeklyServicePct and falseConfidenceDays are only ever sourced
       // from simulationHistory[0]'s persisted kpis_json (see executiveKpis
@@ -1910,6 +1926,11 @@ setSimulationHistory((prev) => {
         // kpis_json. This is why "Run Context" would show real dates, then
         // go blank again the next time a run completed.
         setKpis((prev) => ({ ...prev, ...payload.kpis }));
+        // A freshly-completed run becomes the currently-viewed run too —
+        // otherwise a stale currentlyViewedRunId from a previously-opened
+        // historical run would incorrectly block this new run's own data
+        // from being backfileld by the history-refresh guards elsewhere.
+        if (payload.run_id) setCurrentlyViewedRunId(payload.run_id);
       } else {
         backendKpisRef.current = false;
       }
@@ -2057,6 +2078,9 @@ setSimulationHistory((prev) => {
   const onReloadRun = async (entry) => {
     console.log("[FORC-DEBUG] onReloadRun called with entry:", entry);
     console.log("[FORC-DEBUG] entry.run_name:", entry?.run_name, "entry.kpis_json:", entry?.kpis_json);
+    const openedRunId = entry?.run_id || entry?.id || null;
+    setCurrentlyViewedRunId(openedRunId);
+    console.log("[FORC-DEBUG] currentlyViewedRunId set to:", openedRunId);
     const urls = entry.output_urls || entry.outputUrls || entry.urls || {};
     setChartData(null);
 
@@ -2142,10 +2166,17 @@ setSimulationHistory((prev) => {
       if (isProPlusPlan(decoded.plan || "free")) {
         fetchSimulationHistory().then(() => {
           // After history loads, merge backend kpis_json into kpis state
-          // so worstWeeklyServicePct and falseConfidenceDays are available
+          // so worstWeeklyServicePct and falseConfidenceDays are available —
+          // but only if the user isn't actively viewing a specific older run.
+          // This is the exact call site that was firing right after silent
+          // token re-auth and clobbering a deliberately-opened run's KPIs
+          // with the most-recent-run's numbers instead.
           try {
             const latest = simulationHistory?.[0];
-            const backendKpis = latest?.kpis_json
+            const latestId = latest?.run_id || latest?.id || null;
+            const shouldBackfill = !currentlyViewedRunId || currentlyViewedRunId === latestId;
+            console.log("[FORC-DEBUG] post-login kpis guard — currentlyViewedRunId:", currentlyViewedRunId, "latestId:", latestId, "shouldBackfill:", shouldBackfill);
+            const backendKpis = shouldBackfill && latest?.kpis_json
               ? (typeof latest.kpis_json === "string" ? JSON.parse(latest.kpis_json) : latest.kpis_json)
               : null;
             if (backendKpis) {
