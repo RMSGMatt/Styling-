@@ -2080,8 +2080,16 @@ setSimulationHistory((prev) => {
       return;
     }
 
-    // Normal interactive recompute
-    runAllKpiUpdates(urls, demoSkus);
+    // Normal interactive recompute — but never overwrite already-correct
+    // backend-sourced KPIs. This branch previously had no guard at all, so
+    // ANY re-fire of this effect after the initial "primed" pass — a second
+    // render, a dependency changing, React StrictMode's extra dev-mode
+    // invocation — would unconditionally re-derive onTimeFulfillment/etc.
+    // from raw CSV fetches and silently overwrite the correct values,
+    // even on a freshly-completed run where they were already right.
+    if (!backendKpisRef.current) {
+      runAllKpiUpdates(urls, demoSkus);
+    }
     loadFilteredChart(urls, selectedOutputType || "inventory", demoSkus);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
