@@ -182,9 +182,25 @@ function pickFirstKey(obj, candidates) {
 }
 
 
+// TODO(Matthew): replace these with real per-unit dollar values before this
+// feeds any customer-facing report. Previously this map only had entries for
+// "FG1"/"C1" — SKU codes that don't exist anywhere in the actual network data
+// (real SKUs are ECU_MODULE, TRANSMISSION_ECU, MCU, etc.) — so every SKU in
+// every run silently fell through to DEFAULT_SKU_VALUE ($75), meaning every
+// revenue exposure figure ever shown was (missed units) * $75, regardless of
+// which component actually failed. The keys below now at least match real
+// SKU codes; the dollar amounts are still placeholders, not sourced data.
 const SKU_VALUE_MAP = {
-  FG1: 120,
-  C1: 40,
+  ECU_MODULE: 75,
+  TRANSMISSION_ECU: 75,
+  MCU: 75,
+  POWER_IC: 75,
+  SENSOR_IC: 75,
+  MOSFET: 75,
+  CAN_TRANSCEIVER: 75,
+  MLCC_ARRAY: 75,
+  PCB_SUBSTRATE: 75,
+  CONNECTOR_ASSY: 75,
 };
 
 const DEFAULT_SKU_VALUE = 75;
@@ -1227,6 +1243,68 @@ export default function App() {
         allKpis.lateFulfilledUnits = lateFulfilled;
         allKpis.peakBacklogUnits = peakBacklog;
         allKpis.missedServiceDays = missedDays;
+
+        // ── Scenario Bridge Inventory (per-SKU, from THIS specific run) ──────
+        // Runs the exact same running-backlog algorithm as peakBacklogUnits
+        // above (onTime/late/runningBacklog), but grouped per SKU instead of
+        // collapsed into one network-wide total. This is deliberately kept
+        // separate from the Safety Stock Optimizer: Safety Stock reflects
+        // steady-state statistical variability and is identical whether or
+        // not a disruption is loaded, while this reflects what THIS specific
+        // simulated run actually showed — a calm baseline naturally produces
+        // ~zero bridge inventory, a real disruption produces a real, non-zero
+        // number, and the two will no longer look confusingly identical.
+        try {
+          const bridgeDemandBySkuDate = {};
+          const bridgeShipBySkuDate = {};
+
+          scopedDemandRows.forEach((r) => {
+            const sku = normalizeSku(r[demandSkuKey] || r.sku || r.SKU);
+            const dateVal = String(r.date || r.Date || r.day || "").slice(0, 10);
+            const qty = toNum(r[demandQtyKey]);
+            if (!sku || !dateVal) return;
+            bridgeDemandBySkuDate[sku] = bridgeDemandBySkuDate[sku] || {};
+            bridgeDemandBySkuDate[sku][dateVal] = (bridgeDemandBySkuDate[sku][dateVal] || 0) + qty;
+          });
+
+          flowRows.forEach((r) => {
+            const sku = normalizeSku(r[flowSkuKey] || r.sku);
+            if (skuFilter.length > 0 && !skuFilter.includes(sku)) return;
+            const ft = lower(r[flowTypeKey] || r.flow_type || r.type);
+            const isCustomerShip = ft === "customer_ship" || ft === "customer ship" || ft === "customership";
+            if (!isCustomerShip) return;
+            const dateVal = String(r[dateKey] || "").slice(0, 10);
+            const qty = toNum(r[flowQtyKey]);
+            if (!sku || !dateVal) return;
+            bridgeShipBySkuDate[sku] = bridgeShipBySkuDate[sku] || {};
+            bridgeShipBySkuDate[sku][dateVal] = (bridgeShipBySkuDate[sku][dateVal] || 0) + qty;
+          });
+
+          const bridgeInventoryBySku = Object.keys(bridgeDemandBySkuDate).map((sku) => {
+            const demandByDate = bridgeDemandBySkuDate[sku];
+            const shipByDate = bridgeShipBySkuDate[sku] || {};
+            const dates = Object.keys(demandByDate).sort();
+            let runningBacklog = 0;
+            let peak = 0;
+            dates.forEach((d) => {
+              const demand = demandByDate[d] || 0;
+              const shipped = shipByDate[d] || 0;
+              const onTime = Math.min(shipped, demand);
+              const late = Math.max(0, shipped - demand);
+              runningBacklog += demand - onTime;
+              if (runningBacklog > peak) peak = runningBacklog;
+              if (late > 0) runningBacklog = Math.max(0, runningBacklog - late);
+            });
+            return { sku, bridgeInventoryUnits: Math.round(peak) };
+          })
+            .filter((r) => r.bridgeInventoryUnits > 0)
+            .sort((a, b) => b.bridgeInventoryUnits - a.bridgeInventoryUnits);
+
+          allKpis.bridgeInventoryBySku = bridgeInventoryBySku;
+        } catch (e) {
+          console.error("bridgeInventoryBySku computation failed:", e);
+          allKpis.bridgeInventoryBySku = [];
+        }
 // 🔥 OVERRIDE serviceTruth WITH CORRECT VALUES
       const serviceTruth = {
         totalDemand,
@@ -1558,7 +1636,13 @@ export default function App() {
 
       
       persistRunKpis(latestRunIdRef.current, finalKpis);
-      setKpis(finalKpis);
+      // Merge, don't replace: finalKpis is computed client-side and doesn't
+      // include fields that only live in the backend's persisted kpis_json
+      // (worstWeeklyServicePct, falseConfidenceDays, and the Run Context date
+      // fields). A full replace here wipes those until the fetchSimulationHistory()
+      // call below re-merges them back in — and that only fires for Pro/Enterprise
+      // plans, so free-tier sessions would lose them with no recovery at all.
+      setKpis((prev) => ({ ...prev, ...finalKpis }));
 
       // worstWeeklyServicePct and falseConfidenceDays are only ever sourced
       // from simulationHistory[0]'s persisted kpis_json (see executiveKpis
@@ -1819,7 +1903,13 @@ setSimulationHistory((prev) => {
       // Prefer backend KPIs if present
       if (payload.kpis && Object.keys(payload.kpis || {}).length > 0) {
         backendKpisRef.current = true;
-        setKpis(payload.kpis);
+        // Merge, don't replace: a full replace here was wiping out
+        // simulationStartDate/horizonWeeks/disruptionStartDate/etc. whenever
+        // they weren't present on this specific payload.kpis response, even
+        // though other setKpis calls elsewhere correctly populate them from
+        // kpis_json. This is why "Run Context" would show real dates, then
+        // go blank again the next time a run completed.
+        setKpis((prev) => ({ ...prev, ...payload.kpis }));
       } else {
         backendKpisRef.current = false;
       }
@@ -1859,6 +1949,25 @@ setSimulationHistory((prev) => {
           plan: data?.plan || userPlan || "free",
           limitMessage,
         });
+        setSimulationStatus("idle");
+        return;
+      }
+
+      if (status === 409) {
+        // RUN_SIM_LOCK is a single global lock in app.py — this means either
+        // a previous request from this session is still actively processing
+        // (most likely if you just clicked Run Simulation again quickly), or
+        // in rare cases a prior request hung without releasing the lock. This
+        // is NOT the same as a real simulation error, so it shouldn't look
+        // like one — the generic "Simulation failed" alert below was showing
+        // for this case even when the underlying run went on to succeed
+        // moments later.
+        alert(
+          "Another simulation request is still processing. This usually " +
+          "clears within a few seconds — please wait a moment and try again. " +
+          "If this keeps happening after a fresh page load, the server may " +
+          "need a restart."
+        );
         setSimulationStatus("idle");
         return;
       }
@@ -1946,12 +2055,37 @@ setSimulationHistory((prev) => {
   }, [outputUrls, selectedSku, selectedOutputType, selectedFacility, postRunPhase]);
 
   const onReloadRun = async (entry) => {
+    console.log("[FORC-DEBUG] onReloadRun called with entry:", entry);
+    console.log("[FORC-DEBUG] entry.run_name:", entry?.run_name, "entry.kpis_json:", entry?.kpis_json);
     const urls = entry.output_urls || entry.outputUrls || entry.urls || {};
     setChartData(null);
 
     setPostRunPhase("seeding");
     setOutputUrls(urls);
     setSimulationStatus("done");
+
+    // onReloadRun previously loaded charts/panels via parseSimulationPanels
+    // below, but never touched kpis state at all — meaning the KPI summary
+    // cards and Run Context would keep showing whatever was already loaded
+    // (or blank) rather than this specific run's actual numbers. Parse and
+    // merge kpis_json the same way every other reload path in this file does.
+    try {
+      const entryKpis = entry?.kpis_json
+        ? (typeof entry.kpis_json === "string" ? JSON.parse(entry.kpis_json) : entry.kpis_json)
+        : null;
+      console.log("[FORC-DEBUG] parsed entryKpis:", entryKpis);
+      if (entryKpis) {
+        setKpis((prev) => {
+          const merged = { ...prev, ...entryKpis };
+          console.log("[FORC-DEBUG] setKpis merge — prev:", prev, "merged result:", merged);
+          return merged;
+        });
+      } else {
+        console.log("[FORC-DEBUG] entryKpis was null/falsy — no merge happened");
+      }
+    } catch (e) {
+      console.log("[FORC-DEBUG] onReloadRun kpis merge threw:", e);
+    }
 
     try {
       if (urls?.inventory_output_file_url) {
@@ -2118,6 +2252,7 @@ setSimulationHistory((prev) => {
           userRole={userRole}
           userPlan={userPlan}
           simulationHistory={simulationHistory}
+          onReloadRun={onReloadRun}
         />
       )}
 

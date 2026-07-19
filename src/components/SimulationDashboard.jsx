@@ -398,6 +398,9 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
         <div>
           <p className="text-[10px] uppercase tracking-widest text-lime-400 mb-1">🛡️ Resilience Optimizer</p>
           <p className="text-sm font-semibold text-white">Safety Stock Optimization</p>
+          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed max-w-md">
+            Reflects the statistical buffer needed against normal demand and lead-time variability — independent of this run's specific outcome.
+          </p>
         </div>
         {rec && (
           <div className="flex items-center gap-3">
@@ -434,6 +437,67 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
         </div>
       </div>
       {loading && <div className="text-center py-4 text-slate-400 text-sm">Calculating optimal buffer positions...</div>}
+      {!loading && result?.tradeoff_summary?.length > 1 && (() => {
+        const curve = [...result.tradeoff_summary].sort((a, b) => a.service_level_pct - b.service_level_pct);
+        const enhancedSL = 99;
+        const currentPoint = curve.find((p) => p.service_level_pct === targetSL);
+        const enhancedPoint = curve.find((p) => p.service_level_pct === enhancedSL);
+        const chartData = {
+          labels: curve.map((p) => `${p.service_level_pct}%`),
+          datasets: [{
+            label: "Additional Cost",
+            data: curve.map((p) => p.total_additional_cost_usd),
+            borderColor: "rgba(159,214,58,0.6)",
+            backgroundColor: "rgba(159,214,58,0.08)",
+            fill: true,
+            tension: 0.3,
+            pointBackgroundColor: curve.map((p) =>
+              p.service_level_pct === targetSL ? "#9FD63A" : p.service_level_pct === enhancedSL ? "#2EC4A6" : "rgba(148,163,184,0.5)"
+            ),
+            pointBorderColor: curve.map((p) =>
+              p.service_level_pct === targetSL || p.service_level_pct === enhancedSL ? "#ffffff" : "rgba(148,163,184,0.5)"
+            ),
+            pointRadius: curve.map((p) => (p.service_level_pct === targetSL || p.service_level_pct === enhancedSL) ? 6 : 3),
+            pointHoverRadius: 7,
+          }],
+        };
+        const chartOpts = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `Additional cost: ${formatCurrencyCompact(ctx.parsed.y)}`,
+              },
+            },
+          },
+          scales: {
+            x: { grid: { color: "rgba(148,163,184,0.08)" }, ticks: { color: "#64748B", font: { size: 10 } } },
+            y: { grid: { color: "rgba(148,163,184,0.08)" }, ticks: { color: "#64748B", font: { size: 10 } } },
+          },
+        };
+        return (
+          <div className="mb-4 rounded-xl border p-3" style={{ background: "rgba(2,6,23,0.5)", borderColor: "rgba(148,163,184,0.12)" }}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] uppercase tracking-wide text-slate-400">Cost vs. Service Level</p>
+              <div className="flex items-center gap-3 text-[10px]">
+                <span className="flex items-center gap-1 text-slate-300"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#9FD63A" }} />Current ({targetSL}%)</span>
+                <span className="flex items-center gap-1 text-slate-300"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#2EC4A6" }} />Enhanced ({enhancedSL}%)</span>
+              </div>
+            </div>
+            <div style={{ height: 180 }}>
+              <Line data={chartData} options={chartOpts} />
+            </div>
+            {currentPoint && enhancedPoint && targetSL !== enhancedSL && (
+              <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                Moving from your current {targetSL}% target to an enhanced {enhancedSL}% target would cost an additional{" "}
+                <span className="font-semibold text-white">{formatCurrencyCompact(enhancedPoint.total_additional_cost_usd - currentPoint.total_additional_cost_usd)}</span>.
+              </p>
+            )}
+          </div>
+        );
+      })()}
       {error && <div className="text-center py-3 text-rose-400 text-sm">{error}</div>}
       {!loading && rec && rec.recommendations?.length > 0 && (
         <div className="space-y-2">
@@ -519,6 +583,9 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
           View full optimizer →
         </span>
       </div>
+      <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
+        Reflects the statistical buffer needed against normal demand and lead-time variability — independent of this run's specific outcome above.
+      </p>
       {loading && <p className="text-xs text-slate-400">Calculating...</p>}
       {!loading && rec && (
         <div className="grid grid-cols-3 gap-3">
@@ -1341,6 +1408,8 @@ export default function SimulationDashboard({
     multiValueRemove: (base) => ({ ...base, color: "#6b7280" }),
   };
 
+  console.log("[FORC-DEBUG] SimulationDashboard render — raw kpis prop:", kpis);
+
   const executiveKpisForPanels = {
     serviceLevelPct: Number(kpis?.serviceLevelPct ?? kpis?.onTimeFulfillment ?? 0),
     demandAtRiskUnits: Number(kpis?.demandAtRiskUnits ?? kpis?.occurrenceUnfulfilledUnits ?? kpis?.unitsAtRisk ?? kpis?.peakBacklogUnits ?? 0),
@@ -1364,8 +1433,8 @@ export default function SimulationDashboard({
       <div
         className="rounded-2xl p-5 shadow-xl border"
         style={{
-          background: !hasNarrativeRun ? "linear-gradient(160deg, rgba(8,15,24,0.96), rgba(10,18,30,0.96))" : execOnTimePct >= 97 ? "linear-gradient(160deg, rgba(4,24,12,0.96), rgba(6,30,16,0.96))" : execOnTimePct >= 80 ? "linear-gradient(160deg, rgba(28,20,2,0.96), rgba(40,30,4,0.96))" : "linear-gradient(160deg, rgba(24,7,7,0.96), rgba(34,10,10,0.96))",
-          borderColor: !hasNarrativeRun ? "rgba(71,85,105,0.55)" : execOnTimePct >= 97 ? "rgba(20,100,50,0.65)" : execOnTimePct >= 80 ? "rgba(202,138,4,0.65)" : "rgba(127,29,29,0.65)",
+          background: !hasNarrativeRun ? "linear-gradient(160deg, rgba(8,15,24,0.96), rgba(10,18,30,0.96))" : execOnTimePct >= 97 ? "linear-gradient(160deg, rgba(15,22,17,0.96), rgba(13,19,15,0.96))" : execOnTimePct >= 80 ? "linear-gradient(160deg, rgba(22,18,10,0.96), rgba(19,16,9,0.96))" : "linear-gradient(160deg, rgba(22,12,12,0.96), rgba(19,11,11,0.96))",
+          borderColor: !hasNarrativeRun ? "rgba(71,85,105,0.55)" : execOnTimePct >= 97 ? "rgba(159,214,58,0.35)" : execOnTimePct >= 80 ? "rgba(245,158,11,0.35)" : "rgba(239,68,68,0.4)",
         }}
       >
         <div className="flex items-center justify-between mb-3">
@@ -1436,6 +1505,27 @@ export default function SimulationDashboard({
                 ))}
               </div>
             </div>
+
+            {Array.isArray(kpis?.bridgeInventoryBySku) && kpis.bridgeInventoryBySku.length > 0 && (
+              <div className="rounded-2xl border p-4 mb-4" style={{ background: "linear-gradient(145deg, rgba(19,24,31,0.97), rgba(13,17,22,0.95))", borderColor: "rgba(239,68,68,0.25)" }}>
+                <p className="text-[10px] uppercase tracking-widest text-rose-400 mb-0.5">🌉 Scenario Bridge Inventory</p>
+                <p className="text-sm font-semibold text-white mb-1">What This Disruption Actually Cost You</p>
+                <p className="text-[11px] text-slate-500 mb-3 leading-relaxed max-w-xl">
+                  Derived directly from this run's simulated shortfall — not a statistical estimate. Unlike Safety Stock Optimization above (which reflects steady-state variability and looks the same for any run), this is zero for a calm baseline and non-zero specifically because this scenario caused real unfulfilled demand.
+                </p>
+                <div className="space-y-1.5">
+                  {kpis.bridgeInventoryBySku.slice(0, 5).map((r) => (
+                    <div key={r.sku} className="rounded-lg border px-3 py-2 flex items-center justify-between gap-3" style={{ background: "rgba(2,6,23,0.5)", borderColor: "rgba(148,163,184,0.12)" }}>
+                      <p className="text-xs font-semibold text-white truncate">{r.sku}</p>
+                      <p className="text-xs font-bold text-rose-300">+{r.bridgeInventoryUnits.toLocaleString()} units needed</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-500 mt-2">
+                  Units required to have fully absorbed this scenario's peak shortfall, per SKU. Dollar costing requires unit costs not yet wired into this run.
+                </p>
+              </div>
+            )}
 
             <SafetyStockSummaryCard
               kpis={kpis}
