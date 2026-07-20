@@ -2080,8 +2080,16 @@ setSimulationHistory((prev) => {
       return;
     }
 
-    // Normal interactive recompute
-    runAllKpiUpdates(urls, demoSkus);
+    // Normal interactive recompute — but never overwrite already-correct
+    // backend-sourced KPIs. This branch previously had no guard at all, so
+    // ANY re-fire of this effect after the initial "primed" pass — a second
+    // render, a dependency changing, React StrictMode's extra dev-mode
+    // invocation — would unconditionally re-derive onTimeFulfillment/etc.
+    // from raw CSV fetches and silently overwrite the correct values,
+    // even on a freshly-completed run where they were already right.
+    if (!backendKpisRef.current) {
+      runAllKpiUpdates(urls, demoSkus);
+    }
     loadFilteredChart(urls, selectedOutputType || "inventory", demoSkus);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2108,27 +2116,30 @@ setSimulationHistory((prev) => {
     setOutputUrls(urls);
     setSimulationStatus("done");
 
-    // onReloadRun previously loaded charts/panels via parseSimulationPanels
-    // below, but never touched kpis state at all — meaning the KPI summary
-    // cards and Run Context would keep showing whatever was already loaded
-    // (or blank) rather than this specific run's actual numbers. Parse and
-    // merge kpis_json the same way every other reload path in this file does.
+    // Full replace, not merge, here specifically. Merge is correct for the
+    // live-run flow (payload.kpis can legitimately be partial across
+    // different stages), but wrong for reopening a historical run: kpis_json
+    // never contains fields like peakBacklogUnits/demandAtRiskUnits/
+    // timeToRecoverDays (confirmed via direct DB query — they're simply not
+    // persisted), so a merge would correctly overwrite onTimeFulfillment
+    // (which IS in kpis_json) while silently leaving those other fields as
+    // stale leftovers from whatever run was previously being viewed. Opening
+    // a different run means "show only this run's truth," not "blend this
+    // run into whatever was already on screen."
     try {
       const entryKpis = entry?.kpis_json
         ? (typeof entry.kpis_json === "string" ? JSON.parse(entry.kpis_json) : entry.kpis_json)
         : null;
       console.log("[FORC-DEBUG] parsed entryKpis:", entryKpis);
       if (entryKpis) {
-        setKpis((prev) => {
-          const merged = { ...prev, ...entryKpis };
-          console.log("[FORC-DEBUG] setKpis merge — prev:", prev, "merged result:", merged);
-          return merged;
-        });
+        console.log("[FORC-DEBUG] setKpis full replace (not merge) with:", entryKpis);
+        setKpis(entryKpis);
       } else {
-        console.log("[FORC-DEBUG] entryKpis was null/falsy — no merge happened");
+        console.log("[FORC-DEBUG] entryKpis was null/falsy — clearing kpis instead of leaving stale data");
+        setKpis({});
       }
     } catch (e) {
-      console.log("[FORC-DEBUG] onReloadRun kpis merge threw:", e);
+      console.log("[FORC-DEBUG] onReloadRun kpis assignment threw:", e);
     }
 
     try {
