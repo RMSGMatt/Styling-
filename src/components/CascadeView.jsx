@@ -283,8 +283,8 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData, a
   // Layout: columns by hop
   const SVG_W = 720;
   const SVG_H = 400;
-  const NODE_W = 110;
-  const NODE_H = 44;
+  const NODE_W = 128;
+  const NODE_H = 52;
   const colCount = totalHops;
   const colSpacing = Math.min(180, (SVG_W - 60) / Math.max(colCount, 1));
 
@@ -304,6 +304,22 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData, a
     : `📡 Hop ${currentHop} — Downstream Impact`;
 
   const impactCount = hops.slice(1, currentHop + 1).flat().length;
+
+  // Multiple edges converging on the same target node (e.g. several Tier 1
+  // plants all feeding OEM Assembly) land their labels at nearly the same
+  // point and overlap illegibly. Stagger each "new" edge's label by its
+  // order among edges sharing the same target.
+  const edgeLabelOffset = new Map();
+  {
+    let counters = {};
+    activeEdges.forEach((edge, i) => {
+      const isNew = facilityHop[edge.to] === currentHop;
+      if (!isNew) return;
+      const n = counters[edge.to] || 0;
+      edgeLabelOffset.set(i, n);
+      counters[edge.to] = n + 1;
+    });
+  }
 
   return (
     <div className="w-full">
@@ -428,6 +444,9 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData, a
             const y2 = toPos.y + NODE_H / 2;
             const mx = (x1 + x2) / 2;
             const isNew = facilityHop[edge.to] === currentHop;
+            const staggerIdx = edgeLabelOffset.get(i) || 0;
+            const labelY = (y1 + y2) / 2 - 6 + staggerIdx * 15;
+            const labelText = edge.sku;
             return (
               <g key={i}>
                 <path
@@ -439,17 +458,29 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData, a
                   markerEnd="url(#cascade-arrow)"
                 />
                 {isNew && (
-                  <text
-                    x={mx}
-                    y={(y1 + y2) / 2 - 6}
-                    textAnchor="middle"
-                    fill="#EF4444"
-                    fontSize="8"
-                    fontFamily="monospace"
-                    opacity="0.8"
-                  >
-                    {edge.sku}
-                  </text>
+                  <>
+                    <rect
+                      x={mx - (labelText.length * 3.4) - 4}
+                      y={labelY - 10}
+                      width={labelText.length * 6.8 + 8}
+                      height={14}
+                      rx={3}
+                      fill="#1a0a0a"
+                      opacity={0.85}
+                    />
+                    <text
+                      x={mx}
+                      y={labelY}
+                      textAnchor="middle"
+                      fill="#EF4444"
+                      fontSize="10.5"
+                      fontWeight="600"
+                      fontFamily="monospace"
+                      opacity="0.95"
+                    >
+                      {labelText}
+                    </text>
+                  </>
                 )}
               </g>
             );
@@ -511,17 +542,17 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData, a
                 {/* Label */}
                 {words.length <= 2 ? (
                   <text x={x + NODE_W / 2} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="central"
-                    fill={isNew || isDisrupted ? "#e2e8f0" : "#64748b"} fontSize="8" fontWeight="600" fontFamily="monospace">
+                    fill={isNew || isDisrupted ? "#f1f5f9" : "#94a3b8"} fontSize="11" fontWeight="700" fontFamily="monospace">
                     {shortLabel(facility)}
                   </text>
                 ) : (
                   <>
                     <text x={x + NODE_W / 2} y={y + NODE_H / 2 - 7} textAnchor="middle" dominantBaseline="central"
-                      fill={isNew || isDisrupted ? "#e2e8f0" : "#64748b"} fontSize="8" fontWeight="600" fontFamily="monospace">
+                      fill={isNew || isDisrupted ? "#f1f5f9" : "#94a3b8"} fontSize="11" fontWeight="700" fontFamily="monospace">
                       {words.slice(0, 2).join(" ")}
                     </text>
                     <text x={x + NODE_W / 2} y={y + NODE_H / 2 + 7} textAnchor="middle" dominantBaseline="central"
-                      fill={isNew || isDisrupted ? "#e2e8f0" : "#64748b"} fontSize="8" fontWeight="600" fontFamily="monospace">
+                      fill={isNew || isDisrupted ? "#f1f5f9" : "#94a3b8"} fontSize="11" fontWeight="700" fontFamily="monospace">
                       {words.slice(2).join(" ")}
                     </text>
                   </>
