@@ -195,6 +195,21 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
   const allNodes = Object.entries(pos);
   const H = 480;
 
+  // When a node is selected, its edges keep their labels (everything else's
+  // labels get hidden) — but multiple edges from/to the same node can share
+  // nearly identical midpoint coordinates, stacking their labels illegibly
+  // on top of each other. Stagger each selected edge's label vertically by
+  // its order of appearance among only the currently-selected edges.
+  const selectedEdgeLabelOffset = new Map();
+  if (selectedNode) {
+    let n = 0;
+    edges.forEach((row, i) => {
+      if (row.from_facility === selectedNode || row.to_facility === selectedNode) {
+        selectedEdgeLabelOffset.set(i, n++);
+      }
+    });
+  }
+
   return (
     <div className="relative rounded-xl overflow-hidden border border-slate-700/60" style={{ background: "rgba(4,16,12,0.95)" }}>
       <style>{`
@@ -245,6 +260,9 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
           const mx = (x1 + x2) / 2;
           const isSelected = selectedNode && (row.from_facility === selectedNode || row.to_facility === selectedNode);
           const isDimmed = selectedNode && !isSelected;
+          const staggerIdx = selectedEdgeLabelOffset.get(i) || 0;
+          const labelY = (y1 + y2) / 2 - 6 + (isSelected ? staggerIdx * 15 : 0);
+          const labelText = row.sku;
           return (
             <g key={i}>
               <path
@@ -256,18 +274,31 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
                 markerEnd="url(#h-arrow)"
               />
               {!isDimmed && (
-                <text
-                  x={mx}
-                  y={(y1 + y2) / 2 - 6}
-                  textAnchor="middle"
-                  fill={isSelected ? "#9FD63A" : "#2EC4A6"}
-                  fontSize="10.5"
-                  fontWeight="600"
-                  fontFamily="monospace"
-                  opacity={isSelected ? 1 : 0.65}
-                >
-                  {row.sku}
-                </text>
+                <>
+                  {isSelected && (
+                    <rect
+                      x={mx - (labelText.length * 3.4) - 4}
+                      y={labelY - 10}
+                      width={labelText.length * 6.8 + 8}
+                      height={14}
+                      rx={3}
+                      fill="#0a1f16"
+                      opacity={0.85}
+                    />
+                  )}
+                  <text
+                    x={mx}
+                    y={labelY}
+                    textAnchor="middle"
+                    fill={isSelected ? "#9FD63A" : "#2EC4A6"}
+                    fontSize="10.5"
+                    fontWeight="600"
+                    fontFamily="monospace"
+                    opacity={isSelected ? 1 : 0.65}
+                  >
+                    {labelText}
+                  </text>
+                </>
               )}
             </g>
           );
@@ -347,6 +378,17 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
         })}
         </g>
       </svg>
+
+      {/* Clear selection control */}
+      {selectedNode && (
+        <button
+          onClick={() => setSelectedNode(null)}
+          className="absolute flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+          style={{ top: 12, left: 12, background: "rgba(15,30,24,0.9)", color: "#9FD63A", border: "1px solid rgba(159,214,58,0.4)" }}
+        >
+          ✕ Clear Selection — Show Full Chain
+        </button>
+      )}
 
       {/* Zoom controls */}
       <div className="absolute flex flex-col gap-1" style={{ top: 12, right: 12 }}>
