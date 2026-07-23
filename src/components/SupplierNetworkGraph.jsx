@@ -244,28 +244,31 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
           const y2 = to.y + NH / 2;
           const mx = (x1 + x2) / 2;
           const isSelected = selectedNode && (row.from_facility === selectedNode || row.to_facility === selectedNode);
+          const isDimmed = selectedNode && !isSelected;
           return (
             <g key={i}>
               <path
                 d={`M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`}
                 fill="none"
                 stroke={isSelected ? "#9FD63A" : "#2EC4A6"}
-                strokeOpacity={isSelected ? 0.9 : 0.35}
+                strokeOpacity={isSelected ? 0.9 : (isDimmed ? 0.15 : 0.35)}
                 strokeWidth={isSelected ? 2 : 1.2}
                 markerEnd="url(#h-arrow)"
               />
-              <text
-                x={mx}
-                y={(y1 + y2) / 2 - 6}
-                textAnchor="middle"
-                fill={isSelected ? "#9FD63A" : "#2EC4A6"}
-                fontSize="10.5"
-                fontWeight="600"
-                fontFamily="monospace"
-                opacity={isSelected ? 1 : 0.65}
-              >
-                {row.sku}
-              </text>
+              {!isDimmed && (
+                <text
+                  x={mx}
+                  y={(y1 + y2) / 2 - 6}
+                  textAnchor="middle"
+                  fill={isSelected ? "#9FD63A" : "#2EC4A6"}
+                  fontSize="10.5"
+                  fontWeight="600"
+                  fontFamily="monospace"
+                  opacity={isSelected ? 1 : 0.65}
+                >
+                  {row.sku}
+                </text>
+              )}
             </g>
           );
         })}
