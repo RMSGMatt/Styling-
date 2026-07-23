@@ -1182,6 +1182,14 @@ export default function SimulationDashboard({
   const [parsedLanesData, setParsedLanesData] = useState([]);
   const [parsedLocationMaterialsData, setParsedLocationMaterialsData] = useState([]);
   const [parsedDemandData, setParsedDemandData] = useState([]);
+  const [parsedDisruptionsData, setParsedDisruptionsData] = useState([]);
+
+  useEffect(() => {
+    if (!files.disruptions) { setParsedDisruptionsData([]); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedDisruptionsData(parsed.data || []); };
+    reader.readAsText(files.disruptions);
+  }, [files.disruptions]);
 
   useEffect(() => {
     if (!files.bom) return;
@@ -1644,6 +1652,7 @@ export default function SimulationDashboard({
           lanesData={parsedLanesData}
           runoutRiskData={safeArray(runoutRiskData)}
           scenarioData={lastRunScenarioData || scenarioData}
+          disruptionsData={parsedDisruptionsData}
           apiBase={API_BASE}
           kpis={kpis}
         />

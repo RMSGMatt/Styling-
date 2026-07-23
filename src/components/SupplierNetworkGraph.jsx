@@ -132,13 +132,25 @@ function buildGraph(bomData, locationsData, runoutRiskData, locationMaterialsDat
 
 
 // ── Force Graph view ──────────────────────────────────────────────────
-function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData, scenarioData }) {
+function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData, scenarioData, disruptionsData }) {
   const [selectedNode, setSelectedNode] = useState(null);
+  const [zoom, setZoom] = useState(1);
 
   const disruptedFacilities = useMemo(() => {
     const scenarios = scenarioData?.disruptionScenarios || [];
-    return new Set(scenarios.map(s => String(s.facility || "").trim()).filter(Boolean));
-  }, [scenarioData]);
+    const set = new Set(scenarios.map(s => String(s.facility || "").trim()).filter(Boolean));
+    // scenarioData.disruptionScenarios only gets populated when a run is
+    // built through the War Room's scenario builder — a run created by
+    // directly uploading disruptions.csv (the normal path for most runs)
+    // never populates it, so the pulsing disruption ring silently never
+    // appeared on the true disrupted facility. Fold in the raw uploaded
+    // disruptions.csv rows too, so this works either way.
+    for (const row of (disruptionsData || [])) {
+      const facility = String(row.facility || row.Facility || "").trim();
+      if (facility) set.add(facility);
+    }
+    return set;
+  }, [scenarioData, disruptionsData]);
 
   const facilityRisk = useMemo(() => snapshotFacilityRisk(runoutRiskData), [runoutRiskData]);
 
@@ -173,8 +185,8 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
     return { pos, edges: lanesData };
   }, [lanesData]);
 
-  const NW = 110;
-  const NH = 46;
+  const NW = 128;
+  const NH = 54;
 
   function shortLabel(id) {
     return id.replace(/_/g, " ");
@@ -184,7 +196,7 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
   const H = 480;
 
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-700/60" style={{ background: "rgba(4,16,12,0.95)" }}>
+    <div className="relative rounded-xl overflow-hidden border border-slate-700/60" style={{ background: "rgba(4,16,12,0.95)" }}>
       <style>{`
         @keyframes disruption-pulse {
           0%, 100% { stroke-opacity: 0.9; }
@@ -201,6 +213,8 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
             <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
         </defs>
+
+        <g transform={`translate(360, 240) scale(${zoom}) translate(-360, -240)`}>
 
         {/* Tier column headers */}
         {[
@@ -245,9 +259,10 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
                 y={(y1 + y2) / 2 - 6}
                 textAnchor="middle"
                 fill={isSelected ? "#9FD63A" : "#2EC4A6"}
-                fontSize="8"
+                fontSize="10.5"
+                fontWeight="600"
                 fontFamily="monospace"
-                opacity={isSelected ? 1 : 0.5}
+                opacity={isSelected ? 1 : 0.65}
               >
                 {row.sku}
               </text>
@@ -309,17 +324,17 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
               {/* Label */}
               {words.length <= 2 ? (
                 <text x={x + NW / 2} y={y + NH / 2} textAnchor="middle" dominantBaseline="central"
-                  fill="#e2e8f0" fontSize="8.5" fontWeight="600" fontFamily="monospace">
+                  fill="#f1f5f9" fontSize="11" fontWeight="700" fontFamily="monospace">
                   {label}
                 </text>
               ) : (
                 <>
                   <text x={x + NW / 2} y={y + NH / 2 - 7} textAnchor="middle" dominantBaseline="central"
-                    fill="#e2e8f0" fontSize="8.5" fontWeight="600" fontFamily="monospace">
+                    fill="#f1f5f9" fontSize="11" fontWeight="700" fontFamily="monospace">
                     {words.slice(0, 2).join(" ")}
                   </text>
                   <text x={x + NW / 2} y={y + NH / 2 + 7} textAnchor="middle" dominantBaseline="central"
-                    fill="#e2e8f0" fontSize="8.5" fontWeight="600" fontFamily="monospace">
+                    fill="#f1f5f9" fontSize="11" fontWeight="700" fontFamily="monospace">
                     {words.slice(2).join(" ")}
                   </text>
                 </>
@@ -327,7 +342,33 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
             </g>
           );
         })}
+        </g>
       </svg>
+
+      {/* Zoom controls */}
+      <div className="absolute flex flex-col gap-1" style={{ top: 12, right: 12 }}>
+        <button
+          onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.2).toFixed(2)))}
+          className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold"
+          style={{ background: "rgba(15,30,24,0.85)", color: "#e2e8f0", border: "1px solid #1f3f33" }}
+        >
+          +
+        </button>
+        <button
+          onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.2).toFixed(2)))}
+          className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold"
+          style={{ background: "rgba(15,30,24,0.85)", color: "#e2e8f0", border: "1px solid #1f3f33" }}
+        >
+          −
+        </button>
+        <button
+          onClick={() => setZoom(1)}
+          className="w-7 h-7 rounded-md flex items-center justify-center text-[9px] font-bold"
+          style={{ background: "rgba(15,30,24,0.85)", color: "#94a3b8", border: "1px solid #1f3f33" }}
+        >
+          1:1
+        </button>
+      </div>
 
       {/* Selected node panel */}
       {selectedNode && (
@@ -353,7 +394,7 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
 }
 
 // ── Main export ───────────────────────────────────────────────────────
-export default function SupplierNetworkGraph({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData, scenarioData, apiBase = "https://supply-chain-simulator-v2.onrender.com", kpis }) {
+export default function SupplierNetworkGraph({ bomData, locationsData, locationMaterialsData, lanesData, runoutRiskData, scenarioData, disruptionsData, apiBase = "https://supply-chain-simulator-v2.onrender.com", kpis }) {
   const [activeTab, setActiveTab] = useState("network");
 
   const hasData = bomData?.length || lanesData?.length;
@@ -416,6 +457,7 @@ export default function SupplierNetworkGraph({ bomData, locationsData, locationM
           lanesData={lanesData}
           runoutRiskData={runoutRiskData}
           scenarioData={scenarioData}
+          disruptionsData={disruptionsData}
         />
       ) : (
         <CascadeView
