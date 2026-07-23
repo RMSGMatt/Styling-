@@ -153,16 +153,13 @@ function buildCascade(lanesData, scenarioData, runoutRiskData, disruptionsData) 
     }
   }
 
-  // Add unvisited facilities at end
-  for (const f of allFacilities) {
-    if (!visited.has(f)) {
-      const lastHop = maxHop + 1;
-      if (!hops[lastHop]) hops[lastHop] = [];
-      hops[lastHop].push(f);
-      facilityHop[f] = lastHop;
-      facilityEdges[f] = [];
-    }
-  }
+  // Facilities never reached by the BFS have no path from the disruption
+  // at all (e.g. sibling Tier 3 suppliers that don't feed into this
+  // particular chain) — they used to get dumped into a synthetic
+  // "maxHop + 1" bucket, which visually implied they were downstream-
+  // impacted when they're simply unrelated. The cascade should only show
+  // the actual reachable subgraph, so unreached facilities are correctly
+  // left out entirely rather than shoehorned into a fake extra hop.
 
   return { hops, facilityHop, facilityEdges, facilityRisk, disruptedFacilities, downstream, upstream };
 }
