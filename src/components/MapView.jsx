@@ -81,6 +81,7 @@ export default function MapView({
 
 
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [selectedAlert, setSelectedAlert] = useState(null);
 
   /* ============================================================================
      3) EMOJI HELPERS
@@ -284,19 +285,15 @@ export default function MapView({
           el.textContent = emojiFn(props);
 
           const title = titleFn(props);
+          const description = props.description || props.headline || props.areaDesc || "";
+
+          el.addEventListener("click", (e) => {
+            e.stopPropagation();
+            setSelectedAlert({ title, description });
+          });
 
           const marker = new mapboxgl.Marker({ element: el })
             .setLngLat([lng, lat])
-            .setPopup(
-              new mapboxgl.Popup({ offset: 18 }).setHTML(
-                `<div style="max-width:260px">
-                   <div style="font-weight:800;color:#111820;margin-bottom:4px">${title}</div>
-                   <div style="font-size:12px;line-height:1.35;color:#334155">
-                     ${props.description || props.headline || props.areaDesc || ""}
-                   </div>
-                 </div>`
-              )
-            )
             .addTo(map);
 
           destRef.current.push(marker);
@@ -762,6 +759,34 @@ export default function MapView({
           className="w-full"
           style={{ height }}
         />
+
+        {selectedAlert && (
+          <div
+            className="absolute top-0 right-0 h-full overflow-y-auto"
+            style={{
+              width: "320px",
+              maxWidth: "90%",
+              background: "rgba(11,15,19,0.97)",
+              borderLeft: "1px solid rgba(148,163,184,0.15)",
+              padding: "16px",
+              zIndex: 10,
+            }}
+          >
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <p className="text-sm font-bold" style={{ color: "#F1F5F9" }}>{selectedAlert.title}</p>
+              <button
+                onClick={() => setSelectedAlert(null)}
+                className="shrink-0"
+                style={{ color: "#94A3B8", fontSize: "16px", lineHeight: 1, background: "none", border: "none", cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs leading-relaxed" style={{ color: "#C7D0D9", whiteSpace: "pre-wrap" }}>
+              {selectedAlert.description}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
