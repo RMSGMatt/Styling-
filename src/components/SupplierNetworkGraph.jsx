@@ -509,6 +509,7 @@ export default function SupplierNetworkGraph({ bomData, locationsData, locationM
           lanesData={lanesData}
           scenarioData={scenarioData}
           runoutRiskData={runoutRiskData}
+          disruptionsData={disruptionsData}
           apiBase={apiBase}
           kpis={kpis}
         />

@@ -64,7 +64,7 @@ function snapshotFacilityRisk(runoutRiskData) {
 }
 
 // Build tier order and cascade hops from lanes + disrupted facility
-function buildCascade(lanesData, scenarioData, runoutRiskData) {
+function buildCascade(lanesData, scenarioData, runoutRiskData, disruptionsData) {
   if (!lanesData?.length) return null;
 
   const disruptedFacilities = new Set(
@@ -72,6 +72,17 @@ function buildCascade(lanesData, scenarioData, runoutRiskData) {
       .map(s => String(s.facility || "").trim())
       .filter(Boolean)
   );
+  // scenarioData.disruptionScenarios only gets populated when a run is built
+  // through the War Room's scenario builder — a run created by directly
+  // uploading disruptions.csv (the normal path for most runs) never
+  // populates it. Since the cascade's whole hop structure is seeded via a
+  // BFS starting from this set, an empty set here doesn't just mean the
+  // disruption marker is missing — it means the cascade has no correct
+  // starting point at all. Fold in the raw uploaded disruptions.csv rows too.
+  for (const row of (disruptionsData || [])) {
+    const facility = String(row.facility || row.Facility || "").trim();
+    if (facility) disruptedFacilities.add(facility);
+  }
 
   const facilityRisk = snapshotFacilityRisk(runoutRiskData);
 
@@ -156,7 +167,7 @@ function buildCascade(lanesData, scenarioData, runoutRiskData) {
   return { hops, facilityHop, facilityEdges, facilityRisk, disruptedFacilities, downstream, upstream };
 }
 
-export default function CascadeView({ lanesData, scenarioData, runoutRiskData, apiBase = "https://supply-chain-simulator-v2.onrender.com", kpis }) {
+export default function CascadeView({ lanesData, scenarioData, runoutRiskData, disruptionsData, apiBase = "https://supply-chain-simulator-v2.onrender.com", kpis }) {
   const [currentHop, setCurrentHop] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [aiSummary, setAiSummary] = useState(null);
@@ -165,8 +176,8 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData, a
   const intervalRef = useRef(null);
 
   const cascade = useMemo(
-    () => buildCascade(lanesData, scenarioData, runoutRiskData),
-    [lanesData, scenarioData, runoutRiskData]
+    () => buildCascade(lanesData, scenarioData, runoutRiskData, disruptionsData),
+    [lanesData, scenarioData, runoutRiskData, disruptionsData]
   );
 
   const totalHops = cascade?.hops?.length || 0;
