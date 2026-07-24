@@ -305,17 +305,31 @@ function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, b
     .filter((i) => i.facility && i.sku);
 
   // demand.csv is a time series (Date, Facility, SKU, Quantity) — one row per
-  // day/facility/SKU. The optimizer needs a single mean + std-dev per SKU
-  // (network-wide daily demand), so: sum quantity across facilities for each
-  // SKU on each date, then take the mean/std of those daily totals.
+  // day/facility/SKU. Build TWO views: a network-wide mean+sigma per SKU
+  // (used as a fallback for upstream/BOM-derived SKUs that have no directly
+  // measured facility-level demand — e.g. raw components only ever
+  // appearing via BOM roll-up), and a facility-specific mean+sigma per
+  // (facility, SKU) pair — used preferentially wherever it exists. Without
+  // the facility-specific view, every facility carrying a given SKU was
+  // silently sized against total network demand instead of its own share:
+  // confirmed by two different facilities showing identical days_coverage
+  // for the same SKU, which is only possible if both were using the same
+  // demand number under the hood.
   const dailyTotalsBySku = {};
+  const dailyTotalsByFacilitySku = {};
   for (const r of demandRows || []) {
     const date = pickField(r, ["date"]);
     const sku = pickField(r, ["sku", "material"]);
+    const facility = pickField(r, ["facility", "location", "plant"]);
     const qty = Number(pickField(r, ["quantity", "qty"])) || 0;
     if (!date || !sku) continue;
     dailyTotalsBySku[sku] = dailyTotalsBySku[sku] || {};
     dailyTotalsBySku[sku][date] = (dailyTotalsBySku[sku][date] || 0) + qty;
+    if (facility) {
+      dailyTotalsByFacilitySku[facility] = dailyTotalsByFacilitySku[facility] || {};
+      dailyTotalsByFacilitySku[facility][sku] = dailyTotalsByFacilitySku[facility][sku] || {};
+      dailyTotalsByFacilitySku[facility][sku][date] = (dailyTotalsByFacilitySku[facility][sku][date] || 0) + qty;
+    }
   }
   const demand = {};
   const demand_sigma = {};
@@ -325,6 +339,19 @@ function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, b
     const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
     demand[sku] = mean;
     demand_sigma[sku] = Math.sqrt(variance);
+  }
+  const demand_by_facility = {};
+  const demand_sigma_by_facility = {};
+  for (const facility of Object.keys(dailyTotalsByFacilitySku)) {
+    demand_by_facility[facility] = {};
+    demand_sigma_by_facility[facility] = {};
+    for (const sku of Object.keys(dailyTotalsByFacilitySku[facility])) {
+      const values = Object.values(dailyTotalsByFacilitySku[facility][sku]);
+      const mean = values.reduce((a, b) => a + b, 0) / values.length;
+      const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
+      demand_by_facility[facility][sku] = mean;
+      demand_sigma_by_facility[facility][sku] = Math.sqrt(variance);
+    }
   }
 
   // bom.csv (parent, component, quantity) drives how demand for a finished
@@ -337,7 +364,7 @@ function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, b
     }))
     .filter((b) => b.parent && b.component);
 
-  return { lanes, inventory, demand, demand_sigma, bom };
+  return { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom };
 }
 
 function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsData, demandData, bomData }) {
@@ -348,7 +375,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
 
   const fetchOptimization = React.useCallback(async (sl) => {
     if (!hasRun) return;
-    const { lanes, inventory, demand, demand_sigma, bom } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
+    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
     if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
       setError("Upload lanes.csv, location_materials.csv, and demand.csv for this run to enable safety stock optimization.");
       setResult(null);
@@ -369,6 +396,8 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
           inventory,
           demand,
           demand_sigma,
+          demand_by_facility,
+          demand_sigma_by_facility,
           bom,
         }),
       });
@@ -529,7 +558,7 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
 
   React.useEffect(() => {
     if (!hasRun) return;
-    const { lanes, inventory, demand, demand_sigma, bom } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
+    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
     if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
       // Summary card silently stays empty if this run's network data isn't
       // available yet — the Actions tab panel below surfaces the clear message.
@@ -550,6 +579,8 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
             inventory,
             demand,
             demand_sigma,
+            demand_by_facility,
+            demand_sigma_by_facility,
             bom,
           }),
         });
