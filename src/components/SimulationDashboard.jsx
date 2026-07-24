@@ -461,6 +461,30 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
           </div>
         )}
       </div>
+      {(kpis?.avgInventoryValueUsd != null || kpis?.totalCarryingCostUsd != null) && (
+        <div className="mb-4 rounded-xl border p-3" style={{ borderColor: "rgba(159,214,58,0.15)", background: "rgba(9,13,17,0.5)" }}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Current Inventory Economics</p>
+            {kpis?.inventoryValueUsedRealCosts === false && (
+              <p className="text-[9px] text-slate-500 italic">estimated using default $30/unit — upload Unit Costs for real figures</p>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <p className="text-[10px] text-slate-400">Avg Investment</p>
+              <p className="text-base font-bold text-white">{formatCurrencyCompact(kpis?.avgInventoryValueUsd)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-slate-400">Peak Investment</p>
+              <p className="text-base font-bold text-white">{formatCurrencyCompact(kpis?.peakInventoryValueUsd)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-slate-400">Carrying Cost (this run)</p>
+              <p className="text-base font-bold" style={{ color: "#F59E0B" }}>{formatCurrencyCompact(kpis?.totalCarryingCostUsd)}</p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] uppercase tracking-wide text-slate-400">Target Service Level</p>
