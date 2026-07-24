@@ -272,7 +272,7 @@ function TabNav({ activeTab, setActiveTab, hasRun }) {
 // template (lanes.csv: from_facility,to_facility,sku,lead_time_days,lane_type;
 // location_materials.csv: facility,sku,initial inventory) — filtered
 // defensively in case of blank trailing rows from CSV parsing.
-function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, bomRows) {
+function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, bomRows, unitCostsRows) {
   // Different CSV exports across runs use inconsistent header casing/naming
   // (confirmed: one file used "facility,sku,initial inventory", another used
   // "Facility,SKU,quantity"). Look up fields case-insensitively across known
@@ -364,10 +364,20 @@ function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, b
     }))
     .filter((b) => b.parent && b.component);
 
-  return { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom };
+  // Unit Costs — genuinely optional. If not provided, unit_costs is left
+  // empty and the backend falls through to its own generic default rather
+  // than pretending to have real per-SKU pricing it doesn't have.
+  const unit_costs = {};
+  for (const r of unitCostsRows || []) {
+    const sku = pickField(r, ["sku", "material", "part_number", "part"]);
+    const cost = Number(pickField(r, ["unit_cost", "cost", "price", "unit_price"]));
+    if (sku && !isNaN(cost) && cost > 0) unit_costs[sku] = cost;
+  }
+
+  return { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs };
 }
 
-function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsData, demandData, bomData }) {
+function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsData, demandData, bomData, unitCostsData }) {
   const [targetSL, setTargetSL] = React.useState(95);
   const [result, setResult] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
@@ -375,7 +385,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
 
   const fetchOptimization = React.useCallback(async (sl) => {
     if (!hasRun) return;
-    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
+    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData, unitCostsData);
     if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
       setError("Upload lanes.csv, location_materials.csv, and demand.csv for this run to enable safety stock optimization.");
       setResult(null);
@@ -399,6 +409,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
           demand_by_facility,
           demand_sigma_by_facility,
           bom,
+          unit_costs,
         }),
       });
       const data = await res.json();
@@ -552,13 +563,13 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
   );
 }
 
-function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, lanesData, locationMaterialsData, demandData, bomData }) {
+function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, lanesData, locationMaterialsData, demandData, bomData, unitCostsData }) {
   const [result, setResult] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
     if (!hasRun) return;
-    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
+    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData, unitCostsData);
     if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
       // Summary card silently stays empty if this run's network data isn't
       // available yet — the Actions tab panel below surfaces the clear message.
@@ -582,6 +593,7 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
             demand_by_facility,
             demand_sigma_by_facility,
             bom,
+            unit_costs,
           }),
         });
         const data = await res.json();
@@ -752,7 +764,7 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
   );
 }
 
-function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis, kpis, apiBase, hasNarrativeRun, lanesData, locationMaterialsData, demandData, bomData }) {
+function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis, kpis, apiBase, hasNarrativeRun, lanesData, locationMaterialsData, demandData, bomData, unitCostsData }) {
   const [mraTab, setMraTab] = React.useState("countermeasures");
   const runoutRows = safeArray(runoutRiskData);
   const exec = executiveKpis || {};
@@ -774,8 +786,8 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
     if (!hasNarrativeRun) { setSafetyStockRecs([]); return; }
     (async () => {
       try {
-        const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom } =
-          buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
+        const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs } =
+          buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData, unitCostsData);
         if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
           setSafetyStockRecs([]);
           return;
@@ -787,11 +799,15 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
           body: JSON.stringify({
             target_service_level: 0.95,
             revenue_at_risk: 847000,
-            lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom,
+            lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs,
           }),
         });
         const data = await res.json();
-        if (data.ok) setSafetyStockRecs(data.recommendation?.recommendations || []);
+        if (data.ok) {
+          const recs = data.recommendation?.recommendations || [];
+          console.log("[COUNTERMEASURES-DEBUG] full safetyStockRecs:", recs.map(r => `${r.sku} @ ${r.facility}`));
+          setSafetyStockRecs(recs);
+        }
         else setSafetyStockRecs([]);
       } catch (e) {
         setSafetyStockRecs([]);
@@ -832,6 +848,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
     const ssMatch = safetyStockRecs.find(
       (r) => (r.sku || "").trim() === sku && (r.facility || "").trim() === facility
     );
+    console.log(`[COUNTERMEASURES-DEBUG] looking for match: sku="${sku}" facility="${facility}" -> found=${!!ssMatch}`);
 
     let action, expectedImpact;
     if (ssMatch) {
@@ -934,7 +951,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
       )}
 
       {mraTab === "safetystock" && (
-        <SafetyStockPanel kpis={kpis} apiBase={apiBase} hasRun={hasNarrativeRun} lanesData={lanesData} locationMaterialsData={locationMaterialsData} demandData={demandData} bomData={bomData} />
+        <SafetyStockPanel kpis={kpis} apiBase={apiBase} hasRun={hasNarrativeRun} lanesData={lanesData} locationMaterialsData={locationMaterialsData} demandData={demandData} bomData={bomData} unitCostsData={parsedUnitCostsData} />
       )}
     </div>
   );
@@ -1270,6 +1287,7 @@ export default function SimulationDashboard({
   const [parsedBomData, setParsedBomData] = useState([]);
   const [parsedLocationsData, setParsedLocationsData] = useState([]);
   const [parsedLanesData, setParsedLanesData] = useState([]);
+  const [parsedUnitCostsData, setParsedUnitCostsData] = useState([]);
   const [parsedLocationMaterialsData, setParsedLocationMaterialsData] = useState([]);
   const [parsedDemandData, setParsedDemandData] = useState([]);
   const [parsedDisruptionsData, setParsedDisruptionsData] = useState([]);
@@ -1308,6 +1326,20 @@ export default function SimulationDashboard({
     reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedLanesData(parsed.data || []); };
     reader.readAsText(files.lanes);
   }, [files.lanes]);
+
+  // Unit Costs — genuinely optional. Without real per-SKU pricing, the
+  // Safety Stock Optimizer's dollar figures were all defaulting to a flat
+  // $30/unit regardless of what the SKU actually was (confirmed directly:
+  // every recommendation's cost divided out to exactly ~$30.00/unit). This
+  // lets a real cost sheet replace that fallback when provided, without
+  // requiring it — absence of this file changes nothing about existing
+  // behavior, matching how Lanes already works.
+  useEffect(() => {
+    if (!files.unitCosts) { setParsedUnitCostsData([]); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => { const parsed = Papa.parse(e.target.result.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() }); setParsedUnitCostsData(parsed.data || []); };
+    reader.readAsText(files.unitCosts);
+  }, [files.unitCosts]);
 
   useEffect(() => {
     if (!files.locationMaterials) return;
@@ -1637,6 +1669,7 @@ export default function SimulationDashboard({
               locationMaterialsData={parsedLocationMaterialsData}
               demandData={parsedDemandData}
               bomData={parsedBomData}
+              unitCostsData={parsedUnitCostsData}
             />
 
             <div className="rounded-xl border border-slate-800 bg-slate-950/45 p-4 mt-4">
@@ -1762,6 +1795,7 @@ export default function SimulationDashboard({
       locationMaterialsData={parsedLocationMaterialsData}
       demandData={parsedDemandData}
       bomData={parsedBomData}
+      unitCostsData={parsedUnitCostsData}
     />
   );
 
@@ -2118,12 +2152,12 @@ export default function SimulationDashboard({
             <div className="lg:col-span-2 rounded-2xl p-4 border" style={{ background: "linear-gradient(150deg, rgba(18,23,30,0.98), rgba(12,15,20,0.98))", borderColor: "#1E2733" }}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-slate-50">📂 Simulation Inputs</h2>
-                <button type="button" onClick={() => { ["demand", "disruptions", "locations", "processes", "bom", "locationMaterials", "lanes"].forEach((key) => handleFileChange(key, null)); }} className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition" style={{ borderColor: "#2A3542", color: "#E2E8F0", backgroundColor: "rgba(2, 6, 23, 0.45)" }}>Clear All</button>
+                <button type="button" onClick={() => { ["demand", "disruptions", "locations", "processes", "bom", "locationMaterials", "lanes", "unitCosts"].forEach((key) => handleFileChange(key, null)); }} className="px-2.5 py-1 rounded-md text-[11px] font-semibold border transition" style={{ borderColor: "#2A3542", color: "#E2E8F0", backgroundColor: "rgba(2, 6, 23, 0.45)" }}>Clear All</button>
               </div>
               
                 <a href="/forc-sample-data.zip" download className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-xs font-semibold border transition mb-3" style={{ borderColor: "#2EC4A6", color: "#2EC4A6", background: "rgba(46,196,166,0.07)" }}>📦 Download Sample Data</a>
               <div className="divide-y divide-slate-700/40 text-xs">
-                {[["Demand", "demand"], ["Disruptions", "disruptions"], ["Locations", "locations"], ["Processes", "processes"], ["BOM", "bom"], ["Location Materials", "locationMaterials"], ["Lanes (Optional)", "lanes"]].map(([label, key]) => (
+                {[["Demand", "demand"], ["Disruptions", "disruptions"], ["Locations", "locations"], ["Processes", "processes"], ["BOM", "bom"], ["Location Materials", "locationMaterials"], ["Lanes (Optional)", "lanes"], ["Unit Costs (Optional)", "unitCosts"]].map(([label, key]) => (
                   <div key={key} className="flex items-center justify-between py-2">
                     <div className="flex flex-col">
                       <span className="text-slate-200">{label}</span>
