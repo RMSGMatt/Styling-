@@ -758,6 +758,47 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
   const exec = executiveKpis || {};
   const execOnTimePct = Number(exec.serviceLevelPct || 0);
 
+  // Countermeasures previously showed a generic 3-bucket template ("Expedite
+  // supply for X (Protect service)") with no connection to the Safety Stock
+  // Optimizer sitting right next to it, which has real, specific numbers for
+  // some of the same facility/SKU pairs. Fetching the standard 95%-target
+  // recommendation here (independent of whatever service level the user may
+  // be exploring on the Safety Stock tab's own slider) lets Countermeasures
+  // show the actual recommended units/cost/coverage wherever Safety Stock
+  // has a real answer, falling back to the generic template only when it
+  // doesn't (e.g. no lead-time/BOM data to compute a recommendation for
+  // that specific facility/SKU).
+  const [safetyStockRecs, setSafetyStockRecs] = React.useState([]);
+
+  React.useEffect(() => {
+    if (!hasNarrativeRun) { setSafetyStockRecs([]); return; }
+    (async () => {
+      try {
+        const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom } =
+          buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData);
+        if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
+          setSafetyStockRecs([]);
+          return;
+        }
+        const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+        const res = await fetch(`${apiBase}/api/safety-stock/optimize`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            target_service_level: 0.95,
+            revenue_at_risk: 847000,
+            lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom,
+          }),
+        });
+        const data = await res.json();
+        if (data.ok) setSafetyStockRecs(data.recommendation?.recommendations || []);
+        else setSafetyStockRecs([]);
+      } catch (e) {
+        setSafetyStockRecs([]);
+      }
+    })();
+  }, [hasNarrativeRun, apiBase, lanesData, locationMaterialsData, demandData, bomData]);
+
   const uniqueRunoutRows = classifyFacilitySkuRisk(runoutRows)
     .sort((a, b) => {
       const rank = { high: 3, medium: 2, med: 2, low: 1 };
@@ -784,15 +825,30 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
     const facility = (row.facility || row.Facility || "Unknown facility").toString().trim();
     const risk = (row.risk_level || row.RiskLevel || "Medium").toString().trim();
     const riskLower = risk.toLowerCase();
-    let action = "Review mitigation plan";
-    let expectedImpact = "Reduce runout risk";
-    if (riskLower.includes("high")) { action = `Expedite supply for ${facility}`; expectedImpact = "Protect service"; }
-    else if (riskLower.includes("low")) { action = `Monitor and rebalance inventory at ${facility}`; expectedImpact = "Stabilize supply"; }
-    else { action = `Evaluate alternate sourcing for ${facility}`; expectedImpact = "Improve resilience"; }
+
+    // Prefer the actual Safety Stock recommendation for this exact
+    // facility/SKU when one exists — a specific unit count, dollar figure,
+    // and coverage window is a real countermeasure, not a canned phrase.
+    const ssMatch = safetyStockRecs.find(
+      (r) => (r.sku || "").trim() === sku && (r.facility || "").trim() === facility
+    );
+
+    let action, expectedImpact;
+    if (ssMatch) {
+      action = `Increase ${sku} at ${facility} from ${ssMatch.current_units} to ${ssMatch.recommended_units} units (+${ssMatch.delta_units})`;
+      expectedImpact = `$${Number(ssMatch.additional_cost_usd || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} · extends coverage to ${Number(ssMatch.days_coverage || 0).toFixed(1)} days`;
+    } else if (riskLower.includes("high")) {
+      action = `Expedite supply for ${facility}`; expectedImpact = "Protect service";
+    } else if (riskLower.includes("low")) {
+      action = `Monitor and rebalance inventory at ${facility}`; expectedImpact = "Stabilize supply";
+    } else {
+      action = `Evaluate alternate sourcing for ${facility}`; expectedImpact = "Improve resilience";
+    }
+
     const dedupeKey = `${sku}__${facility}__${action}`;
     if (seenActionKeys.has(dedupeKey)) continue;
     seenActionKeys.add(dedupeKey);
-    candidateActions.push({ sku, facility, risk, action, expectedImpact });
+    candidateActions.push({ sku, facility, risk, action, expectedImpact, isRealRecommendation: !!ssMatch });
     if (candidateActions.length >= 3) break;
   }
 
@@ -855,7 +911,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
             )}
           </div>
           <div className="bg-slate-900/70 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
-            <p className="font-semibold mb-2 text-slate-50">✅ Suggested Countermeasures (Examples)</p>
+            <p className="font-semibold mb-2 text-slate-50">✅ Suggested Countermeasures</p>
             {candidateActions.length === 0 ? (
               <p className="text-slate-300">No countermeasures generated yet for this scenario.</p>
             ) : (
@@ -866,6 +922,9 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
                     <span className="text-slate-400">@ {row.facility}</span>:{" "}
                     {row.action}{" "}
                     <span className="text-emerald-300">({row.expectedImpact})</span>
+                    {!row.isRealRecommendation && (
+                      <span className="text-slate-500 text-[10px] ml-1">— example</span>
+                    )}
                   </li>
                 ))}
               </ul>
