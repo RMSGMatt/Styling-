@@ -911,6 +911,99 @@ export default function App() {
           invUniqueDays = new Set(invDates).size;
 
         } catch { invUniqueDays = 0; }
+
+        // ----- INVENTORY VALUE & CARRYING COST -----
+        // ending_inventory (already parsed above via invRows) valued against
+        // real per-SKU unit costs when unit_costs.csv was provided, falling
+        // back to the same $30/unit default the backend Safety Stock engine
+        // uses when it isn't. Category-level carrying-cost rates reflect
+        // that different part types genuinely cost different amounts to
+        // hold — a semiconductor's small reeled-tape storage footprint
+        // largely offsets its real obsolescence/EOL risk against a bulkier
+        // finished assembly's lower obsolescence but higher shelf-space
+        // cost, landing both in a similar overall range, while mature
+        // commodity passives and PCB substrate sit meaningfully lower.
+        // Hardcoded for now against this network's known ~10 SKUs; a
+        // drop-in AI-classification replacement (same category->rate output
+        // shape) is the natural next step once this needs to generalize to
+        // unknown SKU lists from other prospects, where a fixed lookup
+        // table isn't an option.
+        try {
+          const SKU_CARRYING_RATE = {
+            // Semiconductors/ICs
+            MCU: 0.195, POWER_IC: 0.195, SENSOR_IC: 0.195, CAN_TRANSCEIVER: 0.195, MOSFET: 0.195,
+            // Passives/commodity
+            MLCC_ARRAY: 0.135, CONNECTOR_ASSY: 0.135,
+            // PCB/substrate
+            PCB_SUBSTRATE: 0.15,
+            // Finished/assembled
+            ECU_MODULE: 0.20, TRANSMISSION_ECU: 0.20,
+          };
+          const DEFAULT_CARRYING_RATE = 0.18;
+          const DEFAULT_UNIT_COST = 30.0;
+
+          let unitCostBySku = {};
+          if (files?.unitCosts) {
+            const unitCostsText = await files.unitCosts.text();
+            const parsedUnitCosts = Papa.parse(unitCostsText.replace(/^\uFEFF/, ""), {
+              header: true, skipEmptyLines: true,
+              transformHeader: (h) => h.replace(/^\uFEFF/, "").trim(),
+            });
+            (parsedUnitCosts.data || []).forEach((row) => {
+              const rowKeys = Object.keys(row || {});
+              const skuKeyLocal = rowKeys.find((k) => ["sku", "material", "part_number", "part"].includes(k.toLowerCase().trim()));
+              const costKeyLocal = rowKeys.find((k) => ["unit_cost", "cost", "price", "unit_price"].includes(k.toLowerCase().trim()));
+              const rowSku = skuKeyLocal ? row[skuKeyLocal] : null;
+              const rowCost = costKeyLocal ? Number(row[costKeyLocal]) : NaN;
+              if (rowSku && Number.isFinite(rowCost) && rowCost > 0) unitCostBySku[rowSku] = rowCost;
+            });
+          }
+
+          // Network-wide (unfiltered) inventory value per date and per-SKU
+          // per date, needed to compute both the peak/average total dollar
+          // investment and each SKU's own carrying cost against its own
+          // category rate.
+          const valueByDate = {};
+          const skuDailyValues = {};
+          const allInvDates = new Set();
+          invRows.forEach((r) => {
+            const date = r.date || r.Date || r.day || r.Day;
+            const sku = normalizeSku(r[skuKey] || r.sku || r.SKU);
+            const units = toNum(r[invKey]);
+            if (!date || !sku || !Number.isFinite(units)) return;
+            const cost = unitCostBySku[sku] ?? DEFAULT_UNIT_COST;
+            const value = units * cost;
+            valueByDate[date] = (valueByDate[date] || 0) + value;
+            skuDailyValues[sku] = skuDailyValues[sku] || {};
+            skuDailyValues[sku][date] = (skuDailyValues[sku][date] || 0) + value;
+            allInvDates.add(date);
+          });
+
+          const dailyValues = Object.values(valueByDate);
+          const avgInventoryValue = dailyValues.length ? dailyValues.reduce((a, b) => a + b, 0) / dailyValues.length : 0;
+          const peakInventoryValue = dailyValues.length ? Math.max(...dailyValues) : 0;
+
+          // Carrying cost over the actual simulated window: for each SKU,
+          // its own average daily inventory value * its category rate *
+          // (days this simulation actually covers / 365) — the real dollar
+          // cost of holding that SKU's typical level for this run's own
+          // horizon, not an arbitrary annualized projection.
+          const simulationDays = allInvDates.size || 1;
+          let totalCarryingCost = 0;
+          Object.keys(skuDailyValues).forEach((sku) => {
+            const skuValues = Object.values(skuDailyValues[sku]);
+            const skuAvgValue = skuValues.length ? skuValues.reduce((a, b) => a + b, 0) / skuValues.length : 0;
+            const rate = SKU_CARRYING_RATE[sku] ?? DEFAULT_CARRYING_RATE;
+            totalCarryingCost += skuAvgValue * rate * (simulationDays / 365);
+          });
+
+          allKpis.avgInventoryValueUsd = Math.round(avgInventoryValue);
+          allKpis.peakInventoryValueUsd = Math.round(peakInventoryValue);
+          allKpis.totalCarryingCostUsd = Math.round(totalCarryingCost);
+          allKpis.inventoryValueUsedRealCosts = Object.keys(unitCostBySku).length > 0;
+        } catch (e) {
+          console.error("Inventory value / carrying cost computation failed:", e);
+        }
       }
 
       // ----- PRODUCTION KPIs -----
