@@ -1301,6 +1301,7 @@ export default function App() {
             const dates = Object.keys(demandByDate).sort();
             let runningBacklog = 0;
             let peak = 0;
+            let totalLate = 0;
             dates.forEach((d) => {
               const demand = demandByDate[d] || 0;
               const shipped = shipByDate[d] || 0;
@@ -1309,13 +1310,52 @@ export default function App() {
               runningBacklog += demand - onTime;
               if (runningBacklog > peak) peak = runningBacklog;
               if (late > 0) runningBacklog = Math.max(0, runningBacklog - late);
+              totalLate += late;
             });
-            return { sku, bridgeInventoryUnits: Math.round(peak) };
+            return { sku, bridgeInventoryUnits: Math.round(peak), lateUnits: Math.round(totalLate) };
           })
             .filter((r) => r.bridgeInventoryUnits > 0)
             .sort((a, b) => b.bridgeInventoryUnits - a.bridgeInventoryUnits);
 
           allKpis.bridgeInventoryBySku = bridgeInventoryBySku;
+
+          // Revenue Exposure — previously a flat $100 per late-fulfilled
+          // unit network-wide, regardless of which SKU those units actually
+          // were (a $5 connector and a $95 assembled ECU were valued
+          // identically). If the optional unit_costs.csv was uploaded,
+          // weight each SKU's own late units by its own real cost instead;
+          // SKUs not covered by that file still fall back to $100/unit
+          // individually, rather than the whole computation reverting to a
+          // single flat total the moment any one SKU is missing.
+          try {
+            let unitCostBySku = {};
+            if (files?.unitCosts) {
+              const unitCostsText = await files.unitCosts.text();
+              const parsedUnitCosts = Papa.parse(unitCostsText.replace(/^\uFEFF/, ""), {
+                header: true, skipEmptyLines: true,
+                transformHeader: (h) => h.replace(/^\uFEFF/, "").trim(),
+              });
+              (parsedUnitCosts.data || []).forEach((row) => {
+                const rowKeys = Object.keys(row || {});
+                const skuKey = rowKeys.find((k) => ["sku", "material", "part_number", "part"].includes(k.toLowerCase().trim()));
+                const costKey = rowKeys.find((k) => ["unit_cost", "cost", "price", "unit_price"].includes(k.toLowerCase().trim()));
+                const rowSku = skuKey ? row[skuKey] : null;
+                const rowCost = costKey ? Number(row[costKey]) : NaN;
+                if (rowSku && Number.isFinite(rowCost) && rowCost > 0) unitCostBySku[rowSku] = rowCost;
+              });
+            }
+            const FALLBACK_UNIT_VALUE = 100;
+            const weightedRevenueExposure = bridgeInventoryBySku.reduce((sum, row) => {
+              const cost = unitCostBySku[row.sku] ?? FALLBACK_UNIT_VALUE;
+              return sum + (row.lateUnits || 0) * cost;
+            }, 0);
+            allKpis.weightedRevenueExposure = Math.round(weightedRevenueExposure);
+            allKpis.revenueExposureUsedRealCosts = Object.keys(unitCostBySku).length > 0;
+          } catch (e) {
+            console.error("weightedRevenueExposure computation failed:", e);
+            allKpis.weightedRevenueExposure = 0;
+            allKpis.revenueExposureUsedRealCosts = false;
+          }
         } catch (e) {
           console.error("bridgeInventoryBySku computation failed:", e);
           allKpis.bridgeInventoryBySku = [];
@@ -1598,8 +1638,8 @@ export default function App() {
       const finalKpis = {
         ...allKpis,
         ...normalizedServiceKpis,
-        estimatedRevenueExposure: rowLevelRevenueExposure || (serviceTruth?.lateFulfilledUnits || 0) * 100,
-        revenueExposure: rowLevelRevenueExposure || (serviceTruth?.lateFulfilledUnits || 0) * 100,
+        estimatedRevenueExposure: rowLevelRevenueExposure || allKpis.weightedRevenueExposure || (serviceTruth?.lateFulfilledUnits || 0) * 100,
+        revenueExposure: rowLevelRevenueExposure || allKpis.weightedRevenueExposure || (serviceTruth?.lateFulfilledUnits || 0) * 100,
       };
 
       const executiveKpis = {

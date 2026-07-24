@@ -951,7 +951,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
       )}
 
       {mraTab === "safetystock" && (
-        <SafetyStockPanel kpis={kpis} apiBase={apiBase} hasRun={hasNarrativeRun} lanesData={lanesData} locationMaterialsData={locationMaterialsData} demandData={demandData} bomData={bomData} unitCostsData={parsedUnitCostsData} />
+        <SafetyStockPanel kpis={kpis} apiBase={apiBase} hasRun={hasNarrativeRun} lanesData={lanesData} locationMaterialsData={locationMaterialsData} demandData={demandData} bomData={bomData} unitCostsData={unitCostsData} />
       )}
     </div>
   );
