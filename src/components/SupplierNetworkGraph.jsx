@@ -416,16 +416,27 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
       </div>
 
       {/* Selected node panel */}
-      {selectedNode && (
+      {selectedNode && (() => {
+        const isNodeDisrupted = disruptedFacilities.has(selectedNode);
+        // The runout-risk-based label ("low"/"medium"/"high") doesn't know
+        // about disruption status at all — a facility that's the actual
+        // origin of a disruption can genuinely show "low" runout risk for
+        // its own inventory (it's shut down, not running low on stock,
+        // which is a different problem the risk label was never measuring).
+        // Disrupted status takes priority and shows its own distinct badge,
+        // consistent with the legend's separate "Disrupted" category.
+        const badgeColor = isNodeDisrupted ? "#F59E0B" : RISK_COLOR[facilityRisk[selectedNode] || "low"];
+        const badgeLabel = isNodeDisrupted ? "DISRUPTED" : `${(facilityRisk[selectedNode] || "low").toUpperCase()} RISK`;
+        return (
         <div className="px-4 py-3 border-t" style={{ borderColor: "rgba(159,214,58,0.2)" }}>
           <div className="flex items-center justify-between mb-1">
             <p className="text-white font-bold text-sm">{shortLabel(selectedNode)}</p>
             <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{
-              background: `${RISK_COLOR[facilityRisk[selectedNode] || "low"]}22`,
-              color: RISK_COLOR[facilityRisk[selectedNode] || "low"],
-              border: `1px solid ${RISK_COLOR[facilityRisk[selectedNode] || "low"]}44`,
+              background: `${badgeColor}22`,
+              color: badgeColor,
+              border: `1px solid ${badgeColor}44`,
             }}>
-              {(facilityRisk[selectedNode] || "low").toUpperCase()} RISK
+              {isNodeDisrupted && "⚡ "}{badgeLabel}
             </span>
           </div>
           <p className="text-xs text-slate-400">
@@ -433,7 +444,8 @@ function ForceGraphView({ bomData, locationsData, locationMaterialsData, lanesDa
             {edges.filter(e => e.to_facility === selectedNode).map(e => `← ${e.from_facility} (${e.sku})`).join("  ·  ")}
           </p>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
