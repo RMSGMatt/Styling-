@@ -659,6 +659,54 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
       {!loading && rec && rec.recommendations?.length === 0 && (
         <div className="text-center py-3 text-emerald-400 text-sm">✅ Current inventory is sufficient for {targetSL}% service level</div>
       )}
+      {result?.safety_margin_analysis?.by_sku && Object.keys(result.safety_margin_analysis.by_sku).length > 0 && (
+        <div className="mt-4">
+          <div className="border-t mb-3" style={{ borderColor: "rgba(159,214,58,0.1)" }} />
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">Actual Safety Stock by Component</p>
+          <p className="text-[9px] text-slate-500 mb-2 leading-relaxed">
+            Of what's actually being carried right now, how much is genuine safety margin (current inventory minus normal cycle stock) versus the statistical target — distinct from the buffer recommendations above.
+          </p>
+          {Object.values(result.safety_margin_analysis.by_sku)
+            .sort((a, b) => a.gap_pct - b.gap_pct)
+            .map((s) => {
+              const worstFacility = [...s.by_facility].sort((a, b) => a.safety_margin_gap - b.safety_margin_gap)[0];
+              const statusColor = s.status === "UNDER_PROTECTED" ? "#EF4444" : s.status === "OVER_PROTECTED" ? "#F59E0B" : "#22C55E";
+              const statusLabel = s.status === "UNDER_PROTECTED" ? "UNDER" : s.status === "OVER_PROTECTED" ? "OVER" : "ADEQUATE";
+              return (
+                <div key={s.sku} className="rounded-xl border px-3 py-2.5 mb-2" style={{ background: "rgba(2,6,23,0.5)", borderColor: "rgba(148,163,184,0.12)" }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs font-semibold text-white">{s.sku}</p>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: `${statusColor}22`, color: statusColor }}>{statusLabel} ({s.gap_pct > 0 ? "+" : ""}{s.gap_pct}%)</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center mb-1.5">
+                    <div>
+                      <p className="text-[9px] text-slate-500">Current</p>
+                      <p className="text-[11px] font-bold text-white">{s.total_current_inventory}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-500">Cycle Stock</p>
+                      <p className="text-[11px] font-bold text-slate-300">{s.total_cycle_stock}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-500">Actual Margin</p>
+                      <p className="text-[11px] font-bold" style={{ color: s.total_actual_safety_margin < 0 ? "#EF4444" : "#E2E8F0" }}>{s.total_actual_safety_margin}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-500">Target</p>
+                      <p className="text-[11px] font-bold text-slate-300">{s.total_recommended_safety_stock}</p>
+                    </div>
+                  </div>
+                  {worstFacility && worstFacility.safety_margin_gap < 0 && s.by_facility.length > 1 && (
+                    <p className="text-[9px] text-rose-300">
+                      ⚠ Worst facility: {worstFacility.facility} — margin {worstFacility.actual_safety_margin} vs target {worstFacility.recommended_safety_stock} (gap {worstFacility.safety_margin_gap})
+                      {s.status !== "UNDER_PROTECTED" && " — hidden by the healthier network-wide total above"}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      )}
     </div>
   );
 }
