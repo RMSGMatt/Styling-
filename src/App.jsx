@@ -875,6 +875,39 @@ export default function App() {
 
 
     let avgInventoryNum = 0;
+    let invUnitsBySkuDate = {}; // sku -> {date -> units}, populated in the inventory block below, used later for Days on Hand once demand rates are available
+    let invUnitsBySkuDateByScope = { CLIENT_SITE: {}, OUR_FACILITIES: {} }; // same shape, split by whether the facility is the OEM/client site or one of our own upstream facilities
+
+    // Facility scope — distinguishes component stock physically sitting at
+    // the client's (OEM's) own site from stock at our own upstream
+    // facilities. If the client is running thin, that's real exposure even
+    // when our own facilities look perfectly healthy, so this needs to be
+    // visible as its own dimension, not blended into one network average.
+    // Uses locations.csv's own Tier column (explicit "OEM" tag) rather than
+    // inferring from facility naming conventions or network topology, which
+    // wouldn't generalize across different customers' networks.
+    let facilityTierMap = {};
+    try {
+      if (files?.locations) {
+        const locationsText = await files.locations.text();
+        const parsedLocations = Papa.parse(locationsText.replace(/^\uFEFF/, ""), {
+          header: true, skipEmptyLines: true,
+          transformHeader: (h) => h.replace(/^\uFEFF/, "").trim(),
+        });
+        (parsedLocations.data || []).forEach((row) => {
+          const rowKeys = Object.keys(row || {});
+          const facKeyLocal = rowKeys.find((k) => ["facility", "facility_id", "location"].includes(k.toLowerCase().trim()));
+          const tierKeyLocal = rowKeys.find((k) => k.toLowerCase().trim() === "tier");
+          const fac = facKeyLocal ? String(row[facKeyLocal] || "").toUpperCase().trim() : null;
+          const tier = tierKeyLocal ? row[tierKeyLocal] : null;
+          if (fac && tier) facilityTierMap[fac] = String(tier).trim();
+        });
+      }
+    } catch (e) {
+      console.error("locations.csv facility-tier parsing failed:", e);
+    }
+    const scopeForFacility = (fac) =>
+      facilityTierMap[String(fac || "").toUpperCase().trim()] === "OEM" ? "CLIENT_SITE" : "OUR_FACILITIES";
 
     let invUniqueDays = 0;
     try {
@@ -962,10 +995,13 @@ export default function App() {
           // Network-wide (unfiltered) inventory value per date and per-SKU
           // per date, needed to compute both the peak/average total dollar
           // investment and each SKU's own carrying cost against its own
-          // category rate.
+          // category rate. Also segmented by facility scope (client site
+          // vs our own facilities) alongside the unsegmented totals.
           const valueByDate = {};
           const skuDailyValues = {};
           const allInvDates = new Set();
+          const valueByDateByScope = { CLIENT_SITE: {}, OUR_FACILITIES: {} };
+          const skuDailyValuesByScope = { CLIENT_SITE: {}, OUR_FACILITIES: {} };
           invRows.forEach((r) => {
             const date = r.date || r.Date || r.day || r.Day;
             const sku = normalizeSku(r[skuKey] || r.sku || r.SKU);
@@ -976,7 +1012,16 @@ export default function App() {
             valueByDate[date] = (valueByDate[date] || 0) + value;
             skuDailyValues[sku] = skuDailyValues[sku] || {};
             skuDailyValues[sku][date] = (skuDailyValues[sku][date] || 0) + value;
+            invUnitsBySkuDate[sku] = invUnitsBySkuDate[sku] || {};
+            invUnitsBySkuDate[sku][date] = (invUnitsBySkuDate[sku][date] || 0) + units;
             allInvDates.add(date);
+
+            const scope = scopeForFacility(r[facKey] || r.facility);
+            valueByDateByScope[scope][date] = (valueByDateByScope[scope][date] || 0) + value;
+            skuDailyValuesByScope[scope][sku] = skuDailyValuesByScope[scope][sku] || {};
+            skuDailyValuesByScope[scope][sku][date] = (skuDailyValuesByScope[scope][sku][date] || 0) + value;
+            invUnitsBySkuDateByScope[scope][sku] = invUnitsBySkuDateByScope[scope][sku] || {};
+            invUnitsBySkuDateByScope[scope][sku][date] = (invUnitsBySkuDateByScope[scope][sku][date] || 0) + units;
           });
 
           const dailyValues = Object.values(valueByDate);
@@ -989,18 +1034,42 @@ export default function App() {
           // cost of holding that SKU's typical level for this run's own
           // horizon, not an arbitrary annualized projection.
           const simulationDays = allInvDates.size || 1;
-          let totalCarryingCost = 0;
-          Object.keys(skuDailyValues).forEach((sku) => {
-            const skuValues = Object.values(skuDailyValues[sku]);
-            const skuAvgValue = skuValues.length ? skuValues.reduce((a, b) => a + b, 0) / skuValues.length : 0;
-            const rate = SKU_CARRYING_RATE[sku] ?? DEFAULT_CARRYING_RATE;
-            totalCarryingCost += skuAvgValue * rate * (simulationDays / 365);
-          });
+
+          const computeCarrying = (skuDailyValuesLocal) => {
+            let total = 0;
+            Object.keys(skuDailyValuesLocal).forEach((sku) => {
+              const skuValues = Object.values(skuDailyValuesLocal[sku]);
+              const skuAvgValue = skuValues.length ? skuValues.reduce((a, b) => a + b, 0) / skuValues.length : 0;
+              const rate = SKU_CARRYING_RATE[sku] ?? DEFAULT_CARRYING_RATE;
+              total += skuAvgValue * rate * (simulationDays / 365);
+            });
+            return total;
+          };
+          const totalCarryingCost = computeCarrying(skuDailyValues);
 
           allKpis.avgInventoryValueUsd = Math.round(avgInventoryValue);
           allKpis.peakInventoryValueUsd = Math.round(peakInventoryValue);
           allKpis.totalCarryingCostUsd = Math.round(totalCarryingCost);
           allKpis.inventoryValueUsedRealCosts = Object.keys(unitCostBySku).length > 0;
+
+          // Same figures, segmented by facility scope — component stock
+          // physically at the client's (OEM's) own site vs our own
+          // upstream facilities. Only populated if locations.csv provided
+          // real facility-tier data to classify against.
+          if (Object.keys(facilityTierMap).length > 0) {
+            allKpis.inventoryByScope = {};
+            ["CLIENT_SITE", "OUR_FACILITIES"].forEach((scope) => {
+              const scopeDailyValues = Object.values(valueByDateByScope[scope]);
+              const scopeAvg = scopeDailyValues.length ? scopeDailyValues.reduce((a, b) => a + b, 0) / scopeDailyValues.length : 0;
+              const scopePeak = scopeDailyValues.length ? Math.max(...scopeDailyValues) : 0;
+              const scopeCarrying = computeCarrying(skuDailyValuesByScope[scope]);
+              allKpis.inventoryByScope[scope] = {
+                avgInventoryValueUsd: Math.round(scopeAvg),
+                peakInventoryValueUsd: Math.round(scopePeak),
+                totalCarryingCostUsd: Math.round(scopeCarrying),
+              };
+            });
+          }
         } catch (e) {
           console.error("Inventory value / carrying cost computation failed:", e);
         }
@@ -1106,6 +1175,92 @@ export default function App() {
           acc[sku] = (acc[sku] || 0) + qty;
           return acc;
         }, {});
+
+        // ----- DAYS ON HAND -----
+        // Descriptive (what's actually being carried right now, from real
+        // simulated inventory levels) — distinct from Safety Stock's
+        // days_coverage, which is prescriptive (what SHOULD be carried
+        // against demand/lead-time variability). Uses the RAW, unfiltered
+        // demand.csv (not scopedDemandRows, which reflects whatever
+        // SKU/facility filter happens to be selected in the UI right now)
+        // so this stays a genuine network-wide figure regardless of what's
+        // currently selected elsewhere on the dashboard.
+        try {
+          const demandDateKey = pickFirstKey(demandSample, ["date", "day", "timestamp", "time"]) || "date";
+          const demandTotalBySku = {};
+          const demandDatesBySku = {};
+          demandRows.forEach((r) => {
+            const sku = normalizeSku(r[demandSkuKey] || r.sku || r.SKU);
+            const qty = toNum(r[demandQtyKey]);
+            const date = r[demandDateKey] || r.date || r.Date;
+            if (!sku || !Number.isFinite(qty)) return;
+            demandTotalBySku[sku] = (demandTotalBySku[sku] || 0) + qty;
+            if (date) {
+              demandDatesBySku[sku] = demandDatesBySku[sku] || new Set();
+              demandDatesBySku[sku].add(date);
+            }
+          });
+
+          const avgDailyDemandBySku = {};
+          Object.keys(demandTotalBySku).forEach((sku) => {
+            const uniqueDays = demandDatesBySku[sku]?.size || 1;
+            avgDailyDemandBySku[sku] = demandTotalBySku[sku] / uniqueDays;
+          });
+
+          const computeDoh = (unitsBySkuDateLocal) => {
+            const values = [];
+            const valuesBySku = {};
+            Object.keys(unitsBySkuDateLocal).forEach((sku) => {
+              const rate = avgDailyDemandBySku[sku];
+              if (!rate || rate <= 0) return; // no demand rate for this SKU -- DOH undefined, skip rather than divide by zero
+              Object.values(unitsBySkuDateLocal[sku]).forEach((units) => {
+                const doh = units / rate;
+                values.push(doh);
+                valuesBySku[sku] = valuesBySku[sku] || [];
+                valuesBySku[sku].push(doh);
+              });
+            });
+            const bySku = {};
+            Object.keys(valuesBySku).forEach((sku) => {
+              const vals = valuesBySku[sku];
+              bySku[sku] = {
+                avg: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10,
+                peak: Math.round(Math.max(...vals) * 10) / 10,
+                low: Math.round(Math.min(...vals) * 10) / 10,
+              };
+            });
+            return {
+              avg: values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : null,
+              peak: values.length ? Math.round(Math.max(...values) * 10) / 10 : null,
+              low: values.length ? Math.round(Math.min(...values) * 10) / 10 : null,
+              bySku,
+            };
+          };
+
+          const dohAll = computeDoh(invUnitsBySkuDate);
+          allKpis.avgDaysOnHand = dohAll.avg;
+          allKpis.peakDaysOnHand = dohAll.peak;
+          allKpis.lowDaysOnHand = dohAll.low;
+
+          // Per-SKU breakdown, so the UI can let someone drill into a
+          // specific component instead of only seeing the network-wide
+          // blend — a single SKU running dangerously low can be completely
+          // hidden inside a healthy-looking network average.
+          allKpis.daysOnHandBySku = dohAll.bySku;
+
+          // Same breakdown, segmented by facility scope — Days on Hand at
+          // the client's own site vs our own upstream facilities. Only
+          // populated if locations.csv provided real facility-tier data.
+          if (Object.keys(facilityTierMap).length > 0) {
+            allKpis.daysOnHandByScope = allKpis.daysOnHandByScope || {};
+            ["CLIENT_SITE", "OUR_FACILITIES"].forEach((scope) => {
+              const dohScope = computeDoh(invUnitsBySkuDateByScope[scope]);
+              allKpis.daysOnHandByScope[scope] = dohScope;
+            });
+          }
+        } catch (e) {
+          console.error("Days on Hand computation failed:", e);
+        }
 
         
 

@@ -382,6 +382,8 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
   const [result, setResult] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const [dohSku, setDohSku] = React.useState("ALL");
+  const [invScope, setInvScope] = React.useState("ALL");
 
   const fetchOptimization = React.useCallback(async (sl) => {
     if (!hasRun) return;
@@ -461,30 +463,104 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
           </div>
         )}
       </div>
-      {(kpis?.avgInventoryValueUsd != null || kpis?.totalCarryingCostUsd != null) && (
+      {(kpis?.avgInventoryValueUsd != null || kpis?.totalCarryingCostUsd != null) && (() => {
+        const hasScopeData = kpis?.inventoryByScope && Object.keys(kpis.inventoryByScope).length > 0;
+        const scopeKey = invScope === "ALL" ? null : invScope;
+        const dollarShown = scopeKey && kpis.inventoryByScope[scopeKey]
+          ? kpis.inventoryByScope[scopeKey]
+          : { avgInventoryValueUsd: kpis?.avgInventoryValueUsd, peakInventoryValueUsd: kpis?.peakInventoryValueUsd, totalCarryingCostUsd: kpis?.totalCarryingCostUsd };
+        const dohBucket = scopeKey && kpis?.daysOnHandByScope?.[scopeKey]
+          ? kpis.daysOnHandByScope[scopeKey]
+          : { avg: kpis?.avgDaysOnHand, peak: kpis?.peakDaysOnHand, low: kpis?.lowDaysOnHand, bySku: kpis?.daysOnHandBySku };
+
+        return (
         <div className="mb-4 rounded-xl border p-3" style={{ borderColor: "rgba(159,214,58,0.15)", background: "rgba(9,13,17,0.5)" }}>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <p className="text-[10px] uppercase tracking-widest text-slate-400">Current Inventory Economics</p>
-            {kpis?.inventoryValueUsedRealCosts === false && (
-              <p className="text-[9px] text-slate-500 italic">estimated using default $30/unit — upload Unit Costs for real figures</p>
-            )}
+            <div className="flex items-center gap-2">
+              {kpis?.inventoryValueUsedRealCosts === false && (
+                <p className="text-[9px] text-slate-500 italic">estimated using default $30/unit</p>
+              )}
+              {hasScopeData && (
+                <select
+                  value={invScope}
+                  onChange={(e) => setInvScope(e.target.value)}
+                  className="text-[10px] rounded px-1.5 py-0.5 border"
+                  style={{ background: "rgba(2,6,23,0.6)", borderColor: "#2A3542", color: "#E2E8F0" }}
+                >
+                  <option value="ALL">Whole Network</option>
+                  <option value="CLIENT_SITE">At Client Site</option>
+                  <option value="OUR_FACILITIES">Our Facilities Only</option>
+                </select>
+              )}
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">
               <p className="text-[10px] text-slate-400">Avg Investment</p>
-              <p className="text-base font-bold text-white">{formatCurrencyCompact(kpis?.avgInventoryValueUsd)}</p>
+              <p className="text-base font-bold text-white">{formatCurrencyCompact(dollarShown.avgInventoryValueUsd)}</p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-slate-400">Peak Investment</p>
-              <p className="text-base font-bold text-white">{formatCurrencyCompact(kpis?.peakInventoryValueUsd)}</p>
+              <p className="text-base font-bold text-white">{formatCurrencyCompact(dollarShown.peakInventoryValueUsd)}</p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-slate-400">Carrying Cost (this run)</p>
-              <p className="text-base font-bold" style={{ color: "#F59E0B" }}>{formatCurrencyCompact(kpis?.totalCarryingCostUsd)}</p>
+              <p className="text-base font-bold" style={{ color: "#F59E0B" }}>{formatCurrencyCompact(dollarShown.totalCarryingCostUsd)}</p>
             </div>
           </div>
+          {dohBucket.avg != null && (() => {
+            const skuList = Object.keys(dohBucket.bySku || {}).sort();
+            const isAllSku = dohSku === "ALL" || !dohBucket.bySku?.[dohSku];
+            const shown = isAllSku
+              ? { avg: dohBucket.avg, peak: dohBucket.peak, low: dohBucket.low }
+              : dohBucket.bySku[dohSku];
+            return (
+              <>
+                <div className="border-t my-3" style={{ borderColor: "rgba(159,214,58,0.1)" }} />
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-400">Days on Hand</p>
+                  {skuList.length > 0 && (
+                    <select
+                      value={dohSku}
+                      onChange={(e) => setDohSku(e.target.value)}
+                      className="text-[10px] rounded px-1.5 py-0.5 border"
+                      style={{ background: "rgba(2,6,23,0.6)", borderColor: "#2A3542", color: "#E2E8F0" }}
+                    >
+                      <option value="ALL">All Components (network)</option>
+                      {skuList.map((sku) => (
+                        <option key={sku} value={sku}>{sku}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center">
+                    <p className="text-[10px] text-slate-400">Avg</p>
+                    <p className="text-base font-bold text-white">{shown.avg}d</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-slate-400">Peak</p>
+                    <p className="text-base font-bold" style={{ color: "#F59E0B" }}>{shown.peak}d</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-slate-400">Low</p>
+                    <p className="text-base font-bold" style={{ color: "#EF4444" }}>{shown.low}d</p>
+                  </div>
+                </div>
+                <p className="text-[9px] text-slate-500 mt-2 leading-relaxed">
+                  {invScope === "CLIENT_SITE"
+                    ? "Component stock physically sitting at the client's own site — if this runs thin, that's real exposure even when our own facilities look healthy."
+                    : invScope === "OUR_FACILITIES"
+                    ? "Component stock at our own upstream facilities, excluding whatever is already at the client's site."
+                    : "What's actually being carried right now, from real simulated inventory — distinct from Safety Stock's coverage above, which is a statistical target, not an observed level."}
+                </p>
+              </>
+            );
+          })()}
         </div>
-      )}
+        );
+      })()}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] uppercase tracking-wide text-slate-400">Target Service Level</p>
