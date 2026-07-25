@@ -384,6 +384,9 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
   const [error, setError] = React.useState(null);
   const [dohSku, setDohSku] = React.useState("ALL");
   const [invScope, setInvScope] = React.useState("ALL");
+  const [marginStatusFilter, setMarginStatusFilter] = React.useState("UNDER_PROTECTED");
+  const [marginSearch, setMarginSearch] = React.useState("");
+  const [marginSort, setMarginSort] = React.useState({ col: "gap_pct", dir: "asc" });
 
   const fetchOptimization = React.useCallback(async (sl) => {
     if (!hasRun) return;
@@ -659,54 +662,181 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
       {!loading && rec && rec.recommendations?.length === 0 && (
         <div className="text-center py-3 text-emerald-400 text-sm">✅ Current inventory is sufficient for {targetSL}% service level</div>
       )}
-      {result?.safety_margin_analysis?.by_sku && Object.keys(result.safety_margin_analysis.by_sku).length > 0 && (
+      {result?.safety_margin_analysis?.by_sku && Object.keys(result.safety_margin_analysis.by_sku).length > 0 && (() => {
+        const allRows = Object.values(result.safety_margin_analysis.by_sku).map((s) => {
+          const worstFacility = [...s.by_facility].sort((a, b) => a.safety_margin_gap - b.safety_margin_gap)[0];
+          return { ...s, worstFacility };
+        });
+
+        const counts = {
+          UNDER_PROTECTED: allRows.filter((r) => r.status === "UNDER_PROTECTED").length,
+          ADEQUATE: allRows.filter((r) => r.status === "ADEQUATE").length,
+          OVER_PROTECTED: allRows.filter((r) => r.status === "OVER_PROTECTED").length,
+        };
+
+        let rows = marginStatusFilter === "ALL" ? allRows : allRows.filter((r) => r.status === marginStatusFilter);
+        if (marginSearch.trim()) {
+          const q = marginSearch.trim().toUpperCase();
+          rows = rows.filter((r) => r.sku.toUpperCase().includes(q));
+        }
+        rows = [...rows].sort((a, b) => {
+          const dir = marginSort.dir === "asc" ? 1 : -1;
+          const av = a[marginSort.col], bv = b[marginSort.col];
+          if (typeof av === "string") return av.localeCompare(bv) * dir;
+          return (av - bv) * dir;
+        });
+
+        const toggleSort = (col) => {
+          setMarginSort((prev) => prev.col === col ? { col, dir: prev.dir === "asc" ? "desc" : "asc" } : { col, dir: "asc" });
+        };
+        const sortArrow = (col) => marginSort.col === col ? (marginSort.dir === "asc" ? " ▲" : " ▼") : "";
+
+        const statusColor = (status) => status === "UNDER_PROTECTED" ? "#EF4444" : status === "OVER_PROTECTED" ? "#F59E0B" : "#22C55E";
+        const statusLabel = (status) => status === "UNDER_PROTECTED" ? "UNDER" : status === "OVER_PROTECTED" ? "OVER" : "OK";
+
+        // Exports whatever is currently visible -- respects the active
+        // status filter, search, and sort order, since that matches what
+        // someone clicking "Export" from a filtered/sorted view would
+        // actually expect to get, not a silent full dump regardless of
+        // what's on screen. Includes a few columns (Cycle Stock, Actual
+        // Margin, gap in raw units) not shown in the compact table view,
+        // since CSV export is for deeper analysis, not just a screen copy.
+        const exportCsv = () => {
+          const headers = ["Component", "Status", "Current Inventory", "Cycle Stock", "Actual Safety Margin", "Recommended Target", "Gap (units)", "Gap %", "Worst Facility", "Worst Facility Gap"];
+          const csvEscape = (v) => {
+            const s = String(v ?? "");
+            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+          };
+          const lines = [headers.join(",")];
+          rows.forEach((s) => {
+            lines.push([
+              s.sku,
+              statusLabel(s.status),
+              s.total_current_inventory,
+              s.total_cycle_stock,
+              s.total_actual_safety_margin,
+              s.total_recommended_safety_stock,
+              s.total_safety_margin_gap,
+              s.gap_pct,
+              s.worstFacility && s.by_facility.length > 1 ? s.worstFacility.facility : "",
+              s.worstFacility && s.by_facility.length > 1 ? s.worstFacility.safety_margin_gap : "",
+            ].map(csvEscape).join(","));
+          });
+          const csvContent = lines.join("\n");
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          const filterSuffix = marginStatusFilter !== "ALL" ? `-${marginStatusFilter.toLowerCase()}` : "";
+          a.href = url;
+          a.download = `safety-stock-analysis${filterSuffix}-${new Date().toISOString().slice(0, 10)}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        };
+
+        return (
         <div className="mt-4">
           <div className="border-t mb-3" style={{ borderColor: "rgba(159,214,58,0.1)" }} />
           <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">Actual Safety Stock by Component</p>
           <p className="text-[9px] text-slate-500 mb-2 leading-relaxed">
-            Of what's actually being carried right now, how much is genuine safety margin (current inventory minus normal cycle stock) versus the statistical target — distinct from the buffer recommendations above.
+            Of what's actually being carried right now, how much is genuine safety margin versus the statistical target — distinct from the buffer recommendations above.
           </p>
-          {Object.values(result.safety_margin_analysis.by_sku)
-            .sort((a, b) => a.gap_pct - b.gap_pct)
-            .map((s) => {
-              const worstFacility = [...s.by_facility].sort((a, b) => a.safety_margin_gap - b.safety_margin_gap)[0];
-              const statusColor = s.status === "UNDER_PROTECTED" ? "#EF4444" : s.status === "OVER_PROTECTED" ? "#F59E0B" : "#22C55E";
-              const statusLabel = s.status === "UNDER_PROTECTED" ? "UNDER" : s.status === "OVER_PROTECTED" ? "OVER" : "ADEQUATE";
-              return (
-                <div key={s.sku} className="rounded-xl border px-3 py-2.5 mb-2" style={{ background: "rgba(2,6,23,0.5)", borderColor: "rgba(148,163,184,0.12)" }}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-xs font-semibold text-white">{s.sku}</p>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: `${statusColor}22`, color: statusColor }}>{statusLabel} ({s.gap_pct > 0 ? "+" : ""}{s.gap_pct}%)</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 text-center mb-1.5">
-                    <div>
-                      <p className="text-[9px] text-slate-500">Current</p>
-                      <p className="text-[11px] font-bold text-white">{s.total_current_inventory}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-slate-500">Cycle Stock</p>
-                      <p className="text-[11px] font-bold text-slate-300">{s.total_cycle_stock}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-slate-500">Actual Margin</p>
-                      <p className="text-[11px] font-bold" style={{ color: s.total_actual_safety_margin < 0 ? "#EF4444" : "#E2E8F0" }}>{s.total_actual_safety_margin}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-slate-500">Target</p>
-                      <p className="text-[11px] font-bold text-slate-300">{s.total_recommended_safety_stock}</p>
-                    </div>
-                  </div>
-                  {worstFacility && worstFacility.safety_margin_gap < 0 && s.by_facility.length > 1 && (
-                    <p className="text-[9px] text-rose-300">
-                      ⚠ Worst facility: {worstFacility.facility} — margin {worstFacility.actual_safety_margin} vs target {worstFacility.recommended_safety_stock} (gap {worstFacility.safety_margin_gap})
-                      {s.status !== "UNDER_PROTECTED" && " — hidden by the healthier network-wide total above"}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+
+          {/* Status summary strip -- click to filter */}
+          <div className="flex items-center gap-2 mb-2">
+            {[
+              ["UNDER_PROTECTED", "Under-Protected", "#EF4444"],
+              ["ADEQUATE", "Adequate", "#22C55E"],
+              ["OVER_PROTECTED", "Over-Protected", "#F59E0B"],
+            ].map(([key, label, color]) => (
+              <button
+                key={key}
+                onClick={() => setMarginStatusFilter(marginStatusFilter === key ? "ALL" : key)}
+                className="flex-1 rounded-lg px-2 py-1.5 text-center border transition"
+                style={{
+                  borderColor: marginStatusFilter === key ? color : "rgba(148,163,184,0.15)",
+                  background: marginStatusFilter === key ? `${color}18` : "rgba(2,6,23,0.4)",
+                }}
+              >
+                <p className="text-sm font-bold" style={{ color }}>{counts[key] || 0}</p>
+                <p className="text-[9px] text-slate-400">{label}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <input
+              type="text"
+              placeholder="Search component..."
+              value={marginSearch}
+              onChange={(e) => setMarginSearch(e.target.value)}
+              className="text-[11px] rounded px-2 py-1 border flex-1"
+              style={{ background: "rgba(2,6,23,0.6)", borderColor: "#2A3542", color: "#E2E8F0" }}
+            />
+            <button
+              onClick={exportCsv}
+              disabled={rows.length === 0}
+              className="text-[10px] rounded px-2 py-1 border whitespace-nowrap font-semibold disabled:opacity-40"
+              style={{ background: "rgba(159,214,58,0.1)", borderColor: "rgba(159,214,58,0.3)", color: "#9FD63A" }}
+            >
+              ⬇ Export CSV
+            </button>
+            {marginStatusFilter !== "ALL" && (
+              <button
+                onClick={() => setMarginStatusFilter("ALL")}
+                className="text-[10px] text-slate-400 underline whitespace-nowrap"
+              >
+                Show all {allRows.length}
+              </button>
+            )}
+          </div>
+
+          {rows.length === 0 ? (
+            <p className="text-[11px] text-slate-500 text-center py-4">
+              {marginStatusFilter === "UNDER_PROTECTED" ? "✅ No components under-protected" : "No components match this filter"}
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border" style={{ borderColor: "rgba(148,163,184,0.12)" }}>
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr style={{ background: "rgba(2,6,23,0.6)" }}>
+                    <th className="text-left px-2 py-1.5 text-slate-400 cursor-pointer" onClick={() => toggleSort("sku")}>Component{sortArrow("sku")}</th>
+                    <th className="text-center px-2 py-1.5 text-slate-400 cursor-pointer" onClick={() => toggleSort("status")}>Status{sortArrow("status")}</th>
+                    <th className="text-right px-2 py-1.5 text-slate-400 cursor-pointer" onClick={() => toggleSort("total_current_inventory")}>Current{sortArrow("total_current_inventory")}</th>
+                    <th className="text-right px-2 py-1.5 text-slate-400 cursor-pointer" onClick={() => toggleSort("total_recommended_safety_stock")}>Target{sortArrow("total_recommended_safety_stock")}</th>
+                    <th className="text-right px-2 py-1.5 text-slate-400 cursor-pointer" onClick={() => toggleSort("gap_pct")}>Gap %{sortArrow("gap_pct")}</th>
+                    <th className="text-left px-2 py-1.5 text-slate-400">Worst Facility</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((s) => (
+                    <tr key={s.sku} className="border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
+                      <td className="px-2 py-1.5 font-semibold text-white">{s.sku}</td>
+                      <td className="px-2 py-1.5 text-center">
+                        <span className="px-1.5 py-0.5 rounded-full font-semibold" style={{ background: `${statusColor(s.status)}22`, color: statusColor(s.status) }}>
+                          {statusLabel(s.status)}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1.5 text-right text-slate-300">{s.total_current_inventory}</td>
+                      <td className="px-2 py-1.5 text-right text-slate-300">{s.total_recommended_safety_stock}</td>
+                      <td className="px-2 py-1.5 text-right font-semibold" style={{ color: s.gap_pct < 0 ? "#EF4444" : "#94A3B8" }}>
+                        {s.gap_pct > 0 ? "+" : ""}{s.gap_pct}%
+                      </td>
+                      <td className="px-2 py-1.5 text-slate-400">
+                        {s.worstFacility && s.by_facility.length > 1
+                          ? `${s.worstFacility.facility} (${s.worstFacility.safety_margin_gap > 0 ? "+" : ""}${s.worstFacility.safety_margin_gap})`
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
