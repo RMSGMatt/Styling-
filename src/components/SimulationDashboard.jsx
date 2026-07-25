@@ -387,8 +387,9 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
   const [marginStatusFilter, setMarginStatusFilter] = React.useState("UNDER_PROTECTED");
   const [marginSearch, setMarginSearch] = React.useState("");
   const [marginSort, setMarginSort] = React.useState({ col: "gap_pct", dir: "asc" });
+  const [dohFloorDays, setDohFloorDays] = React.useState(8);
 
-  const fetchOptimization = React.useCallback(async (sl) => {
+  const fetchOptimization = React.useCallback(async (sl, dohDays) => {
     if (!hasRun) return;
     const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData, unitCostsData);
     if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
@@ -406,6 +407,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           target_service_level: sl / 100,
+          doh_floor_days: dohDays,
           revenue_at_risk: revenueAtRisk > 0 ? revenueAtRisk * 12 : 847000,
           lanes,
           inventory,
@@ -428,7 +430,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
   }, [hasRun, apiBase, lanesData, locationMaterialsData, demandData, bomData]);
 
   React.useEffect(() => {
-    if (hasRun) fetchOptimization(targetSL);
+    if (hasRun) fetchOptimization(targetSL, dohFloorDays);
   }, [hasRun, fetchOptimization]);
 
   if (!hasRun) return null;
@@ -571,13 +573,28 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
         </div>
         <input
           type="range" min="90" max="99" step="1" value={targetSL}
-          onChange={(e) => { const v = Number(e.target.value); setTargetSL(v); fetchOptimization(v); }}
+          onChange={(e) => { const v = Number(e.target.value); setTargetSL(v); fetchOptimization(v, dohFloorDays); }}
           className="w-full h-2 rounded-full appearance-none cursor-pointer"
           style={{ accentColor: slColor }}
         />
         <div className="flex justify-between text-[9px] text-slate-500 mt-1">
           <span>90% Baseline</span><span>95% Target</span><span>99% Premium</span>
         </div>
+      </div>
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400">Right-Sizing Floor (Days on Hand)</p>
+          <p className="text-sm font-bold text-white">{dohFloorDays}d</p>
+        </div>
+        <input
+          type="range" min="2" max="20" step="1" value={dohFloorDays}
+          onChange={(e) => { const v = Number(e.target.value); setDohFloorDays(v); fetchOptimization(targetSL, v); }}
+          className="w-full h-2 rounded-full appearance-none cursor-pointer"
+          style={{ accentColor: "#9FD63A" }}
+        />
+        <p className="text-[9px] text-slate-500 mt-1 leading-relaxed">
+          Never recommends cutting below this many days of coverage, or below the statistical target above — whichever is higher.
+        </p>
       </div>
       {loading && <div className="text-center py-4 text-slate-400 text-sm">Calculating optimal buffer positions...</div>}
       {!loading && result?.tradeoff_summary?.length > 1 && (() => {
@@ -702,7 +719,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
         // Margin, gap in raw units) not shown in the compact table view,
         // since CSV export is for deeper analysis, not just a screen copy.
         const exportCsv = () => {
-          const headers = ["Component", "Status", "Current Inventory", "Cycle Stock", "Actual Safety Margin", "Recommended Target", "Gap (units)", "Gap %", "Worst Facility", "Worst Facility Gap"];
+          const headers = ["Component", "Status", "Current Inventory", "Cycle Stock", "Actual Safety Margin", "Recommended Target", "Gap (units)", "Gap %", "Worst Facility", "Worst Facility Gap", "Reducible Units", "One-Time Capital Freed", "Annual Carrying Savings"];
           const csvEscape = (v) => {
             const s = String(v ?? "");
             return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -720,6 +737,9 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
               s.gap_pct,
               s.worstFacility && s.by_facility.length > 1 ? s.worstFacility.facility : "",
               s.worstFacility && s.by_facility.length > 1 ? s.worstFacility.safety_margin_gap : "",
+              s.total_reducible_units || 0,
+              s.one_time_capital_freed_usd || 0,
+              s.annual_carrying_savings_usd || 0,
             ].map(csvEscape).join(","));
           });
           const csvContent = lines.join("\n");
@@ -765,6 +785,31 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
             ))}
           </div>
 
+          {(() => {
+            const totalOneTime = allRows.reduce((sum, r) => sum + (r.one_time_capital_freed_usd || 0), 0);
+            const totalAnnual = allRows.reduce((sum, r) => sum + (r.annual_carrying_savings_usd || 0), 0);
+            const componentsWithExcess = allRows.filter((r) => (r.total_reducible_units || 0) > 0).length;
+            if (totalOneTime <= 0) return null;
+            return (
+              <div className="rounded-xl border px-3 py-2.5 mb-3" style={{ background: "rgba(159,214,58,0.06)", borderColor: "rgba(159,214,58,0.25)" }}>
+                <p className="text-[10px] uppercase tracking-wide text-lime-300 mb-1.5">Potential Right-Sizing Opportunity</p>
+                <div className="grid grid-cols-2 gap-3 mb-1.5">
+                  <div>
+                    <p className="text-[9px] text-slate-400">One-Time Capital Freed</p>
+                    <p className="text-lg font-bold text-white">{formatCurrencyCompact(totalOneTime)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-400">Annual Carrying Savings</p>
+                    <p className="text-lg font-bold" style={{ color: "#9FD63A" }}>{formatCurrencyCompact(totalAnnual)}</p>
+                  </div>
+                </div>
+                <p className="text-[9px] text-slate-500 leading-relaxed">
+                  Across {componentsWithExcess} component{componentsWithExcess === 1 ? "" : "s"} carrying inventory above both the {dohFloorDays}-day coverage floor and the statistical target — never below either. ⚠ Based on the disruption scenario tested in this run only. Validate against additional disruption types before committing to a reduction.
+                </p>
+              </div>
+            );
+          })()}
+
           <div className="flex items-center justify-between mb-2 gap-2">
             <input
               type="text"
@@ -807,6 +852,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
                     <th className="text-right px-2 py-1.5 text-slate-400 cursor-pointer" onClick={() => toggleSort("total_recommended_safety_stock")}>Target{sortArrow("total_recommended_safety_stock")}</th>
                     <th className="text-right px-2 py-1.5 text-slate-400 cursor-pointer" onClick={() => toggleSort("gap_pct")}>Gap %{sortArrow("gap_pct")}</th>
                     <th className="text-left px-2 py-1.5 text-slate-400">Worst Facility</th>
+                    <th className="text-right px-2 py-1.5 text-slate-400 cursor-pointer" onClick={() => toggleSort("total_reducible_units")}>Reducible{sortArrow("total_reducible_units")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -827,6 +873,16 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
                         {s.worstFacility && s.by_facility.length > 1
                           ? `${s.worstFacility.facility} (${s.worstFacility.safety_margin_gap > 0 ? "+" : ""}${s.worstFacility.safety_margin_gap})`
                           : "—"}
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        {(s.total_reducible_units || 0) > 0 ? (
+                          <>
+                            <span className="font-semibold" style={{ color: "#9FD63A" }}>{s.total_reducible_units}</span>
+                            <span className="text-slate-500"> / {formatCurrencyCompact(s.annual_carrying_savings_usd)}/yr</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
