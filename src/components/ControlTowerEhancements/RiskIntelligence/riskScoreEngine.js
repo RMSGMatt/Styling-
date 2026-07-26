@@ -30,18 +30,60 @@ export const REGIME_WEIGHTS = {
 // ── Regime multiplier thresholds ─────────────────────────────────────────────
 // Applied to the forward score to amplify during confirmed stress periods.
 export const REGIME_MULTIPLIERS = {
-  NORMAL: { label: "Normal",       multiplier: 1.0,  color: "#4ADE80", bg: "rgba(74,222,128,0.1)" },
-  WATCH:  { label: "Watch",        multiplier: 1.3,  color: "#FBBF24", bg: "rgba(245,158,11,0.12)" },
-  CRISIS: { label: "Crisis",       multiplier: 1.6,  color: "#F87171", bg: "rgba(239,68,68,0.12)" },
+  NORMAL: { label: "Normal",       multiplier: 1.0,  color: "#3B6D11", bg: "#EAF3DE" },
+  WATCH:  { label: "Watch",        multiplier: 1.3,  color: "#854F0B", bg: "#FAEEDA" },
+  CRISIS: { label: "Crisis",       multiplier: 1.6,  color: "#A32D2D", bg: "#FCEBEB" },
 };
 
 // ── Risk score bands ──────────────────────────────────────────────────────────
+// Thresholds stay expressed as 0-1 fractions internally (0.35/0.60/0.80),
+// matching every existing caller of getRiskBand() -- including SignalCard.jsx
+// and TriggerQueue.jsx, which pass raw individual signal values, not the
+// display-scaled composite score. Only the label text and colors change here,
+// standardizing on the same LOW/MODERATE/HIGH/CRITICAL vocabulary and color
+// palette already used by CorridorRiskPanel/BestPlaceToBuyPanel/
+// CountryWatchListPanel/SupplierScreeningPanel, so the same severity reads
+// the same way everywhere on the platform. Displaying the underlying score
+// as 0-100 instead of 0-1 is a separate, purely cosmetic change made at each
+// display call site via formatScorePercent() below -- the band classification
+// itself is unaffected by that formatting choice.
 export const RISK_BANDS = [
-  { max: 0.35, label: "Nominal",  color: "#4ADE80", bg: "rgba(74,222,128,0.1)", border: "#9FD63A" },
-  { max: 0.60, label: "Elevated", color: "#FBBF24", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.4)" },
-  { max: 0.80, label: "High",     color: "#F87171", bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.4)" },
-  { max: 1.00, label: "Critical", color: "#F87171", bg: "rgba(239,68,68,0.18)", border: "#F87171" },
+  { max: 0.35, label: "LOW",      color: "#22c55e", bg: "#EAF3DE", border: "#22c55e" },
+  { max: 0.60, label: "MODERATE", color: "#eab308", bg: "#FAEEDA", border: "#eab308" },
+  { max: 0.80, label: "HIGH",     color: "#f97316", bg: "#FCEBEB", border: "#f97316" },
+  { max: 1.00, label: "CRITICAL", color: "#ef4444", bg: "#F7C1C1", border: "#ef4444" },
 ];
+
+// ── Score display formatting ─────────────────────────────────────────────────
+// All internal scoring stays 0-1; this is the single, shared conversion used
+// at every UI call site that shows a score to a person, so "0.72" never
+// appears anywhere on the platform -- only "72", consistently.
+export function formatScorePercent(score0to1) {
+  return Math.round(Math.min(1, Math.max(0, score0to1)) * 100);
+}
+
+// ── Shared 0-100-scale band lookup ───────────────────────────────────────────
+// For panels that work natively in 0-100 (AI-scored corridor/country/supplier
+// risk, not the 0-1 signal-composite math above). Same canonical thresholds
+// as RISK_BANDS (35/60/80), same color palette -- single source of truth for
+// CorridorRiskPanel, BestPlaceToBuyPanel, CountryWatchListPanel, and
+// SupplierScreeningPanel, which previously each maintained an identical,
+// independently-editable local copy of this exact logic.
+export function riskColor100(score) {
+  if (score === null || score === undefined) return "#B4B2A9";
+  if (score >= 80) return "#ef4444";
+  if (score >= 60) return "#f97316";
+  if (score >= 35) return "#eab308";
+  return "#22c55e";
+}
+
+export function riskLabel100(score) {
+  if (score === null || score === undefined) return "N/A";
+  if (score >= 80) return "CRITICAL";
+  if (score >= 60) return "HIGH";
+  if (score >= 35) return "MODERATE";
+  return "LOW";
+}
 
 // ── Trigger thresholds ────────────────────────────────────────────────────────
 // Scenarios enter the TriggerQueue when these are breached.
