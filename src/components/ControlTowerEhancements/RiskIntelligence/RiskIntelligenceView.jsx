@@ -94,8 +94,8 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       {/* Forward score */}
       <div style={{
         flex: 1, minWidth: 160,
-        background: "#ffffff",
-        border: `1.5px solid ${fBand.border}`,
+        background: fBand.bg,
+        border: `1px solid ${fBand.border}`,
         borderRadius: 10,
         padding: "12px 16px",
       }}>
@@ -105,7 +105,7 @@ function SummaryBar({ scoreResult, lastUpdated }) {
         <div style={{ fontSize: 28, fontWeight: 500, color: fBand.color, lineHeight: 1 }}>
           {formatScorePercent(forward.amplified)}
         </div>
-        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: fBand.bg, color: fBand.color, display: "inline-block", marginTop: 4 }}>
+        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: "#ffffff", color: fBand.color, display: "inline-block", marginTop: 4 }}>
           {fBand.label}
         </span>
       </div>
@@ -113,8 +113,8 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       {/* Regime */}
       <div style={{
         flex: 1, minWidth: 160,
-        background: "#ffffff",
-        border: `0.5px solid ${rBand.border}`,
+        background: rBand.bg,
+        border: `1px solid ${rBand.border}`,
         borderRadius: 10,
         padding: "12px 16px",
       }}>
@@ -133,7 +133,7 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       <div style={{
         flex: 1, minWidth: 160,
         background: summary.triggeredCount > 0 ? "#FCEBEB" : "#F1EFE8",
-        border: `0.5px solid ${summary.triggeredCount > 0 ? "#E24B4A" : "#D3D1C7"}`,
+        border: `1px solid ${summary.triggeredCount > 0 ? "#E24B4A" : "#D3D1C7"}`,
         borderRadius: 10,
         padding: "12px 16px",
       }}>
@@ -152,7 +152,7 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       <div style={{
         flex: 1, minWidth: 160,
         background: "#ffffff",
-        border: "0.5px solid #D3D1C7",
+        border: "1px solid #D3D1C7",
         borderRadius: 10,
         padding: "12px 16px",
       }}>
