@@ -11,15 +11,15 @@ import { SIGNAL_METADATA } from "./signalSources";
 const LAYER_CONFIG = {
   forward: {
     label:  "Forward signal",
-    color:  "#185FA5",
-    bg:     "#E6F1FB",
-    border: "#85B7EB",
+    color:  "#60A5FA",
+    bg:     "rgba(59,130,246,0.12)",
+    border: "rgba(59,130,246,0.4)",
   },
   regime: {
     label:  "Current conditions",
-    color:  "#5F5E5A",
-    bg:     "#F1EFE8",
-    border: "#B4B2A9",
+    color:  "#94A3B8",
+    bg:     "rgba(148,163,184,0.1)",
+    border: "rgba(148,163,184,0.3)",
   },
 };
 
@@ -30,7 +30,7 @@ function TrendPip({ trend }) {
     "stable risk":  { icon: "→", color: "#854F0B", label: "Stable (elevated)" },
     "stable elevated": { icon: "→", color: "#854F0B", label: "Stable (elevated)" },
     elevated:       { icon: "→", color: "#854F0B", label: "Elevated" },
-    flat:           { icon: "→", color: "#5F5E5A", label: "Stable" },
+    flat:           { icon: "→", color: "#94A3B8", label: "Stable" },
     improving:      { icon: "↓", color: "#3B6D11", label: "Improving" },
   };
   const cfg = map[trend] || map.flat;
@@ -52,7 +52,7 @@ function ScoreBar({ value, band }) {
         style={{
           flex: 1,
           height: 5,
-          background: "#E8E8E0",
+          background: "rgba(148,163,184,0.15)",
           borderRadius: 3,
           overflow: "hidden",
         }}
@@ -97,8 +97,8 @@ export default function SignalCard({ signalKey, value, detailData }) {
     <div
       onClick={() => setExpanded((e) => !e)}
       style={{
-        background:   "#ffffff",
-        border:       `0.5px solid ${expanded ? band.border : "#D3D1C7"}`,
+        background:   "rgba(2,6,23,0.5)",
+        border:       `0.5px solid ${expanded ? band.border : "rgba(148,163,184,0.15)"}`,
         borderLeft:   `3px solid ${band.border}`,
         borderRadius: 10,
         padding:      "12px 14px",
@@ -110,7 +110,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
       {/* ── Header row ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div style={{ flex: 1, marginRight: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: "#2C2C2A", lineHeight: 1.3, marginBottom: 4 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#E2E8F0", lineHeight: 1.3, marginBottom: 4 }}>
             {meta.label}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -127,7 +127,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
               {layer.label}
             </span>
             {/* Horizon */}
-            <span style={{ fontSize: 10, color: "#888780" }}>
+            <span style={{ fontSize: 10, color: "#94A3B8" }}>
               {meta.horizon}
             </span>
           </div>
@@ -154,17 +154,17 @@ export default function SignalCard({ signalKey, value, detailData }) {
 
       {/* ── Expanded detail ── */}
       {expanded && detail && (
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "0.5px solid #E8E8E0" }}>
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "0.5px solid rgba(148,163,184,0.15)" }}>
           {/* Current value + trend */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: "#5F5E5A" }}>
-              Current: <strong style={{ color: "#2C2C2A" }}>{detail.value}</strong>
+            <span style={{ fontSize: 12, color: "#94A3B8" }}>
+              Current: <strong style={{ color: "#E2E8F0" }}>{detail.value}</strong>
             </span>
             <TrendPip trend={detail.trend} />
           </div>
 
           {/* Key fact */}
-          <p style={{ fontSize: 12, color: "#444441", lineHeight: 1.6, margin: "0 0 8px" }}>
+          <p style={{ fontSize: 12, color: "#CBD5E1", lineHeight: 1.6, margin: "0 0 8px" }}>
             {detail.keyFact}
           </p>
 
@@ -173,15 +173,15 @@ export default function SignalCard({ signalKey, value, detailData }) {
             fontSize: 11,
             padding: "6px 10px",
             borderRadius: 6,
-            background: "#F1EFE8",
-            color: "#5F5E5A",
+            background: "rgba(148,163,184,0.1)",
+            color: "#94A3B8",
             marginBottom: 8,
           }}>
             📊 {detail.dataPoint}
           </div>
 
           {/* Source + cadence */}
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#888780" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#94A3B8" }}>
             <span>Source: {meta.source}</span>
             <span>{meta.cadence} · {meta.latency} latency</span>
           </div>
@@ -190,7 +190,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
           <div style={{
             marginTop: 8,
             fontSize: 11,
-            color: "#5F5E5A",
+            color: "#94A3B8",
             lineHeight: 1.6,
             fontStyle: "italic",
           }}>
@@ -201,7 +201,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
 
       {/* ── Expand hint ── */}
       {!expanded && (
-        <div style={{ marginTop: 6, fontSize: 10, color: "#B4B2A9", textAlign: "right" }}>
+        <div style={{ marginTop: 6, fontSize: 10, color: "rgba(148,163,184,0.3)", textAlign: "right" }}>
           Click to expand ↓
         </div>
       )}

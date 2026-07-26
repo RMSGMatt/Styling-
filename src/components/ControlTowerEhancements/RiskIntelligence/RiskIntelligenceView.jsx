@@ -94,7 +94,7 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       {/* Forward score */}
       <div style={{
         flex: 1, minWidth: 160,
-        background: fBand.bg,
+        background: "rgba(2,6,23,0.5)",
         border: `1px solid ${fBand.border}`,
         borderRadius: 10,
         padding: "12px 16px",
@@ -105,7 +105,7 @@ function SummaryBar({ scoreResult, lastUpdated }) {
         <div style={{ fontSize: 28, fontWeight: 500, color: fBand.color, lineHeight: 1 }}>
           {formatScorePercent(forward.amplified)}
         </div>
-        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: "rgba(2,6,23,0.4)", color: fBand.color, display: "inline-block", marginTop: 4 }}>
+        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: fBand.bg, color: fBand.color, display: "inline-block", marginTop: 4 }}>
           {fBand.label}
         </span>
       </div>
@@ -113,7 +113,7 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       {/* Regime */}
       <div style={{
         flex: 1, minWidth: 160,
-        background: rBand.bg,
+        background: "rgba(2,6,23,0.5)",
         border: `1px solid ${rBand.border}`,
         borderRadius: 10,
         padding: "12px 16px",
@@ -132,7 +132,7 @@ function SummaryBar({ scoreResult, lastUpdated }) {
       {/* Trigger summary */}
       <div style={{
         flex: 1, minWidth: 160,
-        background: summary.triggeredCount > 0 ? "rgba(239,68,68,0.12)" : "rgba(148,163,184,0.08)",
+        background: "rgba(2,6,23,0.5)",
         border: `1px solid ${summary.triggeredCount > 0 ? "rgba(239,68,68,0.4)" : "rgba(148,163,184,0.15)"}`,
         borderRadius: 10,
         padding: "12px 16px",

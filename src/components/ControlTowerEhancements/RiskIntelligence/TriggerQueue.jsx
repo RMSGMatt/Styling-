@@ -131,9 +131,9 @@ const SCENARIO_CONFIG = {
 // ── Status badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
   const map = {
-    triggered: { label: "Triggered",  color: "#F87171", bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.4)" },
-    watch:     { label: "Watch",      color: "#FBBF24", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.4)" },
-    nominal:   { label: "Nominal",    color: "#4ADE80", bg: "rgba(74,222,128,0.1)", border: "rgba(74,222,128,0.4)" },
+    triggered: { label: "Triggered",  color: "#A32D2D", bg: "rgba(249,115,22,0.12)", border: "#E24B4A" },
+    watch:     { label: "Watch",      color: "#854F0B", bg: "rgba(234,179,8,0.12)", border: "#EF9F27" },
+    nominal:   { label: "Nominal",    color: "#3B6D11", bg: "rgba(34,197,94,0.12)", border: "#97C459" },
   };
   const cfg = map[status] || map.nominal;
   return (
@@ -157,7 +157,7 @@ function ConvergenceIndicator({ count, required }) {
   const met = count >= required;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
-      <span style={{ color: met ? "#4ADE80" : "#FBBF24" }}>
+      <span style={{ color: met ? "#3B6D11" : "#854F0B" }}>
         {met ? "✓" : "○"} Convergence: {count}/{required} signals stressed
       </span>
     </div>
@@ -174,11 +174,11 @@ function TriggerCard({ trigger, onLaunch, onDismiss, dismissed }) {
   if (isDismissed) return null;
 
   const isTriggered = trigger.status === "triggered";
-  const borderColor = isTriggered ? "rgba(239,68,68,0.4)" : "rgba(245,158,11,0.4)";
+  const borderColor = isTriggered ? "#E24B4A" : "#EF9F27";
 
   return (
     <div style={{
-      background:   "#141B23",
+      background:   "rgba(2,6,23,0.5)",
       border:       `0.5px solid ${borderColor}`,
       borderLeft:   `3px solid ${borderColor}`,
       borderRadius: 10,
@@ -194,43 +194,43 @@ function TriggerCard({ trigger, onLaunch, onDismiss, dismissed }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, marginRight: 8 }}>
             <span style={{ fontSize: 16 }}>{config.icon}</span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#F1F5F9" }}>{config.label}</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: "#E2E8F0" }}>{config.label}</span>
           </div>
           <StatusBadge status={trigger.status} />
         </div>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <ConvergenceIndicator count={trigger.convergenceCount} required={trigger.minConvergence} />
-          <span style={{ fontSize: 11, color: "#7A8A99" }}>
-            Signal: {trigger.signalValue.toFixed(2)} / threshold: {trigger.threshold.toFixed(2)}
+          <span style={{ fontSize: 11, color: "#94A3B8" }}>
+            Signal: {Math.round(trigger.signalValue * 100)} / threshold: {Math.round(trigger.threshold * 100)}
           </span>
         </div>
       </div>
 
       {/* Expanded detail */}
       {expanded && (
-        <div style={{ padding: "0 14px 14px", borderTop: "0.5px solid #1A2129" }}>
-          <p style={{ fontSize: 12, color: "#C7D0D9", lineHeight: 1.6, margin: "12px 0" }}>
+        <div style={{ padding: "0 14px 14px", borderTop: "0.5px solid rgba(148,163,184,0.1)" }}>
+          <p style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6, margin: "12px 0" }}>
             {config.description}
           </p>
 
           {/* Default scenario parameters */}
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 10, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+            <div style={{ fontSize: 10, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
               Default simulation parameters
             </div>
             <div style={{
-              background: "#1A2129",
+              background: "rgba(148,163,184,0.1)",
               borderRadius: 8,
               padding: "10px 12px",
               fontSize: 11,
-              color: "#C7D0D9",
+              color: "#94A3B8",
               lineHeight: 1.8,
               fontFamily: "monospace",
             }}>
               {Object.entries(config.defaultParams).map(([k, v]) => (
                 <div key={k}>
-                  <span style={{ color: "#7DB8F0" }}>{k}</span>: {JSON.stringify(v)}
+                  <span style={{ color: "#60A5FA" }}>{k}</span>: {JSON.stringify(v)}
                 </div>
               ))}
             </div>
@@ -243,7 +243,7 @@ function TriggerCard({ trigger, onLaunch, onDismiss, dismissed }) {
               style={{
                 flex:          1,
                 padding:       "9px 0",
-                background:    "rgba(159,214,58,0.15)",
+                background:    "#0d3d2e",
                 color:         "#9FD63A",
                 border:        "1px solid rgba(159,214,58,0.3)",
                 borderRadius:  8,
@@ -259,8 +259,8 @@ function TriggerCard({ trigger, onLaunch, onDismiss, dismissed }) {
               style={{
                 padding:       "9px 14px",
                 background:    "transparent",
-                color:         "#7A8A99",
-                border:        "0.5px solid #1E2733",
+                color:         "#94A3B8",
+                border:        "0.5px solid rgba(148,163,184,0.15)",
                 borderRadius:  8,
                 fontSize:      12,
                 cursor:        "pointer",
@@ -273,7 +273,7 @@ function TriggerCard({ trigger, onLaunch, onDismiss, dismissed }) {
       )}
 
       {!expanded && (
-        <div style={{ padding: "4px 14px 8px", fontSize: 10, color: "#55606B" }}>
+        <div style={{ padding: "4px 14px 8px", fontSize: 10, color: "rgba(148,163,184,0.3)" }}>
           Click to review scenario parameters ↓
         </div>
       )}
@@ -287,9 +287,9 @@ function EmptyState() {
     <div style={{
       padding:      "24px 20px",
       textAlign:    "center",
-      background:   "rgba(74,222,128,0.1)",
+      background:   "rgba(34,197,94,0.12)",
       borderRadius: 10,
-      color:        "#4ADE80",
+      color:        "#3B6D11",
     }}>
       <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
       <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>No scenarios triggered</div>
@@ -325,17 +325,17 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
             fontWeight: 500,
             padding: "2px 8px",
             borderRadius: 20,
-            background: triggered.length > 0 ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)",
-            color:      triggered.length > 0 ? "#F87171" : "#FBBF24",
-            border:     `0.5px solid ${triggered.length > 0 ? "rgba(239,68,68,0.4)" : "rgba(245,158,11,0.4)"}`,
+            background: triggered.length > 0 ? "rgba(249,115,22,0.12)" : "rgba(234,179,8,0.12)",
+            color:      triggered.length > 0 ? "#A32D2D" : "#854F0B",
+            border:     `0.5px solid ${triggered.length > 0 ? "#E24B4A" : "#EF9F27"}`,
           }}>
             {triggered.length} triggered · {watching.length} watch
           </span>
-          <span style={{ fontSize: 11, color: "#7A8A99" }}>
+          <span style={{ fontSize: 11, color: "#94A3B8" }}>
             Human approval required before simulation launch
           </span>
         </div>
-        <p style={{ fontSize: 12, color: "#C7D0D9", margin: 0, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, lineHeight: 1.6 }}>
           Scenarios enter this queue only when multiple independent signals converge above threshold. Review parameters, adjust if needed, then approve to route to the simulation engine.
         </p>
       </div>
@@ -348,7 +348,7 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
           {/* Triggered first */}
           {triggered.length > 0 && (
             <div>
-              <div style={{ fontSize: 10, color: "#F87171", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              <div style={{ fontSize: 10, color: "#A32D2D", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
                 Triggered — ready for review
               </div>
               {triggers
@@ -368,7 +368,7 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
           {/* Watch queue */}
           {watching.length > 0 && (
             <div style={{ marginTop: triggered.length > 0 ? 12 : 0 }}>
-              <div style={{ fontSize: 10, color: "#FBBF24", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+              <div style={{ fontSize: 10, color: "#854F0B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
                 Watch — approaching threshold
               </div>
               {triggers
@@ -391,10 +391,10 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
       <div style={{
         marginTop: 14,
         padding:   "10px 14px",
-        background: "#1A2129",
+        background: "rgba(148,163,184,0.1)",
         borderRadius: 8,
         fontSize: 11,
-        color:    "#C7D0D9",
+        color:    "#94A3B8",
         lineHeight: 1.6,
       }}>
         <strong>Audit trail:</strong> All trigger events, approvals, and dismissals are logged with timestamp and user. Enterprise plan includes full trigger history export.

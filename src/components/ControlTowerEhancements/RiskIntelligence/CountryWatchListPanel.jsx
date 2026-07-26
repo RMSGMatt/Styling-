@@ -17,6 +17,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState, useCallback } from "react";
 import { getApiBase } from "../../../config/apiBase";
+import { riskColor100 as riskColor, riskLabel100 as riskLabel } from "./riskScoreEngine";
 
 const API_BASE = getApiBase();
 
@@ -53,19 +54,8 @@ const GENERIC_WEIGHTS = {
   substitutability:     0,
 };
 
-const riskColor = (score) => {
-  if (score >= 75) return "#ef4444";
-  if (score >= 55) return "#f97316";
-  if (score >= 35) return "#eab308";
-  return "#22c55e";
-};
-
-const riskLabel = (score) => {
-  if (score >= 75) return "CRITICAL";
-  if (score >= 55) return "HIGH";
-  if (score >= 35) return "MODERATE";
-  return "LOW";
-};
+// riskColor/riskLabel now imported from riskScoreEngine.js — see
+// CorridorRiskPanel.jsx for why this was consolidated.
 
 export default function CountryWatchListPanel({ onSelectCountry }) {
   const [results,  setResults]  = useState([]);
@@ -161,15 +151,15 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
   }, [scoreCountry]);
 
   const S = {
-    wrap: { background: "#141B23", border: "0.5px solid #1E2733", borderRadius: 12, overflow: "hidden" },
-    header: { padding: "20px 24px", borderBottom: "0.5px solid #1E2733" },
+    wrap: { background: "rgba(2,6,23,0.5)", border: "0.5px solid rgba(148,163,184,0.15)", borderRadius: 12, overflow: "hidden" },
+    header: { padding: "20px 24px", borderBottom: "0.5px solid rgba(148,163,184,0.15)" },
     body: { padding: "20px 24px" },
   };
 
   return (
     <div style={S.wrap}>
       <div style={S.header}>
-        <div style={{ fontSize: 13, color: "#7A8A99", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.6 }}>
           A standing, commodity-agnostic risk ranking of every tracked sourcing country —
           geopolitical alignment, political stability, natural disaster exposure, chokepoint
           dependency, and infrastructure quality. This reflects country-level risk only;
@@ -198,11 +188,11 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "32px 0" }}>
             <div style={{
               width: 32, height: 32, borderRadius: "50%",
-              border: "2px solid #1E2733", borderTop: "2px solid #9FD63A",
+              border: "2px solid rgba(148,163,184,0.15)", borderTop: "2px solid #2EC4A6",
               animation: "forc-cwl-spin 0.9s linear infinite",
             }} />
             <style>{`@keyframes forc-cwl-spin { to { transform: rotate(360deg); } }`}</style>
-            <div style={{ fontSize: 12, color: "#7A8A99" }}>
+            <div style={{ fontSize: 12, color: "#94A3B8" }}>
               Scoring country {progress.done} of {progress.total}...
             </div>
           </div>
@@ -214,10 +204,10 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
             background: "rgba(86,244,177,0.08)", border: "1px solid rgba(86,244,177,0.22)",
             display: "flex", flexDirection: "column", gap: 10, marginBottom: 16,
           }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#9FD63A" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#2EC4A6" }}>
               🔒 Enterprise plan required
             </div>
-            <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>
               Country Watch List bulk scanning requires an Enterprise plan. Upgrade to access unlimited bulk corridor scoring across all sourcing countries, Supplier Screening, and Best Place to Buy.
             </div>
             <button
@@ -261,7 +251,7 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
               {results.map((entry, idx) => {
                 if (entry.compositeScore === null) {
                   return (
-                    <div key={entry.origin.code} style={{ padding: "10px 14px", background: "#141B23", border: "0.5px solid #1E2733", borderRadius: 8, fontSize: 11, color: "#55606B" }}>
+                    <div key={entry.origin.code} style={{ padding: "10px 14px", background: "rgba(2,6,23,0.4)", border: "0.5px solid rgba(148,163,184,0.12)", borderRadius: 8, fontSize: 11, color: "rgba(148,163,184,0.3)" }}>
                       {entry.origin.flag} {entry.origin.name} — scoring unavailable
                     </div>
                   );
@@ -272,8 +262,8 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
                   <div
                     key={entry.origin.code}
                     style={{
-                      background: "#141B23",
-                      border: "0.5px solid #1E2733",
+                      background: "rgba(2,6,23,0.4)",
+                      border: "0.5px solid rgba(148,163,184,0.12)",
                       borderLeft: `3px solid ${color}`,
                       borderRadius: 8,
                       overflow: "hidden",
@@ -286,13 +276,13 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
                         padding: "12px 16px", cursor: "pointer",
                       }}
                     >
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#55606B", minWidth: 24 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(148,163,184,0.3)", minWidth: 24 }}>
                         #{idx + 1}
                       </div>
                       <span style={{ fontSize: 18 }}>{entry.origin.flag}</span>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: "#F1F5F9" }}>{entry.origin.name}</div>
-                        <div style={{ fontSize: 10, color: "#55606B" }}>{entry.origin.region}</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "#E2E8F0" }}>{entry.origin.name}</div>
+                        <div style={{ fontSize: 10, color: "rgba(148,163,184,0.3)" }}>{entry.origin.region}</div>
                       </div>
                       {entry.result?.state_dept_advisory && (
                         <span style={{
@@ -307,8 +297,8 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
                       {entry.result?.uflpa?.flagged && (
                         <span style={{
                           fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 20,
-                          background: entry.result.uflpa.matched_entity ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.1)",
-                          color: entry.result.uflpa.matched_entity ? "#F87171" : "#FBBF24",
+                          background: entry.result.uflpa.matched_entity ? "rgba(239,68,68,0.15)" : "rgba(234,179,8,0.15)",
+                          color: entry.result.uflpa.matched_entity ? "#f87171" : "#facc15",
                         }}>
                           {entry.result.uflpa.matched_entity ? "UFLPA MATCH" : "UFLPA ADVISORY"}
                         </span>
@@ -321,22 +311,22 @@ export default function CountryWatchListPanel({ onSelectCountry }) {
                           {riskLabel(entry.compositeScore)}
                         </div>
                       </div>
-                      <div style={{ fontSize: 14, color: "#55606B", transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
+                      <div style={{ fontSize: 14, color: "rgba(148,163,184,0.3)", transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
                         ▸
                       </div>
                     </div>
 
                     {isExpanded && entry.result && (
-                      <div style={{ padding: "0 16px 16px 16px", borderTop: "0.5px solid #1E2733" }}>
-                        <div style={{ fontSize: 11.5, color: "#C7D0D9", lineHeight: 1.7, padding: "12px 0 8px" }}>
+                      <div style={{ padding: "0 16px 16px 16px", borderTop: "0.5px solid rgba(148,163,184,0.12)" }}>
+                        <div style={{ fontSize: 11.5, color: "#CBD5E1", lineHeight: 1.7, padding: "12px 0 8px" }}>
                           {entry.result.executive_summary}
                         </div>
                         {onSelectCountry && (
                           <button
                             onClick={(e) => { e.stopPropagation(); onSelectCountry(entry.origin); }}
                             style={{
-                              fontSize: 11, fontWeight: 600, color: "#9FD63A",
-                              background: "rgba(159,214,58,0.1)", border: "0.5px solid #9FD63A",
+                              fontSize: 11, fontWeight: 600, color: "#2EC4A6",
+                              background: "#E8F0EE", border: "0.5px solid #9FD63A",
                               borderRadius: 6, padding: "6px 12px", cursor: "pointer",
                             }}
                           >
