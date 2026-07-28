@@ -132,7 +132,10 @@ const SCENARIO_CONFIG = {
 function StatusBadge({ status }) {
   const map = {
     triggered: { label: "Triggered",  color: "#A32D2D", bg: "rgba(249,115,22,0.12)", border: "#E24B4A" },
-    watch:     { label: "Watch",      color: "#854F0B", bg: "rgba(234,179,8,0.12)", border: "#EF9F27" },
+    // Internal status value stays "watch" (see evaluateTriggers) — only the
+    // human-facing label changed, to avoid colliding with the unrelated
+    // "Watch" regime state shown in the summary bar.
+    watch:     { label: "Building",   color: "#854F0B", bg: "rgba(234,179,8,0.12)", border: "#EF9F27" },
     nominal:   { label: "Nominal",    color: "#3B6D11", bg: "rgba(34,197,94,0.12)", border: "#97C459" },
   };
   const cfg = map[status] || map.nominal;
@@ -153,12 +156,12 @@ function StatusBadge({ status }) {
 }
 
 // ── Convergence indicator ─────────────────────────────────────────────────────
-function ConvergenceIndicator({ count, required }) {
+function ConvergenceIndicator({ count, required, total }) {
   const met = count >= required;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
       <span style={{ color: met ? "#3B6D11" : "#854F0B" }}>
-        {met ? "✓" : "○"} Convergence: {count}/{required} signals stressed
+        {met ? "✓" : "○"} Convergence: {count} of {total} signals stressed network-wide (need {required}+ to corroborate)
       </span>
     </div>
   );
@@ -200,7 +203,7 @@ function TriggerCard({ trigger, onLaunch, onDismiss, dismissed }) {
         </div>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <ConvergenceIndicator count={trigger.convergenceCount} required={trigger.minConvergence} />
+          <ConvergenceIndicator count={trigger.convergenceCount} required={trigger.minConvergence} total={trigger.totalSignalCount} />
           <span style={{ fontSize: 11, color: "#94A3B8" }}>
             Signal: {Math.round(trigger.signalValue * 100)} / threshold: {Math.round(trigger.threshold * 100)}
           </span>
@@ -329,7 +332,7 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
             color:      triggered.length > 0 ? "#A32D2D" : "#854F0B",
             border:     `0.5px solid ${triggered.length > 0 ? "#E24B4A" : "#EF9F27"}`,
           }}>
-            {triggered.length} triggered · {watching.length} watch
+            {triggered.length} triggered · {watching.length} building
           </span>
           <span style={{ fontSize: 11, color: "#94A3B8" }}>
             Human approval required before simulation launch
@@ -365,11 +368,11 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
             </div>
           )}
 
-          {/* Watch queue */}
+          {/* Building queue */}
           {watching.length > 0 && (
             <div style={{ marginTop: triggered.length > 0 ? 12 : 0 }}>
               <div style={{ fontSize: 10, color: "#854F0B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                Watch — approaching threshold
+                Building — approaching threshold
               </div>
               {triggers
                 .filter((t) => t.status === "watch")

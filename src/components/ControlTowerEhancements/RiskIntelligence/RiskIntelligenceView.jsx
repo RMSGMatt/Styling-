@@ -12,7 +12,7 @@ import CorridorRiskPanel    from "./CorridorRiskPanel";
 import BestPlaceToBuyPanel  from "./BestPlaceToBuyPanel";
 import CountryWatchListPanel from "./CountryWatchListPanel";
 import SupplierScreeningPanel from "./SupplierScreeningPanel";
-import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG, formatScorePercent } from "./riskScoreEngine";
+import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG, formatScorePercent, getRiskBand } from "./riskScoreEngine";
 import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL } from "./signalSources";
 import CommoditySelector from "./CommoditySelector";
 import { COMMODITY_REGISTRY } from "./commodityRegistry";
@@ -88,6 +88,10 @@ function SummaryBar({ scoreResult, lastUpdated }) {
   const { forward, regime, summary } = scoreResult;
   const fBand = forward.band;
   const rBand = regime.band;
+  // Band for the pre-amplification score, so the KPI card can show whether
+  // today's number is high because of the underlying signals or because of
+  // the regime multiplier riding on top of them — see forward score card below.
+  const rawFBand = getRiskBand(forward.raw);
 
   return (
     <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
@@ -108,6 +112,16 @@ function SummaryBar({ scoreResult, lastUpdated }) {
         <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: fBand.bg, color: fBand.color, display: "inline-block", marginTop: 4 }}>
           {fBand.label}
         </span>
+        <div style={{ display: "flex", gap: 12, marginTop: 8, paddingTop: 8, borderTop: "0.5px solid rgba(148,163,184,0.15)" }}>
+          <div>
+            <div style={{ fontSize: 9, color: "#94A3B8" }}>Your leading indicators</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: rawFBand.color }}>{rawFBand.label}</div>
+          </div>
+          <div title="Regimes amplify the forward score because the same disruption signal matters more when conditions are already tight — there's less slack to absorb it.">
+            <div style={{ fontSize: 9, color: "#94A3B8" }}>Market regime <i className="ti ti-info-circle" style={{ fontSize: 10 }} aria-hidden="true"></i></div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: regime.multiplier.color }}>{regime.multiplier.label}</div>
+          </div>
+        </div>
       </div>
 
       {/* Regime */}
@@ -144,7 +158,10 @@ function SummaryBar({ scoreResult, lastUpdated }) {
           {summary.triggeredCount}
         </div>
         <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 4 }}>
-          triggered · {summary.watchCount} watch
+          triggered · {summary.buildingCount} building
+        </div>
+        <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
+          Triggered requires multiple signals to converge
         </div>
       </div>
 
@@ -164,7 +181,7 @@ function SummaryBar({ scoreResult, lastUpdated }) {
           <span style={{ fontSize: 14, color: "#94A3B8" }}>/{summary.totalSignalCount}</span>
         </div>
         <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 4 }}>
-          signals above stress threshold
+          above {summary.stressThreshold} stress threshold
         </div>
       </div>
     </div>
@@ -305,7 +322,7 @@ export default function RiskIntelligenceView({ switchView }) {
   }
 
   const triggeredCount = scoreResult?.summary?.triggeredCount ?? 0;
-  const watchCount     = scoreResult?.summary?.watchCount     ?? 0;
+  const buildingCount  = scoreResult?.summary?.buildingCount  ?? 0;
 
   return (
     <div>

@@ -85,6 +85,12 @@ export function riskLabel100(score) {
   return "LOW";
 }
 
+// ── Signal stress threshold ──────────────────────────────────────────────────
+// Single source of truth for "is this signal stressed" across evaluateTriggers()
+// and computeFullRiskProfile()'s signal coverage count. Also displayed directly
+// in the Signal Coverage KPI card so the threshold is never a hidden number.
+export const SIGNAL_STRESS_THRESHOLD = 0.60;
+
 // ── Trigger thresholds ────────────────────────────────────────────────────────
 // Scenarios enter the TriggerQueue when these are breached.
 // Requires signal CONVERGENCE — minimum signals above threshold before firing.
@@ -173,7 +179,7 @@ export function getRiskBand(score) {
 // ─────────────────────────────────────────────────────────────────────────────
 export function evaluateTriggers(forwardSignals, regimeSignals, forwardScore, triggerConfig = TRIGGER_CONFIG) {
   const allSignals = { ...forwardSignals, ...regimeSignals };
-  const stressedCount = Object.values(allSignals).filter((v) => v >= 0.60).length;
+  const stressedCount = Object.values(allSignals).filter((v) => v >= SIGNAL_STRESS_THRESHOLD).length;
   const results = [];
 
   for (const [scenarioKey, config] of Object.entries(triggerConfig)) {
@@ -189,6 +195,10 @@ export function evaluateTriggers(forwardSignals, regimeSignals, forwardScore, tr
       signal: config.signal,
       convergenceCount: stressedCount,
       minConvergence: config.minConvergence,
+      // Total tracked signals network-wide, so the UI can make clear that
+      // convergenceCount is a network-wide corroboration count, not a count
+      // of signals specific to this scenario.
+      totalSignalCount: Object.keys(allSignals).length,
       forwardScore,
     });
   }
@@ -219,7 +229,12 @@ export function computeFullRiskProfile(forwardSignals, regimeSignals, forwardWei
   const triggers = evaluateTriggers(forwardSignals, regimeSignals, amplifiedForward, triggerConfig);
 
   const triggeredCount = triggers.filter((t) => t.status === "triggered").length;
-  const watchCount     = triggers.filter((t) => t.status === "watch").length;
+  // "building" here is the display term for scenarios where a signal has
+  // breached its own threshold but convergence hasn't been met yet. Internally
+  // the trigger's `status` field still uses "watch" as its enum value (see
+  // evaluateTriggers) — only the human-facing label changed, to avoid colliding
+  // with the unrelated "Watch" regime state shown in the same summary bar.
+  const buildingCount = triggers.filter((t) => t.status === "watch").length;
 
   return {
     forward: {
@@ -237,11 +252,12 @@ export function computeFullRiskProfile(forwardSignals, regimeSignals, forwardWei
     triggers,
     summary: {
       triggeredCount,
-      watchCount,
+      buildingCount,
       stressedSignalCount: Object.values({ ...forwardSignals, ...regimeSignals })
-        .filter((v) => v >= 0.60).length,
+        .filter((v) => v >= SIGNAL_STRESS_THRESHOLD).length,
       totalSignalCount:
         Object.keys(forwardSignals).length + Object.keys(regimeSignals).length,
+      stressThreshold: Math.round(SIGNAL_STRESS_THRESHOLD * 100),
       generatedAt: new Date().toISOString(),
     },
   };
