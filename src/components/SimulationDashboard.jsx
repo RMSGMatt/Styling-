@@ -1033,7 +1033,12 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400">Service Degradation</p>
+          <div className="group relative inline-block">
+            <p className="text-[10px] uppercase tracking-widest text-slate-400 cursor-help border-b border-dotted border-slate-600">Service Degradation</p>
+            <div className="pointer-events-none invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute z-20 top-full left-0 mt-2 w-56 rounded-lg border border-lime-400/25 bg-[#0B0F13] px-3 py-2 text-[11px] leading-relaxed text-slate-200 shadow-xl shadow-black/40">
+              "pp" = percentage points below 100% on-time fulfillment — not a percent change. E.g. -6.3pp means service level is 6.3 points below full fulfillment.
+            </div>
+          </div>
           <p className="text-3xl font-bold tracking-tight">
             {(() => {
               const isDegraded = execOnTimePct < 97;
@@ -1064,7 +1069,12 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
           <p className="text-3xl font-bold tracking-tight font-bold" style={{ color: "#9CF700" }}>{formatCurrencyCompact(revenueExposureDisplayValue, { zeroIsDash: false })}</p>
         </div>
         <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400">High-Risk SKUs</p>
+          <div className="group relative inline-block">
+            <p className="text-[10px] uppercase tracking-widest text-slate-400 cursor-help border-b border-dotted border-slate-600">High-Risk SKUs</p>
+            <div className="pointer-events-none invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute z-20 top-full right-0 mt-2 w-60 rounded-lg border border-lime-400/25 bg-[#0B0F13] px-3 py-2 text-[11px] leading-relaxed text-slate-200 shadow-xl shadow-black/40">
+              SKUs with risk level "High" only. Note: "SKUs at Runout Risk" on the Actions tab uses a broader definition — High + Medium — so the two counts won't match.
+            </div>
+          </div>
           <p className="text-3xl font-bold tracking-tight text-rose-400">{highRiskSkus.length}</p>
         </div>
       </div>
@@ -1213,7 +1223,12 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400">SKUs at Runout Risk</p>
+          <div className="group relative inline-block">
+            <p className="text-[10px] uppercase tracking-widest text-slate-400 cursor-help border-b border-dotted border-slate-600">SKUs at Runout Risk</p>
+            <div className="pointer-events-none invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute z-20 top-full left-0 mt-2 w-60 rounded-lg border border-lime-400/25 bg-[#0B0F13] px-3 py-2 text-[11px] leading-relaxed text-slate-200 shadow-xl shadow-black/40">
+              SKUs with risk level High or Medium. Note: "High-Risk SKUs" on the Intelligence tab counts High only — so the two counts won't match.
+            </div>
+          </div>
           <p className="text-3xl font-bold tracking-tight text-rose-400">{uniqueRunoutRiskSkus.length}</p>
         </div>
         <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
@@ -1266,19 +1281,44 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
             {candidateActions.length === 0 ? (
               <p className="text-slate-300">No countermeasures generated yet for this scenario.</p>
             ) : (
-              <ul className="list-disc list-inside space-y-1">
-                {candidateActions.map((row, idx) => (
-                  <li key={idx}>
-                    <span className="font-semibold">{row.sku}</span>{" "}
-                    <span className="text-slate-400">@ {row.facility}</span>:{" "}
-                    {row.action}{" "}
-                    <span className="text-emerald-300">({row.expectedImpact})</span>
-                    {!row.isRealRecommendation && (
-                      <span className="text-slate-500 text-[10px] ml-1">— example</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <>
+                {candidateActions.some((row) => row.isRealRecommendation) && (
+                  <div className="mb-3">
+                    <p className="text-[10px] uppercase tracking-wide text-emerald-400/90 mb-1.5 flex items-center gap-1">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                      Computed from Safety Stock Optimizer
+                    </p>
+                    <ul className="list-disc list-inside space-y-1">
+                      {candidateActions.filter((row) => row.isRealRecommendation).map((row, idx) => (
+                        <li key={idx}>
+                          <span className="font-semibold">{row.sku}</span>{" "}
+                          <span className="text-slate-400">@ {row.facility}</span>:{" "}
+                          {row.action}{" "}
+                          <span className="text-emerald-300">({row.expectedImpact})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {candidateActions.some((row) => !row.isRealRecommendation) && (
+                  <div className="pt-2 border-t border-slate-700/50">
+                    <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                      Illustrative only — no cost data available for these
+                    </p>
+                    <ul className="list-disc list-inside space-y-1 text-slate-400">
+                      {candidateActions.filter((row) => !row.isRealRecommendation).map((row, idx) => (
+                        <li key={idx}>
+                          <span className="font-semibold text-slate-300">{row.sku}</span>{" "}
+                          <span className="text-slate-500">@ {row.facility}</span>:{" "}
+                          {row.action}{" "}
+                          <span className="text-slate-400">({row.expectedImpact})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -1940,16 +1980,21 @@ export default function SimulationDashboard({
 
             <div className="grid grid-cols-2 xl:grid-cols-7 gap-3 mb-6">
               {[
-                { label: "Service Level",      value: `${Math.round(execOnTimePct)}%`,                                                                                              color: execOnTimePct < 80 ? "text-red-400" : execOnTimePct < 97 ? "text-yellow-400" : "text-green-400" },
-                { label: "Demand at Risk",      value: Math.round(execLateUnits).toLocaleString(),                                                                                  color: isHealthy ? "text-emerald-300" : "text-orange-300" },
-                { label: "Peak Backlog",        value: Math.round(execPeakBacklog).toLocaleString(),                                                                                color: isHealthy ? "text-emerald-300" : "text-amber-300" },
-                { label: "Time to Recover",     value: `${Math.round(execTtrDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-rose-300" },
-                { label: "Time to Survive",     value: `${Math.round(execTtsDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-purple-300" },
-                { label: "Worst Week",          value: execWorstWeeklyPct > 0 ? `${Math.round(execWorstWeeklyPct)}%` : "—",                                                         color: isHealthy ? "text-emerald-300" : execWorstWeeklyPct < 50 ? "text-red-400" : "text-orange-300" },
-                { label: "False Confidence",    value: (execFalseConfidenceDays > 0 && execWorstWeeklyPct < 99.5) ? `${Math.round(execFalseConfidenceDays)}d` : "—",                    color: isHealthy ? "text-emerald-300" : "text-orange-300" },
+                { label: "Service Level",      value: `${Math.round(execOnTimePct)}%`,                                                                                              color: execOnTimePct < 80 ? "text-red-400" : execOnTimePct < 97 ? "text-yellow-400" : "text-green-400", tip: "Percentage of customer demand fulfilled on time across the full simulation window." },
+                { label: "Demand at Risk",      value: Math.round(execLateUnits).toLocaleString(),                                                                                  color: isHealthy ? "text-emerald-300" : "text-orange-300", tip: "Units of customer demand that were not fulfilled on time because of the disruption." },
+                { label: "Peak Backlog",        value: Math.round(execPeakBacklog).toLocaleString(),                                                                                color: isHealthy ? "text-emerald-300" : "text-amber-300", tip: "The highest backlog level reached at any point during the disruption, before recovery began." },
+                { label: "Time to Recover",     value: `${Math.round(execTtrDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-rose-300", tip: "Days from first service impact until the network's backlog returns to normal levels." },
+                { label: "Time to Survive",     value: `${Math.round(execTtsDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-purple-300", tip: "Days of buffer inventory remaining before the network would fully stock out, at the current burn rate." },
+                { label: "Worst Week",          value: execWorstWeeklyPct > 0 ? `${Math.round(execWorstWeeklyPct)}%` : "—",                                                         color: isHealthy ? "text-emerald-300" : execWorstWeeklyPct < 50 ? "text-red-400" : "text-orange-300", tip: "Service level during the single worst week of the simulation window, vs. the overall average shown above." },
+                { label: "False Confidence",    value: (execFalseConfidenceDays > 0 && execWorstWeeklyPct < 99.5) ? `${Math.round(execFalseConfidenceDays)}d` : "—",                    color: isHealthy ? "text-emerald-300" : "text-orange-300", tip: "Days where the average service level still looked acceptable while backlog was already accumulating underneath it — the gap between 'looks fine on average' and 'is actually degrading.' Higher means the real problem stayed hidden longer." },
               ].map((kpi) => (
                 <div key={kpi.label} className={`rounded-xl border bg-black/20 p-3 ${isHealthy ? "border-emerald-900/40" : "border-slate-700/50"}`}>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400">{kpi.label}</p>
+                  <div className="group relative inline-block">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-400 cursor-help border-b border-dotted border-slate-600">{kpi.label}</p>
+                    <div className="pointer-events-none invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute z-20 top-full left-1/2 -translate-x-1/2 mt-2 w-56 rounded-lg border border-lime-400/25 bg-[#0B0F13] px-3 py-2 text-[11px] leading-relaxed text-slate-200 shadow-xl shadow-black/40">
+                      {kpi.tip}
+                    </div>
+                  </div>
                   <p className={`text-2xl font-bold tracking-tight ${kpi.color}`}>{kpi.value}</p>
                 </div>
               ))}
@@ -2152,7 +2197,17 @@ export default function SimulationDashboard({
           </div>
           <div>
             <p className="text-xs text-white font-semibold mb-1">Facility</p>
-            <input type="text" className="w-full bg-slate-900/70 border border-slate-700 rounded-lg text-slate-200 text-sm px-2 py-1" value={selectedFacility || "All / None Selected"} disabled />
+            <div className="w-full bg-slate-950/60 border border-dashed border-slate-700 rounded-lg text-sm px-2 py-1 flex items-center justify-between gap-2">
+              <span className={selectedFacility ? "text-slate-200" : "text-slate-500 italic"}>
+                {selectedFacility || "All facilities"}
+              </span>
+              {selectedFacility && (
+                <button type="button" onClick={() => handleFacilityClick(null)} className="text-[11px] text-slate-400 hover:text-slate-200 underline shrink-0">
+                  Clear
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-500 mt-1">Set by clicking a facility on the Network Map, Impact Summary tab.</p>
           </div>
         </div>
 
@@ -2240,8 +2295,8 @@ export default function SimulationDashboard({
               { label: "Demand at Risk", value: formatNumber(kpis?.demandAtRiskUnits ?? kpis?.occurrenceUnfulfilledUnits ?? kpis?.unitsAtRisk ?? kpis?.peakBacklogUnits ?? 0, { zeroIsDash: true }), color: "text-yellow-400" },
               { label: "Revenue Exposure", value: formatCurrencyCompact(kpis?.revenueExposure ?? 0), color: "text-red-400" },
               { label: "Peak Backlog", value: formatNumber(kpis?.peakBacklog ?? 0, { zeroIsDash: true }), color: "text-orange-400" },
-              { label: "TTR", value: `${kpis?.timeToRecoverDays ?? '-'}d`, color: "text-blue-400" },
-              { label: "TTS", value: `${kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? '-'}d`, color: "text-purple-400" },
+              { label: "Time to Recover", value: `${kpis?.timeToRecoverDays ?? '-'}d`, color: "text-blue-400" },
+              { label: "Time to Survive", value: `${kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? '-'}d`, color: "text-purple-400" },
               { label: "Status", value: (() => {
                   const curOnTime = Number(kpis?.onTimeFulfillment ?? 100);
                   const curBacklogVal = Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0);
@@ -2305,22 +2360,27 @@ export default function SimulationDashboard({
               const impactLabel = !hasBaseline ? "Select baseline" : svcDelta < -10 ? "High Impact" : svcDelta < -3 ? "Moderate Impact" : svcDelta < 0 ? "Low Impact" : "No Impact";
               const impactColor = !hasBaseline ? "text-yellow-400" : svcDelta < -10 ? "text-red-400" : svcDelta < -3 ? "text-amber-400" : svcDelta < 0 ? "text-yellow-400" : "text-emerald-400";
               return (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
-                  {[
-                    { label: "Service", cur: curSvc > 0 ? `${curSvc.toFixed(1)}%` : '-', delta: hasBaseline ? `${deltaSign(svcDelta.toFixed(1))}%` : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(svcDelta) : "text-slate-500" },
-                    { label: "Risk", cur: curRisk > 0 ? formatNumber(curRisk) : '-', delta: hasBaseline ? deltaSign(Math.round(riskDelta)) + " units" : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(riskDelta, true) : "text-slate-500" },
-                    { label: "Revenue", cur: formatCurrencyCompact(curRev), delta: hasBaseline ? (revDelta >= 0 ? `+${formatCurrencyCompact(revDelta)}` : formatCurrencyCompact(revDelta)) : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(revDelta, true) : "text-slate-500" },
-                    { label: "Backlog", cur: curBacklog > 0 ? formatNumber(curBacklog) : '-', delta: hasBaseline ? deltaSign(Math.round(backlogDelta)) + " units" : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(backlogDelta, true) : "text-slate-500" },
-                    { label: "TTR", cur: curTtr > 0 ? `${curTtr}d` : '-', delta: hasBaseline ? deltaSign(ttrDelta) + "d" : "→ Select baseline", deltaClass: hasBaseline ? deltaColor(ttrDelta, true) : "text-slate-500" },
-                    { label: "Impact", cur: impactLabel, delta: null, deltaClass: impactColor, curClass: impactColor },
-                  ].map((item) => (
-                    <div key={item.label}>
-                      <p className="text-[10px] text-slate-400">{item.label}</p>
-                      <p className={`text-sm font-semibold text-slate-200 ${item.curClass || ""}`}>{item.cur}</p>
-                      {item.delta !== null && <p className={`text-xs font-semibold ${item.deltaClass}`}>{item.delta}</p>}
-                    </div>
-                  ))}
-                </div>
+                <>
+                  {!hasBaseline && (
+                    <p className="text-[11px] text-slate-500 italic mb-2">Select a baseline run above to see deltas for each metric.</p>
+                  )}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
+                    {[
+                      { label: "Service", cur: curSvc > 0 ? `${curSvc.toFixed(1)}%` : '-', delta: hasBaseline ? `${deltaSign(svcDelta.toFixed(1))}%` : null, deltaClass: deltaColor(svcDelta) },
+                      { label: "Risk", cur: curRisk > 0 ? formatNumber(curRisk) : '-', delta: hasBaseline ? deltaSign(Math.round(riskDelta)) + " units" : null, deltaClass: deltaColor(riskDelta, true) },
+                      { label: "Revenue", cur: formatCurrencyCompact(curRev), delta: hasBaseline ? (revDelta >= 0 ? `+${formatCurrencyCompact(revDelta)}` : formatCurrencyCompact(revDelta)) : null, deltaClass: deltaColor(revDelta, true) },
+                      { label: "Backlog", cur: curBacklog > 0 ? formatNumber(curBacklog) : '-', delta: hasBaseline ? deltaSign(Math.round(backlogDelta)) + " units" : null, deltaClass: deltaColor(backlogDelta, true) },
+                      { label: "Time to Recover", cur: curTtr > 0 ? `${curTtr}d` : '-', delta: hasBaseline ? deltaSign(ttrDelta) + "d" : null, deltaClass: deltaColor(ttrDelta, true) },
+                      { label: "Impact", cur: impactLabel, delta: null, deltaClass: impactColor, curClass: impactColor },
+                    ].map((item) => (
+                      <div key={item.label}>
+                        <p className="text-[10px] text-slate-400">{item.label}</p>
+                        <p className={`text-sm font-semibold text-slate-200 ${item.curClass || ""}`}>{item.cur}</p>
+                        {item.delta !== null && <p className={`text-xs font-semibold ${item.deltaClass}`}>{item.delta}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </>
               );
             })()}
           </div>
@@ -2342,15 +2402,20 @@ export default function SimulationDashboard({
           )}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2 items-center text-xs">
-          <input
-            type="text"
-            placeholder="Scenario name..."
-            value={scenarioJson?.name || ""}
-            onChange={(e) => setScenarioJson((prev) => ({ ...(prev || {}), name: e.target.value }))}
-            className="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-200 placeholder:text-slate-500"
-            style={{ minWidth: "180px" }}
-          />
+        <div className="mt-4">
+          <label htmlFor="scenario-config-name-input" className="text-xs text-slate-400 mb-1 block">
+            Save Scenario Config As <span className="text-slate-500">(a reusable disruption setup — different from Run Name above)</span>
+          </label>
+          <div className="flex flex-wrap gap-2 items-center text-xs">
+            <input
+              id="scenario-config-name-input"
+              type="text"
+              placeholder="e.g. Taiwan blockade + MCU shortage"
+              value={scenarioJson?.name || ""}
+              onChange={(e) => setScenarioJson((prev) => ({ ...(prev || {}), name: e.target.value }))}
+              className="px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-slate-200 placeholder:text-slate-500"
+              style={{ minWidth: "180px" }}
+            />
           <button
             type="button"
             onClick={async () => {
@@ -2387,6 +2452,7 @@ export default function SimulationDashboard({
             }}
             className="px-3 py-1.5 rounded-md font-semibold bg-blue-500 hover:bg-blue-400 text-slate-900"
           >📥 Load</button>
+          </div>
         </div>
       </div>
 
@@ -2505,7 +2571,10 @@ export default function SimulationDashboard({
                   </div>
                 ))}
               </div>
-              <input type="text" value={runName} onChange={(e) => setRunName(e.target.value)} placeholder="Name this run (e.g. Taiwan Blockade July)" className="mt-3 w-full px-3 py-2 rounded-lg text-sm bg-slate-800 border border-slate-600 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-lime-400" />
+              <div className="mt-3">
+                <label htmlFor="run-name-input" className="text-xs text-slate-400 mb-1 block">Run Name (optional)</label>
+                <input id="run-name-input" type="text" value={runName} onChange={(e) => setRunName(e.target.value)} placeholder="Name this run (e.g. Taiwan Blockade July)" className="w-full px-3 py-2 rounded-lg text-sm bg-slate-800 border border-slate-600 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-lime-400" />
+              </div>
               <button type="button" onClick={() => { try { localStorage.removeItem("forc_active_scenario"); localStorage.removeItem("currentScenarioJSON"); } catch { } setScenarioData(null); alert("✅ Baseline cleared — next run will use uploaded files only."); }} className="mt-3 w-full py-2 rounded-xl text-xs font-semibold border transition" style={{ borderColor: "#2A3542", color: "#94a3b8", background: "rgba(2,6,23,0.45)" }}>
                 🔄 Clear to Baseline
               </button>
