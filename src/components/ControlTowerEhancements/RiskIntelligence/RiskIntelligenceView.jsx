@@ -174,7 +174,25 @@ function SummaryBar({ scoreResult, lastUpdated }) {
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 function TabBar({ active, onChange, triggeredCount }) {
   return (
-    <div style={{ display: "flex", gap: 2, marginBottom: 20, borderBottom: "1px solid rgba(148,163,184,0.15)" }}>
+    <div
+      className="forc-tabbar-scroll"
+      style={{
+        display: "flex",
+        gap: 2,
+        marginBottom: 20,
+        borderBottom: "1px solid rgba(148,163,184,0.15)",
+        overflowX: "auto",
+        overflowY: "hidden",
+        scrollbarWidth: "thin",
+        scrollbarColor: "rgba(148,163,184,0.3) transparent",
+        WebkitOverflowScrolling: "touch",
+      }}
+    >
+      <style>{`
+        .forc-tabbar-scroll::-webkit-scrollbar { height: 4px; }
+        .forc-tabbar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .forc-tabbar-scroll::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.3); border-radius: 4px; }
+      `}</style>
       {TABS.map((tab) => {
         const isActive = active === tab.key;
         const count = tab.key === "triggers" ? triggeredCount : null;
@@ -196,6 +214,7 @@ function TabBar({ active, onChange, triggeredCount }) {
               fontSize: 13,
               transition: "color 0.15s",
               whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             {tab.label}
