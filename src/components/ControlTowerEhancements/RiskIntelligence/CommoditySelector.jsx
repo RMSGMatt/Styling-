@@ -59,7 +59,7 @@ export default function CommoditySelector({ selected, onChange }) {
             {STATUS_CONFIG[current.status].label}
           </span>
         </div>
-        <span style={{ color: "#7A8A99", fontSize: 11 }}>{open ? "▲" : "▼"}</span>
+        <span style={{ color: "#7A8A99", fontSize: 13 }}>{open ? "▲" : "▼"}</span>
       </button>
 
       {/* Dropdown */}
@@ -126,7 +126,7 @@ export default function CommoditySelector({ selected, onChange }) {
                         gap:        6,
                         marginBottom: 2,
                       }}>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: "#F1F5F9" }}>
+                        <span style={{ fontSize: 15, fontWeight: 500, color: "#F1F5F9" }}>
                           {commodity.label}
                         </span>
                         <span style={{
@@ -140,7 +140,7 @@ export default function CommoditySelector({ selected, onChange }) {
                           {cfg.label}
                         </span>
                       </div>
-                      <div style={{ fontSize: 11, color: "#7A8A99", lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 13, color: "#7A8A99", lineHeight: 1.4 }}>
                         {commodity.description}
                       </div>
                     </div>

@@ -23,13 +23,13 @@ function RegimeCard({ regimeResult }) {
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <div style={{ fontSize: 11, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+          <div style={{ fontSize: 13, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
             Current market regime
           </div>
           <div style={{ fontSize: 28, fontWeight: 500, color, lineHeight: 1, marginBottom: 6 }}>
             {regimeResult.multiplier.label}
           </div>
-          <div style={{ fontSize: 11, color: "#C7D0D9" }}>
+          <div style={{ fontSize: 13, color: "#C7D0D9" }}>
             Regime score: <strong style={{ color: band.color }}>{Math.round(regimeResult.raw * 100)}</strong>
             <span style={{ marginLeft: 8, color: "#7A8A99" }}>· Applies {multiplier}× to forward score</span>
           </div>
@@ -41,7 +41,7 @@ function RegimeCard({ regimeResult }) {
           borderRadius: 10,
           textAlign: "center",
         }}>
-          <div style={{ fontSize: 11, color, marginBottom: 2 }}>Multiplier</div>
+          <div style={{ fontSize: 13, color, marginBottom: 2 }}>Multiplier</div>
           <div style={{ fontSize: 24, fontWeight: 500, color }}>{multiplier}×</div>
         </div>
       </div>
@@ -52,7 +52,7 @@ function RegimeCard({ regimeResult }) {
         padding: "10px 14px",
         background: bg,
         borderRadius: 8,
-        fontSize: 12,
+        fontSize: 14,
         color,
         lineHeight: 1.6,
       }}>
@@ -104,10 +104,10 @@ function SimulationBaselineCallout({ regimeResult }) {
     }}>
       <span style={{ fontSize: 16, flexShrink: 0 }}>{cfg.icon}</span>
       <div>
-        <div style={{ fontSize: 10, color: "#9FD63A", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        <div style={{ fontSize: 12, color: "#9FD63A", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Simulation baseline
         </div>
-        <p style={{ fontSize: 12, color: "#CBD5E1", margin: 0, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 14, color: "#CBD5E1", margin: 0, lineHeight: 1.6 }}>
           {cfg.text}
         </p>
       </div>
@@ -121,7 +121,7 @@ function PanelHeader() {
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <span style={{
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: 500,
           padding: "2px 8px",
           borderRadius: 20,
@@ -131,11 +131,11 @@ function PanelHeader() {
         }}>
           Current conditions
         </span>
-        <span style={{ fontSize: 11, color: "#7A8A99" }}>
+        <span style={{ fontSize: 13, color: "#7A8A99" }}>
           Confirmation signals · Describing the market today
         </span>
       </div>
-      <p style={{ fontSize: 12, color: "#C7D0D9", margin: 0, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 14, color: "#C7D0D9", margin: 0, lineHeight: 1.6 }}>
         These signals confirm which disruption phase the market is currently in. They are <em>not</em> predictive — the shortage is already underway. Their role is to calibrate the simulation engine's starting state and amplify the forward risk score via the regime multiplier.
       </p>
     </div>
@@ -172,7 +172,7 @@ export default function RegimeIndexPanel({ regimeSignals, scoreResult, detailDat
         padding: "10px 14px",
         background: "#1A2129",
         borderRadius: 8,
-        fontSize: 11,
+        fontSize: 13,
         color: "#C7D0D9",
         lineHeight: 1.6,
       }}>

@@ -22,7 +22,7 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <div style={{ fontSize: 11, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+          <div style={{ fontSize: 13, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
             Forward pressure index
           </div>
           <div style={{ fontSize: 40, fontWeight: 500, color: band.color, lineHeight: 1 }}>
@@ -30,7 +30,7 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
           </div>
           <div style={{ marginTop: 6 }}>
             <span style={{
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 500,
               padding: "3px 10px",
               borderRadius: 20,
@@ -44,12 +44,12 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
         </div>
 
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, color: "#7A8A99", marginBottom: 4 }}>Regime multiplier</div>
+          <div style={{ fontSize: 13, color: "#7A8A99", marginBottom: 4 }}>Regime multiplier</div>
           <div style={{ fontSize: 18, fontWeight: 500, color: regimeMultiplier.color }}>
             {regimeMultiplier.multiplier}×
           </div>
           <div style={{
-            fontSize: 10,
+            fontSize: 12,
             padding: "2px 8px",
             borderRadius: 20,
             background: regimeMultiplier.bg,
@@ -79,7 +79,7 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
             transition: "width 0.8s ease",
           }} />
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10, color: "#55606B" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 12, color: "#55606B" }}>
           <span>Low</span>
           <span>Moderate</span>
           <span>High</span>
@@ -88,20 +88,20 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
       </div>
 
       {/* Raw vs amplified */}
-      <div style={{ marginTop: 10, fontSize: 11, color: "#7A8A99" }}>
+      <div style={{ marginTop: 10, fontSize: 13, color: "#7A8A99" }}>
         Raw score: {Math.round(score * 100)} × {regimeMultiplier.multiplier} regime multiplier = {pct} amplified
       </div>
 
       {/* Causal explanation */}
-      <p style={{ marginTop: 10, fontSize: 12, color: "#C7D0D9", lineHeight: 1.6 }}>
+      <p style={{ marginTop: 10, fontSize: 14, color: "#C7D0D9", lineHeight: 1.6 }}>
         Your leading indicators are elevated on their own ({Math.round(score * 100)}, {rawBand.label}). Because the broader market is currently in a stressed regime ({regimeMultiplier.label}), we treat emerging risk as more urgent right now — pushing this to {pct} ({band.label}).
       </p>
       <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-        <span style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, background: rawBand.bg, color: rawBand.color }}>
+        <span style={{ fontSize: 13, padding: "4px 10px", borderRadius: 20, background: rawBand.bg, color: rawBand.color }}>
           Your leading indicators: {rawBand.label}
         </span>
         <span
-          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, background: regimeMultiplier.bg, color: regimeMultiplier.color, cursor: "help" }}
+          style={{ fontSize: 13, padding: "4px 10px", borderRadius: 20, background: regimeMultiplier.bg, color: regimeMultiplier.color, cursor: "help" }}
           title="Regimes amplify the forward score because the same disruption signal matters more when conditions are already tight — there's less slack to absorb it."
         >
           Market regime: {regimeMultiplier.label}
@@ -117,7 +117,7 @@ function PanelHeader() {
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <span style={{
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: 500,
           padding: "2px 8px",
           borderRadius: 20,
@@ -127,11 +127,11 @@ function PanelHeader() {
         }}>
           Forward signals
         </span>
-        <span style={{ fontSize: 11, color: "#7A8A99" }}>
+        <span style={{ fontSize: 13, color: "#7A8A99" }}>
           Leading indicators · 3–18 months ahead of impact
         </span>
       </div>
-      <p style={{ fontSize: 12, color: "#C7D0D9", margin: 0, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 14, color: "#C7D0D9", margin: 0, lineHeight: 1.6 }}>
         These signals sit upstream of any observable shortage. A movement here today means your Tier 1 or Tier 2 customers feel it in 3–18 months. Act on these before confirmation signals fire.
       </p>
     </div>
@@ -180,7 +180,7 @@ export default function ForwardPressurePanel({ forwardSignals, scoreResult, deta
           { label: "Low",      count: nominal,   color: "#4ADE80", bg: "rgba(74,222,128,0.1)" },
         ].map(({ label, count, color, bg }) => (
           <div key={label} style={{
-            fontSize: 11,
+            fontSize: 13,
             padding: "4px 10px",
             borderRadius: 20,
             background: bg,
@@ -205,7 +205,7 @@ export default function ForwardPressurePanel({ forwardSignals, scoreResult, deta
         padding: "10px 14px",
         background: "#1A2129",
         borderRadius: 8,
-        fontSize: 11,
+        fontSize: 13,
         color: "#C7D0D9",
         lineHeight: 1.6,
       }}>

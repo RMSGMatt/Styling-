@@ -103,23 +103,23 @@ function SummaryBar({ scoreResult, lastUpdated }) {
         borderRadius: 10,
         padding: "12px 16px",
       }}>
-        <div style={{ fontSize: 10, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        <div style={{ fontSize: 12, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Forward pressure
         </div>
         <div style={{ fontSize: 28, fontWeight: 500, color: fBand.color, lineHeight: 1 }}>
           {formatScorePercent(forward.amplified)}
         </div>
-        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: fBand.bg, color: fBand.color, display: "inline-block", marginTop: 4 }}>
+        <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 20, background: fBand.bg, color: fBand.color, display: "inline-block", marginTop: 4 }}>
           {fBand.label}
         </span>
         <div style={{ display: "flex", gap: 12, marginTop: 8, paddingTop: 8, borderTop: "0.5px solid rgba(148,163,184,0.15)" }}>
           <div>
-            <div style={{ fontSize: 9, color: "#94A3B8" }}>Your leading indicators</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: rawFBand.color }}>{rawFBand.label}</div>
+            <div style={{ fontSize: 11, color: "#94A3B8" }}>Your leading indicators</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: rawFBand.color }}>{rawFBand.label}</div>
           </div>
           <div title="Regimes amplify the forward score because the same disruption signal matters more when conditions are already tight — there's less slack to absorb it.">
-            <div style={{ fontSize: 9, color: "#94A3B8" }}>Market regime <i className="ti ti-info-circle" style={{ fontSize: 10 }} aria-hidden="true"></i></div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: regime.multiplier.color }}>{regime.multiplier.label}</div>
+            <div style={{ fontSize: 11, color: "#94A3B8" }}>Market regime <i className="ti ti-info-circle" style={{ fontSize: 12 }} aria-hidden="true"></i></div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: regime.multiplier.color }}>{regime.multiplier.label}</div>
           </div>
         </div>
       </div>
@@ -132,13 +132,13 @@ function SummaryBar({ scoreResult, lastUpdated }) {
         borderRadius: 10,
         padding: "12px 16px",
       }}>
-        <div style={{ fontSize: 10, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        <div style={{ fontSize: 12, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Market regime
         </div>
         <div style={{ fontSize: 20, fontWeight: 500, color: regime.multiplier.color, lineHeight: 1.2 }}>
           {regime.multiplier.label}
         </div>
-        <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 4 }}>
+        <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 4 }}>
           {regime.multiplier.multiplier}× multiplier applied
         </div>
       </div>
@@ -151,16 +151,16 @@ function SummaryBar({ scoreResult, lastUpdated }) {
         borderRadius: 10,
         padding: "12px 16px",
       }}>
-        <div style={{ fontSize: 10, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        <div style={{ fontSize: 12, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Scenario queue
         </div>
         <div style={{ fontSize: 28, fontWeight: 500, color: summary.triggeredCount > 0 ? "#A32D2D" : "#3B6D11", lineHeight: 1 }}>
           {summary.triggeredCount}
         </div>
-        <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 4 }}>
+        <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 4 }}>
           triggered · {summary.buildingCount} building
         </div>
-        <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 4 }}>
           Triggered requires multiple signals to converge
         </div>
       </div>
@@ -173,14 +173,14 @@ function SummaryBar({ scoreResult, lastUpdated }) {
         borderRadius: 10,
         padding: "12px 16px",
       }}>
-        <div style={{ fontSize: 10, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        <div style={{ fontSize: 12, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
           Signal coverage
         </div>
         <div style={{ fontSize: 28, fontWeight: 500, color: "#E2E8F0", lineHeight: 1 }}>
           {summary.stressedSignalCount}
           <span style={{ fontSize: 14, color: "#94A3B8" }}>/{summary.totalSignalCount}</span>
         </div>
-        <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 4 }}>
+        <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 4 }}>
           above {summary.stressThreshold} stress threshold
         </div>
       </div>
@@ -228,7 +228,7 @@ function TabBar({ active, onChange, triggeredCount }) {
               gap: 6,
               color: isActive ? "#2EC4A6" : "#94A3B8",
               fontWeight: isActive ? 500 : 400,
-              fontSize: 13,
+              fontSize: 15,
               transition: "color 0.15s",
               whiteSpace: "nowrap",
               flexShrink: 0,
@@ -236,12 +236,12 @@ function TabBar({ active, onChange, triggeredCount }) {
           >
             {tab.label}
             {count > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 500, padding: "1px 6px", borderRadius: 20, background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>
+              <span style={{ fontSize: 12, fontWeight: 500, padding: "1px 6px", borderRadius: 20, background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>
                 {count}
               </span>
             )}
             {tab.badge && (
-              <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 20, background: tab.badgeBg, color: tab.badgeColor, border: `0.5px solid ${tab.badgeBorder}` }}>
+              <span style={{ fontSize: 12, padding: "1px 6px", borderRadius: 20, background: tab.badgeBg, color: tab.badgeColor, border: `0.5px solid ${tab.badgeBorder}` }}>
                 {tab.badge}
               </span>
             )}
@@ -257,7 +257,7 @@ function LoadingState() {
   return (
     <div style={{ padding: "40px 0", textAlign: "center", color: "#94A3B8" }}>
       <div style={{ fontSize: 24, marginBottom: 12 }}>⟳</div>
-      <div style={{ fontSize: 13 }}>Loading risk signals...</div>
+      <div style={{ fontSize: 15 }}>Loading risk signals...</div>
     </div>
   );
 }
@@ -340,7 +340,7 @@ export default function RiskIntelligenceView({ switchView }) {
             />
           )}
         </div>
-        <p style={{ fontSize: 13, color: "#94A3B8", margin: 0, lineHeight: 1.6 }}>
+        <p style={{ fontSize: 15, color: "#94A3B8", margin: 0, lineHeight: 1.6 }}>
           {activeTab === "corridor"
             ? "AI-scored geopolitical risk for trade corridors into the United States. Select a country and commodity — score 7 risk variables and simulate the downstream impact in one click."
             : activeTab === "bestplace"
@@ -350,13 +350,13 @@ export default function RiskIntelligenceView({ switchView }) {
             : "Two-layer predictive risk model. Forward signals identify what's building upstream 3–18 months ahead. Current conditions confirm the regime your network is operating in today."}
         </p>
         {lastUpdated && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
-          <div style={{ fontSize: 11, color: "#B4B2A9", marginTop: 6 }}>
+          <div style={{ fontSize: 13, color: "#B4B2A9", marginTop: 6 }}>
             Last updated: {lastUpdated.toLocaleTimeString()} ·{" "}
             <span style={{ color: "#9FD63A" }}>Live</span>
           </div>
         )}
         {error && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
-          <div style={{ fontSize: 11, color: "#854F0B", marginTop: 4 }}>{error}</div>
+          <div style={{ fontSize: 13, color: "#854F0B", marginTop: 4 }}>{error}</div>
         )}
       </div>
 

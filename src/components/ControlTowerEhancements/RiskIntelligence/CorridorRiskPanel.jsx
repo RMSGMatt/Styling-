@@ -210,7 +210,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
       borderBottom: "0.5px solid rgba(148,163,184,0.12)",
     },
     sideLabel: {
-      fontSize: 9,
+      fontSize: 11,
       color: "#94A3B8",
       letterSpacing: "0.12em",
       textTransform: "uppercase",
@@ -226,7 +226,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
       color: active ? "#2EC4A6" : "#94A3B8",
       padding: "7px 10px",
       cursor: "pointer",
-      fontSize: 11,
+      fontSize: 13,
       display: "flex",
       alignItems: "center",
       gap: 7,
@@ -241,7 +241,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
       padding: "3px 7px",
       borderRadius: 4,
       cursor: "pointer",
-      fontSize: 9,
+      fontSize: 11,
       letterSpacing: "0.06em",
       marginBottom: 3,
     }),
@@ -254,7 +254,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
       color: active ? "#E2E8F0" : "#94A3B8",
       padding: "8px 14px",
       cursor: "pointer",
-      fontSize: 12,
+      fontSize: 14,
       display: "flex",
       alignItems: "center",
       gap: 8,
@@ -271,7 +271,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
     <div>
       {/* Panel header */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 15, color: "#94A3B8", lineHeight: 1.6 }}>
           AI-powered geopolitical risk scoring for trade corridors into the United States.
           Select an origin country and commodity type — FOR-C scores 7 risk variables and
           generates an executive summary with a direct path to simulation.
@@ -319,8 +319,8 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
               >
                 <span style={{ fontSize: 16, lineHeight: 1 }}>{o.flag}</span>
                 <div>
-                  <div style={{ fontSize: 12 }}>{o.name}</div>
-                  <div style={{ fontSize: 9, color: "rgba(148,163,184,0.3)", marginTop: 1 }}>{o.region}</div>
+                  <div style={{ fontSize: 14 }}>{o.name}</div>
+                  <div style={{ fontSize: 11, color: "rgba(148,163,184,0.3)", marginTop: 1 }}>{o.region}</div>
                 </div>
               </button>
             ))}
@@ -333,7 +333,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
           {!selectedOrigin && !loading && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16, opacity: 0.5, minHeight: 400 }}>
               <div style={{ fontSize: 40, opacity: 0.3 }}>🌐</div>
-              <div style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", maxWidth: 280, lineHeight: 1.7 }}>
+              <div style={{ fontSize: 14, color: "#94A3B8", textAlign: "center", maxWidth: 280, lineHeight: 1.7 }}>
                 Select an origin country to score the trade corridor risk for the selected commodity type.
               </div>
             </div>
@@ -348,7 +348,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                 animation: "forc-spin 0.9s linear infinite",
               }} />
               <style>{`@keyframes forc-spin { to { transform: rotate(360deg); } }`}</style>
-              <div style={{ fontSize: 11, color: "#94A3B8", letterSpacing: "0.08em" }}>
+              <div style={{ fontSize: 13, color: "#94A3B8", letterSpacing: "0.08em" }}>
                 Analyzing {selectedOrigin?.name} → USA corridor...
               </div>
             </div>
@@ -356,7 +356,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
 
           {/* Error */}
           {error && !loading && (
-            <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 8, color: "#f87171", fontSize: 12, marginBottom: 16 }}>
+            <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 8, color: "#f87171", fontSize: 14, marginBottom: 16 }}>
               ⚠ {error}
             </div>
           )}
@@ -367,7 +367,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
               {/* Header row */}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 16 }}>
                 <div>
-                  <div style={{ fontSize: 10, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>
                     Risk Corridor Analysis
                   </div>
                   <div style={{ fontSize: 20, color: "#E2E8F0", display: "flex", alignItems: "center", gap: 10, fontWeight: 500 }}>
@@ -375,7 +375,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                     <span style={{ color: "rgba(148,163,184,0.15)" }}>→</span>
                     <span>{DESTINATION.flag} {DESTINATION.name}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 3 }}>
+                  <div style={{ fontSize: 13, color: "#94A3B8", marginTop: 3 }}>
                     {selectedCommodity.icon} {selectedCommodity.label}
                   </div>
                 </div>
@@ -394,10 +394,10 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                     <div style={{ fontSize: 44, fontWeight: 600, color: riskColor(compositeScore), lineHeight: 1 }}>
                       {compositeScore}
                     </div>
-                    <div style={{ fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: riskColor(compositeScore), marginTop: 4 }}>
+                    <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: riskColor(compositeScore), marginTop: 4 }}>
                       {riskLabel(compositeScore)} RISK
                     </div>
-                    <div style={{ fontSize: 9, color: "rgba(148,163,184,0.3)", marginTop: 4 }}>Composite / 100</div>
+                    <div style={{ fontSize: 11, color: "rgba(148,163,184,0.3)", marginTop: 4 }}>Composite / 100</div>
                   </div>
 
                   {result.state_dept_advisory && (
@@ -408,13 +408,13 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                       padding: "8px 12px",
                       textAlign: "center",
                     }}>
-                      <div style={{ fontSize: 8, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                      <div style={{ fontSize: 10, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                         State Dept Advisory
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: result.state_dept_advisory.color, marginTop: 2 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: result.state_dept_advisory.color, marginTop: 2 }}>
                         Level {result.state_dept_advisory.level}
                       </div>
-                      <div style={{ fontSize: 8, color: "rgba(148,163,184,0.3)" }}>
+                      <div style={{ fontSize: 10, color: "rgba(148,163,184,0.3)" }}>
                         {result.state_dept_advisory.label}
                       </div>
                     </div>
@@ -447,7 +447,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                     </span>
                     <div>
                       <div style={{
-                        fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase",
+                        fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase",
                         fontWeight: 700,
                         color: result.uflpa.matched_entity ? "#f87171" : "#facc15",
                         marginBottom: 4,
@@ -455,22 +455,22 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                         {result.uflpa.matched_entity ? "UFLPA Entity List Match" : "UFLPA Advisory"}
                       </div>
                       <div style={{
-                        fontSize: 12, lineHeight: 1.6,
+                        fontSize: 14, lineHeight: 1.6,
                         color: result.uflpa.matched_entity ? "#7F1D1D" : "#78350F",
                       }}>
                         {result.uflpa.reason}
                       </div>
-                      <div style={{ fontSize: 9, color: "rgba(148,163,184,0.3)", marginTop: 6 }}>
+                      <div style={{ fontSize: 11, color: "rgba(148,163,184,0.3)", marginTop: 6 }}>
                         Source: DHS UFLPA Entity List via OpenSanctions.org — refreshed every 24 hours.
                       </div>
                     </div>
                   </div>
                 )}
 
-                <div style={{ fontSize: 9, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
                   Executive Summary
                 </div>
-                <div style={{ color: "#CBD5E1", lineHeight: 1.75, fontSize: 12 }}>
+                <div style={{ color: "#CBD5E1", lineHeight: 1.75, fontSize: 14 }}>
                   {result.executive_summary}
                 </div>
               </div>
@@ -478,7 +478,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
               {/* Recent signals */}
               {result.recent_signals?.length > 0 && (
                 <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 9, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
                     Live Risk Signals
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -487,7 +487,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                         background: "#F6F8FF",
                         border: "0.5px solid #DBEAFE",
                         padding: "8px 12px",
-                        fontSize: 11,
+                        fontSize: 13,
                         color: "#1D4ED8",
                         display: "flex",
                         gap: 8,
@@ -504,7 +504,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
 
               {/* Variable breakdown */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 9, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: "#94A3B8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
                   Variable Breakdown
                 </div>
                 <div style={{ display: "grid", gap: 2 }}>
@@ -525,18 +525,18 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 7, gap: 12 }}>
                             <div style={{ flex: 1 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                                <span style={{ color: "#E2E8F0", fontSize: 12, fontWeight: 500 }}>{meta.label}</span>
+                                <span style={{ color: "#E2E8F0", fontSize: 14, fontWeight: 500 }}>{meta.label}</span>
                                 {isTop && (
-                                  <span style={{ fontSize: 9, background: "#FED7AA", color: "#fb923c", padding: "1px 6px", borderRadius: 4, fontWeight: 600 }}>
+                                  <span style={{ fontSize: 11, background: "#FED7AA", color: "#fb923c", padding: "1px 6px", borderRadius: 4, fontWeight: 600 }}>
                                     TOP RISK
                                   </span>
                                 )}
                               </div>
-                              <div style={{ fontSize: 10, color: "rgba(148,163,184,0.3)" }}>{meta.desc}</div>
+                              <div style={{ fontSize: 12, color: "rgba(148,163,184,0.3)" }}>{meta.desc}</div>
                             </div>
                             <div style={{ textAlign: "right", flexShrink: 0 }}>
                               <div style={{ fontSize: 22, fontWeight: 600, color: riskColor(score), lineHeight: 1 }}>{score}</div>
-                              <div style={{ fontSize: 9, color: "rgba(148,163,184,0.3)" }}>wt: {(weight * 100).toFixed(0)}%</div>
+                              <div style={{ fontSize: 11, color: "rgba(148,163,184,0.3)" }}>wt: {(weight * 100).toFixed(0)}%</div>
                             </div>
                           </div>
                           {/* Score bar */}
@@ -550,7 +550,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                             }} />
                           </div>
                           {result.reasoning?.[key] && (
-                            <div style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.6 }}>
+                            <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.6 }}>
                               {result.reasoning[key]}
                             </div>
                           )}
@@ -573,10 +573,10 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                 flexWrap: "wrap",
               }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "white", marginBottom: 4 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "white", marginBottom: 4 }}>
                     Ready to quantify the downstream impact?
                   </div>
-                  <div style={{ fontSize: 11, color: "#6B8070", lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 13, color: "#6B8070", lineHeight: 1.5 }}>
                     FOR-C will simulate a {selectedOrigin.name} disruption at{" "}
                     <span style={{ color: "#9FD63A" }}>
                       {ORIGIN_TO_FACILITY[selectedOrigin.code] || "the nearest facility"}
@@ -592,7 +592,7 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                     border: "none",
                     borderRadius: 8,
                     padding: "10px 20px",
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 700,
                     cursor: "pointer",
                     whiteSpace: "nowrap",

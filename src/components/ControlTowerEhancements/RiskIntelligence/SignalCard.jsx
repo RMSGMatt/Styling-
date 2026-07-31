@@ -36,7 +36,7 @@ function TrendPip({ trend }) {
   const cfg = map[trend] || map.flat;
   return (
     <span
-      style={{ color: cfg.color, fontSize: 11, fontWeight: 500 }}
+      style={{ color: cfg.color, fontSize: 13, fontWeight: 500 }}
       title={cfg.label}
     >
       {cfg.icon} {cfg.label}
@@ -69,7 +69,7 @@ function ScoreBar({ value, band }) {
       </div>
       <span
         style={{
-          fontSize: 13,
+          fontSize: 15,
           fontWeight: 500,
           color: band.color,
           minWidth: 32,
@@ -110,13 +110,13 @@ export default function SignalCard({ signalKey, value, detailData }) {
       {/* ── Header row ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div style={{ flex: 1, marginRight: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: "#E2E8F0", lineHeight: 1.3, marginBottom: 4 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, color: "#E2E8F0", lineHeight: 1.3, marginBottom: 4 }}>
             {meta.label}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             {/* Layer badge */}
             <span style={{
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: 500,
               padding: "2px 7px",
               borderRadius: 20,
@@ -127,7 +127,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
               {layer.label}
             </span>
             {/* Horizon */}
-            <span style={{ fontSize: 10, color: "#94A3B8" }}>
+            <span style={{ fontSize: 12, color: "#94A3B8" }}>
               {meta.horizon}
             </span>
           </div>
@@ -135,7 +135,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
 
         {/* Risk badge */}
         <span style={{
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 500,
           padding: "3px 9px",
           borderRadius: 20,
@@ -157,20 +157,20 @@ export default function SignalCard({ signalKey, value, detailData }) {
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: "0.5px solid rgba(148,163,184,0.15)" }}>
           {/* Current value + trend */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: "#94A3B8" }}>
+            <span style={{ fontSize: 14, color: "#94A3B8" }}>
               Current: <strong style={{ color: "#E2E8F0" }}>{detail.value}</strong>
             </span>
             <TrendPip trend={detail.trend} />
           </div>
 
           {/* Key fact */}
-          <p style={{ fontSize: 12, color: "#CBD5E1", lineHeight: 1.6, margin: "0 0 8px" }}>
+          <p style={{ fontSize: 14, color: "#CBD5E1", lineHeight: 1.6, margin: "0 0 8px" }}>
             {detail.keyFact}
           </p>
 
           {/* Data point */}
           <div style={{
-            fontSize: 11,
+            fontSize: 13,
             padding: "6px 10px",
             borderRadius: 6,
             background: "rgba(148,163,184,0.1)",
@@ -181,7 +181,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
           </div>
 
           {/* Source + cadence */}
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#94A3B8" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94A3B8" }}>
             <span>Source: {meta.source}</span>
             <span>{meta.cadence} · {meta.latency} latency</span>
           </div>
@@ -189,7 +189,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
           {/* Explainer */}
           <div style={{
             marginTop: 8,
-            fontSize: 11,
+            fontSize: 13,
             color: "#94A3B8",
             lineHeight: 1.6,
             fontStyle: "italic",
@@ -201,7 +201,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
 
       {/* ── Expand hint ── */}
       {!expanded && (
-        <div style={{ marginTop: 6, fontSize: 10, color: "rgba(148,163,184,0.3)", textAlign: "right" }}>
+        <div style={{ marginTop: 6, fontSize: 12, color: "rgba(148,163,184,0.3)", textAlign: "right" }}>
           Click to expand ↓
         </div>
       )}

@@ -218,7 +218,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
     commodityBtn: (active) => ({
       display: "flex", alignItems: "center", gap: 6,
       padding: "7px 14px", borderRadius: 20, cursor: "pointer",
-      fontSize: 12, fontWeight: active ? 500 : 400,
+      fontSize: 14, fontWeight: active ? 500 : 400,
       background: active ? "#2EC4A6" : "rgba(148,163,184,0.1)",
       color: active ? "rgba(2,6,23,0.5)" : "#94A3B8",
       border: `0.5px solid ${active ? "#2EC4A6" : "rgba(148,163,184,0.15)"}`,
@@ -230,7 +230,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
   return (
     <div style={S.wrap}>
       <div style={S.header}>
-        <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.6, marginBottom: 4 }}>
+        <div style={{ fontSize: 15, color: "#94A3B8", lineHeight: 1.6, marginBottom: 4 }}>
           Ranks viable sourcing origins for a commodity by corridor risk — lowest risk first.
           Countries with no meaningful production presence for the selected commodity are
           excluded automatically, not just scored low.
@@ -257,7 +257,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
           padding: "12px 16px", marginBottom: 10,
         }}>
           <span style={{ fontSize: 14, flexShrink: 0 }}>ℹ️</span>
-          <div style={{ fontSize: 12, color: "#1D4ED8", lineHeight: 1.6 }}>
+          <div style={{ fontSize: 14, color: "#1D4ED8", lineHeight: 1.6 }}>
             {availabilityNote}
           </div>
         </div>
@@ -270,8 +270,8 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
           background: "#FFFBEB", border: "0.5px solid #FDE68A", borderRadius: 8,
           padding: "10px 16px", marginBottom: 16,
         }}>
-          <span style={{ fontSize: 13, flexShrink: 0 }}>⚠️</span>
-          <div style={{ fontSize: 11, color: "#facc15", lineHeight: 1.5 }}>
+          <span style={{ fontSize: 15, flexShrink: 0 }}>⚠️</span>
+          <div style={{ fontSize: 13, color: "#facc15", lineHeight: 1.5 }}>
             Production tiers shown here are based on industry-standard reference data,
             not licensed trade statistics. Verify against your actual qualified supplier
             base before using this for sourcing or compliance decisions.
@@ -279,10 +279,10 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
         </div>
 
         <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, background: "#E8F0EE", color: "#2EC4A6", fontWeight: 500 }}>
+          <div style={{ fontSize: 14, padding: "6px 12px", borderRadius: 20, background: "#E8F0EE", color: "#2EC4A6", fontWeight: 500 }}>
             {viableOrigins.length} viable origin{viableOrigins.length !== 1 ? "s" : ""}
           </div>
-          <div style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, background: "rgba(148,163,184,0.1)", color: "#94A3B8" }}>
+          <div style={{ fontSize: 14, padding: "6px 12px", borderRadius: 20, background: "rgba(148,163,184,0.1)", color: "#94A3B8" }}>
             {excludedOrigins.length} excluded — no production presence
           </div>
         </div>
@@ -294,7 +294,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
             style={{
               background: "linear-gradient(90deg, #9FD63A, #22c55e)",
               color: "#111B21", border: "none", borderRadius: 8,
-              padding: "12px 24px", fontSize: 13, fontWeight: 700,
+              padding: "12px 24px", fontSize: 15, fontWeight: 700,
               cursor: "pointer", marginBottom: 20,
             }}
           >
@@ -310,14 +310,14 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
               animation: "forc-bptb-spin 0.9s linear infinite",
             }} />
             <style>{`@keyframes forc-bptb-spin { to { transform: rotate(360deg); } }`}</style>
-            <div style={{ fontSize: 12, color: "#94A3B8" }}>
+            <div style={{ fontSize: 14, color: "#94A3B8" }}>
               Scoring corridor {progress.done} of {progress.total}...
             </div>
           </div>
         )}
 
         {error && !loading && (
-          <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 8, color: "#f87171", fontSize: 12, marginBottom: 16 }}>
+          <div style={{ padding: "12px 16px", background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 8, color: "#f87171", fontSize: 14, marginBottom: 16 }}>
             ⚠ {error}
           </div>
         )}
@@ -331,7 +331,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
             <div style={{ fontSize: 14, fontWeight: 700, color: "#2EC4A6" }}>
               🔒 Enterprise plan required
             </div>
-            <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: "#555", lineHeight: 1.5 }}>
               Best Place to Buy performs a bulk scan across all viable sourcing origins — this feature requires an Enterprise plan. Upgrade to access unlimited bulk corridor scoring, Country Watch List scanning, and Supplier Screening.
             </div>
             <button
@@ -340,7 +340,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
                 alignSelf: "flex-start",
                 background: "rgba(86,244,177,0.95)", border: "none",
                 color: "#062014", borderRadius: 8, padding: "8px 16px",
-                fontSize: 12, fontWeight: 700, cursor: "pointer",
+                fontSize: 14, fontWeight: 700, cursor: "pointer",
               }}
             >
               Upgrade to Enterprise →
@@ -353,7 +353,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
             {results.map((entry, idx) => {
               if (entry.compositeScore === null) {
                 return (
-                  <div key={entry.origin.code} style={{ padding: "10px 14px", background: "rgba(2,6,23,0.4)", border: "0.5px solid rgba(148,163,184,0.12)", borderRadius: 8, fontSize: 11, color: "rgba(148,163,184,0.3)" }}>
+                  <div key={entry.origin.code} style={{ padding: "10px 14px", background: "rgba(2,6,23,0.4)", border: "0.5px solid rgba(148,163,184,0.12)", borderRadius: 8, fontSize: 13, color: "rgba(148,163,184,0.3)" }}>
                     {entry.origin.flag} {entry.origin.name} — scoring unavailable
                   </div>
                 );
@@ -381,12 +381,12 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
                       <span style={{ fontSize: 18 }}>{entry.origin.flag}</span>
                       <span style={{ fontSize: 14, fontWeight: 500, color: "#E2E8F0" }}>{entry.origin.name}</span>
                       {isBest && (
-                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#16A34A", color: "#fff" }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#16A34A", color: "#fff" }}>
                           RECOMMENDED
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 10, marginTop: 3 }}>
+                    <div style={{ fontSize: 12, marginTop: 3 }}>
                       <span style={{ padding: "2px 8px", borderRadius: 20, background: badge.bg, color: badge.color, border: `0.5px solid ${badge.border}` }}>
                         {badge.label}
                       </span>
@@ -395,7 +395,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
                   </div>
 
                   {entry.result?.top_risk_factor && (
-                    <div style={{ fontSize: 10, color: "#94A3B8", maxWidth: 160, lineHeight: 1.4 }}>
+                    <div style={{ fontSize: 12, color: "#94A3B8", maxWidth: 160, lineHeight: 1.4 }}>
                       Top risk: <span style={{ color: "#94A3B8" }}>{entry.result.top_risk_factor.replace(/_/g, " ")}</span>
                     </div>
                   )}
@@ -404,7 +404,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
                     <div style={{ fontSize: 26, fontWeight: 600, color: riskColor(entry.compositeScore), lineHeight: 1 }}>
                       {entry.compositeScore}
                     </div>
-                    <div style={{ fontSize: 8, letterSpacing: "0.08em", textTransform: "uppercase", color: riskColor(entry.compositeScore) }}>
+                    <div style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", color: riskColor(entry.compositeScore) }}>
                       {riskLabel(entry.compositeScore)}
                     </div>
                   </div>
@@ -415,7 +415,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
                       background: isBest ? "#16A34A" : "rgba(148,163,184,0.1)",
                       color: isBest ? "#fff" : "#94A3B8",
                       border: "none", borderRadius: 6,
-                      padding: "8px 14px", fontSize: 11, fontWeight: 600,
+                      padding: "8px 14px", fontSize: 13, fontWeight: 600,
                       cursor: "pointer", whiteSpace: "nowrap",
                     }}
                   >
@@ -429,12 +429,12 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
 
         {hasRun && excludedOrigins.length > 0 && (
           <details style={{ marginTop: 20 }}>
-            <summary style={{ fontSize: 11, color: "#94A3B8", cursor: "pointer", userSelect: "none" }}>
+            <summary style={{ fontSize: 13, color: "#94A3B8", cursor: "pointer", userSelect: "none" }}>
               {excludedOrigins.length} countries excluded — no {selectedCommodity.label.toLowerCase()} production
             </summary>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
               {excludedOrigins.map((o) => (
-                <span key={o.code} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, background: "rgba(148,163,184,0.1)", color: "rgba(148,163,184,0.3)" }}>
+                <span key={o.code} style={{ fontSize: 13, padding: "4px 10px", borderRadius: 20, background: "rgba(148,163,184,0.1)", color: "rgba(148,163,184,0.3)" }}>
                   {o.flag} {o.name}
                 </span>
               ))}
