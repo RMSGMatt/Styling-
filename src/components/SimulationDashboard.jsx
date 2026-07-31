@@ -8,6 +8,86 @@ import DecisionNarrativePanel from "./DecisionNarrativePanel";
 
 const HIGH_RISK_MIN_DAYS = 2;
 
+// ── Folder drag-and-drop → auto-match CSVs to input slots ───────────────────
+// Longest/most-specific aliases are checked first so e.g. "location_materials.csv"
+// matches locationMaterials before the shorter "location" alias (for the
+// locations slot) gets a chance to steal it.
+const SIM_INPUT_ALIASES = [
+  { key: "locationMaterials", aliases: ["locationmaterials", "location_materials", "locmaterials"] },
+  { key: "unitCosts",         aliases: ["unitcosts", "unit_costs", "unitcost"] },
+  { key: "disruptions",       aliases: ["disruptions", "disruption"] },
+  { key: "processes",         aliases: ["processes", "process"] },
+  { key: "locations",         aliases: ["locations", "location"] },
+  { key: "demand",            aliases: ["demand"] },
+  { key: "lanes",             aliases: ["lanes", "lane"] },
+  { key: "bom",               aliases: ["bom", "billofmaterials", "bill_of_materials"] },
+];
+
+const SIM_INPUT_LABELS = {
+  demand: "Demand", disruptions: "Disruptions", locations: "Locations", processes: "Processes",
+  bom: "BOM", locationMaterials: "Location Materials", lanes: "Lanes", unitCosts: "Unit Costs",
+};
+
+function normalizeFileBaseName(filename) {
+  return (filename || "")
+    .replace(/\.[^/.]+$/, "")       // strip extension
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");     // strip separators/spaces
+}
+
+// Matches a single File to the closest simulation-input key by filename.
+// Returns the key, or null if nothing matched closely enough.
+function matchFileToSimInputKey(filename) {
+  const norm = normalizeFileBaseName(filename);
+  if (!norm) return null;
+  const allAliasPairs = SIM_INPUT_ALIASES
+    .flatMap(({ key, aliases }) => aliases.map((alias) => ({ key, alias })))
+    .sort((a, b) => b.alias.length - a.alias.length);
+  for (const { key, alias } of allAliasPairs) {
+    if (norm.includes(alias)) return key;
+  }
+  return null;
+}
+
+// Recursively reads a dropped folder (webkitGetAsEntry) into a flat array of
+// File objects. Falls back gracefully if the browser only gives flat files
+// (e.g. dragging individual files rather than a folder).
+function readEntryFilesRecursive(entry) {
+  return new Promise((resolve) => {
+    if (!entry) return resolve([]);
+    if (entry.isFile) {
+      entry.file((file) => resolve([file]), () => resolve([]));
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const allEntries = [];
+      const readBatch = () => {
+        reader.readEntries(async (batch) => {
+          if (!batch.length) {
+            const nested = await Promise.all(allEntries.map(readEntryFilesRecursive));
+            resolve(nested.flat());
+            return;
+          }
+          allEntries.push(...batch);
+          readBatch(); // directory readers only return a batch at a time
+        }, () => resolve([]));
+      };
+      readBatch();
+    } else {
+      resolve([]);
+    }
+  });
+}
+
+async function collectFilesFromDataTransfer(dataTransfer) {
+  const items = dataTransfer?.items;
+  if (items && items.length && typeof items[0].webkitGetAsEntry === "function") {
+    const entries = Array.from(items).map((item) => item.webkitGetAsEntry?.()).filter(Boolean);
+    const nested = await Promise.all(entries.map(readEntryFilesRecursive));
+    return nested.flat();
+  }
+  return Array.from(dataTransfer?.files || []);
+}
+
 function classifyFacilitySkuRisk(rows) {
   const groups = new Map();
   for (const r of (rows || [])) {
@@ -1581,7 +1661,59 @@ export default function SimulationDashboard({
   const [baselineRunIndex, setBaselineRunIndex] = useState(null);
   const [compareRunIndex, setCompareRunIndex] = useState(null);
   const [runName, setRunName] = useState("");
+  const [folderDrag, setFolderDrag] = useState(false);
+  const [folderDropSummary, setFolderDropSummary] = useState(null);
   const runsPerPage = 5;
+
+  // Shared reset used by both "Clear Active Scenario" (War Room) and
+  // "Reset to Uploaded Files" (Simulation Inputs). Previously these two
+  // buttons each cleared a different, overlapping subset of scenario state —
+  // one skipped the localStorage keys, the other skipped scenarioJson /
+  // selectedScenarioId — so a stale scenario could silently survive a
+  // "reset" and reappear on next load. This clears everything, always.
+  const clearActiveScenario = () => {
+    try {
+      localStorage.removeItem("forc_active_scenario");
+      localStorage.removeItem("currentScenarioJSON");
+    } catch { /* localStorage unavailable — nothing to clean up */ }
+    setScenarioData(null);
+    setScenarioJson(null);
+    setSelectedScenarioId("");
+  };
+
+  const handleSimInputsDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFolderDrag(false);
+
+    const allFiles = await collectFilesFromDataTransfer(e.dataTransfer);
+    const csvFiles = allFiles.filter((f) => /\.csv$/i.test(f.name));
+
+    const matched = [];
+    const claimedKeys = new Set();
+    const unmatched = [];
+
+    for (const file of csvFiles) {
+      const key = matchFileToSimInputKey(file.name);
+      if (key && !claimedKeys.has(key)) {
+        claimedKeys.add(key);
+        matched.push({ key, label: SIM_INPUT_LABELS[key], filename: file.name });
+        handleFileChange(key, file);
+      } else if (key && claimedKeys.has(key)) {
+        // Another file already claimed this slot — flag as unmatched rather
+        // than silently overwrite, since we can't tell which one is intended.
+        unmatched.push(file.name);
+      } else {
+        unmatched.push(file.name);
+      }
+    }
+
+    if (!csvFiles.length) {
+      setFolderDropSummary({ matched: [], unmatched: [], noCsvFound: true });
+    } else {
+      setFolderDropSummary({ matched, unmatched, noCsvFound: false });
+    }
+  };
 
   const exec = executiveKpis || {};
   console.log("[FORC-DEBUG] raw executiveKpis prop:", executiveKpis);
@@ -2278,8 +2410,8 @@ export default function SimulationDashboard({
           </div>
         )}
         {scenarioData?.name && (
-          <button onClick={() => { if (!window.confirm("Restore baseline? This will clear the active scenario.")) return; setScenarioData(null); setScenarioJson(null); setSelectedScenarioId(""); alert("🔄 Baseline restored!"); }} className="mb-3 text-[11px] text-slate-300 hover:text-slate-100 underline">
-            🔄 Restore Baseline
+          <button onClick={() => { if (!window.confirm("Clear the active scenario? This run will go back to your uploaded files with no War Game scenario applied.")) return; clearActiveScenario(); alert("🔄 Active scenario cleared."); }} className="mb-3 text-[11px] text-slate-300 hover:text-slate-100 underline">
+            🔄 Clear Active Scenario
           </button>
         )}
 
@@ -2556,6 +2688,44 @@ export default function SimulationDashboard({
               </div>
               
                 <a href="/forc-sample-data.zip" download className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-xs font-semibold border transition mb-3" style={{ borderColor: "#2EC4A6", color: "#2EC4A6", background: "rgba(46,196,166,0.07)" }}>📦 Download Sample Data</a>
+
+              <div
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setFolderDrag(true); }}
+                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setFolderDrag(false); }}
+                onDrop={handleSimInputsDrop}
+                className="rounded-xl mb-2 transition"
+                style={{
+                  border: folderDrag ? "1.5px dashed #9FD63A" : "1.5px dashed transparent",
+                  background: folderDrag ? "rgba(159,214,58,0.06)" : "transparent",
+                  padding: folderDrag ? "8px" : "0px",
+                }}
+              >
+                <p className="text-[11px] text-slate-500 mb-2 flex items-center gap-1">
+                  <span>📁</span> Drag a folder of CSVs here to auto-match by filename, or upload individually below.
+                </p>
+
+                {folderDropSummary && (
+                  <div className="mb-2 px-3 py-2 rounded-lg text-[11px]" style={{ background: "rgba(2,6,23,0.5)", border: "0.5px solid rgba(148,163,184,0.15)" }}>
+                    {folderDropSummary.noCsvFound ? (
+                      <p className="text-amber-400">No .csv files found in what was dropped.</p>
+                    ) : (
+                      <>
+                        {folderDropSummary.matched.length > 0 && (
+                          <p className="text-lime-400 mb-1">
+                            ✓ Matched {folderDropSummary.matched.length}: {folderDropSummary.matched.map((m) => `${m.label} → ${m.filename}`).join(", ")}
+                          </p>
+                        )}
+                        {folderDropSummary.unmatched.length > 0 && (
+                          <p className="text-amber-400">
+                            Could not match: {folderDropSummary.unmatched.join(", ")} — upload these individually.
+                          </p>
+                        )}
+                      </>
+                    )}
+                    <button type="button" onClick={() => setFolderDropSummary(null)} className="text-slate-500 hover:text-slate-300 text-[10px] mt-1 underline">Dismiss</button>
+                  </div>
+                )}
+
               <div className="divide-y divide-slate-700/40 text-xs">
                 {[["Demand", "demand"], ["Disruptions", "disruptions"], ["Locations", "locations"], ["Processes", "processes"], ["BOM", "bom"], ["Location Materials", "locationMaterials"], ["Lanes (Optional)", "lanes"], ["Unit Costs (Optional)", "unitCosts"]].map(([label, key]) => (
                   <div key={key} className="flex items-center justify-between py-2">
@@ -2571,12 +2741,13 @@ export default function SimulationDashboard({
                   </div>
                 ))}
               </div>
+              </div>
               <div className="mt-3">
                 <label htmlFor="run-name-input" className="text-xs text-slate-400 mb-1 block">Run Name (optional)</label>
                 <input id="run-name-input" type="text" value={runName} onChange={(e) => setRunName(e.target.value)} placeholder="Name this run (e.g. Taiwan Blockade July)" className="w-full px-3 py-2 rounded-lg text-sm bg-slate-800 border border-slate-600 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-lime-400" />
               </div>
-              <button type="button" onClick={() => { try { localStorage.removeItem("forc_active_scenario"); localStorage.removeItem("currentScenarioJSON"); } catch { } setScenarioData(null); alert("✅ Baseline cleared — next run will use uploaded files only."); }} className="mt-3 w-full py-2 rounded-xl text-xs font-semibold border transition" style={{ borderColor: "#2A3542", color: "#94a3b8", background: "rgba(2,6,23,0.45)" }}>
-                🔄 Clear to Baseline
+              <button type="button" onClick={() => { clearActiveScenario(); alert("✅ Reset — next run will use uploaded files only, no War Game scenario applied."); }} className="mt-3 w-full py-2 rounded-xl text-xs font-semibold border transition" style={{ borderColor: "#2A3542", color: "#94a3b8", background: "rgba(2,6,23,0.45)" }}>
+                🔄 Reset to Uploaded Files
               </button>
               <button
                 onClick={() => { const activeScenario = scenarioData && Object.keys(scenarioData).length > 0 ? scenarioData : null; handleRunSimulationWithScenario(activeScenario, runName); }}
