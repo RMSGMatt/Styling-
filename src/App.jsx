@@ -2081,15 +2081,19 @@ export default function App() {
         null;
 
       if (locUrl) {
-        // Strip any previously-appended cache-buster (&v= or ?v=) before
-        // adding a new one — on a second run in the same session, locUrl
-        // may already contain ?v=... from run 1's cache-bust, causing
-        // a double-? URL (?X-Amz-...?v=...?v=...) that breaks S3 presigned
-        // signature verification with a 403.
-        const strippedUrl = locUrl.replace(/[?&]v=\d+$/, "");
-        const separator = strippedUrl.includes("?") ? "&" : "?";
-        const cacheBusted = `${strippedUrl}${separator}v=${Date.now()}`;
-        setLocationsUrl(cacheBusted);
+        // NOTE: do NOT append a cache-busting query param (e.g. "&v=...")
+        // to this URL. It's an S3 presigned URL — AWS SigV4 validates the
+        // signature by recomputing it over whatever query parameters are
+        // actually present in the request. Adding ANY extra param, however
+        // cleanly formatted, changes that query string and invalidates the
+        // signature, producing a 403 regardless of the URL otherwise being
+        // well-formed. (Previously this stripped-and-re-appended "&v=",
+        // which fixed a double-"?" malformation but not the underlying
+        // signature break — the 403s persisted either way.)
+        // Cache-busting for repeated fetches of this same URL is handled
+        // instead via `fetch(url, { cache: "no-store" })` in MapView.jsx,
+        // which forces a fresh network request without touching the URL.
+        setLocationsUrl(locUrl);
       }
 
       // Commit urls to state
