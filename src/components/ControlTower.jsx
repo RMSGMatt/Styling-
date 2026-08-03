@@ -18,6 +18,8 @@ import AdminPanel from "./ControlTowerEhancements/AdminPanel.jsx";
 import ScenarioLibrary from "./ControlTowerEhancements/ScenarioLibrary.jsx";
 import BillingView from "./ControlTowerEhancements/BillingView.jsx";
 import RiskIntelligenceView from "./ControlTowerEhancements/RiskIntelligence/RiskIntelligenceView";
+import { useRiskTriggers } from "./ControlTowerEhancements/RiskIntelligence/useRiskTriggers";
+import { SCENARIO_CONFIG } from "./ControlTowerEhancements/RiskIntelligence/scenarioConfig";
 
 ChartJS.register(
   CategoryScale,
@@ -291,37 +293,189 @@ const ALERT_CONFIG = {
   escalate: { color: "#fff",    bg: "#7f1d1d", border: "#ef4444", icon: "🚨", label: "ESCALATE" },
 };
 
-function AlertStrip({ kpis }) {
-  const [dismissed, setDismissed] = useState([]);
-  const alerts = deriveAlerts(kpis).filter((a) => !dismissed.includes(a.id));
+// ─────────────────────────────────────────────────────────────────────────────
+// UnifiedAttentionPanel
+// Replaces what were three separate surfaces — the AI narrative paragraph,
+// the KPI-derived AlertStrip, and Risk Intelligence's trigger banner — with
+// one panel, one severity vocabulary (reusing ALERT_CONFIG's existing
+// watch/act/escalate tiers), and one dismiss/collapse state.
+//
+// Real constraint worth being explicit about: the narrative paragraph itself
+// (ctNarrative) is generated server-side from businessKpis alone via
+// POST /api/control-tower/narrative — it cannot be made to also reference
+// Risk Intelligence signals without a backend/prompt change. What's unified
+// here is everything on the frontend: the discrete alert list below the
+// narrative now merges both KPI-derived alerts and forward-looking risk
+// triggers into one sorted, source-tagged list instead of two separately
+// styled ones.
+//
+// Severity mapping for risk triggers, since evaluateTriggers() only has two
+// non-nominal states: "triggered" -> ACT (actionable now), "watch"/Building
+// -> WATCH (early signal). Neither maps to ESCALATE — that tier is currently
+// KPI-only, since the risk engine has no "worse than triggered" state.
+// ─────────────────────────────────────────────────────────────────────────────
+const SEVERITY_ORDER = { escalate: 0, act: 1, watch: 2 };
 
-  if (!alerts.length) return (
-    <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2 text-sm" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
-      <span>✅</span>
-      <span className="font-medium" style={{ color: "#86efac" }}>All KPIs within normal thresholds</span>
-    </div>
-  );
+function UnifiedAttentionPanel({ kpis, ctNarrative, narrativeLoading, onOpenRiskIntelligence }) {
+  const [dismissed, setDismissed] = useState([]);
+  const [expanded, setExpanded] = useState(false);
+  const { triggers } = useRiskTriggers();
+
+  const kpiItems = deriveAlerts(kpis).map((a) => ({
+    id: `kpi:${a.id}`,
+    severity: a.level,
+    title: `${a.kpi}: ${a.value}`,
+    detail: a.action,
+    sourceTag: "Business KPI",
+    sourceMock: false,
+    onReview: null,
+  }));
+
+  const riskItems = triggers
+    .map((t) => {
+      const config = SCENARIO_CONFIG[t.scenario];
+      if (!config) return null;
+      return {
+        id: `risk:${t.commodity}:${t.scenario}`,
+        severity: t.status === "triggered" ? "act" : "watch",
+        title: `${config.icon} ${config.label}`,
+        detail: config.description,
+        sourceTag: "Risk Signal",
+        sourceMock: t.source === "mock",
+        onReview: () => onOpenRiskIntelligence && onOpenRiskIntelligence({ commodity: t.commodity }),
+      };
+    })
+    .filter(Boolean);
+
+  const items = [...kpiItems, ...riskItems]
+    .filter((item) => !dismissed.includes(item.id))
+    .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+
+  const escalateCount = items.filter((i) => i.severity === "escalate").length;
+  const actCount = items.filter((i) => i.severity === "act").length;
+  const watchCount = items.filter((i) => i.severity === "watch").length;
+  const anyMock = items.some((i) => i.sourceMock);
+  const hasNarrative = Boolean(ctNarrative || narrativeLoading);
+
+  if (items.length === 0 && !hasNarrative) {
+    return (
+      <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2 text-sm" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
+        <span>✅</span>
+        <span className="font-medium" style={{ color: "#86efac" }}>All KPIs and risk signals within normal thresholds</span>
+      </div>
+    );
+  }
+
+  // Summary line — highest severity present drives the header color/label.
+  const topSeverity = escalateCount > 0 ? "escalate" : actCount > 0 ? "act" : "watch";
+  const topCfg = ALERT_CONFIG[topSeverity];
+  const summaryParts = [];
+  if (escalateCount) summaryParts.push(`${escalateCount} escalate`);
+  if (actCount) summaryParts.push(`${actCount} act`);
+  if (watchCount) summaryParts.push(`${watchCount} watch`);
 
   return (
-    <div className="space-y-2 mb-4">
-      {alerts.map((alert) => {
-        const cfg = ALERT_CONFIG[alert.level];
-        return (
-          <div key={alert.id} className="rounded-xl px-4 py-3 flex items-start justify-between gap-3" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-            <div className="flex items-start gap-2 flex-1">
-              <span className="text-base mt-0.5">{cfg.icon}</span>
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[10px] font-bold tracking-widest" style={{ color: cfg.color }}>{cfg.label}</span>
-                  <span className="text-xs font-semibold" style={{ color: cfg.color }}>{alert.kpi}: {alert.value}</span>
-                </div>
-                <p className="text-xs" style={{ color: cfg.color }}>{alert.action}</p>
-              </div>
+    <div className="rounded-2xl mb-5 overflow-hidden" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
+      {/* Narrative headline — server-generated from business KPIs */}
+      {hasNarrative && (
+        <div id="tour-narrative" className="px-5 py-4">
+          <div className="flex items-start gap-3">
+            <span className="text-lg mt-0.5">🧠</span>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#9FD63A" }}>
+                FOR-C Network Intelligence
+              </p>
+              {narrativeLoading ? (
+                <p className="text-sm animate-pulse" style={{ color: "#e2e8e0" }}>Analyzing network conditions...</p>
+              ) : (
+                <p className="text-sm leading-relaxed" style={{ color: "#e2e8e0" }}>{ctNarrative}</p>
+              )}
             </div>
-            <button onClick={() => setDismissed((d) => [...d, alert.id])} className="text-xs opacity-50 hover:opacity-100 shrink-0 mt-0.5" style={{ color: cfg.color }}>✕</button>
           </div>
-        );
-      })}
+        </div>
+      )}
+
+      {/* Merged alert list — collapsed to one summary row by default */}
+      {items.length > 0 && (
+        <div id="tour-alerts" style={{ borderTop: hasNarrative ? "1px solid rgba(159,214,58,0.15)" : "none" }}>
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="w-full flex items-center justify-between gap-3 px-5 py-3"
+            style={{ background: topCfg.bg, cursor: "pointer" }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-base">{topCfg.icon}</span>
+              <span className="text-sm font-semibold truncate" style={{ color: topCfg.color }}>
+                {summaryParts.join(" · ")} — {items.length} item{items.length > 1 ? "s" : ""} need review
+              </span>
+              {anyMock && (
+                <span
+                  className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: "transparent", color: "#eab308", border: "1px solid rgba(234,179,8,0.5)" }}
+                >
+                  SAMPLE
+                </span>
+              )}
+            </div>
+            <span className="shrink-0 text-xs" style={{ color: "#94A3B8" }}>
+              {expanded ? "Hide ▲" : "Show ▼"}
+            </span>
+          </button>
+
+          {expanded && (
+            <div className="px-5 pb-4 space-y-2">
+              {items.map((item) => {
+                const cfg = ALERT_CONFIG[item.severity];
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-xl px-4 py-3 flex items-start justify-between gap-3"
+                    style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
+                  >
+                    <div className="flex items-start gap-2 flex-1 min-w-0">
+                      <span className="text-base mt-0.5">{cfg.icon}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                          <span className="text-[10px] font-bold tracking-widest" style={{ color: cfg.color }}>{cfg.label}</span>
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ color: cfg.color, background: "rgba(255,255,255,0.06)" }}>
+                            {item.sourceTag}
+                          </span>
+                          <span className="text-xs font-semibold" style={{ color: cfg.color }}>{item.title}</span>
+                        </div>
+                        <p className="text-xs" style={{ color: cfg.color }}>{item.detail}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {item.onReview && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            item.onReview();
+                          }}
+                          className="text-[11px] font-semibold px-2.5 py-1 rounded-lg"
+                          style={{ background: "rgba(159,214,58,0.15)", color: "#9FD63A", border: "1px solid rgba(159,214,58,0.4)" }}
+                        >
+                          Review →
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDismissed((d) => [...d, item.id]);
+                        }}
+                        className="text-xs opacity-50 hover:opacity-100 shrink-0"
+                        style={{ color: cfg.color, background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -536,6 +690,12 @@ export default function ControlTower({
   const isAdmin = resolvedRole === "admin";
 
   const [activeView, setActiveView] = useState("dashboard");
+  // Set when the unified attention panel's "Review in Risk Intelligence" is
+  // clicked, so
+  // RiskIntelligenceView mounts on the correct commodity/tab instead of
+  // always defaulting to semiconductors/forward regardless of which trigger
+  // the user actually clicked through on.
+  const [riskIntelFocus, setRiskIntelFocus] = useState(null); // { commodity } | null
 
   const [kpiRange, setKpiRange] = useState("month");
   const [businessKpis, setBusinessKpis] = useState(null);
@@ -673,97 +833,120 @@ export default function ControlTower({
           </div>
         </div>
 
-        <div>
-          <h2 className="text-sm uppercase text-gray-300 mb-2">Repository</h2>
-          <ul className="space-y-2 text-sm">
+        <div className="space-y-5">
 
-            {/* ── v3: Risk Intelligence ── */}
-            <li>
-              <a
-                onClick={() => setActiveView("risk")}
-                className={`block cursor-pointer ${activeView === "risk" ? "text-lime-300" : "hover:underline"}`}
-                style={activeView === "risk" ? {} : { color: "#9FD63A" }}
-              >
-                🔭 Risk Intelligence
-              </a>
-            </li>
-
-            <li>
-              <a
-                onClick={() => setActiveView("dashboard")}
-                className={`block cursor-pointer ${activeView === "dashboard" ? "text-lime-300" : "hover:underline"}`}
-              >
-                📊 Dashboard
-              </a>
-            </li>
-
-            <li>
-              <a
-                onClick={() => setActiveView("simulations")}
-                className={`block cursor-pointer ${activeView === "simulations" ? "text-lime-300" : "hover:underline"}`}
-              >
-                🧪 Simulations
-              </a>
-            </li>
-
-            <li>
-              <a
-                onClick={() => { syncScenarioFromLocal(); setActiveView("scenario"); }}
-                className={`block cursor-pointer ${activeView === "scenario" ? "text-lime-300" : "hover:underline"}`}
-              >
-                🧪 Scenario Library
-              </a>
-            </li>
-
-            <li>
-              <a
-                onClick={() => setActiveView("billing")}
-                className={`block cursor-pointer ${activeView === "billing" ? "text-lime-300" : "hover:underline"}`}
-              >
-                💸 Billing
-              </a>
-            </li>
-
-            <li>
-              <a onClick={() => switchView("reports")} className="block cursor-pointer hover:underline">
-                📊 Reports
-              </a>
-            </li>
-
-            {isAdmin && (
+          {/* ── Monitor ── */}
+          <div>
+            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">Monitor</h2>
+            <ul className="space-y-2 text-sm">
               <li>
                 <a
-                  onClick={() => setActiveView("admin")}
-                  className={`block cursor-pointer ${activeView === "admin" ? "text-lime-300" : "hover:underline"}`}
+                  onClick={() => setActiveView("dashboard")}
+                  className={`block cursor-pointer ${activeView === "dashboard" ? "text-lime-300" : "hover:underline"}`}
                 >
-                  🛠 Admin
+                  📊 Dashboard
                 </a>
               </li>
-            )}
 
-            <li>
-              <a onClick={() => switchView("simulation")} className="hover:underline block cursor-pointer">
-                🚀 Launch Simulation
-              </a>
-            </li>
+              {/* ── v3: Risk Intelligence ── */}
+              <li>
+                <a
+                  onClick={() => {
+                    setRiskIntelFocus(null); // clear any stale focus from a previous attention-panel click
+                    setActiveView("risk");
+                  }}
+                  className={`block cursor-pointer ${activeView === "risk" ? "text-lime-300" : "hover:underline"}`}
+                  style={activeView === "risk" ? {} : { color: "#9FD63A" }}
+                >
+                  🔭 Risk Intelligence
+                </a>
+              </li>
+            </ul>
+          </div>
 
-            <li>
-              <a onClick={() => switchView("about")} className="hover:underline block cursor-pointer">
-                📘 About FOR-C
-              </a>
-            </li>
+          {/* ── Simulate ── */}
+          <div>
+            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">Simulate</h2>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <a onClick={() => switchView("simulation")} className="hover:underline block cursor-pointer">
+                  🚀 Launch Simulation
+                </a>
+              </li>
 
-            <li>
-              <a
-                onClick={() => { setTourActive(true); setActiveView("dashboard"); }}
-                className="block cursor-pointer hover:underline"
-                style={{ color: "#9FD63A" }}
-              >
-                🗺 Start Tour
-              </a>
-            </li>
+              <li>
+                <a
+                  onClick={() => setActiveView("simulations")}
+                  className={`block cursor-pointer ${activeView === "simulations" ? "text-lime-300" : "hover:underline"}`}
+                >
+                  🧪 Simulation History
+                </a>
+              </li>
 
-          </ul>
+              <li>
+                <a
+                  onClick={() => { syncScenarioFromLocal(); setActiveView("scenario"); }}
+                  className={`block cursor-pointer ${activeView === "scenario" ? "text-lime-300" : "hover:underline"}`}
+                >
+                  📝 Scenario Library
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* ── Account ── */}
+          <div>
+            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">Account</h2>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <a onClick={() => switchView("reports")} className="block cursor-pointer hover:underline">
+                  📊 Reports
+                </a>
+              </li>
+
+              <li>
+                <a
+                  onClick={() => setActiveView("billing")}
+                  className={`block cursor-pointer ${activeView === "billing" ? "text-lime-300" : "hover:underline"}`}
+                >
+                  💸 Billing
+                </a>
+              </li>
+
+              <li>
+                <a onClick={() => switchView("about")} className="hover:underline block cursor-pointer">
+                  📘 About FOR-C
+                </a>
+              </li>
+
+              {isAdmin && (
+                <li>
+                  <a
+                    onClick={() => setActiveView("admin")}
+                    className={`block cursor-pointer ${activeView === "admin" ? "text-lime-300" : "hover:underline"}`}
+                  >
+                    🛠 Admin
+                  </a>
+                </li>
+              )}
+            </ul>
+          </div>
+
+          {/* ── Utility ── */}
+          <div className="pt-3 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+            <ul className="space-y-2 text-sm pt-3">
+              <li>
+                <a
+                  onClick={() => { setTourActive(true); setActiveView("dashboard"); }}
+                  className="block cursor-pointer hover:underline"
+                  style={{ color: "#9FD63A" }}
+                >
+                  🗺 Start Tour
+                </a>
+              </li>
+            </ul>
+          </div>
+
         </div>
       </aside>
 
@@ -797,7 +980,11 @@ export default function ControlTower({
           {/* ── v3: Risk Intelligence view ── */}
           {activeView === "risk" && (
             <section className="mt-2">
-              <RiskIntelligenceView switchView={switchView} />
+              <RiskIntelligenceView
+                switchView={switchView}
+                initialTab={riskIntelFocus ? "triggers" : undefined}
+                initialCommodity={riskIntelFocus?.commodity}
+              />
             </section>
           )}
 
@@ -886,25 +1073,15 @@ export default function ControlTower({
                 </div>
               </section>
 
-              {(ctNarrative || narrativeLoading) && (
-                <div id="tour-narrative" className="rounded-2xl mb-5 px-5 py-4" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg mt-0.5">🧠</span>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#9FD63A" }}>
-                        FOR-C Network Intelligence
-                      </p>
-                      {narrativeLoading ? (
-                        <p className="text-sm animate-pulse" style={{ color: "#e2e8e0" }}>Analyzing network conditions...</p>
-                      ) : (
-                        <p className="text-sm leading-relaxed" style={{ color: "#e2e8e0" }}>{ctNarrative}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div id="tour-alerts"><AlertStrip kpis={businessKpis} /></div>
+              <UnifiedAttentionPanel
+                kpis={businessKpis}
+                ctNarrative={ctNarrative}
+                narrativeLoading={narrativeLoading}
+                onOpenRiskIntelligence={({ commodity } = {}) => {
+                  setRiskIntelFocus({ commodity });
+                  setActiveView("risk");
+                }}
+              />
 
               <section className="mb-5">
                 <div className="rounded-2xl border px-4 py-3" style={{ background: "rgba(9,25,19,0.5)", borderColor: "#143629" }}>

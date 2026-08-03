@@ -303,3 +303,22 @@ export const LITHIUM_TRIGGER_CONFIG = {
     minConvergence: 2,
   },
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// launchScenarioToSimulation
+// Routes a triggered scenario to the simulation engine via localStorage —
+// SimulationDashboard reads "currentScenarioJSON" on mount. Shared so every
+// surface that can launch a scenario (Risk Intelligence's TriggerQueue, the
+// Control Tower trigger banner) uses one code path instead of each keeping
+// its own copy of these localStorage key names.
+// ─────────────────────────────────────────────────────────────────────────────
+export function launchScenarioToSimulation({ scenario, params, source = "risk_intelligence_trigger" }, switchView) {
+  try {
+    const scenarioPayload = { name: scenario, ...params, source };
+    localStorage.setItem("currentScenario", JSON.stringify(scenarioPayload));
+    localStorage.setItem("currentScenarioName", scenario);
+    // Also set the format that SimulationDashboard reads
+    localStorage.setItem("currentScenarioJSON", JSON.stringify(scenarioPayload));
+  } catch {}
+  if (switchView) switchView("simulation");
+}

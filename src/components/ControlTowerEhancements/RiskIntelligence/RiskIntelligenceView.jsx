@@ -12,7 +12,7 @@ import CorridorRiskPanel    from "./CorridorRiskPanel";
 import BestPlaceToBuyPanel  from "./BestPlaceToBuyPanel";
 import CountryWatchListPanel from "./CountryWatchListPanel";
 import SupplierScreeningPanel from "./SupplierScreeningPanel";
-import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG, formatScorePercent, getRiskBand } from "./riskScoreEngine";
+import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG, formatScorePercent, getRiskBand, launchScenarioToSimulation } from "./riskScoreEngine";
 import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL } from "./signalSources";
 import CommoditySelector from "./CommoditySelector";
 import { COMMODITY_REGISTRY } from "./commodityRegistry";
@@ -263,15 +263,24 @@ function LoadingState() {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function RiskIntelligenceView({ switchView }) {
-  const [activeTab,         setActiveTab]         = useState("forward");
+// initialTab / initialCommodity: used when navigating in from a specific
+// context (e.g. Control Tower's TriggerBanner "Review in Risk Intelligence"
+// button) so the user lands on the exact trigger they clicked, rather than
+// always on the "forward" tab / semiconductors commodity regardless of what
+// they came here to look at.
+export default function RiskIntelligenceView({ switchView, initialTab, initialCommodity }) {
+  const [activeTab,         setActiveTab]         = useState(initialTab || "forward");
   const [forwardSignals,    setForwardSignals]    = useState(null);
   const [regimeSignals,     setRegimeSignals]     = useState(null);
   const [scoreResult,       setScoreResult]       = useState(null);
   const [loading,           setLoading]           = useState(true);
   const [lastUpdated,       setLastUpdated]       = useState(null);
   const [error,             setError]             = useState(null);
-  const [selectedCommodity, setSelectedCommodity] = useState("semiconductors_mlcc");
+  const [selectedCommodity, setSelectedCommodity] = useState(initialCommodity || "semiconductors_mlcc");
+  // "mock" | "live" | null — surfaced in the header so nobody mistakes sample
+  // signals for live intelligence. fwd/reg both report `source`; if they ever
+  // disagree, mock takes precedence for the disclosure (better to over-warn).
+  const [dataSource, setDataSource] = useState(null);
 
   const detailData = selectedCommodity === "lithium_battery"
     ? MOCK_LITHIUM_SIGNAL_DETAIL
@@ -288,6 +297,7 @@ export default function RiskIntelligenceView({ switchView }) {
         ]);
         setForwardSignals(fwd.signals);
         setRegimeSignals(reg.signals);
+        setDataSource(fwd.source === "mock" || reg.source === "mock" ? "mock" : (fwd.source || reg.source || null));
 
         const forwardWeights = selectedCommodity === "lithium_battery" ? LITHIUM_FORWARD_WEIGHTS : FORWARD_WEIGHTS;
         const regimeWeights  = selectedCommodity === "lithium_battery" ? LITHIUM_REGIME_WEIGHTS  : REGIME_WEIGHTS;
@@ -311,14 +321,7 @@ export default function RiskIntelligenceView({ switchView }) {
 
   // Route triggered scenario to simulation engine
   function handleLaunchScenario({ scenario, params }) {
-    try {
-      const scenarioPayload = { name: scenario, ...params, source: "risk_intelligence_trigger" };
-      localStorage.setItem("currentScenario",     JSON.stringify(scenarioPayload));
-      localStorage.setItem("currentScenarioName", scenario);
-      // Also set the format that SimulationDashboard reads
-      localStorage.setItem("currentScenarioJSON", JSON.stringify(scenarioPayload));
-    } catch {}
-    if (switchView) switchView("simulation");
+    launchScenarioToSimulation({ scenario, params, source: "risk_intelligence_trigger" }, switchView);
   }
 
   const triggeredCount = scoreResult?.summary?.triggeredCount ?? 0;
@@ -329,8 +332,25 @@ export default function RiskIntelligenceView({ switchView }) {
       {/* Page header */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 500, color: "#2EC4A6", margin: 0 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 500, color: "#2EC4A6", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
             Risk Intelligence
+            {dataSource === "mock" && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 9px",
+                  borderRadius: 20,
+                  background: "rgba(234,179,8,0.15)",
+                  color: "#eab308",
+                  border: "1px solid rgba(234,179,8,0.4)",
+                  letterSpacing: "0.03em",
+                }}
+                title="Signals shown here are sample data, not a live feed. Triggered/Building states reflect demo scenarios, not real-time intelligence."
+              >
+                SAMPLE INTELLIGENCE
+              </span>
+            )}
           </h2>
           {/* Commodity selector — hidden on corridor, bestplace, and watchlist tabs */}
           {activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
