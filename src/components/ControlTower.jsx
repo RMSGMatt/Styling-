@@ -293,6 +293,20 @@ const ALERT_CONFIG = {
   escalate: { color: "#fff",    bg: "#7f1d1d", border: "#ef4444", icon: "🚨", label: "ESCALATE" },
 };
 
+// ── KPI severity color lookup ────────────────────────────────────────────────
+// Network Health Summary's KPI numbers used to have fixed colors (Service
+// Level always lime, Revenue always amber, etc.) regardless of the actual
+// value — which meant a KPI could read as "fine" in green right above the
+// exact same KPI flagged WATCH/ACT in the unified attention panel below it.
+// This derives the color from deriveAlerts() — the same function the
+// attention panel uses — so both surfaces always agree by construction
+// instead of by two people independently picking colors that could drift.
+// Prefix matches deriveAlerts()'s own id convention (svc-/bo-/rev-/inc-).
+function kpiSeverityColor(kpis, idPrefix) {
+  const match = deriveAlerts(kpis).find((a) => a.id.startsWith(idPrefix));
+  return match ? ALERT_CONFIG[match.level].color : "#9FD63A"; // no alert = nominal, brand lime
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // UnifiedAttentionPanel
 // Replaces what were three separate surfaces — the AI narrative paragraph,
@@ -380,7 +394,23 @@ function UnifiedAttentionPanel({ kpis, ctNarrative, narrativeLoading, onOpenRisk
       {hasNarrative && (
         <div id="tour-narrative" className="px-5 py-4">
           <div className="flex items-start gap-3">
-            <span className="text-lg mt-0.5">🧠</span>
+            <span
+              className="shrink-0 flex items-center justify-center rounded-full"
+              style={{ width: 36, height: 36, background: "#0B0F13", border: "1px solid rgba(159,214,58,0.5)" }}
+              title="FOR-C Network Intelligence"
+            >
+              {/* Custom brain icon — an emoji glyph here rendered as an
+                  illegible pink blob depending on the OS/browser's emoji
+                  font. This is a simplified two-hemisphere outline (fold
+                  detail dropped — it just reads as noise at this size) in
+                  the Heroicons stroke style already used elsewhere, on a
+                  dark badge for contrast against the card's green background. */}
+              <svg viewBox="0 0 24 24" fill="none" stroke="#9FD63A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="21" height="21">
+                <path d="M9.5 4.5c-1.8 0-3.2 1.3-3.4 3-1.5.4-2.6 1.8-2.6 3.4 0 .9.4 1.8 1 2.4-.3.5-.5 1.1-.5 1.7 0 1.9 1.5 3.4 3.4 3.5.4 1.3 1.6 2.3 3.1 2.3.6 0 1.1-.1 1.5-.4V6.5C11.3 5.3 10.5 4.5 9.5 4.5Z" />
+                <path d="M14.5 4.5c1.8 0 3.2 1.3 3.4 3 1.5.4 2.6 1.8 2.6 3.4 0 .9-.4 1.8-1 2.4.3.5.5 1.1.5 1.7 0 1.9-1.5 3.4-3.4 3.5-.4 1.3-1.6 2.3-3.1 2.3-.6 0-1.1-.1-1.5-.4V6.5c0-1.2.8-2 1.5-2Z" />
+                <path d="M12 6.5v14" />
+              </svg>
+            </span>
             <div>
               <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#9FD63A" }}>
                 FOR-C Network Intelligence
@@ -1055,19 +1085,19 @@ export default function ControlTower({
                   <ul className="space-y-3">
                     <li className="flex items-center justify-between">
                       <span className="text-xs" style={{ color: "#64748B" }}>Active Incidents</span>
-                      <span className="text-base font-extrabold text-red-400">{businessKpis?.activeIncidents}</span>
+                      <span className="text-base font-extrabold" style={{ color: kpiSeverityColor(businessKpis, "inc-") }}>{businessKpis?.activeIncidents}</span>
                     </li>
                     <li className="flex items-center justify-between">
                       <span className="text-xs" style={{ color: "#64748B" }}>Service Level</span>
-                      <span className="text-base font-extrabold" style={{ color: "#9FD63A" }}>{businessKpis?.serviceLevel}</span>
+                      <span className="text-base font-extrabold" style={{ color: kpiSeverityColor(businessKpis, "svc-") }}>{businessKpis?.serviceLevel}</span>
                     </li>
                     <li className="flex items-center justify-between">
                       <span className="text-xs" style={{ color: "#64748B" }}>Revenue Exposure</span>
-                      <span className="text-base font-extrabold text-amber-400">{businessKpis?.revenueAtRisk}</span>
+                      <span className="text-base font-extrabold" style={{ color: kpiSeverityColor(businessKpis, "rev-") }}>{businessKpis?.revenueAtRisk}</span>
                     </li>
                     <li className="flex items-center justify-between">
                       <span className="text-xs" style={{ color: "#64748B" }}>Backorders</span>
-                      <span className="text-base font-extrabold text-red-300">{businessKpis?.backorders}</span>
+                      <span className="text-base font-extrabold" style={{ color: kpiSeverityColor(businessKpis, "bo-") }}>{businessKpis?.backorders}</span>
                     </li>
                   </ul>
                 </div>
