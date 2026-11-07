@@ -5,6 +5,10 @@ import { Line } from "react-chartjs-2";
 import Select from "react-select";
 import Papa from "papaparse";
 import DecisionNarrativePanel from "./DecisionNarrativePanel";
+import CostOfWaiting from "./CostOfWaiting";
+import KpiScorecard from "./KpiScorecard";
+import DecisionClock, { DEFAULT_LEVERS, computeClock } from "./DecisionClock";
+import { buildCsv, buildReportHtml, downloadText, openReport } from "./verdictExport";
 
 const HIGH_RISK_MIN_DAYS = 2;
 
@@ -309,17 +313,19 @@ function buildOverlaySeriesFromCsvText(csvText, { outputType, selectedSkus, sele
 }
 
 const TABS = [
-  { id: "impact", label: "📊 Impact Summary" },
-  { id: "intelligence", label: "🔎 Intelligence" },
-  { id: "actions", label: "🛡️ Actions" },
-  { id: "analysis", label: "📈 Analysis" },
-  { id: "warroom", label: "🧪 War Room" },
+  { id: "verdict", label: "Verdict" },
+  { id: "actions", label: "Options" },
+  { id: "impact", label: "Details" },
+  { id: "intelligence", label: "Intelligence", advanced: true },
+  { id: "analysis", label: "Analysis", advanced: true },
+  { id: "warroom", label: "War Room", advanced: true },
 ];
 
-function TabNav({ activeTab, setActiveTab, hasRun }) {
+function TabNav({ activeTab, setActiveTab, hasRun, showAdvanced, setShowAdvanced }) {
+  const visibleTabs = TABS.filter((t) => !t.advanced || showAdvanced || activeTab === t.id);
   return (
     <div className="flex gap-1 flex-wrap border-b mb-6" style={{ borderColor: "#1E2733" }}>
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive = activeTab === tab.id;
         const isDisabled = !hasRun;
         return (
@@ -342,6 +348,16 @@ function TabNav({ activeTab, setActiveTab, hasRun }) {
           </button>
         );
       })}
+      {hasRun && (
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="ml-auto px-3 py-2.5 text-[11px] text-slate-500 hover:text-slate-300"
+          style={{ background: "transparent" }}
+        >
+          {showAdvanced ? "Hide more tools" : "More tools"}
+        </button>
+      )}
     </div>
   );
 }
@@ -1655,7 +1671,18 @@ export default function SimulationDashboard({
 }) {
   const API_BASE = import.meta.env.VITE_API_BASE || "https://supply-chain-simulator-v2.onrender.com";
   const [presentationMode, setPresentationMode] = useState(false);
-  const [activeTab, setActiveTab] = useState("impact");
+  const [activeTab, setActiveTab] = useState("verdict");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [pendingSample, setPendingSample] = useState(false);
+  const [pendingSampleLabel, setPendingSampleLabel] = useState("Sample: Taiwan fab disruption");
+  const filesRefSim = useRef(files);
+  filesRefSim.current = files;
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const [sampleError, setSampleError] = useState("");
+  const [healthIssues, setHealthIssues] = useState([]);
+  const [runKpis, setRunKpis] = useState(null);
+  const [scorecard, setScorecard] = useState(null);
+  const [clockLevers, setClockLevers] = useState(DEFAULT_LEVERS);
   const mainRef = useRef(null);
   const [historyPage, setHistoryPage] = useState(1);
   const [baselineRunIndex, setBaselineRunIndex] = useState(null);
@@ -1723,8 +1750,8 @@ export default function SimulationDashboard({
   const execLateUnits = Number(exec.demandAtRiskUnits || 0);
   const execPeakBacklog = Number(exec.unfulfilledDemandUnits || 0);
   const execMissedServiceDays = Number(exec.missedServiceDays || 0);
-  const execWorstWeeklyPct = Number(exec.worstWeeklyServicePct || 0);
-  const execFalseConfidenceDays = Number(exec.falseConfidenceDays || 0);
+  const execWorstWeeklyPct = Number(runKpis?.worstWeeklyServicePct ?? exec.worstWeeklyServicePct ?? 0);
+  const execFalseConfidenceDays = Number(runKpis?.falseConfidenceDays ?? exec.falseConfidenceDays ?? 0);
   const execTtrDays = Number(exec.timeToRecoverDays || 0);
   const execTtsDays = Number(exec.timeToSurviveDays || 0);
   const execRevenueExposure = Number(exec.revenueExposure || 0);
@@ -1734,7 +1761,7 @@ export default function SimulationDashboard({
 
   useEffect(() => {
     if (simulationStatus === "done") {
-      setActiveTab("impact");
+      setActiveTab("verdict");
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
         document.documentElement.scrollTo({ top: 0, behavior: "smooth" });
@@ -2004,6 +2031,12 @@ export default function SimulationDashboard({
         if (!scenarioData?.disruptionScenarios?.length) { try { const stored = localStorage.getItem("forc_active_scenario"); if (stored) Object.assign(scenarioData, JSON.parse(stored)); } catch { } }
         if (scenarioData?.disruptionScenarios?.length) {
           const scenarioRows = scenarioData.disruptionScenarios.map((scenario) => ({ start_date: scenario.startDate || scenario.start_date || "2025-01-01", end_date: scenario.endDate || scenario.end_date || "2025-01-10", facility: scenario.facility || "ScenarioFacility", severity: scenario.severity !== undefined && scenario.severity !== null && scenario.severity !== "" ? scenario.severity : 1.0, production_impact: scenario.production_impact !== undefined ? scenario.production_impact : scenario.severity, shipping_impact: scenario.shipping_impact !== undefined ? scenario.shipping_impact : 0.0 }));
+          {
+            const locText = await readFileAsText(files.locations);
+            const known = new Set((Papa.parse(locText, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, "").trim() }).data || []).map((r) => String(r.Facility ?? r.facility ?? "").trim()).filter(Boolean));
+            const unknownSite = scenarioRows.map((r) => r.facility).find((f) => known.size > 0 && f && f !== "ScenarioFacility" && !known.has(f));
+            if (unknownSite) { alert(`"${unknownSite}" is not a site in your simulator network, so this disruption cannot be applied. Upload a network that includes it, or change the facility name.`); return; }
+          }
           transformedDisruptions = Papa.unparse(scenarioRows, { columns: ["facility", "start_date", "end_date", "severity", "production_impact", "shipping_impact"] });
         }
         if (isValidCsvText(originalLocMaterialsText) && scenarioData?.inventoryPolicies?.length) {
@@ -2032,7 +2065,8 @@ export default function SimulationDashboard({
   const pagedSimulationHistory = (Array.isArray(simulationHistory) ? simulationHistory : []).slice((historyPage - 1) * runsPerPage, historyPage * runsPerPage);
 
   const narrativeHeadline = hasNarrativeRun ? (isHealthy ? "✅ Network Operating Normally" : "⚠️ Service Breakdown Detected") : "Run a Scenario to Generate Impact";
-  const narrativeSummary = hasNarrativeRun ? (isHealthy ? "The supply network is performing at full capacity with no material disruptions detected." : `The network fulfilled demand but at a degraded service level of ${execOnTimePct.toFixed(1)}%. Backlog accumulated, recovery will take ${execTtrDays} days, and the network has ${execTtsDays} days of survival buffer remaining.`) : "Run a simulation to generate a live narrative of service impact, backlog risk, and recovery pressure.";
+  const scenarioHadDisruption = (() => { try { const sc = JSON.parse(localStorage.getItem("forc_active_scenario") || "null"); return !!(sc && sc.disruptionScenarios && sc.disruptionScenarios.length); } catch { return false; } })();
+  const narrativeSummary = hasNarrativeRun ? (isHealthy ? (scenarioHadDisruption ? `The network absorbed this disruption with no customer shortfall (service level ${execOnTimePct.toFixed(1)}%).${execTtsDays > 0 ? ` Buffer inventory covers about ${Math.round(execTtsDays)} more days at the current burn rate.` : ""} A longer or broader disruption would be needed to expose a gap.` : "The supply network is performing at full capacity with no material disruptions detected.") : `The network fulfilled demand but at a degraded service level of ${execOnTimePct.toFixed(1)}%. Backlog accumulated, recovery will take ${execTtrDays} days, and the network has ${execTtsDays} days of survival buffer remaining.`) : "Run a simulation to generate a live narrative of service impact, backlog risk, and recovery pressure.";
   const narrativeWhyText = hasNarrativeRun ? (isHealthy ? "All customer commitments are being met on time. Inventory levels are healthy and the network has sufficient buffer to absorb minor disruptions." : "Fulfillment masked the problem—service degradation introduced real risk, backlog, and recovery cost.") : "This panel will translate simulation outputs into an executive-ready summary of what changed, why it matters, and what to do next.";
 
   const selectStyles = {
@@ -2117,7 +2151,7 @@ export default function SimulationDashboard({
                 { label: "Peak Backlog",        value: Math.round(execPeakBacklog).toLocaleString(),                                                                                color: isHealthy ? "text-emerald-300" : "text-amber-300", tip: "The highest backlog level reached at any point during the disruption, before recovery began." },
                 { label: "Time to Recover",     value: `${Math.round(execTtrDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-rose-300", tip: "Days from first service impact until the network's backlog returns to normal levels." },
                 { label: "Time to Survive",     value: `${Math.round(execTtsDays)}d`,                                                                                               color: isHealthy ? "text-emerald-300" : "text-purple-300", tip: "Days of buffer inventory remaining before the network would fully stock out, at the current burn rate." },
-                { label: "Worst Week",          value: execWorstWeeklyPct > 0 ? `${Math.round(execWorstWeeklyPct)}%` : "—",                                                         color: isHealthy ? "text-emerald-300" : execWorstWeeklyPct < 50 ? "text-red-400" : "text-orange-300", tip: "Service level during the single worst week of the simulation window, vs. the overall average shown above." },
+                { label: "Worst Week",          value: (execWorstWeeklyPct > 0 || execFalseConfidenceDays > 0) ? `${Math.round(execWorstWeeklyPct)}%` : "—",                                                         color: isHealthy ? "text-emerald-300" : execWorstWeeklyPct < 50 ? "text-red-400" : "text-orange-300", tip: "Service level during the single worst week of the simulation window, vs. the overall average shown above." },
                 { label: "False Confidence",    value: (execFalseConfidenceDays > 0 && execWorstWeeklyPct < 99.5) ? `${Math.round(execFalseConfidenceDays)}d` : "—",                    color: isHealthy ? "text-emerald-300" : "text-orange-300", tip: "Days where the average service level still looked acceptable while backlog was already accumulating underneath it — the gap between 'looks fine on average' and 'is actually degrading.' Higher means the real problem stayed hidden longer." },
               ].map((kpi) => (
                 <div key={kpi.label} className={`rounded-xl border bg-black/20 p-3 ${isHealthy ? "border-emerald-900/40" : "border-slate-700/50"}`}>
@@ -2136,11 +2170,11 @@ export default function SimulationDashboard({
               <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-2">Run Context</p>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
                 {[
-                  { label: "Simulation Start", value: kpis?.simulationStartDate ?? "—" },
-                  { label: "Horizon", value: kpis?.horizonWeeks ? `${kpis.horizonWeeks}w` : "—" },
-                  { label: "Disruption Start", value: kpis?.disruptionStartDate ?? "—" },
-                  { label: "First Service Impact", value: kpis?.firstServiceImpactDate ?? "—" },
-                  { label: "Simulation End", value: kpis?.simulationEndDate ?? "—" },
+                  { label: "Simulation Start", value: (runKpis?.simulationStartDate ?? kpis?.simulationStartDate) ?? "—" },
+                  { label: "Horizon", value: (runKpis?.horizonWeeks ?? kpis?.horizonWeeks) ? `${runKpis?.horizonWeeks ?? kpis?.horizonWeeks}w` : "—" },
+                  { label: "Disruption Start", value: (runKpis?.disruptionStartDate ?? kpis?.disruptionStartDate) ?? "—" },
+                  { label: "First Service Impact", value: (runKpis?.firstServiceImpactDate ?? kpis?.firstServiceImpactDate) ?? "—" },
+                  { label: "Simulation End", value: (runKpis?.simulationEndDate ?? kpis?.simulationEndDate) ?? "—" },
                 ].map((item) => (
                   <div key={item.label}>
                     <p className="text-[10px] text-slate-500">{item.label}</p>
@@ -2295,6 +2329,12 @@ export default function SimulationDashboard({
   );
 
   const renderActions = () => (
+    <>
+    <details className="rounded-xl border border-slate-800 bg-slate-950/45 p-4 mb-4">
+      <summary className="cursor-pointer text-sm font-semibold text-slate-100">Decision window: when does acting stop working?</summary>
+      <p className="text-xs text-slate-400 mt-2">This replays the scenario many times, so it takes a few minutes the first time and is saved afterwards. Run it ahead of a meeting.</p>
+      <CostOfWaiting apiBase={API_BASE} outputUrls={outputUrls} simulationHistory={simulationHistory} hasRun={hasNarrativeRun} />
+    </details>
     <MaterialRiskPanel
       runoutRiskData={runoutRiskData}
       countermeasuresData={countermeasuresData}
@@ -2308,6 +2348,7 @@ export default function SimulationDashboard({
       bomData={parsedBomData}
       unitCostsData={parsedUnitCostsData}
     />
+    </>
   );
 
   const renderAnalysis = () => (
@@ -2447,11 +2488,11 @@ export default function SimulationDashboard({
             <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Run Context</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
               {[
-                { label: "Simulation Start", value: kpis?.simulationStartDate ?? "—" },
-                { label: "Horizon", value: kpis?.horizonWeeks ? `${kpis.horizonWeeks}w` : "—" },
-                { label: "Disruption Start", value: kpis?.disruptionStartDate ?? "—" },
-                { label: "First Service Impact", value: kpis?.firstServiceImpactDate ?? "—" },
-                { label: "Simulation End", value: kpis?.simulationEndDate ?? "—" },
+                { label: "Simulation Start", value: (runKpis?.simulationStartDate ?? kpis?.simulationStartDate) ?? "—" },
+                { label: "Horizon", value: (runKpis?.horizonWeeks ?? kpis?.horizonWeeks) ? `${runKpis?.horizonWeeks ?? kpis?.horizonWeeks}w` : "—" },
+                { label: "Disruption Start", value: (runKpis?.disruptionStartDate ?? kpis?.disruptionStartDate) ?? "—" },
+                { label: "First Service Impact", value: (runKpis?.firstServiceImpactDate ?? kpis?.firstServiceImpactDate) ?? "—" },
+                { label: "Simulation End", value: (runKpis?.simulationEndDate ?? kpis?.simulationEndDate) ?? "—" },
               ].map((item) => (
                 <div key={item.label}>
                   <p className="text-[10px] text-slate-500">{item.label}</p>
@@ -2613,30 +2654,169 @@ export default function SimulationDashboard({
     </div>
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/health/deep`);
+        const body = await res.json().catch(() => null);
+        if (cancelled || !body?.checks) return;
+        setHealthIssues(Object.values(body.checks).filter((c) => !c.ok).map((c) => c.message));
+      } catch {
+        if (!cancelled) setHealthIssues(["Cannot reach the backend. Start it and refresh."]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [API_BASE]);
+
+  useEffect(() => {
+    // False-confidence days and the run dates are computed by the backend and stored with the run.
+    // They can arrive after the dashboard first renders, so fetch them for the current run directly.
+    setRunKpis(null);
+    setScorecard(null);
+    if (!hasNarrativeRun || !outputUrls) return;
+    let cancelled = false;
+    const urls = Object.values(outputUrls || {});
+    let runId = null;
+    for (const u of urls) { const m = typeof u === "string" ? u.match(/(\d{8}_\d{6}_[0-9a-f]{6,})/) : null; if (m) { runId = m[1]; break; } }
+    (async () => {
+      if (!runId) { if (!cancelled) setScorecard({ ok: false, reason: "Open a completed run to see its scorecard." }); return; }
+      for (let i = 0; i < 4 && !cancelled; i++) {
+        try {
+          const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+          const res = await fetch(`${API_BASE}/api/run-kpis/${runId}`, { headers: { Authorization: `Bearer ${token}` } });
+          const body = await res.json().catch(() => ({}));
+          const k = body?.kpis;
+          if (res.ok && body?.scorecard && !cancelled) setScorecard(body.scorecard);
+          if (res.ok && k && (k.falseConfidenceDays !== undefined || k.disruptionStartDate)) { if (!cancelled) { setRunKpis(k); if (!body?.scorecard) setScorecard({ ok: false, reason: "The backend is running an older version without the scorecard. Restart it and run again." }); } return; }
+        } catch { /* try again */ }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      if (!cancelled) setScorecard((prev) => prev || { ok: false, reason: "The scorecard could not be loaded. Restart the backend so it has the latest version, then run again." });
+    })();
+    return () => { cancelled = true; };
+  }, [hasNarrativeRun, simulationStatus, outputUrls, API_BASE]);
+
+  const loadSample = async (opts = {}) => {
+    setSampleLoading(true);
+    setSampleError("");
+    try {
+      if (!opts.keepScenario) clearActiveScenario();
+      const names = { demand: "demand", disruptions: "disruptions", locations: "locations", processes: "processes", bom: "bom", locationMaterials: "location_materials", lanes: "lanes" };
+      for (const [key, file] of Object.entries(names)) {
+        const res = await fetch(`/sample-network/${file}.csv`);
+        if (!res.ok) throw new Error(file);
+        const blob = await res.blob();
+        handleFileChange(key, new File([blob], `${file}.csv`, { type: "text/csv" }));
+      }
+      const sampleLabel = opts.label || "Sample: Taiwan fab disruption";
+      setRunName(sampleLabel);
+      setPendingSampleLabel(sampleLabel);
+      setPendingSample(true);
+    } catch (e) {
+      setSampleError("Could not load the sample data. Upload your own files instead.");
+    } finally {
+      setSampleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (pendingSample && isSimulationReady && !isRunning) {
+      setPendingSample(false);
+      handleRunSimulationWithScenario(null, pendingSampleLabel);
+    }
+  }, [pendingSample, isSimulationReady, isRunning]);
+
+  useEffect(() => {
+    const go = () => { try { localStorage.removeItem("forc_run_sample"); } catch {} loadSample(); };
+    const goExposure = () => {
+      let label = "";
+      try { localStorage.removeItem("forc_exposure_sim"); label = localStorage.getItem("currentScenarioName") || ""; } catch {}
+      // Only auto-run on the built-in sample network when the user has not loaded their own files.
+      if (!filesRefSim.current?.demand) loadSample({ keepScenario: true, label: label || "Exposure scenario" });
+    };
+    try { if (localStorage.getItem("forc_exposure_sim") === "1") goExposure(); } catch {}
+    window.addEventListener("forc-exposure-sim", goExposure);
+    try { if (localStorage.getItem("forc_run_sample") === "1") go(); } catch {}
+    window.addEventListener("forc-run-sample", go);
+    return () => { window.removeEventListener("forc-run-sample", go); window.removeEventListener("forc-exposure-sim", goExposure); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const renderVerdict = () => {
+    const d0 = runKpis?.disruptionStartDate ?? kpis?.disruptionStartDate;
+    const d1 = runKpis?.firstServiceImpactDate ?? kpis?.firstServiceImpactDate;
+    const fcLoaded = runKpis != null || (kpis?.disruptionStartDate != null && kpis?.falseConfidenceDays !== undefined);
+    const fcDays = Number(runKpis?.falseConfidenceDays ?? execFalseConfidenceDays ?? 0);
+    const worstPct = Number(runKpis?.worstWeeklyServicePct ?? execWorstWeeklyPct ?? 0);
+    const lag = d0 && d1 ? Math.round((new Date(`${d1}T00:00:00`) - new Date(`${d0}T00:00:00`)) / 86400000) : null;
+    const fmt = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const hidden = lag !== null && lag > 7;
+    const headline = isHealthy
+      ? "Service holds through this scenario."
+      : hidden
+        ? `The disruption starts ${fmt(d0)}, but customers do not feel it until ${fmt(d1)}.`
+        : "This scenario puts customer service at risk.";
+    const sub = isHealthy
+      ? `${Math.round(execOnTimePct)}% of demand is served on time.`
+      : `${hidden ? `That is ${lag} days of looking fine while exposure builds. ` : ""}Over the scenario, ${Math.round(execOnTimePct)}% of demand is served on time.`;
+    const revText = !isHealthy && execRevenueExposure > 0 ? ` About $${Math.round(execRevenueExposure).toLocaleString("en-US")} of revenue is at risk.` : "";
+    const subFull = sub + revText;
+    const clock = computeClock(clockLevers, scorecard?.first_shortage_date, scorecard?.disruption_start);
+    const exportName = (runName || "scenario").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "") || "scenario";
+    const onCsv = () => downloadText(`forc_${exportName}_summary.csv`, buildCsv({ runName, headline, sub: subFull, scorecard, clock, revenue: execRevenueExposure }));
+    const onReport = () => {
+      const ok = openReport(buildReportHtml({ runName, headline, sub: subFull, scorecard, clock, revenue: execRevenueExposure, firstShortage: scorecard?.first_shortage_date, dateLabel: new Date().toLocaleDateString("en-US") }));
+      if (!ok) alert("Allow pop-ups for this site to open the printable report.");
+    };
+    return (
+      <div className="space-y-5" data-testid="verdict">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400 mb-2">Verdict</p>
+          <h3 className="text-2xl font-semibold tracking-tight text-slate-50">{headline}</h3>
+          <p className="text-sm text-slate-300 mt-2 max-w-3xl leading-6">{subFull}</p>
+        </div>
+        {scorecard?.ok && (
+          <DecisionClock firstShortageDate={scorecard?.first_shortage_date} disruptionStart={scorecard?.disruption_start} sku={scorecard?.first_shortage_sku} facility={scorecard?.first_shortage_facility} levers={clockLevers} setLevers={setClockLevers} />
+        )}
+        <KpiScorecard scorecard={scorecard} loading={!scorecard && hasNarrativeRun} revenue={execRevenueExposure} />
+        <div className="flex flex-wrap gap-3 text-xs">
+          <button type="button" onClick={onCsv} disabled={!scorecard?.ok} className="rounded-md border border-slate-700 px-3 py-2 text-slate-200 hover:border-slate-500 disabled:opacity-40">Download CSV</button>
+          <button type="button" onClick={onReport} disabled={!scorecard?.ok} className="rounded-md border border-slate-700 px-3 py-2 text-slate-200 hover:border-slate-500 disabled:opacity-40">Printable report (PDF)</button>
+          <button type="button" onClick={() => setActiveTab("actions")} className="rounded-md border border-slate-700 px-3 py-2 text-slate-200 hover:border-slate-500">See response options</button>
+          <button type="button" onClick={() => setActiveTab("impact")} className="rounded-md border border-slate-700 px-3 py-2 text-slate-200 hover:border-slate-500">Full details</button>
+        </div>
+      </div>
+    );
+  };
+
   const renderTabContent = () => {
     if (!hasNarrativeRun) {
       return (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <div className="text-6xl">🎯</div>
           <div className="text-center">
-            <p className="text-slate-200 font-semibold text-base mb-2">Upload your files and run a scenario</p>
-            <p className="text-slate-400 text-sm max-w-md leading-relaxed">FOR-C will simulate the downstream impact across your supply network and generate an executive-ready narrative of service risk, backlog pressure, and recovery time.</p>
+            <p className="text-slate-200 font-semibold text-base mb-2">See what a supply disruption does to your customers</p>
+            <p className="text-slate-400 text-sm max-w-md leading-relaxed">Start with a ready-made scenario, a fab outage in Taiwan, and get the answer in about a minute. Then bring your own network.</p>
           </div>
-          <div className="flex items-center gap-6 mt-2 text-xs text-slate-500">
-            <span>📂 Upload CSVs</span><span style={{ color: "#9FD63A" }}>→</span>
-            <span>▶ Run Simulation</span><span style={{ color: "#9FD63A" }}>→</span>
-            <span>📊 See Impact</span>
-          </div>
+          <button type="button" onClick={loadSample} disabled={sampleLoading || isRunning}
+            className="rounded-md px-5 py-2.5 text-sm font-semibold disabled:opacity-50" style={{ background: "#9FD63A", color: "#0B1220" }}>
+            {sampleLoading || isRunning || pendingSample ? "Running the sample scenario" : "Run the sample scenario"}
+          </button>
+          {sampleError && <p className="text-xs text-amber-300">{sampleError}</p>}
+          {healthIssues.map((m) => <p key={m} className="text-xs text-amber-300 max-w-md text-center">{m}</p>)}
+          <p className="text-xs text-slate-500">Or upload your own six CSV files in Simulation Inputs.</p>
         </div>
       );
     }
     switch (activeTab) {
+      case "verdict": return renderVerdict();
       case "impact": return renderImpactSummary();
       case "intelligence": return renderIntelligence();
       case "actions": return renderActions();
       case "analysis": return renderAnalysis();
       case "warroom": return renderWarRoom();
-      default: return renderImpactSummary();
+      default: return renderVerdict();
     }
   };
 
@@ -2763,7 +2943,7 @@ export default function SimulationDashboard({
         </section>
 
         <div className="rounded-2xl border p-5 shadow-xl" style={{ background: "linear-gradient(160deg, rgba(16,20,26,0.99), rgba(10,13,17,0.99))", borderColor: "#1E2733" }}>
-          <TabNav activeTab={activeTab} setActiveTab={setActiveTab} hasRun={hasNarrativeRun} />
+          <TabNav activeTab={activeTab} setActiveTab={setActiveTab} hasRun={hasNarrativeRun} showAdvanced={showAdvanced} setShowAdvanced={setShowAdvanced} />
           {renderTabContent()}
         </div>
 
