@@ -1,0 +1,13 @@
+Facility,SKU,process_id,description,lead_time_days,capacity_per_day
+FAB_TAIWAN_01,MCU,1,Microcontroller fabrication,5,800
+FAB_TAIWAN_01,POWER_IC,2,Power management IC fabrication,5,1200
+FAB_JAPAN_01,MLCC_ARRAY,3,Multilayer ceramic capacitor mfg,4,5000
+FAB_JAPAN_01,CAN_TRANSCEIVER,4,CAN bus transceiver fabrication,4,900
+FAB_JAPAN_02,SENSOR_IC,5,Sensor IC fabrication,4,900
+FAB_JAPAN_02,MOSFET,6,Power MOSFET fabrication,3,2000
+PKG_MALAYSIA_01,PCB_SUBSTRATE,7,PCB substrate lamination,3,600
+PKG_VIETNAM_01,CONNECTOR_ASSY,8,Connector assembly and plating,2,1600
+TIER1_PLANT_OH,ECU_MODULE,9,ECU module assembly and test,1,100
+TIER1_PLANT_IN,TRANSMISSION_ECU,10,Transmission ECU assembly and test,1,70
+TIER1_PLANT_KY,ECU_MODULE,11,ECU module assembly — secondary,1,55
+TIER1_PLANT_KY,TRANSMISSION_ECU,12,Transmission ECU — secondary,1,40

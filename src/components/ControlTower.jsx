@@ -20,6 +20,8 @@ import BillingView from "./ControlTowerEhancements/BillingView.jsx";
 import RiskIntelligenceView from "./ControlTowerEhancements/RiskIntelligence/RiskIntelligenceView";
 import { useRiskTriggers } from "./ControlTowerEhancements/RiskIntelligence/useRiskTriggers";
 import { SCENARIO_CONFIG } from "./ControlTowerEhancements/RiskIntelligence/scenarioConfig";
+import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
+import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
 
 ChartJS.register(
   CategoryScale,
@@ -92,7 +94,7 @@ const GLOBAL_LOCATIONS_URL =
   "https://supply-chain-simulation-files.s3.us-east-2.amazonaws.com/locations.csv";
 
 function KpiCard({ value, label, risk, trend, deltaText }) {
-  const trendLabels = { up: "Improving", down: "Declining", neutral: "Stable" };
+  const trendLabels = { up: "Better", down: "Worse", neutral: "Flat" };
   const trendColors = {
     up: "bg-emerald-500/15 text-emerald-300",
     down: "bg-amber-500/15 text-amber-300",
@@ -129,12 +131,14 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
       {deltaText && (
         <div className="mt-1.5 text-[11px] font-medium" style={{ color: "#64748B" }}>{deltaText}</div>
       )}
-      <div
-        className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full ${trendColors[trend]}`}
-        title={`Trend: ${trendLabels[trend]}`}
-      >
-        {trendLabels[trend]}
-      </div>
+      {trend && trendColors[trend] && (
+        <div
+          className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full ${trendColors[trend]}`}
+          title={`Trend: ${trendLabels[trend]}`}
+        >
+          {trendLabels[trend]}
+        </div>
+      )}
       {risk === "high" && (
         <div className="absolute top-8 right-2 text-red-400 animate-pulse" title="High Risk KPI">
           ⚠️
@@ -330,12 +334,13 @@ function kpiSeverityColor(kpis, idPrefix) {
 // ─────────────────────────────────────────────────────────────────────────────
 const SEVERITY_ORDER = { escalate: 0, act: 1, watch: 2 };
 
-function UnifiedAttentionPanel({ kpis, ctNarrative, narrativeLoading, onOpenRiskIntelligence }) {
+function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, narrativeLoading, onOpenRiskIntelligence, onOpenSafetyStock }) {
   const [dismissed, setDismissed] = useState([]);
   const [expanded, setExpanded] = useState(false);
   const { triggers } = useRiskTriggers();
+  const { alerts: safetyStockAlerts } = useSafetyStockAlerts();
 
-  const kpiItems = deriveAlerts(kpis).map((a) => ({
+  const kpiItems = (alertsOverride || deriveAlerts(kpis)).map((a) => ({
     id: `kpi:${a.id}`,
     severity: a.level,
     title: `${a.kpi}: ${a.value}`,
@@ -361,7 +366,26 @@ function UnifiedAttentionPanel({ kpis, ctNarrative, narrativeLoading, onOpenRisk
     })
     .filter(Boolean);
 
-  const items = [...kpiItems, ...riskItems]
+  // Note: sourceMock is deliberately false here even though the data comes
+  // from a manual CSV upload. sourceMock drives the "SAMPLE" disclosure,
+  // which means "this is placeholder/demo data, don't trust it as real" —
+  // that's true of Risk Intelligence's USE_MOCK_DATA signals, but not true
+  // here. A user's uploaded inventory CSV is real data, just not
+  // continuously synced. The "· CSV" vs "· Live" suffix communicates
+  // freshness/method without implying it's fabricated.
+  const safetyStockItems = safetyStockAlerts.map((a) => ({
+    id: a.id,
+    severity: a.severity,
+    title: `${a.facility} · ${a.sku}`,
+    detail: a.belowFloor
+      ? `DOH ${a.current_doh.toFixed(1)} below floor of ${a.floor}${a.dropPct ? ` (down ${a.dropPct.toFixed(0)}% since last snapshot)` : ""}`
+      : `DOH down ${a.dropPct.toFixed(0)}% since last snapshot (floor: ${a.floor})`,
+    sourceTag: a.source === "csv_upload" ? "Safety Stock · CSV" : "Safety Stock · Live",
+    sourceMock: false,
+    onReview: () => onOpenSafetyStock && onOpenSafetyStock(),
+  }));
+
+  const items = [...kpiItems, ...riskItems, ...safetyStockItems]
     .filter((item) => !dismissed.includes(item.id))
     .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 
@@ -375,7 +399,7 @@ function UnifiedAttentionPanel({ kpis, ctNarrative, narrativeLoading, onOpenRisk
     return (
       <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2 text-sm" style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
         <span>✅</span>
-        <span className="font-medium" style={{ color: "#86efac" }}>All KPIs and risk signals within normal thresholds</span>
+        <span className="font-medium" style={{ color: "#86efac" }}>{hasKpiData ? "All KPIs and risk signals within normal thresholds" : "No active alerts. Connect your network data to monitor KPIs."}</span>
       </div>
     );
   }
@@ -618,11 +642,301 @@ function OnboardingTour({ steps, onFinish, onSkip }) {
   );
 }
 
+const SampleChip = () => (
+  <span className="ml-2 align-middle rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide whitespace-nowrap inline-block" style={{ borderColor: "rgba(245,158,11,0.5)", color: "#FCD34D", background: "rgba(245,158,11,0.1)" }}>SAMPLE DATA</span>
+);
+
+function friendlyName(raw) {
+  const base = String(raw || "").split("@")[0].split(/[._-]+/).filter(Boolean)[0] || "";
+  return base ? base.charAt(0).toUpperCase() + base.slice(1) : "";
+}
+
+const vcLong = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "");
+function vcValue(v, unit, row) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "–";
+  const n = (x) => Math.round(Number(x) || 0).toLocaleString("en-US");
+  switch (unit) {
+    case "%": return `${Number(v).toFixed(Number(v) % 1 === 0 ? 0 : 1)}%`;
+    case "days": return `${n(v)} days`;
+    case "hours": return `${n(v)} hrs`;
+    case "$": return `$${n(v)}`;
+    case "count": return row?.of ? `${n(v)} of ${n(row.of)}` : n(v);
+    default: return n(v);
+  }
+}
+const VC_DOT = { good: "#34d399", watch: "#fbbf24", bad: "#fb7185", info: "#64748b", na: "#475569" };
+
+// ── Network snapshot (the data behind the KPIs) ─────────────────────────────
+const SNAP_COLOR = { good: "#9FD63A", watch: "#FCD34D", bad: "#FCA5A5", info: "#E2E8F0", na: "#E2E8F0" };
+const SNAP_ACTIONS = {
+  service_level: "Review the largest short orders and decide on expedites or allocation.",
+  otif: "Find the late lines by customer and reset delivery commitments where needed.",
+  backorder_units: "Clear the oldest and largest past-due lines first.",
+  supplier_on_time: "Escalate with the late suppliers and confirm recovery dates.",
+  supplier_lead_time: "Check whether lead times have moved and update planning parameters.",
+  overdue_pos: "Chase the overdue purchase orders today.",
+  days_of_supply: "Review parts with the lowest cover and place or expedite orders.",
+  below_safety: "Review the parts under safety stock and expedite replenishment.",
+};
+function snapFmt(v, unit) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "–";
+  if (unit === "%") return `${Number(v).toFixed(1)}%`;
+  if (unit === "days") return `${Number(v).toFixed(1)} days`;
+  if (unit === "$") return `$${Math.round(v).toLocaleString("en-US")}`;
+  return Math.round(v).toLocaleString("en-US");
+}
+function snapDelta(k, windowDays) {
+  if (k.delta === null || k.delta === undefined) return k.n ? `${k.n} ${k.n_unit || "records"}${k.low_volume ? " · low volume" : ""}` : "";
+  const abs = Math.abs(k.delta);
+  const mag = k.unit === "%" ? `${abs.toFixed(1)} pts` : k.unit === "days" ? `${abs.toFixed(1)} days` : k.unit === "$" ? `$${Math.round(abs).toLocaleString("en-US")}` : Math.round(abs).toLocaleString("en-US");
+  const base = k.trend === "flat" ? `Flat vs previous ${windowDays} days` : `${k.delta > 0 ? "↑" : "↓"} ${mag} vs previous ${windowDays} days`;
+  return `${base}${k.n ? ` · ${k.n} ${k.n_unit || "records"}` : ""}${k.low_volume ? " · low volume" : ""}`;
+}
+function snapshotAlerts(snap) {
+  if (!snap?.kpis) return [];
+  return snap.kpis
+    .filter((k) => k.status === "bad" || k.status === "watch")
+    .map((k) => ({
+      id: `snap-${k.key}`,
+      level: k.status === "bad" ? "act" : "watch",
+      kpi: k.label,
+      value: snapFmt(k.value, k.unit),
+      action: SNAP_ACTIONS[k.key] || k.hint,
+    }));
+}
+const SourceChip = ({ snapshot }) => {
+  if (!snapshot) return null;
+  const sample = snapshot.source === "sample";
+  return (
+    <span className="ml-2 align-middle rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide whitespace-nowrap inline-block"
+      style={sample ? { borderColor: "rgba(245,158,11,0.5)", color: "#FCD34D", background: "rgba(245,158,11,0.1)" } : { borderColor: "rgba(159,214,58,0.4)", color: "#9FD63A", background: "rgba(159,214,58,0.08)" }}>
+      {sample ? "EXAMPLE NETWORK" : `AS OF ${snapshot.as_of}`}
+    </span>
+  );
+};
+
+function exposureAlerts(exposure) {
+  if (exposure?.status !== "ok") return [];
+  return (exposure.exposures || []).slice(0, 5).map((e) => ({
+    id: `exp-${e.site}-${e.hazard_type}-${e.example ? "ex" : "live"}`,
+    level: e.severity === "high" ? "act" : "watch",
+    kpi: e.example ? "Exposure (example)" : "Exposure",
+    value: e.site,
+    action: `${e.hazard_label} ${e.distance_km} km away${e.past_due_units > 0 ? `, and the site already has ${Math.round(e.past_due_units).toLocaleString("en-US")} past-due units` : ""}${e.overdue_pos > 0 ? `, with ${e.overdue_pos} overdue supplier orders` : ""}. Check inventory cover and open orders.`,
+  }));
+}
+
+function ExposureBlock({ exposure, state, example, setExample, onAddLocations, onSimulate }) {
+  const sevColor = { high: "#FCA5A5", medium: "#FCD34D" };
+  const box = { borderColor: "rgba(148,163,184,0.15)", background: "rgba(9,25,19,0.5)" };
+  return (
+    <section className="mb-6 rounded-2xl border px-5 py-4" style={box} data-testid="exposure-block">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Exposure now</h2>
+          <div className="text-sm" style={{ color: "#64748B" }}>Live hazards within range of your sites. Near means within range, not damaged.</div>
+        </div>
+        {state !== "loading" && (
+          <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "#94A3B8" }}>
+            <input type="checkbox" checked={example} onChange={(e) => setExample(e.target.checked)} /> Show example hazard
+          </label>
+        )}
+      </div>
+      {state === "loading" && <p className="mt-3 text-sm" style={{ color: "#94A3B8" }}>Checking live hazards…</p>}
+      {state === "no_locations" && (
+        <p className="mt-3 text-sm" style={{ color: "#94A3B8" }}>
+          Add a locations file to see which of your sites and suppliers are near live hazards.{" "}
+          <button type="button" onClick={onAddLocations} className="underline" style={{ color: "#9FD63A" }}>Add locations</button>
+        </p>
+      )}
+      {state === "error" && <p className="mt-3 text-sm" style={{ color: "#FCD34D" }}>Could not check live hazards right now.</p>}
+      {state === "none" && (
+        <p className="mt-3 text-sm" style={{ color: "#FCD34D" }}>
+          The exposure check is not available yet. Restart the backend, then use Update data and Load example network.{" "}
+          <button type="button" onClick={onAddLocations} className="underline" style={{ color: "#9FD63A" }}>Update data</button>
+        </p>
+      )}
+      {state === "ready" && exposure.exposures.length === 0 && (
+        <p className="mt-3 text-sm" style={{ color: "#86efac" }}>
+          No active hazards within range of your {exposure.sites_checked} sites. Checked {exposure.hazards_considered} current events.
+        </p>
+      )}
+      {state === "ready" && exposure.exposures.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {exposure.exposures.map((e, i) => (
+            <li key={`${e.site}-${e.hazard_type}-${i}`} className="rounded-xl border px-3 py-2 flex flex-wrap items-center justify-between gap-3" style={{ borderColor: "rgba(148,163,184,0.15)", background: "rgba(2,6,23,0.35)" }}>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold" style={{ color: "#E2E8F0" }}>
+                  <span className="inline-block h-2 w-2 rounded-full mr-2" style={{ background: sevColor[e.severity] || "#64748B" }} />
+                  {e.site}{e.site_type ? <span className="text-xs font-normal" style={{ color: "#64748B" }}> ({e.site_type})</span> : null}
+                  {e.example && <span className="ml-2 rounded-full border px-2 py-0.5 text-[10px]" style={{ borderColor: "rgba(245,158,11,0.5)", color: "#FCD34D" }}>EXAMPLE</span>}
+                </div>
+                <div className="text-xs" style={{ color: "#94A3B8" }}>
+                  {e.title} · {e.distance_km} km away (range {e.radius_km} km) · {e.source}
+                </div>
+                {(e.past_due_units > 0 || e.overdue_pos > 0) && (
+                  <div className="text-xs mt-0.5" style={{ color: "#FCA5A5" }}>
+                    {e.past_due_units > 0 ? `${Math.round(e.past_due_units).toLocaleString("en-US")} past-due units, ${e.late_lines} late lines` : ""}
+                    {e.overdue_pos > 0 ? `${e.overdue_pos} overdue supplier orders` : ""}
+                  </div>
+                )}
+              </div>
+              <button type="button" onClick={() => onSimulate(e)} className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#9CF700", color: "#020617" }}>Simulate this exposure →</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {state === "ready" && exposure.feeds && (!exposure.feeds.usgs || !exposure.feeds.gdacs) && (
+        <p className="mt-2 text-[11px]" style={{ color: "#FCD34D" }}>
+          {!exposure.feeds.usgs && !exposure.feeds.gdacs ? "Hazard feeds are unreachable, so this check is incomplete." : `The ${!exposure.feeds.usgs ? "earthquake" : "storm, flood and wildfire"} feed is unreachable, so this check is incomplete.`}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
+  const [files, setFiles] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState([]);
+  const [warn, setWarn] = useState([]);
+  const headers = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}` });
+  const finish = async (res) => {
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && body.status === "ok") { setErr([]); setWarn(body.warnings || []); onLoaded(body); }
+    else { setErr(body.errors || [body.message || "That did not work. Check the files and try again."]); setWarn(body.warnings || []); }
+  };
+  const upload = async () => {
+    if (!files.customer_orders) { setErr(["Choose customer_orders.csv first. The other two files are optional."]); return; }
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      Object.entries(files).forEach(([k, f]) => { if (f) fd.append(k, f, f.name); });
+      await finish(await fetch(`${apiBase}/api/network-snapshot`, { method: "POST", headers: headers(), body: fd }));
+    } catch { setErr(["Could not reach the server."]); } finally { setBusy(false); }
+  };
+  const loadSample = async () => {
+    setBusy(true);
+    try { await finish(await fetch(`${apiBase}/api/network-snapshot/sample`, { method: "POST", headers: headers() })); }
+    catch { setErr(["Could not reach the server."]); } finally { setBusy(false); }
+  };
+  const inputs = [
+    ["customer_orders", "customer_orders.csv", "Required"],
+    ["supplier_pos", "supplier_pos.csv", "Adds supplier measures"],
+    ["inventory", "inventory.csv", "Adds days of supply"],
+    ["locations", "locations.csv", "Enables hazard exposure"],
+  ];
+  return (
+    <section className="rounded-2xl border px-5 py-4 mb-6" style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "rgba(159,214,58,0.3)" }} data-testid="snapshot-card">
+      <h2 className="text-lg font-bold" style={{ color: "#9FD63A" }}>Connect your network data</h2>
+      <p className="text-sm mt-1" style={{ color: "#94A3B8" }}>Upload exports from your ERP to see live service, supplier and inventory KPIs with real changes. Orders alone is enough to start.</p>
+      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        {inputs.map(([key, label, note]) => (
+          <label key={key} className="rounded-xl border p-3 text-xs cursor-pointer" style={{ borderColor: "rgba(148,163,184,0.2)", background: "rgba(2,6,23,0.35)", color: "#94A3B8" }}>
+            <span className="block font-semibold" style={{ color: "#E2E8F0" }}>{label}</span>
+            <span className="block mb-2">{note}</span>
+            <input type="file" accept=".csv,text/csv" onChange={(e) => setFiles((f) => ({ ...f, [key]: e.target.files?.[0] || null }))} className="block w-full text-[11px]" />
+            {files[key] && <span className="block mt-1" style={{ color: "#9FD63A" }}>{files[key].name}</span>}
+          </label>
+        ))}
+      </div>
+      {err.length > 0 && <ul className="mt-3 text-sm" style={{ color: "#FCA5A5" }}>{err.map((e, i) => <li key={i}>{e}</li>)}</ul>}
+      {warn.length > 0 && <ul className="mt-2 text-xs" style={{ color: "#FCD34D" }}>{warn.map((e, i) => <li key={i}>{e}</li>)}</ul>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button onClick={upload} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: "#9CF700", color: "#020617", opacity: busy ? 0.6 : 1 }}>{busy ? "Working…" : "Upload and calculate"}</button>
+        <button onClick={loadSample} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-semibold border" style={{ borderColor: "rgba(159,214,58,0.35)", color: "#9FD63A" }}>Load example network</button>
+        {onCancel && <button onClick={onCancel} className="px-4 py-2 rounded-lg text-sm" style={{ color: "#94A3B8" }}>Cancel</button>}
+      </div>
+      <p className="mt-3 text-[11px]" style={{ color: "#64748B" }}>Columns for each file are listed in NETWORK_SNAPSHOT_CONTRACT.md. Nothing leaves your account.</p>
+    </section>
+  );
+}
+
+// Latest-run verdict at the top of the Control Tower: the one sentence that matters,
+// four headline measures, and a way in. Reads the saved run through /api/run-kpis.
+function LatestRunVerdict({ simulationHistory, switchView }) {
+  const latest = Array.isArray(simulationHistory) ? simulationHistory[0] : null;
+  const runId = (() => {
+    if (!latest) return null;
+    if (latest.run_id && /^\d{8}_\d{6}_/.test(latest.run_id)) return latest.run_id;
+    for (const v of Object.values(latest)) {
+      const m = typeof v === "string" ? v.match(/(\d{8}_\d{6}_[0-9a-f]{6,})/) : null;
+      if (m) return m[1];
+    }
+    return null;
+  })();
+  const [sc, setSc] = useState(null);
+  const [state, setState] = useState("idle");
+  useEffect(() => {
+    if (!runId) { setSc(null); setState("idle"); return undefined; }
+    let cancelled = false;
+    setState("loading");
+    (async () => {
+      try {
+        const API_BASE = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
+        const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+        const res = await fetch(`${API_BASE}/api/run-kpis/${runId}`, { headers: { Authorization: `Bearer ${token}` } });
+        const body = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && body?.scorecard?.ok) { setSc(body.scorecard); setState("ready"); } else { setState("error"); }
+      } catch { if (!cancelled) setState("error"); }
+    })();
+    return () => { cancelled = true; };
+  }, [runId]);
+
+  const runSample = () => {
+    try { localStorage.setItem("forc_run_sample", "1"); } catch {}
+    try { window.dispatchEvent(new Event("forc-run-sample")); } catch {}
+    switchView("simulation");
+  };
+
+  const shell = "rounded-2xl mt-6 mb-5 px-5 py-4 border";
+  const shellStyle = { background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "rgba(159,214,58,0.3)" };
+
+  if (!runId) {
+    return (
+      <section className={shell} style={shellStyle} data-testid="latest-run-verdict">
+        <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#9FD63A" }}>Scenario simulator</p>
+        <p className="text-base font-semibold" style={{ color: "#E2E8F0" }}>Test a disruption on your network.</p>
+        <p className="text-sm mt-1" style={{ color: "#94A3B8" }}>Run the built-in sample to see the answer, the order-by dates and the KPI scorecard in about a minute. No uploads needed.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={runSample} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: "#9CF700", color: "#020617" }}>Run the sample scenario</button>
+          <button onClick={() => switchView("simulation")} className="px-4 py-2 rounded-lg text-sm font-semibold border" style={{ borderColor: "rgba(159,214,58,0.35)", color: "#9FD63A" }}>Use my own data</button>
+        </div>
+      </section>
+    );
+  }
+
+  const namedRun = latest?.name || latest?.scenario_name || latest?.raw?.scenario_name || null;
+  const dateName = (() => {
+    const m = String(runId || "").match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})/);
+    return m ? `run of ${new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "";
+  })();
+  const name = namedRun || dateName;
+  const rows = state === "ready" ? sc.groups.flatMap((g) => g.rows).filter((r) => r.headline).slice(0, 4) : [];
+  const d0 = sc?.disruption_start;
+  const d1 = sc?.first_shortage_date;
+  const headline = state === "ready"
+    ? (d1 ? `The disruption starts ${vcLong(d0)}, but customers do not feel it until ${vcLong(d1)}.` : "No customer shortage in this scenario.")
+    : state === "loading" ? "Loading the latest scenario result." : "The latest scenario result is not available yet.";
+  return (
+    <section className={shell} style={shellStyle} data-testid="latest-run-verdict">
+      <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#9FD63A" }}>Scenario simulator · latest {name ? (namedRun ? `run: ${name}` : name) : "run"}</p>
+      <p className="text-base font-semibold" style={{ color: "#E2E8F0" }}>{headline}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button onClick={() => switchView("simulation")} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: "#9CF700", color: "#020617" }}>Open the verdict and decision clock</button>
+        <button onClick={runSample} className="px-4 py-2 rounded-lg text-sm font-semibold border" style={{ borderColor: "rgba(159,214,58,0.35)", color: "#9FD63A" }}>Run the sample again</button>
+      </div>
+    </section>
+  );
+}
+
 export default function ControlTower({
   switchView,
   simulationHistory,
   onLogout,
   userPlan,
+  locationsUrl,
 }) {
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [tourActive, setTourActive] = useState(() => {
@@ -731,9 +1045,9 @@ export default function ControlTower({
   const [businessKpis, setBusinessKpis] = useState(null);
 
   const [kpiSectionVisibility, setKpiSectionVisibility] = useState({
-    fulfillment: true,
-    production: true,
-    cost: true,
+    fulfillment: false,
+    production: false,
+    cost: false,
   });
   const toggleKpiSection = (section) =>
     setKpiSectionVisibility((prev) => ({ ...prev, [section]: !prev[section] }));
@@ -742,6 +1056,75 @@ export default function ControlTower({
   const [chartType2, setChartType2] = useState("onTime");
   const [ctNarrative, setCtNarrative] = useState("");
   const [narrativeLoading, setNarrativeLoading] = useState(false);
+
+  const API_BASE_CT = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
+  const [snapshot, setSnapshot] = useState(null);
+  const [snapshotState, setSnapshotState] = useState("loading");
+  const [showSnapshotCard, setShowSnapshotCard] = useState(false);
+  const [moreMetrics, setMoreMetrics] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+        const res = await fetch(`${API_BASE_CT}/api/network-snapshot`, { headers: { Authorization: `Bearer ${token}` } });
+        const body = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && body.status === "ok") { setSnapshot(body); setSnapshotState("ready"); } else { setSnapshot(null); setSnapshotState("none"); }
+      } catch { if (!cancelled) setSnapshotState("none"); }
+    })();
+    return () => { cancelled = true; };
+  }, [API_BASE_CT]);
+  const removeSnapshot = async () => {
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+      await fetch(`${API_BASE_CT}/api/network-snapshot`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    } catch {}
+    setSnapshot(null); setSnapshotState("none"); setCtNarrative("");
+  };
+  const [exposure, setExposure] = useState(null);
+  const [exposureState, setExposureState] = useState("idle");
+  const [exposureExample, setExposureExample] = useState(false);
+  useEffect(() => {
+    if (!snapshot) { setExposure(null); setExposureState("idle"); return undefined; }
+    let cancelled = false;
+    setExposureState("loading");
+    (async () => {
+      try {
+        const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+        const res = await fetch(`${API_BASE_CT}/api/network-exposure${exposureExample ? "?example=1" : ""}`, { headers: { Authorization: `Bearer ${token}` } });
+        const body = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        setExposure(body);
+        setExposureState(body.status === "ok" ? "ready" : body.status === "no_locations" ? "no_locations" : "none");
+      } catch { if (!cancelled) setExposureState("error"); }
+    })();
+    return () => { cancelled = true; };
+  }, [snapshot, exposureExample, API_BASE_CT]);
+  const simulateExposure = (e) => {
+    try {
+      const days = e.hazard_type === "EQ" ? (e.severity === "high" ? 60 : 7) : ({ TC: 7, FL: 14, VO: 14, WF: 10 }[e.hazard_type] || 10);
+      const sev = e.severity === "high" ? 1.0 : 0.5;
+      const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const start = new Date();
+      const end = new Date(start.getTime() + days * 86400000);
+      const sc = {
+        name: `Exposure: ${e.site}`,
+        disruptionScenarios: [{ facility: e.site, startDate: iso(start), endDate: iso(end), severity: sev, production_impact: sev, shipping_impact: sev }],
+        demandAdjustments: [], laneAdjustments: [], inventoryPolicies: [],
+        meta: { source: "control_tower_exposure", site: e.site, hazard: e.title, distance_km: e.distance_km, notes: `Launched from Control Tower. ${e.hazard_label} ${e.distance_km} km from ${e.site}. Assumed ${days} days at severity ${sev} (illustrative duration, not a forecast).` },
+      };
+      localStorage.setItem("forc_active_scenario", JSON.stringify(sc));
+      localStorage.setItem("currentScenarioJSON", JSON.stringify(sc));
+      localStorage.setItem("currentScenarioName", sc.name);
+      localStorage.setItem("forc_exposure_sim", "1");
+      try { window.dispatchEvent(new Event("forc-exposure-sim")); } catch {}
+    } catch (err) { console.warn("Could not pre-populate scenario:", err); }
+    switchView("simulation");
+  };
+  const exposureKey = JSON.stringify((exposure?.exposures || []).filter((x) => !x.example).map((x) => `${x.site}|${x.hazard_type}`));
+  const snapAlerts = [...snapshotAlerts(snapshot), ...exposureAlerts(exposure)];
+  const snapByKey = Object.fromEntries((snapshot?.kpis || []).map((k) => [k.key, k]));
 
   const chartOptions = [
     { value: "shipments",   label: "📦 Outbound Shipments" },
@@ -764,15 +1147,22 @@ export default function ControlTower({
   };
 
   useEffect(() => {
-    if (!businessKpis) return;
+    if (!snapshot) { setCtNarrative(""); return; }
+    if (exposureState === "loading") return;
     const fetchNarrative = async () => {
       setNarrativeLoading(true);
       try {
-        const API_BASE = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
-        const res = await fetch(`${API_BASE}/api/control-tower/narrative`, {
+        const res = await fetch(`${API_BASE_CT}/api/control-tower/narrative`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ range: kpiRange, kpis: businessKpis }),
+          body: JSON.stringify({
+            snapshot: {
+              as_of: snapshot.as_of, window_days: snapshot.window_days, source: snapshot.source,
+              kpis: (snapshot.kpis || []).map((k) => ({ label: k.label, value: k.value, prior: k.prior, unit: k.unit, trend: k.trend, status: k.status, n: k.n })),
+              worst: snapshot.worst,
+              exposures: (exposure?.exposures || []).filter((x) => !x.example).slice(0, 3).map((x) => ({ site: x.site, hazard: x.title, distance_km: x.distance_km, severity: x.severity, past_due_units: x.past_due_units, overdue_pos: x.overdue_pos })),
+            },
+          }),
         });
         const data = await res.json();
         if (data.status === "success") setCtNarrative(data.narrative);
@@ -783,17 +1173,9 @@ export default function ControlTower({
       }
     };
     fetchNarrative();
-  }, [businessKpis, kpiRange]);
+  }, [snapshot, API_BASE_CT, exposureState, exposureKey]);
 
-  useEffect(() => {
-    const mockData = {
-      day:   { totalFacilities: "32.5k", activeIncidents: "135", shipments: "1.3k", disruptionPercent: "3.2%", serviceLevel: "95.8%", avgLeadTime: "6.0",  revenueAtRisk: "$4.8M", backorders: "1,250", capacityUtilization: "80.0%", supplierOnTime: "91.2%", expeditedOrders: "5.1%", cycleTime: "9.3" },
-      week:  { totalFacilities: "32.5k", activeIncidents: "132", shipments: "2.9k", disruptionPercent: "3.0%", serviceLevel: "96.0%", avgLeadTime: "5.9",  revenueAtRisk: "$4.6M", backorders: "1,200", capacityUtilization: "81.0%", supplierOnTime: "91.9%", expeditedOrders: "4.9%", cycleTime: "9.0" },
-      month: { totalFacilities: "32.5k", activeIncidents: "128", shipments: "6.8k", disruptionPercent: "3.1%", serviceLevel: "96.2%", avgLeadTime: "5.7",  revenueAtRisk: "$4.3M", backorders: "1,120", capacityUtilization: "82.5%", supplierOnTime: "92.7%", expeditedOrders: "4.6%", cycleTime: "8.4" },
-      ytd:   { totalFacilities: "32.5k", activeIncidents: "122", shipments: "48.1k",disruptionPercent: "2.9%", serviceLevel: "96.7%", avgLeadTime: "5.4",  revenueAtRisk: "$3.9M", backorders: "980",   capacityUtilization: "83.2%", supplierOnTime: "93.1%", expeditedOrders: "4.2%", cycleTime: "7.8" },
-    };
-    setBusinessKpis(mockData[kpiRange]);
-  }, [kpiRange]);
+
 
   const kpiMeta = [
     { key: "totalFacilities",    label: "Network Facilities",      trend: "up",      delta: { day: "Network scope unchanged vs yesterday",    week: "Network scope unchanged vs last week",    month: "Network scope unchanged vs last month",    ytd: "Network scope unchanged vs start of year" } },
@@ -889,6 +1271,15 @@ export default function ControlTower({
                   style={activeView === "risk" ? {} : { color: "#9FD63A" }}
                 >
                   🔭 Risk Intelligence
+                </a>
+              </li>
+
+              <li>
+                <a
+                  onClick={() => setActiveView("safetystock")}
+                  className={`block cursor-pointer ${activeView === "safetystock" ? "text-lime-300" : "hover:underline"}`}
+                >
+                  🛡️ Safety Stock
                 </a>
               </li>
             </ul>
@@ -1018,11 +1409,18 @@ export default function ControlTower({
             </section>
           )}
 
+          {/* ── v3: Safety Stock Monitor ── */}
+          {activeView === "safetystock" && (
+            <section className="mt-2">
+              <SafetyStockView />
+            </section>
+          )}
+
           {/* ── Dashboard ── */}
           {activeView === "dashboard" && (
             <>
               <div className="mb-2 text-lg" style={{ color: "#94A3B8" }}>
-                Welcome back, <strong style={{ color: "#E2E8F0" }}>{userName}</strong> 👋
+                Welcome back, <strong style={{ color: "#E2E8F0" }}>{friendlyName(userName) || userName}</strong> 👋
               </div>
 
               {scenarioName && (
@@ -1072,234 +1470,133 @@ export default function ControlTower({
                   )}
 
                   <MapView
-                    locationsUrl={simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
+                    locationsUrl={locationsUrl || simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
                     onFacilitySelect={handleFacilitySelect}
                   />
                 </div>
 
                 <div className="rounded-xl border p-4" style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "#143629" }}>
-                  <h2 className="text-lg font-bold mb-2" style={{ color: "#9FD63A" }}>Network Health Summary</h2>
+                  <h2 className="text-lg font-bold mb-2" style={{ color: "#9FD63A" }}>Network Health Summary<SourceChip snapshot={snapshot} /></h2>
                   <div className="text-sm mb-3" style={{ color: "#94A3B8" }}>
-                    Executive overview of current supply chain performance and disruption exposure.
+                    {snapshot ? `Last ${snapshot.window_days} days to ${snapshot.as_of}.` : "Executive overview of current supply chain performance."}
                   </div>
-                  <ul className="space-y-3">
-                    <li className="flex items-center justify-between">
-                      <span className="text-xs" style={{ color: "#64748B" }}>Active Incidents</span>
-                      <span className="text-base font-extrabold" style={{ color: kpiSeverityColor(businessKpis, "inc-") }}>{businessKpis?.activeIncidents}</span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="text-xs" style={{ color: "#64748B" }}>Service Level</span>
-                      <span className="text-base font-extrabold" style={{ color: kpiSeverityColor(businessKpis, "svc-") }}>{businessKpis?.serviceLevel}</span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="text-xs" style={{ color: "#64748B" }}>Revenue Exposure</span>
-                      <span className="text-base font-extrabold" style={{ color: kpiSeverityColor(businessKpis, "rev-") }}>{businessKpis?.revenueAtRisk}</span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span className="text-xs" style={{ color: "#64748B" }}>Backorders</span>
-                      <span className="text-base font-extrabold" style={{ color: kpiSeverityColor(businessKpis, "bo-") }}>{businessKpis?.backorders}</span>
-                    </li>
-                  </ul>
+                  {snapshot ? (
+                    <ul className="space-y-3">
+                      {["service_level", "otif", "backorder_units", "supplier_on_time"].filter((k) => snapByKey[k]).map((k) => (
+                        <li key={k} className="flex items-center justify-between">
+                          <span className="text-xs" style={{ color: "#64748B" }}>{snapByKey[k].label}</span>
+                          <span className="text-base font-extrabold" style={{ color: SNAP_COLOR[snapByKey[k].status] }}>{snapFmt(snapByKey[k].value, snapByKey[k].unit)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm" style={{ color: "#64748B" }}>{snapshotState === "loading" ? "Loading…" : "No network data yet. Load the example network or upload your exports to see live KPIs here."}</p>
+                  )}
                 </div>
               </section>
 
               <UnifiedAttentionPanel
-                kpis={businessKpis}
+                kpis={null}
+                alertsOverride={snapAlerts}
+                hasKpiData={Boolean(snapshot)}
                 ctNarrative={ctNarrative}
                 narrativeLoading={narrativeLoading}
                 onOpenRiskIntelligence={({ commodity } = {}) => {
                   setRiskIntelFocus({ commodity });
                   setActiveView("risk");
                 }}
+                onOpenSafetyStock={() => setActiveView("safetystock")}
               />
 
-              <section className="mb-5">
-                <div className="rounded-2xl border px-4 py-3" style={{ background: "rgba(9,25,19,0.5)", borderColor: "#143629" }}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Regions Monitored</div>
-                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{networkContext.monitoredRegions}</div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Active Feeds</div>
-                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{networkContext.activeFeeds.join(" • ")}</div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Network Scope</div>
-                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{businessKpis?.totalFacilities || "—"} facilities</div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Refresh Cadence</div>
-                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{networkContext.refreshCadence}</div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide" style={{ color: "#64748B" }}>Last Refresh</div>
-                      <div className="font-semibold" style={{ color: "#E2E8F0" }}>{new Date().toLocaleTimeString()} {networkContext.timezoneLabel}</div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <div className="flex justify-end mb-4">
-                <div className="space-x-2">
-                  {["day", "week", "month", "ytd"].map((range) => (
-                    <button
-                      key={range}
-                      onClick={() => setKpiRange(range)}
-                      className="px-3 py-1 rounded font-semibold text-sm transition"
-                      style={
-                        kpiRange === range
-                          ? { background: "#9FD63A", color: "#111B21" }
-                          : { background: "rgba(9,25,19,0.5)", color: "#9FD63A", border: "1px solid rgba(159,214,58,0.35)" }
-                      }
-                    >
-                      {range.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
+              <div className="mb-4 text-xs" style={{ color: "#64748B" }}>
+                Live feeds: <span style={{ color: "#94A3B8" }}>{networkContext.activeFeeds.join(" • ")}</span>
               </div>
 
-              <div className="text-xs mb-3" style={{ color: "#64748B" }}>
-                Last updated: {new Date().toLocaleString()}
-              </div>
-
-              <div className="rounded-xl mb-5 px-5 py-4 flex items-center justify-between gap-4" style={{ background: "linear-gradient(90deg, #0d3d2e 0%, #1D625B 100%)", border: "1px solid rgba(156,247,0,0.2)" }}>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">⚡</span>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-widest text-lime-300/70 mb-0.5">Recommended Action</p>
-                    <p className="text-sm font-semibold text-white">Supplier disruption affecting {businessKpis?.activeIncidents} facilities — expedite constrained component path before backlog accelerates.</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    try {
-                      const baselineScenario = {
-                        name: "Control Tower Baseline",
-                        disruptionScenarios: [],
-                        demandAdjustments: [],
-                        laneAdjustments: [],
-                        inventoryPolicies: [],
-                        meta: {
-                          source: "control_tower",
-                          serviceLevel: businessKpis?.serviceLevel,
-                          revenueAtRisk: businessKpis?.revenueAtRisk,
-                          activeIncidents: businessKpis?.activeIncidents,
-                          backorders: businessKpis?.backorders,
-                          notes: `Launched from Control Tower. Baseline: ${businessKpis?.serviceLevel} service level, ${businessKpis?.revenueAtRisk} revenue at risk.`,
-                        },
-                      };
-                      localStorage.setItem("forc_active_scenario", JSON.stringify(baselineScenario));
-                      localStorage.setItem("currentScenarioJSON", JSON.stringify(baselineScenario));
-                      localStorage.setItem("currentScenarioName", "Control Tower Baseline");
-                    } catch (e) {
-                      console.warn("Could not pre-populate scenario:", e);
-                    }
-                    switchView("simulation");
-                  }}
-                  className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition"
-                  style={{ background: "#9CF700", color: "#020617" }}
-                >
-                  Simulate This Risk →
-                </button>
-              </div>
-
-              {businessKpis && (
-                <>
-                  <section className="mb-6">
-                    <div className="flex items-end justify-between mb-3">
+              {snapshot && (() => {
+                const worst = snapshot.kpis.find((k) => k.status === "bad") || snapshot.kpis.find((k) => k.status === "watch");
+                if (!worst) return null;
+                return (
+                  <div className="rounded-xl mb-5 px-5 py-4 flex items-center justify-between gap-4" style={{ background: "linear-gradient(90deg, #0d3d2e 0%, #1D625B 100%)", border: "1px solid rgba(156,247,0,0.2)" }}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">⚡</span>
                       <div>
-                        <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Executive KPIs</h2>
-                        <div className="text-sm" style={{ color: "#64748B" }}>Highest-signal network metrics for leadership review</div>
+                        <p className="text-[11px] uppercase tracking-widest text-lime-300/70 mb-0.5">Recommended Action</p>
+                        <p className="text-sm font-semibold text-white">{worst.label} is {snapFmt(worst.value, worst.unit)}{worst.delta ? ` (${snapDelta(worst, snapshot.window_days).split(" · ")[0].toLowerCase()})` : ""}. {SNAP_ACTIONS[worst.key] || worst.hint}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {executiveKpiKeys.map((key) => (
-                        <KpiCard
-                          key={key}
-                          value={businessKpis[key]}
-                          label={kpiMeta.find((k) => k.key === key)?.label}
-                          trend={kpiMeta.find((k) => k.key === key)?.trend}
-                          risk={kpiMeta.find((k) => k.key === key)?.risk}
-                          deltaText={kpiMeta.find((k) => k.key === key)?.delta?.[kpiRange]}
-                        />
-                      ))}
-                    </div>
-                  </section>
+                    <button
+                      onClick={() => {
+                        try {
+                          const baselineScenario = {
+                            name: "Control Tower Baseline", disruptionScenarios: [], demandAdjustments: [], laneAdjustments: [], inventoryPolicies: [],
+                            meta: { source: "control_tower", serviceLevel: snapFmt(snapByKey.service_level?.value, "%"), backorders: snapFmt(snapByKey.backorder_units?.value, "units"), notes: `Launched from Control Tower. Network snapshot as of ${snapshot.as_of}.` },
+                          };
+                          localStorage.setItem("forc_active_scenario", JSON.stringify(baselineScenario));
+                          localStorage.setItem("currentScenarioJSON", JSON.stringify(baselineScenario));
+                          localStorage.setItem("currentScenarioName", "Control Tower Baseline");
+                        } catch (e) { console.warn("Could not pre-populate scenario:", e); }
+                        switchView("simulation");
+                      }}
+                      className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition"
+                      style={{ background: "#9CF700", color: "#020617" }}
+                    >
+                      Simulate this risk →
+                    </button>
+                  </div>
+                );
+              })()}
 
-                  <section className="space-y-8 mb-6">
-                    <div>
-                      <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleKpiSection("fulfillment")}>
-                        <h2 className="text-xl font-semibold mb-2" style={{ color: "#9FD63A" }}>📦 Fulfillment & Inventory</h2>
-                        <span className="text-sm group-hover:underline" style={{ color: "#64748B" }}>{kpiSectionVisibility.fulfillment ? "Hide" : "Show"}</span>
-                      </div>
-                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${kpiSectionVisibility.fulfillment ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                          {["totalFacilities", "shipments", "backorders", "serviceLevel"].map((key) => (
-                            <KpiCard key={key} value={businessKpis[key]} label={kpiMeta.find((k) => k.key === key)?.label} trend={kpiMeta.find((k) => k.key === key)?.trend} risk={kpiMeta.find((k) => k.key === key)?.risk} />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleKpiSection("production")}>
-                        <h2 className="text-xl font-semibold mb-2" style={{ color: "#9FD63A" }}>🏭 Production & Disruption</h2>
-                        <span className="text-sm group-hover:underline" style={{ color: "#64748B" }}>{kpiSectionVisibility.production ? "Hide" : "Show"}</span>
-                      </div>
-                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${kpiSectionVisibility.production ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                          {["disruptionPercent", "capacityUtilization", "avgLeadTime", "cycleTime"].map((key) => (
-                            <KpiCard key={key} value={businessKpis[key]} label={kpiMeta.find((k) => k.key === key)?.label} trend={kpiMeta.find((k) => k.key === key)?.trend} risk={kpiMeta.find((k) => k.key === key)?.risk} />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between cursor-pointer group" onClick={() => toggleKpiSection("cost")}>
-                        <h2 className="text-xl font-semibold mb-2" style={{ color: "#9FD63A" }}>💰 Cost & Service Metrics</h2>
-                        <span className="text-sm group-hover:underline" style={{ color: "#64748B" }}>{kpiSectionVisibility.cost ? "Hide" : "Show"}</span>
-                      </div>
-                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${kpiSectionVisibility.cost ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
-                        <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                          {["revenueAtRisk", "supplierOnTime", "expeditedOrders", "activeIncidents"].map((key) => (
-                            <KpiCard key={key} value={businessKpis[key]} label={kpiMeta.find((k) => k.key === key)?.label} trend={kpiMeta.find((k) => k.key === key)?.trend} risk={kpiMeta.find((k) => k.key === key)?.risk} />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                </>
+              {snapshotState !== "loading" && (!snapshot || showSnapshotCard) && (
+                <SnapshotDataCard apiBase={API_BASE_CT} onCancel={snapshot ? () => setShowSnapshotCard(false) : null} onLoaded={(body) => { setSnapshot(body); setSnapshotState("ready"); setShowSnapshotCard(false); }} />
               )}
 
-              <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[chartType1, chartType2].map((type, i) => (
-                  <div key={i} className="rounded-2xl border overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(4,22,17,0.98), rgba(4,27,21,0.98))", borderColor: "#123528" }}>
-                    <div className="px-4 pt-4 pb-3 border-b" style={{ borderColor: "#143629" }}>
-                      <div className="flex items-start justify-between gap-3 mb-3">
+              {snapshot && (() => {
+                const head = snapshot.kpis.filter((k) => k.headline).slice(0, 6);
+                const rest = snapshot.kpis.filter((k) => !head.includes(k));
+                const trendMap = { better: "up", worse: "down", flat: "neutral" };
+                const card = (k) => (
+                  <KpiCard key={k.key} value={snapFmt(k.value, k.unit)} label={k.label}
+                    trend={trendMap[k.trend]} risk={k.status === "bad" ? "high" : k.status === "watch" ? "medium" : undefined}
+                    deltaText={snapDelta(k, snapshot.window_days)} />
+                );
+                return (
+                  <>
+                    <section className="mb-6">
+                      <div className="flex items-end justify-between mb-3 gap-3">
                         <div>
-                          <div className="text-base font-semibold" style={{ color: "#9FD63A" }}>{chartMeta[type]?.title || "Trend View"}</div>
-                          <div className="text-xs mt-1" style={{ color: "#64748B" }}>{chartMeta[type]?.subtitle || "Operational performance trend"}</div>
+                          <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Network KPIs<SourceChip snapshot={snapshot} /></h2>
+                          <div className="text-sm" style={{ color: "#64748B" }}>Last {snapshot.window_days} days to {snapshot.as_of}, compared with the {snapshot.window_days} days before.</div>
+                        </div>
+                        <div className="flex gap-3 text-sm">
+                          <button type="button" onClick={() => setShowSnapshotCard(true)} className="underline" style={{ color: "#94A3B8" }}>Update data</button>
+                          <button type="button" onClick={removeSnapshot} className="underline" style={{ color: "#64748B" }}>Remove</button>
                         </div>
                       </div>
-                      <Select
-                        options={chartOptions}
-                        value={chartOptions.find((opt) => opt.value === type)}
-                        onChange={(sel) => (i === 0 ? setChartType1(sel.value) : setChartType2(sel.value))}
-                        className="mb-0"
-                      />
-                    </div>
-                    <div className="p-4">
-                      <div className="h-[320px]">{renderChart(type)}</div>
-                    </div>
-                    <div className="px-4 py-3 border-t text-xs flex items-center justify-between" style={{ borderColor: "#143629", background: "rgba(2,6,23,0.4)", color: "#64748B" }}>
-                      <span>{chartMeta[type]?.footer || "Basis: monitored performance"}</span>
-                      <span>Period: Jan–Aug</span>
-                    </div>
-                  </div>
-                ))}
-              </section>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{head.map(card)}</div>
+                      {snapshot.worst && (snapshot.worst.facilities?.length > 0 || snapshot.worst.customers?.length > 0 || snapshot.worst.suppliers?.length > 0) && (
+                        <div className="mt-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(148,163,184,0.15)", background: "rgba(9,25,19,0.5)", color: "#94A3B8" }}>
+                          <span className="text-[11px] uppercase tracking-widest" style={{ color: "#64748B" }}>Where it hurts</span>
+                          {snapshot.worst.facilities?.length > 0 && <div className="mt-1">Facilities with the most past-due units: {snapshot.worst.facilities.map((f) => `${f.name} (${Math.round(f.units).toLocaleString("en-US")})`).join(", ")}</div>}
+                          {snapshot.worst.customers?.length > 0 && <div className="mt-1">Customers with the most late lines: {snapshot.worst.customers.map((c) => `${c.name} (${c.lines})`).join(", ")}</div>}
+                          {snapshot.worst.suppliers?.length > 0 && <div className="mt-1">Suppliers with overdue orders: {snapshot.worst.suppliers.map((c) => `${c.name} (${c.orders})`).join(", ")}</div>}
+                        </div>
+                      )}
+                    </section>
+                    <ExposureBlock exposure={exposure} state={exposureState} example={exposureExample} setExample={setExposureExample}
+                      onAddLocations={() => setShowSnapshotCard(true)} onSimulate={simulateExposure} />
+                    {rest.length > 0 && (
+                      <section className="mb-6">
+                        <button type="button" onClick={() => setMoreMetrics(!moreMetrics)} className="text-sm underline" style={{ color: "#94A3B8" }}>
+                          {moreMetrics ? "Hide more metrics" : `Show more metrics (${rest.length})`}
+                        </button>
+                        {moreMetrics && <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{rest.map(card)}</div>}
+                      </section>
+                    )}
+                  </>
+                );
+              })()}
+
+              <LatestRunVerdict simulationHistory={simulationHistory} switchView={switchView} />
             </>
           )}
 
