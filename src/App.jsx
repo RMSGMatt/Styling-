@@ -33,12 +33,17 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    // Only send the JWT to our own API. Presigned S3 URLs carry their own
+    // signature in the query string, and S3 rejects a request that also
+    // has an Authorization header.
+    const target = config.url || "";
+    const isOwnApi = !/^https?:\/\//i.test(target) || target.startsWith(API_ROOT);
     const token =
       localStorage.getItem("access_token") ||
       localStorage.getItem("token") ||
       sessionStorage.getItem("access_token") ||
       sessionStorage.getItem("token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (token && isOwnApi) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
   (error) => Promise.reject(error)
@@ -49,11 +54,41 @@ api.interceptors.request.use(
 // -------------------------------
 const LOCAL_RUNS_KEY = "forc_local_runs_v1";
 
+// Extracts a sortable timestamp from a run object. Remote and local runs
+// don't consistently share one field name (created_at vs createdAt vs
+// timestamp), so try the explicit fields first, then fall back to parsing
+// the date-time prefix baked into the run's own id/run_id (format:
+// YYYYMMDD_HHMMSS_hash) — every run id already has this, so it's a
+// reliable last resort even when nothing else is present. Module-level
+// (not inside the component) so both loadLocalRunsSafe and
+// fetchSimulationHistory share one implementation instead of two that
+// could quietly drift apart.
+function getRunTimestamp(run) {
+  const explicit = run?.created_at || run?.createdAt || run?.timestamp;
+  if (explicit) {
+    const t = new Date(explicit).getTime();
+    if (Number.isFinite(t)) return t;
+  }
+  const id = String(run?.run_id || run?.id || "");
+  const match = id.match(/^(\d{8})_(\d{6})/);
+  if (match) {
+    const [, datePart, timePart] = match;
+    const iso = `${datePart.slice(0, 4)}-${datePart.slice(4, 6)}-${datePart.slice(6, 8)}T${timePart.slice(0, 2)}:${timePart.slice(2, 4)}:${timePart.slice(4, 6)}`;
+    const t = new Date(iso).getTime();
+    if (Number.isFinite(t)) return t;
+  }
+  return 0; // unparseable — sorts last rather than crashing or throwing off the rest of the sort
+}
+
 function loadLocalRunsSafe() {
   try {
     const raw = localStorage.getItem(LOCAL_RUNS_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
+    if (!Array.isArray(arr)) return [];
+    // Sorted newest-first here so every call site gets correct ordering
+    // for free, rather than each of the 4+ places that call this needing
+    // to remember to sort themselves.
+    return [...arr].sort((a, b) => getRunTimestamp(b) - getRunTimestamp(a));
   } catch {
     return [];
   }
@@ -149,11 +184,14 @@ const getDemoSkus = (skus) => {
 async function loadCsvToJson(url, setter) {
   if (!url) return;
   try {
-    const res = await fetch(url);
-    const text = await res.text();
-    const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
+    // Goes through the authenticated `api` instance: /api/files/* requires
+    // a JWT, and a bare fetch() sent none (401). The old code then parsed
+    // the 401 JSON body as if it were CSV and silently loaded garbage.
+    const res = await api.get(url, { responseType: "text" });
+    const { data } = Papa.parse(res.data, { header: true, skipEmptyLines: true });
     setter(data);
   } catch (err) {
+    console.warn("loadCsvToJson failed:", url, err?.response?.status || err?.message);
   }
 }
 
@@ -358,7 +396,11 @@ function buildScenarioImpactSummary(flowRows = [], occurrenceRows = [], producti
 
 async function fetchCsvRows(url) {
   if (!url) return [];
-  const response = await axios.get(url, { responseType: "text" });
+  // Use the local `api` instance (defined above) so the JWT is attached —
+  // /api/files/* now requires auth (see backend fix), and the bare
+  // `axios` import used here previously sent no Authorization header,
+  // which is why simulation output stopped loading with 401s.
+  const response = await api.get(url, { responseType: "text" });
   const parsed = Papa.parse(response.data, { header: true, skipEmptyLines: true });
   const rows = Array.isArray(parsed.data) ? parsed.data : [];
   return rows.filter((r) => r && typeof r === "object");
@@ -673,7 +715,7 @@ export default function App() {
     },
   });
 
-  const fetchSimulationHistory = async () => {
+  const fetchSimulationHistory = async (opts = {}) => {
     try {
       const res = await apiClient.get("/api/simulations");
       const remote = Array.isArray(res.data) ? res.data : Array.isArray(res.data?.simulations) ? res.data.simulations : [];
@@ -691,6 +733,12 @@ export default function App() {
           .map((r) => ({ ...r, _source: "local" })),
       ];
 
+      // Newest first — simulationHistory[0] is relied on elsewhere (e.g.
+      // Control Tower's map, baselineOptions' slice(1)) as "the current
+      // run." The backend's own ordering isn't guaranteed to be newest-
+      // first, so this can't just trust whatever order the API returned.
+      merged.sort((a, b) => getRunTimestamp(b) - getRunTimestamp(a));
+
       setSimulationHistory(merged);
       // Merge backend kpis_json fields into kpis state — but only when the
       // user isn't actively viewing a specific older run (currentlyViewedRunId
@@ -701,8 +749,36 @@ export default function App() {
       try {
         const latest = merged?.[0];
         const latestId = latest?.run_id || latest?.id || null;
-        const shouldBackfill = !currentlyViewedRunId || currentlyViewedRunId === latestId;
+        const shouldBackfill = opts.forceBackfill === true || !currentlyViewedRunId || currentlyViewedRunId === latestId;
         console.log("[FORC-DEBUG] history-refresh kpis guard — currentlyViewedRunId:", currentlyViewedRunId, "latestId:", latestId, "shouldBackfill:", shouldBackfill);
+
+        // Keep locationsUrl (used by Control Tower's map) pointed at
+        // whatever run is actually current, on every history refresh — not
+        // only right after a brand-new run finishes (the only place this
+        // was previously set). A returning user who logs in without
+        // running anything new this session would otherwise have
+        // locationsUrl stuck at null, falling through to the far less
+        // reliable simulationHistory[0]?.locations_url lookup in
+        // ControlTower.jsx. Same shouldBackfill guard as the KPI backfill
+        // above — don't silently redirect the map to a different run's
+        // facilities while the user is deliberately viewing an older one.
+        if (shouldBackfill) {
+          const latestLocUrl =
+            latest?.outputUrls?.locations_output_file_url ||
+            latest?.locations_output_file_url ||
+            latest?.locations_url ||
+            null;
+          console.log(
+            "[FORC-DEBUG] locationsUrl backfill —",
+            "outputUrls.locations_output_file_url:", latest?.outputUrls?.locations_output_file_url,
+            "| locations_output_file_url:", latest?.locations_output_file_url,
+            "| locations_url:", latest?.locations_url,
+            "| resolved:", latestLocUrl,
+            "| run source:", latest?._source
+          );
+          if (latestLocUrl) setLocationsUrl(latestLocUrl);
+        }
+
         const backendKpis = shouldBackfill && latest?.kpis_json
           ? (typeof latest.kpis_json === "string" ? JSON.parse(latest.kpis_json) : latest.kpis_json)
           : null;
@@ -1945,7 +2021,20 @@ export default function App() {
       // fields). A full replace here wipes those until the fetchSimulationHistory()
       // call below re-merges them back in — and that only fires for Pro/Enterprise
       // plans, so free-tier sessions would lose them with no recovery at all.
-      setKpis((prev) => ({ ...prev, ...finalKpis }));
+      // A brand-new run must never inherit the previous run's backend-only
+      // KPIs (worst week, false confidence, run window). Clear them here; the
+      // forced history refresh below re-fills them from THIS run's kpis_json.
+      setKpis((prev) => ({
+        ...prev,
+        worstWeeklyServicePct: undefined,
+        falseConfidenceDays: undefined,
+        simulationStartDate: null,
+        simulationEndDate: null,
+        horizonWeeks: null,
+        disruptionStartDate: null,
+        firstServiceImpactDate: null,
+        ...finalKpis,
+      }));
       if (latestRunIdRef.current) setCurrentlyViewedRunId(latestRunIdRef.current);
 
       // worstWeeklyServicePct and falseConfidenceDays are only ever sourced
@@ -1956,7 +2045,7 @@ export default function App() {
       // after running fresh simulations in the same session.
       if (isProPlusPlan(userPlan)) {
         try {
-          await fetchSimulationHistory();
+          await fetchSimulationHistory({ forceBackfill: true });
         } catch {}
       }
     } catch (err) {
@@ -2185,6 +2274,11 @@ setSimulationHistory((prev) => {
             : []),
           ...nextLocal.slice(1),
         ];
+        // Same fix as fetchSimulationHistory: don't trust the concatenation
+        // order above to already put the newest run (which should be the
+        // one just completed) at index 0 — if any remote entries exist,
+        // they'd otherwise sit ahead of the run that just finished.
+        merged.sort((a, b) => getRunTimestamp(b) - getRunTimestamp(a));
         return merged;
       });
 
@@ -2607,6 +2701,7 @@ setSimulationHistory((prev) => {
           userPlan={userPlan}
           simulationHistory={simulationHistory}
           onReloadRun={onReloadRun}
+          locationsUrl={locationsUrl}
         />
       )}
 
