@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import mapboxgl from "mapbox-gl";
 import { getApiBase } from "../config/apiBase";
+import { loadLatestSnapshot, DEFAULT_DOH_FLOOR } from "./ControlTowerEhancements/SafetyStock/safetyStockStore";
 
 /* ============================================================================
    0) MAPBOX TOKEN — SET ONCE AT MODULE LOAD
@@ -62,6 +63,7 @@ function safeJson(res) {
 export default function MapView({
   locationsUrl,
   onFacilitySelect,
+  exposedSites = [], // [{ name, lat, lng, severity, label }] sites inside a live hazard radius
   height = "560px", // ✅ explicit default height so map can render
 }) {
   // --------------------------------------------------------------------------
@@ -76,9 +78,18 @@ export default function MapView({
 
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
+  // Diagnostic only — a random id assigned once per component mount. If
+  // this value changes between console log lines that should logically be
+  // from "the same" MapView instance, that proves the whole component
+  // (not just an effect) is unmounting and remounting — which would mean
+  // every effect's closures, including locationsUrl, are starting fresh
+  // each time rather than one component instance staying alive and
+  // re-rendering with updated props as expected.
+  const mountInstanceIdRef = useRef(Math.random().toString(36).slice(2, 8));
 
   // Marker refs (so we can clear without re-mounting map)
   const facilityMarkersRef = useRef([]);
+  const exposedMarkersRef = useRef([]);
   const gdacsMarkersRef = useRef([]);
   const liveMarkersRef = useRef([]);
   const noaaMarkersRef = useRef([]);
@@ -254,6 +265,48 @@ export default function MapView({
       .map((f) => ({ ...f, distanceKm: haversineKm(lat, lng, f.lat, f.lng) }))
       .filter((f) => f.distanceKm <= radiusKm)
       .sort((a, b) => a.distanceKm - b.distanceKm);
+  }, []);
+
+  // ── Crisis → Safety Stock join ──────────────────────────────────────────
+  // Turns "here's what's nearby" into "here's what this means for your
+  // inventory." Reads via loadLatestSnapshot() — the same adapter seam
+  // safetyStockStore.js was built around — so when this eventually reads
+  // live ERP stock levels instead of a manually-uploaded CSV, nothing here
+  // needs to change; the seam absorbs that swap entirely.
+  //
+  // Deliberately quiet by default: a facility with no Safety Stock data,
+  // or nothing currently below its floor, renders exactly like it did
+  // before this existed — plain proximity only. Detail only appears when
+  // there's something actually actionable, so a crisis popup doesn't turn
+  // into a full inventory dump for every nearby facility regardless of
+  // whether anything's wrong there.
+  const buildFacilityImpactLine = useCallback((facilities) => {
+    if (!facilities.length) {
+      return `No known facilities within ${CRISIS_FACILITY_CHECK_RADIUS_KM}km`;
+    }
+
+    const snapshot = loadLatestSnapshot();
+    const rowsByFacility = {};
+    (snapshot?.rows || []).forEach((r) => {
+      (rowsByFacility[r.facility] ||= []).push(r);
+    });
+
+    const lines = facilities.map((fac) => {
+      const distancePart = `${fac.facility} (${Math.round(fac.distanceKm)}km)`;
+      const stockRows = rowsByFacility[fac.facility] || [];
+      const belowFloorRows = stockRows.filter(
+        (r) => r.current_doh < (r.doh_floor ?? DEFAULT_DOH_FLOOR)
+      );
+
+      if (belowFloorRows.length === 0) return distancePart;
+
+      const flagged = belowFloorRows
+        .map((r) => `${r.sku} ${r.current_doh.toFixed(1)}/${r.doh_floor ?? DEFAULT_DOH_FLOOR} DOH`)
+        .join(", ");
+      return `${distancePart} ⚠️ below floor: ${flagged}`;
+    });
+
+    return `${facilities.length} facility(ies) within ${CRISIS_FACILITY_CHECK_RADIUS_KM}km: ${lines.join(" | ")}`;
   }, []);
 
   // Bounding-box center of a Polygon/MultiPolygon — used to place a marker
@@ -640,11 +693,7 @@ export default function MapView({
           const facilities = findFacilitiesWithinKm(lat, lng, CRISIS_FACILITY_CHECK_RADIUS_KM);
           const description = [
             p.headline || p.areaDesc || "",
-            facilities.length
-              ? `${facilities.length} facility(ies) within ${CRISIS_FACILITY_CHECK_RADIUS_KM}km: ${facilities
-                  .map((fac) => `${fac.facility} (${Math.round(fac.distanceKm)}km)`)
-                  .join(", ")}`
-              : `No known facilities within ${CRISIS_FACILITY_CHECK_RADIUS_KM}km`,
+            buildFacilityImpactLine(facilities),
           ]
             .filter(Boolean)
             .join("\n");
@@ -685,6 +734,7 @@ export default function MapView({
     clearCrisisLayers,
     renderCrisisEvent,
     findFacilitiesWithinKm,
+    buildFacilityImpactLine,
     resolveZoneCentroid,
     markFeedOk,
     markFeedError,
@@ -739,11 +789,7 @@ export default function MapView({
           const facilities = findFacilitiesWithinKm(lat, lng, CRISIS_FACILITY_CHECK_RADIUS_KM);
           const description = [
             p.description || p.name || "",
-            facilities.length
-              ? `${facilities.length} facility(ies) within ${CRISIS_FACILITY_CHECK_RADIUS_KM}km: ${facilities
-                  .map((fac) => `${fac.facility} (${Math.round(fac.distanceKm)}km)`)
-                  .join(", ")}`
-              : `No known facilities within ${CRISIS_FACILITY_CHECK_RADIUS_KM}km`,
+            buildFacilityImpactLine(facilities),
           ]
             .filter(Boolean)
             .join("\n");
@@ -778,6 +824,7 @@ export default function MapView({
     renderCrisisEvent,
     clearCrisisLayers,
     findFacilitiesWithinKm,
+    buildFacilityImpactLine,
     markFeedOk,
     markFeedError,
   ]);
@@ -889,11 +936,7 @@ export default function MapView({
           const description = [
             p.place || "",
             magnitude ? `Magnitude ${magnitude.toFixed(1)}` : "",
-            facilities.length
-              ? `${facilities.length} facility(ies) within ${CRISIS_FACILITY_CHECK_RADIUS_KM}km: ${facilities
-                  .map((fac) => `${fac.facility} (${Math.round(fac.distanceKm)}km)`)
-                  .join(", ")}`
-              : `No known facilities within ${CRISIS_FACILITY_CHECK_RADIUS_KM}km`,
+            buildFacilityImpactLine(facilities),
           ]
             .filter(Boolean)
             .join("\n");
@@ -937,6 +980,7 @@ export default function MapView({
     clearCrisisLayers,
     renderCrisisEvent,
     findFacilitiesWithinKm,
+    buildFacilityImpactLine,
     markFeedOk,
     markFeedError,
   ]);
@@ -1050,25 +1094,18 @@ export default function MapView({
       await fetchNOAAAlerts();
       setLastUpdated(new Date().toLocaleTimeString());
 
-      // facilities (markers only; no auto-fit so globe remains in view)
-      if (locationsUrl && layerVisibility.facilities) {
-        try {
-          // Fetch the presigned URL as-is (no appended query params — see
-          // note above) and force a fresh network request via cache option.
-          const res = await fetch(locationsUrl, { cache: "no-store" });
-          if (!res.ok) {
-            console.error("❌ Facility CSV HTTP", res.status, locationsUrl);
-            markFeedError("facilities", `HTTP ${res.status}`);
-          } else {
-            const txt = await res.text();
-            renderFacilitiesFromCsv(map, txt);
-            markFeedOk("facilities");
-          }
-        } catch (e) {
-          console.error("❌ Facility CSV load failed:", e);
-          markFeedError("facilities", e?.message || "Fetch failed");
-        }
-      }
+      // Facilities are NOT fetched here on purpose. This effect only runs
+      // once at mount (see the empty dependency array below), so any
+      // locationsUrl it captured would be permanently frozen at whatever
+      // value existed at that exact instant — almost always null/the
+      // broken fallback, since locationsUrl is set asynchronously by
+      // App.jsx after fetchSimulationHistory resolves. The separate
+      // "FACILITIES RELOAD ON URL/TOGGLE CHANGE" effect just below this
+      // one has locationsUrl in its dependency array and correctly
+      // re-fires with the current value — including the very first load,
+      // once locationsUrl actually becomes available. A duplicate fetch
+      // here previously fired with a stale closure and masked whether the
+      // reactive effect was working correctly at all.
     };
 
     map.on("load", onLoad);
@@ -1094,6 +1131,12 @@ export default function MapView({
      ============================================================================ */
   useEffect(() => {
     const map = mapRef.current;
+    console.log(
+      "[FORC-DEBUG] MapView facilities effect fired — instance:", mountInstanceIdRef.current,
+      "| locationsUrl:", locationsUrl,
+      "| layerVisibility.facilities:", layerVisibility.facilities,
+      "| map exists:", !!map
+    );
     if (!map) return;
 
     if (!layerVisibility.facilities) {
@@ -1102,10 +1145,30 @@ export default function MapView({
     }
     if (!locationsUrl) return;
 
+    // An unsigned link to our private S3 bucket always returns 403. The
+    // real URL (presigned, or our /api/files/ route) arrives once the
+    // latest run is backfilled, so wait for it instead of firing a
+    // request that is guaranteed to fail and flag the feed as errored.
+    if (/amazonaws\.com/i.test(locationsUrl) && !/X-Amz-Signature|[?&]Signature=/i.test(locationsUrl)) {
+      return;
+    }
+
     const run = async () => {
       try {
         // Fetch the presigned URL as-is — see cache-busting note above.
-        const res = await fetch(locationsUrl, { cache: "no-store" });
+        console.log("[FORC-DEBUG] MapView facilities fetch about to run — instance:", mountInstanceIdRef.current, "| URL:", locationsUrl);
+        // Our own /api/files/ URLs require the JWT; presigned S3 URLs must
+        // NOT get an Authorization header (S3 rejects the double auth).
+        const authHeaders = {};
+        if (locationsUrl.includes("/api/files/")) {
+          const token =
+            localStorage.getItem("access_token") ||
+            localStorage.getItem("token") ||
+            sessionStorage.getItem("access_token") ||
+            sessionStorage.getItem("token");
+          if (token) authHeaders.Authorization = `Bearer ${token}`;
+        }
+        const res = await fetch(locationsUrl, { cache: "no-store", headers: authHeaders });
         if (!res.ok) {
           console.error("❌ Facility CSV HTTP", res.status, locationsUrl);
           markFeedError("facilities", `HTTP ${res.status}`);
@@ -1170,6 +1233,37 @@ export default function MapView({
   const toggle = (key) => {
     setLayerVisibility((v) => ({ ...v, [key]: !v[key] }));
   };
+
+  // Pulsing rings on sites that sit inside a live hazard radius (from the Control Tower).
+  useEffect(() => {
+    const map = mapRef.current;
+    clearMarkers(exposedMarkersRef);
+    if (!map || !Array.isArray(exposedSites) || exposedSites.length === 0) return;
+    exposedSites.forEach((s) => {
+      if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng)) return;
+      const color = s.severity === "high" ? "#EF4444" : "#F59E0B";
+      const el = document.createElement("div");
+      el.style.width = "20px";
+      el.style.height = "20px";
+      el.style.borderRadius = "999px";
+      el.style.background = color;
+      el.style.border = "2px solid white";
+      el.style.cursor = "pointer";
+      el.style.zIndex = "5";
+      el.title = `${s.name}: ${s.label || "exposed to a live hazard"}`;
+      try {
+        el.animate(
+          [{ boxShadow: `0 0 0 0 ${color}cc` }, { boxShadow: `0 0 0 14px ${color}00` }],
+          { duration: 1600, iterations: Infinity }
+        );
+      } catch {}
+      el.addEventListener("click", () => {
+        if (typeof onFacilitySelect === "function") onFacilitySelect(s.name);
+      });
+      exposedMarkersRef.current.push(new mapboxgl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map));
+    });
+    return () => clearMarkers(exposedMarkersRef);
+  }, [exposedSites, onFacilitySelect]);
 
   // 🎯 Re-center: if facilities exist, fit to them; else return to globe view
   const recenter = () => {

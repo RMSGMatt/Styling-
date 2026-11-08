@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import MapView from "./MapView";
 import Select from "react-select";
 import { Line, Bar } from "react-chartjs-2";
@@ -148,90 +148,50 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
   );
 }
 
-const FACILITY_MOCK = {
-  default: (name) => ({
-    name: name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    location: "Global Network",
-    status: "Operational",
-    statusColor: "#1D625B",
-    capacity: "78%",
-    incidents: 3,
-    onTime: "92.4%",
-    leadTime: "5.7 days",
-    topRisk: "Moderate supplier delay exposure",
-    action: "Monitor inbound lead times over next 7 days.",
-  }),
-  TSMC_TAIWAN: {
-    name: "TSMC Taiwan",
-    location: "Hsinchu, Taiwan",
-    status: "Elevated Risk",
-    statusColor: "#F59E0B",
-    capacity: "94%",
-    incidents: 11,
-    onTime: "88.1%",
-    leadTime: "9.2 days",
-    topRisk: "Taiwan Strait shipping disruption risk",
-    action: "Authorize safety stock build for semiconductor components before Q3.",
-  },
-  NEXTY_MARYVILLE: {
-    name: "Nexty Electronics – Maryville",
-    location: "Maryville, TN",
-    status: "Operational",
-    statusColor: "#1D625B",
-    capacity: "81%",
-    incidents: 2,
-    onTime: "94.3%",
-    leadTime: "4.1 days",
-    topRisk: "Upstream component shortage from Asia suppliers",
-    action: "Confirm Q3 component orders with Murata and TDK within 48 hours.",
-  },
-  DENSO_BATTLE_CREEK: {
-    name: "Denso – Battle Creek",
-    location: "Battle Creek, MI",
-    status: "Under Pressure",
-    statusColor: "#EF4444",
-    capacity: "96%",
-    incidents: 7,
-    onTime: "86.0%",
-    leadTime: "6.8 days",
-    topRisk: "Near capacity — any demand spike risks line stoppage",
-    action: "Escalate to ops leadership: approve overtime authorization or defer non-critical orders.",
-  },
-};
+const SITE_TYPE_LABEL = { supplier: "Supplier site", plant: "Plant", dc: "Distribution center", customer: "Customer site" };
 
-function FacilityDrawer({ facility, onClose }) {
-  const data = FACILITY_MOCK[facility] || FACILITY_MOCK.default(facility);
+function FacilityDrawer({ facility, snapshot, exposure, onSimulate, onClose }) {
+  const name = String(facility || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const siteInfo = (exposure?.sites || []).find((x) => x.name === facility);
+  const exps = (exposure?.exposures || []).filter((e) => e.site === facility);
+  const fStat = snapshot?.sites?.facilities?.[facility];
+  const sStat = snapshot?.sites?.suppliers?.[facility];
+  const pastDue = Number(fStat?.past_due_units || 0);
+  const overduePos = Number(sStat?.overdue_pos || 0);
+  const hasData = !!snapshot;
+  let status = "No data for this site yet", statusColor = "#64748B";
+  if (exps.length) { status = "Exposed to a live hazard"; statusColor = exps.some((e) => e.severity === "high") ? "#EF4444" : "#F59E0B"; }
+  else if (pastDue > 0 || overduePos > 0) { status = "Open issues in your data"; statusColor = "#F59E0B"; }
+  else if (hasData) { status = "No open issues in your data"; statusColor = "#1D625B"; }
+  const isSupplier = siteInfo?.type === "supplier";
+  const tiles = [
+    ...(isSupplier ? [] : [
+      { label: "Past-due units", value: fStat ? Math.round(pastDue).toLocaleString("en-US") : "–" },
+      { label: "Late order lines", value: fStat ? Number(fStat.late_lines || 0).toLocaleString("en-US") : "–" },
+    ]),
+    ...(isSupplier ? [{ label: "Overdue supplier POs", value: sStat ? overduePos : "–" }] : []),
+    { label: "Live hazards in range", value: exposure?.status === "ok" ? exps.length : "–" },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-      <div
-        className="relative w-full max-w-md h-full flex flex-col"
-        style={{ background: "#0B1512" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="relative w-full max-w-md h-full flex flex-col" style={{ background: "#0B1512" }} onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-start justify-between" style={{ background: "#0a2e22", borderColor: "#143629" }}>
           <div>
-            <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "#9FD63A" }}>
-              Facility Intelligence
-            </p>
-            <h2 className="text-lg font-bold text-white">{data.name}</h2>
-            <p className="text-xs mt-0.5" style={{ color: "#64748B" }}>{data.location}</p>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "#9FD63A" }}>Site detail</p>
+            <h2 className="text-lg font-bold text-white">{name}</h2>
+            <p className="text-xs mt-0.5" style={{ color: "#64748B" }}>{SITE_TYPE_LABEL[siteInfo?.type] || "Site"}{hasData && snapshot.source === "sample" ? " in the example network" : ""}</p>
           </div>
           <button onClick={onClose} className="mt-1 text-xl leading-none transition" style={{ color: "#64748B" }}>×</button>
         </div>
 
         <div className="px-6 py-3 flex items-center gap-2 border-b" style={{ background: "rgba(9,25,19,0.6)", borderColor: "#143629" }}>
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: data.statusColor }} />
-          <span className="text-sm font-semibold" style={{ color: data.statusColor }}>{data.status}</span>
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: statusColor }} />
+          <span className="text-sm font-semibold" style={{ color: statusColor }}>{status}</span>
         </div>
 
         <div className="px-6 py-4 grid grid-cols-2 gap-4 border-b" style={{ borderColor: "#143629" }}>
-          {[
-            { label: "Capacity Utilization", value: data.capacity },
-            { label: "Active Incidents", value: data.incidents },
-            { label: "Supplier On-Time", value: data.onTime },
-            { label: "Avg Lead Time", value: data.leadTime },
-          ].map((kpi) => (
+          {tiles.map((kpi) => (
             <div key={kpi.label} className="rounded-xl p-3" style={{ background: "rgba(9,25,19,0.5)" }}>
               <div className="text-[10px] uppercase tracking-wide mb-1" style={{ color: "#64748B" }}>{kpi.label}</div>
               <div className="text-lg font-extrabold" style={{ color: "#9FD63A" }}>{kpi.value}</div>
@@ -239,23 +199,33 @@ function FacilityDrawer({ facility, onClose }) {
           ))}
         </div>
 
-        <div className="px-6 py-4 space-y-4 flex-1">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>Top Risk</p>
-            <p className="text-sm" style={{ color: "#CBD5E1" }}>{data.topRisk}</p>
-          </div>
-          <div className="rounded-xl px-4 py-3" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
-            <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#9FD63A" }}>Recommended Action</p>
-            <p className="text-sm leading-relaxed" style={{ color: "#e2e8e0" }}>{data.action}</p>
-          </div>
+        <div className="px-6 py-4 space-y-4 flex-1 overflow-y-auto">
+          {!hasData && (
+            <p className="text-sm" style={{ color: "#94A3B8" }}>Add your orders, purchase orders and inventory on the Control Tower to see operational figures for this site.</p>
+          )}
+          {exps.map((e, i) => (
+            <div key={i} className="rounded-xl px-4 py-3" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
+              <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: e.severity === "high" ? "#EF4444" : "#F59E0B" }}>
+                {e.hazard_label}{e.example ? " (example)" : ""}
+              </p>
+              <p className="text-sm" style={{ color: "#e2e8e0" }}>{e.title}</p>
+              <p className="text-xs mt-1" style={{ color: "#94A3B8" }}>{e.distance_km} km away, inside the {e.radius_km} km alert radius.</p>
+              <button
+                onClick={() => { onSimulate && onSimulate(e); onClose(); }}
+                className="mt-3 px-3 py-1.5 rounded-lg text-xs font-bold"
+                style={{ background: "#9FD63A", color: "#0B1512" }}
+              >
+                Simulate this exposure →
+              </button>
+            </div>
+          ))}
+          {hasData && exposure?.status === "ok" && exps.length === 0 && (
+            <p className="text-sm" style={{ color: "#94A3B8" }}>No live hazard is within range of this site right now.</p>
+          )}
         </div>
 
         <div className="px-6 py-4 border-t" style={{ borderColor: "#143629" }}>
-          <button
-            onClick={onClose}
-            className="w-full py-2 rounded-xl text-sm font-semibold border transition"
-            style={{ borderColor: "#355e52", color: "#94A3B8", background: "rgba(2,6,23,0.45)" }}
-          >
+          <button onClick={onClose} className="w-full py-2 rounded-xl text-sm font-semibold border transition" style={{ borderColor: "#355e52", color: "#94A3B8", background: "rgba(2,6,23,0.45)" }}>
             Close
           </button>
         </div>
@@ -1123,6 +1093,18 @@ export default function ControlTower({
     switchView("simulation");
   };
   const exposureKey = JSON.stringify((exposure?.exposures || []).filter((x) => !x.example).map((x) => `${x.site}|${x.hazard_type}`));
+  const exposedSites = useMemo(() => {
+    const coords = Object.fromEntries((exposure?.sites || []).map((x) => [x.name, x]));
+    const best = {};
+    (exposure?.exposures || []).forEach((e) => {
+      const c = coords[e.site];
+      if (!c) return;
+      if (!best[e.site] || (e.severity === "high" && best[e.site].severity !== "high")) {
+        best[e.site] = { name: e.site, lat: c.lat, lng: c.lon, severity: e.severity, label: `${e.hazard_label} ${e.distance_km} km away${e.example ? " (example)" : ""}` };
+      }
+    });
+    return Object.values(best);
+  }, [exposure]);
   const snapAlerts = [...snapshotAlerts(snapshot), ...exposureAlerts(exposure)];
   const snapByKey = Object.fromEntries((snapshot?.kpis || []).map((k) => [k.key, k]));
 
@@ -1472,6 +1454,7 @@ export default function ControlTower({
                   <MapView
                     locationsUrl={locationsUrl || simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
                     onFacilitySelect={handleFacilitySelect}
+                    exposedSites={exposedSites}
                   />
                 </div>
 
@@ -1733,6 +1716,9 @@ export default function ControlTower({
       {selectedFacility && (
         <FacilityDrawer
           facility={selectedFacility}
+          snapshot={snapshot}
+          exposure={exposure}
+          onSimulate={simulateExposure}
           onClose={() => setSelectedFacility(null)}
         />
       )}
