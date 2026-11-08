@@ -91,12 +91,12 @@ export default function RevenueSummary({ runs = [], highlightBaselineId }) {
   function deltaDisplay(current, base, betterWhenHigher = true) {
     if (!baseline) return null;
     const diff = current - base;
-    if (Math.abs(diff) < 1e-6) return <span className="text-gray-400 ml-1">● 0</span>;
+    if (Math.abs(diff) < 1e-6) return <span className="text-slate-500 ml-1">● 0</span>;
     const positive = betterWhenHigher ? diff > 0 : diff < 0;
     return (
       <span
         className={`ml-1 ${
-          positive ? "text-green-600" : "text-red-600"
+          positive ? "text-emerald-400" : "text-rose-400"
         } text-xs`}
       >
         {positive ? "▲" : "▼"} {diff.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -105,13 +105,13 @@ export default function RevenueSummary({ runs = [], highlightBaselineId }) {
   }
 
   return (
-    <div className="rounded-2xl p-4 border bg-white/80 mt-4">
-      <div className="text-sm font-semibold text-[#1D625B] mb-3">
+    <div className="rounded-2xl p-4 border border-slate-800 bg-slate-900/50 mt-4">
+      <div className="text-sm font-semibold text-[#9FD63A] mb-3">
         💰 Revenue & Cost Summary
       </div>
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-gray-600 border-b">
+          <tr className="text-left text-slate-400 border-b border-slate-800">
             <th className="py-1">Run</th>
             <th className="py-1">Revenue</th>
             <th className="py-1">Cost</th>
@@ -123,32 +123,32 @@ export default function RevenueSummary({ runs = [], highlightBaselineId }) {
           {rows.map((row) => {
             const isBaseline = highlightBaselineId === String(row.id);
             const cls = isBaseline
-              ? "font-semibold text-[#065f46]"
-              : "text-gray-800";
+              ? "font-semibold text-[#9FD63A]"
+              : "text-slate-200";
             return (
-              <tr key={row.id} className="border-b last:border-0">
+              <tr key={row.id} className="border-b border-slate-800 last:border-0">
                 <td className={`py-1 ${cls}`}>
                   {row.name} {isBaseline && "✓ Baseline"}
                 </td>
-                <td className="py-1">
+                <td className="py-1 text-slate-200">
                   ${row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   {baseline &&
                     !isBaseline &&
                     deltaDisplay(row.revenue, baseline.revenue, true)}
                 </td>
-                <td className="py-1">
+                <td className="py-1 text-slate-200">
                   ${row.cost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   {baseline &&
                     !isBaseline &&
                     deltaDisplay(row.cost, baseline.cost, false)}
                 </td>
-                <td className="py-1">
+                <td className="py-1 text-slate-200">
                   ${row.margin.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   {baseline &&
                     !isBaseline &&
                     deltaDisplay(row.margin, baseline.margin, true)}
                 </td>
-                <td className="py-1">
+                <td className="py-1 text-slate-200">
                   {row.marginPct.toFixed(1)}%
                 </td>
               </tr>

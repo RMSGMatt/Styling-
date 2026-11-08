@@ -65,21 +65,21 @@ export default function BillingSuccess() {
 
   return (
     <div className="max-w-xl mx-auto p-8 text-center space-y-4">
-      <h1 className="text-2xl font-bold">Payment successful</h1>
-      <p className="text-gray-600">{status}</p>
+      <h1 className="text-2xl font-bold text-slate-100">Payment successful</h1>
+      <p className="text-slate-400">{status}</p>
       {sessionId ? (
-        <p className="text-xs text-gray-400">Session ID: {sessionId}</p>
+        <p className="text-xs text-slate-500">Session ID: {sessionId}</p>
       ) : null}
       <div className="pt-4 space-x-3">
         <a
           href="/billing"
-          className="inline-block rounded-xl px-4 py-2 border"
+          className="inline-block rounded-xl px-4 py-2 border border-slate-700 text-slate-200 hover:bg-slate-800/60 transition-colors"
         >
           Go to Billing
         </a>
         <a
           href="/"
-          className="inline-block rounded-xl px-4 py-2 border"
+          className="inline-block rounded-xl px-4 py-2 border border-slate-700 text-slate-200 hover:bg-slate-800/60 transition-colors"
         >
           Back to Dashboard
         </a>

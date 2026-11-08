@@ -52,18 +52,18 @@ function classNames(...xs) {
 }
 
 const Check = () => (
-  <span className="inline-block w-4 text-[#1D625B] font-bold">✔</span>
+  <span className="inline-block w-4 text-[#9FD63A] font-bold">✔</span>
 );
 const Dot = () => (
-  <span className="inline-block w-2 h-2 rounded-full bg-[#1D625B]" />
+  <span className="inline-block w-2 h-2 rounded-full bg-[#9FD63A]" />
 );
 
 function Badge({ children, tone = "info" }) {
   const tones = {
-    info: "bg-[#1D625B]/10 text-[#1D625B] border border-[#1D625B]/20",
-    warn: "bg-amber-50 text-amber-700 border border-amber-200",
-    err: "bg-red-50 text-red-700 border border-red-200",
-    ok: "bg-[#ABFA7D]/20 text-[#1D625B] border border-[#ABFA7D]/40",
+    info: "bg-[#9FD63A]/10 text-[#9FD63A] border border-[#9FD63A]/20",
+    warn: "bg-amber-500/10 text-amber-400 border border-amber-500/30",
+    err: "bg-red-500/10 text-red-400 border border-red-500/30",
+    ok: "bg-[#2EC4A6]/20 text-[#9FD63A] border border-[#2EC4A6]/40",
   };
   return (
     <span
@@ -80,11 +80,11 @@ function Badge({ children, tone = "info" }) {
 function ErrorBar({ msg, onClose }) {
   if (!msg) return null;
   return (
-    <div className="mb-4 rounded-xl border border-red-200 bg-red-50/90 text-red-700 px-4 py-2 text-sm flex items-start justify-between shadow-sm">
+    <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 px-4 py-2 text-sm flex items-start justify-between shadow-sm">
       <div className="pr-3">⚠️ {msg}</div>
       <button
         onClick={onClose}
-        className="text-red-700/70 hover:text-red-900 font-semibold"
+        className="text-red-400/80 hover:text-red-300 font-semibold"
       >
         Dismiss
       </button>
@@ -95,7 +95,7 @@ function ErrorBar({ msg, onClose }) {
 function InfoBar({ children }) {
   if (!children) return null;
   return (
-    <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-2 text-sm shadow-sm">
+    <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 px-4 py-2 text-sm shadow-sm">
       {children}
     </div>
   );
@@ -103,9 +103,9 @@ function InfoBar({ children }) {
 
 function Section({ title, children, right }) {
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-all p-6">
+    <section className="bg-slate-900/50 border border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition-all p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-semibold text-[#1D625B]">{title}</h3>
+        <h3 className="text-xl font-semibold text-[#9FD63A]">{title}</h3>
         {right}
       </div>
       {children}
@@ -115,7 +115,7 @@ function Section({ title, children, right }) {
 
 function Feature({ children }) {
   return (
-    <li className="flex items-start gap-2 text-sm text-gray-700">
+    <li className="flex items-start gap-2 text-sm text-slate-300">
       <Check />
       <span>{children}</span>
     </li>
@@ -125,10 +125,10 @@ function Feature({ children }) {
 function PlanBadge({ plan }) {
   const label = String(plan || "free").toUpperCase();
   const tones = {
-    FREE: "bg-gray-100 text-gray-700 border border-gray-200",
-    PRO: "bg-[#ABFA7D]/20 text-[#1D625B] border border-[#1D625B]/20",
+    FREE: "bg-slate-800/60 text-slate-300 border border-slate-800",
+    PRO: "bg-[#2EC4A6]/20 text-[#9FD63A] border border-[#9FD63A]/20",
     ENTERPRISE:
-      "bg-gradient-to-r from-[#1D625B]/10 to-[#ABFA7D]/10 text-[#1D625B] border border-[#1D625B]/20",
+      "bg-gradient-to-r from-[#9FD63A]/10 to-[#2EC4A6]/10 text-[#9FD63A] border border-[#9FD63A]/20",
   };
   const tone = tones[label] || tones.FREE;
   return (
@@ -156,10 +156,10 @@ function PricingCard({
 }) {
   const gradient =
     name === "Free"
-      ? "bg-gradient-to-b from-gray-50 to-white"
+      ? "bg-gradient-to-b from-slate-900/40 to-slate-950"
       : name === "Pro"
-      ? "bg-gradient-to-b from-[#E9F8EE] to-white"
-      : "bg-gradient-to-b from-[#F2FBF0] to-white";
+      ? "bg-gradient-to-b from-[rgba(159,214,58,0.06)] to-slate-950"
+      : "bg-gradient-to-b from-[rgba(46,196,166,0.06)] to-slate-950";
 
   return (
     <div
@@ -167,19 +167,19 @@ function PricingCard({
         "rounded-2xl border p-6 flex flex-col transition-all duration-200",
         gradient,
         highlight
-          ? "border-[#1D625B] ring-2 ring-[#1D625B]/30 shadow-md"
-          : "border-gray-200 shadow-sm hover:shadow-md"
+          ? "border-[#9FD63A] ring-2 ring-[#9FD63A]/30 shadow-md"
+          : "border-slate-800 shadow-sm hover:shadow-md"
       )}
     >
       <div className="flex items-center justify-between">
-        <h4 className="text-2xl font-bold text-[#1D625B]">{name}</h4>
+        <h4 className="text-2xl font-bold text-[#9FD63A]">{name}</h4>
         {highlight && <Badge tone="ok">Current</Badge>}
       </div>
 
       <div className="mt-3">
-        <div className="text-4xl font-extrabold text-gray-900">
+        <div className="text-4xl font-extrabold text-slate-100">
           {price}
-          <span className="text-base font-medium text-gray-500">{period}</span>
+          <span className="text-base font-medium text-slate-500">{period}</span>
         </div>
       </div>
 
@@ -189,8 +189,8 @@ function PricingCard({
         className={classNames(
           "mt-6 w-full rounded-lg px-4 py-2.5 font-semibold shadow-sm transition-all",
           disabled
-            ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-            : "bg-[#1D625B] text-white hover:bg-[#174F47] hover:shadow-md"
+            ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+            : "bg-[#9FD63A] text-[#111B21] hover:bg-[#B8E85C] hover:shadow-md"
         )}
         disabled={disabled}
         onClick={onClick}
@@ -199,7 +199,7 @@ function PricingCard({
         {cta}
       </button>
 
-      {foot && <div className="mt-4 text-xs text-gray-500">{foot}</div>}
+      {foot && <div className="mt-4 text-xs text-slate-500">{foot}</div>}
     </div>
   );
 }
@@ -301,18 +301,18 @@ export default function BillingView() {
   if (loading)
     return (
       <div className="p-8">
-        <div className="animate-pulse h-6 w-48 bg-gray-200 rounded mb-4" />
-        <div className="animate-pulse h-40 rounded bg-gray-200" />
+        <div className="animate-pulse h-6 w-48 bg-slate-800 rounded mb-4" />
+        <div className="animate-pulse h-40 rounded bg-slate-800" />
       </div>
     );
 
   return (
-    <div className="p-8 space-y-8 bg-[#F9FAF9] min-h-screen">
+    <div className="p-8 space-y-8 bg-[#0B0F13] min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-[#E5ECE7]">
+      <div className="flex items-center justify-between pb-2 border-b border-slate-800">
         <div>
-          <h1 className="text-3xl font-bold text-[#1D625B]">Billing</h1>
-          <p className="text-gray-600 mt-1 text-sm">
+          <h1 className="text-3xl font-bold text-[#9FD63A]">Billing</h1>
+          <p className="text-slate-400 mt-1 text-sm">
             Manage your subscription, upgrade plans, and access invoices.
           </p>
         </div>
@@ -337,8 +337,8 @@ export default function BillingView() {
                 className={classNames(
                   "rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-all border",
                   busyPortal
-                    ? "bg-gray-200 text-gray-500 cursor-wait"
-                    : "bg-[#1D625B]/10 text-[#1D625B] border-[#1D625B]/20 hover:bg-[#1D625B]/20"
+                    ? "bg-slate-800 text-slate-500 cursor-wait"
+                    : "bg-[#9FD63A]/10 text-[#9FD63A] border-[#9FD63A]/20 hover:bg-[#9FD63A]/20"
                 )}
               >
                 {busyPortal ? "Opening…" : "Open Billing Portal"}
@@ -346,7 +346,7 @@ export default function BillingView() {
             )}
             <button
               onClick={() => setShowDebug((s) => !s)}
-              className="rounded-lg px-4 py-2 text-sm font-semibold border border-gray-200 bg-white hover:bg-gray-50 shadow-sm"
+              className="rounded-lg px-4 py-2 text-sm font-semibold border border-slate-800 bg-slate-900/50 hover:bg-slate-900/40 shadow-sm"
             >
               {showDebug ? "Hide Debug" : "Show Debug"}
             </button>
@@ -354,13 +354,13 @@ export default function BillingView() {
         }
       >
         <div className="flex items-center justify-between">
-          <div className="text-gray-800">
+          <div className="text-slate-200">
             <div className="text-sm">Signed in as</div>
             <div className="font-semibold">{me?.email || "unknown"}</div>
           </div>
           <div className="text-right">
-            <div className="text-sm text-gray-600">Current plan</div>
-            <div className="text-lg font-bold text-[#1D625B] uppercase">
+            <div className="text-sm text-slate-400">Current plan</div>
+            <div className="text-lg font-bold text-[#9FD63A] uppercase">
               {me?.plan || "free"}
             </div>
           </div>
@@ -444,9 +444,9 @@ export default function BillingView() {
 
       {/* Help cards */}
       <Section title="How billing works">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm text-gray-700">
-          <div className="bg-white border border-[#E5ECE7] rounded-2xl shadow-sm p-5 hover:shadow-md transition-all">
-            <div className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm text-slate-300">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all">
+            <div className="font-semibold text-slate-100 mb-2 flex items-center gap-2">
               <Dot /> Stripe test cards
             </div>
             <ul className="space-y-1">
@@ -463,8 +463,8 @@ export default function BillingView() {
             </ul>
           </div>
 
-          <div className="bg-white border border-[#E5ECE7] rounded-2xl shadow-sm p-5 hover:shadow-md transition-all">
-            <div className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all">
+            <div className="font-semibold text-slate-100 mb-2 flex items-center gap-2">
               <Dot /> Need to downgrade?
             </div>
             <p>
