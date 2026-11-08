@@ -1483,7 +1483,7 @@ export default function ControlTower({
               )}
 
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div id="tour-map" className="lg:col-span-2 h-96 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
+                <div id="tour-map" className="lg:col-span-2 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
 
                   {newsHeadlines.length > 0 && (
                     <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
@@ -1513,6 +1513,7 @@ export default function ControlTower({
                     siteHealth={mapHealth}
                     lanes={mapLanes}
                     hazardLinks={hazardLinks}
+                    height="400px"
                   />
                 </div>
 

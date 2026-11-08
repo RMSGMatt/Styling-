@@ -1145,9 +1145,10 @@ export default function MapView({
         tryPaint("admin-1-boundary", "line-color", "rgba(148,163,184,0.10)");
 
         // ⬆️ Push globe upward more to avoid bottom clipping
+        const padBottom = Math.max(10, Math.min(190, (mapContainerRef.current?.clientHeight || 560) - 380));
         map.setPadding({
           top: 10,
-          bottom: 190,
+          bottom: padBottom,
           left: 10,
           right: 10,
         });
@@ -1664,7 +1665,7 @@ export default function MapView({
 
         {(Object.keys(siteHealth || {}).length > 0 || (lanes || []).length > 0) && (
           <div
-            className="absolute left-3 bottom-3 rounded-lg px-3 py-2 text-[11px]"
+            className="absolute left-3 top-3 rounded-lg px-3 py-2 text-[11px]"
             style={{ background: "rgba(11,15,19,0.85)", border: "1px solid rgba(148,163,184,0.2)", color: "#C7D0D9", zIndex: 9, pointerEvents: "none" }}
           >
             <div className="font-semibold mb-1" style={{ color: "#E2E8F0" }}>Site health</div>
