@@ -20,6 +20,7 @@ import BillingView from "./ControlTowerEhancements/BillingView.jsx";
 import RiskIntelligenceView from "./ControlTowerEhancements/RiskIntelligence/RiskIntelligenceView";
 import { useRiskTriggers } from "./ControlTowerEhancements/RiskIntelligence/useRiskTriggers";
 import { SCENARIO_CONFIG } from "./ControlTowerEhancements/RiskIntelligence/scenarioConfig";
+import IngestKeysCard from "./ControlTowerEhancements/IngestKeysCard";
 import PartsAtRiskCard from "./ControlTowerEhancements/PartsAtRiskCard";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
 import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
@@ -1686,6 +1687,7 @@ export default function ControlTower({
               {snapshotState !== "loading" && (!snapshot || showSnapshotCard) && (
                 <SnapshotDataCard apiBase={API_BASE_CT} onCancel={snapshot ? () => setShowSnapshotCard(false) : null} onLoaded={(body) => { setSnapshot(body); setSnapshotState("ready"); setShowSnapshotCard(false); }} />
               )}
+              {snapshot && showSnapshotCard && <IngestKeysCard apiBase={API_BASE_CT} />}
 
               {snapshot && (() => {
                 const head = snapshot.kpis.filter((k) => k.headline).slice(0, 6);
