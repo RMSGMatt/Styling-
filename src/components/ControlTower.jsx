@@ -152,7 +152,7 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
 
 const SITE_TYPE_LABEL = { supplier: "Supplier site", plant: "Plant", dc: "Distribution center", customer: "Customer site" };
 
-function FacilityDrawer({ facility, snapshot, exposure, risk, onOpenRisk, onSimulate, onClose }) {
+function FacilityDrawer({ facility, snapshot, exposure, risk, siteParts, onOpenRisk, onSimulate, onClose }) {
   const name = String(facility || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const siteInfo = (exposure?.sites || []).find((x) => x.name === facility);
   const exps = (exposure?.exposures || []).filter((e) => e.site === facility);
@@ -217,6 +217,21 @@ function FacilityDrawer({ facility, snapshot, exposure, risk, onOpenRisk, onSimu
               {siteRisk.advisory_level >= 3 && <p className="text-xs mt-2" style={{ color: "#FCA5A5" }}>{countryRisk.advisory_label}</p>}
               {siteRisk.uflpa_flagged && <p className="text-xs mt-1" style={{ color: "#FCA5A5" }}>Name matches the UFLPA entity list.</p>}
               {onOpenRisk && <button type="button" onClick={() => { onOpenRisk(); onClose(); }} className="mt-3 text-xs underline" style={{ color: "#9FD63A" }}>Open in Risk Intelligence</button>}
+            </div>
+          )}
+          {(siteParts || []).length > 0 && (
+            <div className="rounded-xl px-4 py-3" style={{ background: "rgba(9,25,19,0.5)", border: "1px solid rgba(148,163,184,0.2)" }}>
+              <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: "#94A3B8" }}>Thin parts on at-risk commodities</p>
+              <ul className="space-y-1.5">
+                {siteParts.slice(0, 6).map((p) => (
+                  <li key={p.sku} className="flex items-center gap-2 text-sm" style={{ color: "#E2E8F0" }}>
+                    <span className="text-xs font-bold rounded-md px-1.5 py-0.5" style={{ background: "rgba(239,68,68,0.12)", color: p.below_safety || (p.days_cover != null && p.days_cover < 7) ? "#EF4444" : "#F59E0B" }}>{p.days_cover != null ? `${p.days_cover}d` : "n/a"}</span>
+                    <span className="flex-1 min-w-0 truncate">{p.sku.replace(/_/g, " ")}{p.below_safety ? " (below safety)" : ""}</span>
+                    <span className="text-xs rounded-md px-1.5 py-0.5 border shrink-0" style={{ color: p.color, borderColor: `${p.color}66` }} title={p.commodity_label}>{p.score}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] mt-2" style={{ color: "#64748B" }}>{siteParts[0].commodity_label} and other tracked commodities, from Risk Intelligence.</p>
             </div>
           )}
           {exps.map((e, i) => (
@@ -1181,6 +1196,7 @@ export default function ControlTower({
     })();
     return () => { cancelled = true; };
   }, [snapshot, exposureExample, API_BASE_CT]);
+  const [siteParts, setSiteParts] = useState({});
   const [netRisk, setNetRisk] = useState(null);
   const [netRiskState, setNetRiskState] = useState("idle");
   useEffect(() => {
@@ -1245,9 +1261,11 @@ export default function ControlTower({
     const risk = Object.fromEntries((netRisk?.sites || []).map((r) => [r.name, r]));
     return Object.fromEntries((exposure?.sites || []).filter((x) => x.status).map((x) => {
       const r = risk[x.name];
-      return [x.name, { status: x.status, reason: x.reason + (r ? `. ${r.country} country risk ${r.country_score} (${r.country_label.toLowerCase()}, AI-assessed)` : "") }];
+      const sp = siteParts[x.name];
+      const top = sp && sp.length ? sp.reduce((a, b) => (b.score > a.score ? b : a)) : null;
+      return [x.name, { status: x.status, reason: x.reason + (r ? `. ${r.country} country risk ${r.country_score} (${r.country_label.toLowerCase()}, AI-assessed)` : "") + (top ? `. ${sp.length} thin part${sp.length > 1 ? "s" : ""} on ${top.commodity_label} risk ${top.score}` : "") }];
     }));
-  }, [exposure, netRisk]);
+  }, [exposure, netRisk, siteParts]);
   const mapLanes = useMemo(() => exposure?.lanes || [], [exposure]);
   const hazardLinks = useMemo(() => {
     const coords = Object.fromEntries((exposure?.sites || []).map((x) => [x.name, x]));
@@ -1732,7 +1750,7 @@ export default function ControlTower({
                     <ExposureBlock exposure={exposure} state={exposureState} example={exposureExample} setExample={setExposureExample}
                       onAddLocations={() => setShowSnapshotCard(true)} onSimulate={simulateExposure} />
                     <NetworkRiskCard risk={netRisk} state={netRiskState} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
-                    <PartsAtRiskCard apiBase={API_BASE_CT} refreshKey={`${snapshot?.uploaded_at}|${snapshot?.source}`} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
+                    <PartsAtRiskCard onSiteParts={setSiteParts} apiBase={API_BASE_CT} refreshKey={`${snapshot?.uploaded_at}|${snapshot?.source}`} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
                     {rest.length > 0 && (
                       <section className="mb-6">
                         <button type="button" onClick={() => setMoreMetrics(!moreMetrics)} className="text-sm underline" style={{ color: "#94A3B8" }}>
@@ -1885,6 +1903,7 @@ export default function ControlTower({
           snapshot={snapshot}
           exposure={exposure}
           risk={netRisk?.status === "ok" ? netRisk : null}
+          siteParts={siteParts[selectedFacility] || []}
           onOpenRisk={() => switchView("risk")}
           onSimulate={simulateExposure}
           onClose={() => setSelectedFacility(null)}

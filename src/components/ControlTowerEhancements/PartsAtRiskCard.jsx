@@ -6,7 +6,7 @@ const LABEL = Object.fromEntries(COMMODITY_REGISTRY.map((c) => [c.key, c.label])
 const coverTone = (d, below) => (below || (d != null && d < 7) ? "#EF4444" : d != null && d < 14 ? "#F59E0B" : "#22C55E");
 
 // Parts with thin cover, joined to the commodity risk behind them. Mapping is auto-detected from the part name; the user can correct it.
-export default function PartsAtRiskCard({ apiBase, refreshKey, onSelectSite, onOpenRisk }) {
+export default function PartsAtRiskCard({ apiBase, refreshKey, onSelectSite, onOpenRisk, onSiteParts }) {
   const [data, setData] = useState(null);
   const [prof, setProf] = useState({});
   const [editing, setEditing] = useState(false);
@@ -36,6 +36,20 @@ export default function PartsAtRiskCard({ apiBase, refreshKey, onSelectSite, onO
       setProf(await loadCommodityProfiles(body.skus.map((s) => s.commodity).filter(Boolean)));
     } catch { setErr("Could not save."); }
   };
+
+  // Tell the parent which parts at each site sit on a scored commodity, so the map and site panel can show it.
+  useEffect(() => {
+    if (!onSiteParts) return;
+    const by = {};
+    if (data && data.status === "ok") {
+      data.parts.forEach((p) => {
+        const c = p.commodity ? prof[p.commodity] : null;
+        if (!c || !(p.below_safety || (p.days_cover != null && p.days_cover < 14))) return;
+        (by[p.facility] = by[p.facility] || []).push({ sku: p.sku, days_cover: p.days_cover, below_safety: p.below_safety, commodity: p.commodity, commodity_label: LABEL[p.commodity] || p.commodity, score: c.score, level: c.label, color: c.color, source: c.source });
+      });
+    }
+    onSiteParts(by);
+  }, [data, prof, onSiteParts]);
 
   if (!data || data.status !== "ok") return null;
   const box = { borderColor: "rgba(148,163,184,0.15)", background: "rgba(9,25,19,0.5)" };
