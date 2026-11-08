@@ -775,7 +775,29 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState([]);
   const [warn, setWarn] = useState([]);
+  const [profile, setProfile] = useState(null);
   const headers = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}` });
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/network-profile`, { headers: headers() });
+        const body = await res.json().catch(() => ({}));
+        if (live && body && body.status === "ok" && body.profile && body.profile.source !== "sample") setProfile(body.profile);
+      } catch { /* the card still works as a first upload */ }
+    })();
+    return () => { live = false; };
+  }, [apiBase]);
+  const ago = (iso) => {
+    const t = Date.parse(iso || "");
+    if (!t) return "";
+    const m = Math.max(0, Math.round((Date.now() - t) / 60000));
+    if (m < 1) return "just now";
+    if (m < 60) return `${m} min ago`;
+    if (m < 1440) return `${Math.round(m / 60)} h ago`;
+    return `${Math.round(m / 1440)} d ago`;
+  };
+  const refreshMode = !!profile;
   const finish = async (res) => {
     const body = await res.json().catch(() => ({}));
     if (res.ok && body.status === "ok") { setErr([]); setWarn(body.warnings || []); onLoaded(body); }
@@ -788,6 +810,16 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
       const fd = new FormData();
       Object.entries(files).forEach(([k, f]) => { if (f) fd.append(k, f, f.name); });
       await finish(await fetch(`${apiBase}/api/network-snapshot`, { method: "POST", headers: headers(), body: fd }));
+    } catch { setErr(["Could not reach the server."]); } finally { setBusy(false); }
+  };
+  const refresh = async () => {
+    const picked = Object.entries(files).filter(([, f]) => f);
+    if (!picked.length) { setErr(["Choose at least one file to refresh. Files you leave out keep their last data."]); return; }
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      picked.forEach(([k, f]) => fd.append(k, f, f.name));
+      await finish(await fetch(`${apiBase}/api/network-snapshot/refresh`, { method: "POST", headers: headers(), body: fd }));
     } catch { setErr(["Could not reach the server."]); } finally { setBusy(false); }
   };
   const loadSample = async () => {
@@ -803,13 +835,13 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
   ];
   return (
     <section className="rounded-2xl border px-5 py-4 mb-6" style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "rgba(159,214,58,0.3)" }} data-testid="snapshot-card">
-      <h2 className="text-lg font-bold" style={{ color: "#9FD63A" }}>Connect your network data</h2>
-      <p className="text-sm mt-1" style={{ color: "#94A3B8" }}>Upload exports from your ERP to see live service, supplier and inventory KPIs with real changes. Orders alone is enough to start.</p>
+      <h2 className="text-lg font-bold" style={{ color: "#9FD63A" }}>{refreshMode ? "Refresh your network data" : "Connect your network data"}</h2>
+      <p className="text-sm mt-1" style={{ color: "#94A3B8" }}>{refreshMode ? "Choose only the files that changed. The others keep their last data, and your delivery-window settings carry over." : "Upload exports from your ERP to see live service, supplier and inventory KPIs with real changes. Orders alone is enough to start."}</p>
       <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
         {inputs.map(([key, label, note]) => (
           <label key={key} className="rounded-xl border p-3 text-xs cursor-pointer" style={{ borderColor: "rgba(148,163,184,0.2)", background: "rgba(2,6,23,0.35)", color: "#94A3B8" }}>
             <span className="block font-semibold" style={{ color: "#E2E8F0" }}>{label}</span>
-            <span className="block mb-2">{note}</span>
+            <span className="block mb-2">{refreshMode && profile.files && profile.files[key] ? `Last updated ${ago(profile.files[key].updated_at)}` : note}</span>
             <input type="file" accept=".csv,text/csv" onChange={(e) => setFiles((f) => ({ ...f, [key]: e.target.files?.[0] || null }))} className="block w-full text-[11px]" />
             {files[key] && <span className="block mt-1" style={{ color: "#9FD63A" }}>{files[key].name}</span>}
           </label>
@@ -818,7 +850,8 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
       {err.length > 0 && <ul className="mt-3 text-sm" style={{ color: "#FCA5A5" }}>{err.map((e, i) => <li key={i}>{e}</li>)}</ul>}
       {warn.length > 0 && <ul className="mt-2 text-xs" style={{ color: "#FCD34D" }}>{warn.map((e, i) => <li key={i}>{e}</li>)}</ul>}
       <div className="mt-3 flex flex-wrap gap-2">
-        <button onClick={upload} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: "#9CF700", color: "#020617", opacity: busy ? 0.6 : 1 }}>{busy ? "Working…" : "Upload and calculate"}</button>
+        {refreshMode && <button onClick={refresh} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: "#9CF700", color: "#020617", opacity: busy ? 0.6 : 1 }}>{busy ? "Working…" : "Refresh with these files"}</button>}
+        <button onClick={upload} disabled={busy} className={refreshMode ? "px-4 py-2 rounded-lg text-sm font-semibold border" : "px-4 py-2 rounded-lg text-sm font-bold"} style={refreshMode ? { borderColor: "rgba(159,214,58,0.35)", color: "#9FD63A", opacity: busy ? 0.6 : 1 } : { background: "#9CF700", color: "#020617", opacity: busy ? 0.6 : 1 }}>{refreshMode ? "Replace everything" : (busy ? "Working…" : "Upload and calculate")}</button>
         <button onClick={loadSample} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-semibold border" style={{ borderColor: "rgba(159,214,58,0.35)", color: "#9FD63A" }}>Load example network</button>
         {onCancel && <button onClick={onCancel} className="px-4 py-2 rounded-lg text-sm" style={{ color: "#94A3B8" }}>Cancel</button>}
       </div>
