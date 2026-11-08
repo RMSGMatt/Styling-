@@ -645,6 +645,8 @@ const SNAP_ACTIONS = {
   supplier_on_time: "Escalate with the late suppliers and confirm recovery dates.",
   supplier_lead_time: "Check whether lead times have moved and update planning parameters.",
   overdue_pos: "Chase the overdue purchase orders today.",
+  supplier_on_time_request: "Compare promised dates with the dates you asked for and reset expectations with the suppliers that promise late.",
+  premium_freight: "Review what drove the premium freight and whether an earlier order would have avoided it.",
   line_fill: "Look at which order lines are missing in full, even when unit volume looks fine.",
   min_days_of_supply: "Place or expedite orders for the lowest-cover parts first.",
   days_of_supply: "Review parts with the lowest cover and place or expedite orders.",
@@ -654,13 +656,14 @@ function snapFmt(v, unit) {
   if (v === null || v === undefined || Number.isNaN(v)) return "–";
   if (unit === "%") return `${Number(v).toFixed(1)}%`;
   if (unit === "days") return `${Number(v).toFixed(1)} days`;
+  if (unit === "x") return `${Number(v).toFixed(1)}x`;
   if (unit === "$") return `$${Math.round(v).toLocaleString("en-US")}`;
   return Math.round(v).toLocaleString("en-US");
 }
 function snapDelta(k, windowDays) {
   if (k.delta === null || k.delta === undefined) return k.n ? `${k.n} ${k.n_unit || "records"}${k.low_volume ? " · low volume" : ""}` : "";
   const abs = Math.abs(k.delta);
-  const mag = k.unit === "%" ? `${abs.toFixed(1)} pts` : k.unit === "days" ? `${abs.toFixed(1)} days` : k.unit === "$" ? `$${Math.round(abs).toLocaleString("en-US")}` : Math.round(abs).toLocaleString("en-US");
+  const mag = k.unit === "%" ? `${abs.toFixed(1)} pts` : k.unit === "days" ? `${abs.toFixed(1)} days` : k.unit === "x" ? `${abs.toFixed(1)}x` : k.unit === "$" ? `$${Math.round(abs).toLocaleString("en-US")}` : Math.round(abs).toLocaleString("en-US");
   const base = k.trend === "flat" ? `Flat vs previous ${windowDays} days` : `${k.delta > 0 ? "↑" : "↓"} ${mag} vs previous ${windowDays} days`;
   return `${base}${k.n ? ` · ${k.n} ${k.n_unit || "records"}` : ""}${k.low_volume ? " · low volume" : ""}`;
 }
@@ -1073,6 +1076,14 @@ export default function ControlTower({
     })();
     return () => { cancelled = true; };
   }, [snapshot, exposureExample, API_BASE_CT]);
+  const changeWindow = async (d) => {
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+      const res = await fetch(`${API_BASE_CT}/api/network-snapshot?window_days=${d}`, { headers: { Authorization: `Bearer ${token}` } });
+      const body = await res.json().catch(() => ({}));
+      if (body && body.status === "ok" && Array.isArray(body.kpis)) setSnapshot(body);
+    } catch { /* keep the current view */ }
+  };
   const simulateExposure = (e) => {
     try {
       const days = e.hazard_type === "EQ" ? (e.severity === "high" ? 60 : 7) : ({ TC: 7, FL: 14, VO: 14, WF: 10 }[e.hazard_type] || 10);
@@ -1552,7 +1563,15 @@ export default function ControlTower({
                           <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Network KPIs<SourceChip snapshot={snapshot} /></h2>
                           <div className="text-sm" style={{ color: "#64748B" }}>Last {snapshot.window_days} days to {snapshot.as_of}, compared with the {snapshot.window_days} days before.</div>
                         </div>
-                        <div className="flex gap-3 text-sm">
+                        <div className="flex gap-3 text-sm items-center">
+                          <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "rgba(148,163,184,0.25)" }}>
+                            {[7, 30, 90].map((d) => (
+                              <button key={d} type="button" onClick={() => changeWindow(d)} className="px-2.5 py-1 text-xs font-semibold"
+                                style={{ background: snapshot.window_days === d ? "#9FD63A" : "transparent", color: snapshot.window_days === d ? "#0B1512" : "#94A3B8" }}>
+                                {d}d
+                              </button>
+                            ))}
+                          </div>
                           <button type="button" onClick={() => setShowSnapshotCard(true)} className="underline" style={{ color: "#94A3B8" }}>Update data</button>
                           <button type="button" onClick={removeSnapshot} className="underline" style={{ color: "#64748B" }}>Remove</button>
                         </div>
