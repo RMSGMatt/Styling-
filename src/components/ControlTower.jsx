@@ -20,6 +20,7 @@ import BillingView from "./ControlTowerEhancements/BillingView.jsx";
 import RiskIntelligenceView from "./ControlTowerEhancements/RiskIntelligence/RiskIntelligenceView";
 import { useRiskTriggers } from "./ControlTowerEhancements/RiskIntelligence/useRiskTriggers";
 import { SCENARIO_CONFIG } from "./ControlTowerEhancements/RiskIntelligence/scenarioConfig";
+import PartsAtRiskCard from "./ControlTowerEhancements/PartsAtRiskCard";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
 import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
 
@@ -1729,6 +1730,7 @@ export default function ControlTower({
                     <ExposureBlock exposure={exposure} state={exposureState} example={exposureExample} setExample={setExposureExample}
                       onAddLocations={() => setShowSnapshotCard(true)} onSimulate={simulateExposure} />
                     <NetworkRiskCard risk={netRisk} state={netRiskState} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
+                    <PartsAtRiskCard apiBase={API_BASE_CT} refreshKey={`${snapshot?.uploaded_at}|${snapshot?.source}`} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
                     {rest.length > 0 && (
                       <section className="mb-6">
                         <button type="button" onClick={() => setMoreMetrics(!moreMetrics)} className="text-sm underline" style={{ color: "#94A3B8" }}>
