@@ -44,6 +44,37 @@ function TrendPip({ trend }) {
   );
 }
 
+// ── Score delta pill ──────────────────────────────────────────────────────────
+// Shows how much an analyst-reviewed signal's score moved since its last
+// dated review, using the previousValue/reviewedAt fields on the detail
+// object. Deliberately absent (renders nothing) when previousValue isn't
+// set — most signals don't have review history yet, and a missing delta
+// should look like "no data" rather than "no change".
+function ScoreDeltaPip({ current, previous, reviewedAt }) {
+  if (previous == null) return null;
+  const deltaPoints = Math.round(current * 100) - Math.round(previous * 100);
+  const reviewedLabel = reviewedAt ? ` (reviewed ${reviewedAt})` : "";
+
+  if (deltaPoints === 0) {
+    return (
+      <span style={{ fontSize: 12, color: "#94A3B8" }}>
+        No change since last review{reviewedLabel}
+      </span>
+    );
+  }
+
+  const worse = deltaPoints > 0; // higher score = more risk = worse
+  const color = worse ? "#A32D2D" : "#3B6D11";
+  const icon = worse ? "▲" : "▼";
+  const sign = worse ? "+" : "";
+
+  return (
+    <span style={{ fontSize: 12, color, fontWeight: 500 }}>
+      {icon} {sign}{deltaPoints} pts since last review{reviewedLabel}
+    </span>
+  );
+}
+
 // ── Score bar ─────────────────────────────────────────────────────────────────
 function ScoreBar({ value, band }) {
   return (
@@ -83,7 +114,7 @@ function ScoreBar({ value, band }) {
 }
 
 // ── Main SignalCard component ─────────────────────────────────────────────────
-export default function SignalCard({ signalKey, value, detailData }) {
+export default function SignalCard({ signalKey, value, detailData, isLive = false, isAnalystReviewed = false, lastAnalystReview = null }) {
   const [expanded, setExpanded] = useState(false);
 
   const meta   = SIGNAL_METADATA[signalKey];
@@ -98,7 +129,9 @@ export default function SignalCard({ signalKey, value, detailData }) {
       onClick={() => setExpanded((e) => !e)}
       style={{
         background:   "rgba(2,6,23,0.5)",
-        border:       `0.5px solid ${expanded ? band.border : "rgba(148,163,184,0.15)"}`,
+        borderTop:    `0.5px solid ${expanded ? band.border : "rgba(148,163,184,0.15)"}`,
+        borderRight:  `0.5px solid ${expanded ? band.border : "rgba(148,163,184,0.15)"}`,
+        borderBottom: `0.5px solid ${expanded ? band.border : "rgba(148,163,184,0.15)"}`,
         borderLeft:   `3px solid ${band.border}`,
         borderRadius: 10,
         padding:      "12px 14px",
@@ -110,8 +143,42 @@ export default function SignalCard({ signalKey, value, detailData }) {
       {/* ── Header row ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <div style={{ flex: 1, marginRight: 8 }}>
-          <div style={{ fontSize: 15, fontWeight: 500, color: "#E2E8F0", lineHeight: 1.3, marginBottom: 4 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, color: "#E2E8F0", lineHeight: 1.3, marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
             {meta.label}
+            {isLive && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "2px 7px",
+                  borderRadius: 20,
+                  background: "rgba(74,222,128,0.12)",
+                  color: "#4ADE80",
+                  border: "0.5px solid rgba(74,222,128,0.4)",
+                  letterSpacing: "0.03em",
+                }}
+                title="This signal is pulled from a real, live public data source — not the sample/mock values the rest of this commodity currently uses."
+              >
+                LIVE
+              </span>
+            )}
+            {!isLive && isAnalystReviewed && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "2px 7px",
+                  borderRadius: 20,
+                  background: "rgba(96,165,250,0.12)",
+                  color: "#60A5FA",
+                  border: "0.5px solid rgba(96,165,250,0.4)",
+                  letterSpacing: "0.03em",
+                }}
+                title={`No reliable free live source exists for this signal — investigated and confirmed (2026-08-15). Set from analyst judgment, reviewed periodically against real quarterly earnings/investor commentary${lastAnalystReview ? `, last reviewed ${lastAnalystReview}` : ""}. Not automated, not stale — a deliberate, periodically-checked estimate.`}
+              >
+                ANALYST EST.
+              </span>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             {/* Layer badge */}
@@ -153,7 +220,7 @@ export default function SignalCard({ signalKey, value, detailData }) {
       <ScoreBar value={value} band={band} />
 
       {/* ── Expanded detail ── */}
-      {expanded && detail && (
+      {expanded && detail && !isLive && (
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: "0.5px solid rgba(148,163,184,0.15)" }}>
           {/* Current value + trend */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -162,6 +229,18 @@ export default function SignalCard({ signalKey, value, detailData }) {
             </span>
             <TrendPip trend={detail.trend} />
           </div>
+
+          {/* Score delta since last analyst review (only shown when the
+              detail object carries review history) */}
+          {detail.previousValue != null && (
+            <div style={{ marginBottom: 8 }}>
+              <ScoreDeltaPip
+                current={value}
+                previous={detail.previousValue}
+                reviewedAt={detail.reviewedAt}
+              />
+            </div>
+          )}
 
           {/* Key fact */}
           <p style={{ fontSize: 14, color: "#CBD5E1", lineHeight: 1.6, margin: "0 0 8px" }}>
@@ -196,6 +275,23 @@ export default function SignalCard({ signalKey, value, detailData }) {
           }}>
             {meta.explainer}
           </div>
+        </div>
+      )}
+
+      {/* Live signals: the hand-written narrative above (value/trend/
+          keyFact) was written for the mock era and never wired to reflect
+          a live score changing — showing it next to a real number risked
+          the two visibly contradicting each other (confirmed in practice,
+          2026-08-14: a LOW/20 live score sitting under static text saying
+          "High divergence... Deteriorating"). Hidden for now rather than
+          shown wrong; a real fix would generate this text from the live
+          meta fields instead of reusing mock prose. */}
+      {expanded && isLive && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "0.5px solid rgba(148,163,184,0.15)" }}>
+          <p style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.6, margin: 0, fontStyle: "italic" }}>
+            This signal is live — the score above reflects real, current data.
+            Detailed narrative breakdown for live signals isn't built yet.
+          </p>
         </div>
       )}
 

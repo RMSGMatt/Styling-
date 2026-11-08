@@ -5,12 +5,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React from "react";
 import SignalCard from "./SignalCard";
-import { getRiskBand } from "./riskScoreEngine";
 
 // ── Composite score gauge ─────────────────────────────────────────────────────
-function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
-  const pct = Math.round(amplified * 100);
-  const rawBand = getRiskBand(score);
+// Shows the forward composite on its own terms — no more amplification math
+// to explain here. The combined Current x Future Risk Score (grid-derived,
+// replacing the old 1.0x/1.3x/1.6x multiplier, removed 2026-08-18) lives at
+// the top-level summary instead of being duplicated on this tab.
+function ForwardScoreGauge({ score, band }) {
+  const pct = Math.round(score * 100);
 
   return (
     <div style={{
@@ -20,46 +22,24 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
       padding:      "16px 20px",
       marginBottom: 16,
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontSize: 13, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-            Forward pressure index
-          </div>
-          <div style={{ fontSize: 40, fontWeight: 500, color: band.color, lineHeight: 1 }}>
-            {pct}
-          </div>
-          <div style={{ marginTop: 6 }}>
-            <span style={{
-              fontSize: 13,
-              fontWeight: 500,
-              padding: "3px 10px",
-              borderRadius: 20,
-              background: band.bg,
-              color: band.color,
-              border: `0.5px solid ${band.border}`,
-            }}>
-              {band.label}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 13, color: "#7A8A99", marginBottom: 4 }}>Regime multiplier</div>
-          <div style={{ fontSize: 18, fontWeight: 500, color: regimeMultiplier.color }}>
-            {regimeMultiplier.multiplier}×
-          </div>
-          <div style={{
-            fontSize: 12,
-            padding: "2px 8px",
-            borderRadius: 20,
-            background: regimeMultiplier.bg,
-            color: regimeMultiplier.color,
-            marginTop: 4,
-            display: "inline-block",
-          }}>
-            {regimeMultiplier.label}
-          </div>
-        </div>
+      <div style={{ fontSize: 13, color: "#7A8A99", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+        Forward pressure index
+      </div>
+      <div style={{ fontSize: 40, fontWeight: 500, color: band.color, lineHeight: 1 }}>
+        {pct}
+      </div>
+      <div style={{ marginTop: 6 }}>
+        <span style={{
+          fontSize: 13,
+          fontWeight: 500,
+          padding: "3px 10px",
+          borderRadius: 20,
+          background: band.bg,
+          color: band.color,
+          border: `0.5px solid ${band.border}`,
+        }}>
+          {band.label}
+        </span>
       </div>
 
       {/* Progress bar */}
@@ -87,26 +67,9 @@ function ForwardScoreGauge({ score, band, amplified, regimeMultiplier }) {
         </div>
       </div>
 
-      {/* Raw vs amplified */}
-      <div style={{ marginTop: 10, fontSize: 13, color: "#7A8A99" }}>
-        Raw score: {Math.round(score * 100)} × {regimeMultiplier.multiplier} regime multiplier = {pct} amplified
-      </div>
-
-      {/* Causal explanation */}
       <p style={{ marginTop: 10, fontSize: 14, color: "#C7D0D9", lineHeight: 1.6 }}>
-        Your leading indicators are elevated on their own ({Math.round(score * 100)}, {rawBand.label}). Because the broader market is currently in a stressed regime ({regimeMultiplier.label}), we treat emerging risk as more urgent right now — pushing this to {pct} ({band.label}).
+        This reflects your leading indicators alone — what's building 3-18 months out. For the combined view that also accounts for current market conditions, see the Risk Score at the top of the page.
       </p>
-      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-        <span style={{ fontSize: 13, padding: "4px 10px", borderRadius: 20, background: rawBand.bg, color: rawBand.color }}>
-          Your leading indicators: {rawBand.label}
-        </span>
-        <span
-          style={{ fontSize: 13, padding: "4px 10px", borderRadius: 20, background: regimeMultiplier.bg, color: regimeMultiplier.color, cursor: "help" }}
-          title="Regimes amplify the forward score because the same disruption signal matters more when conditions are already tight — there's less slack to absorb it."
-        >
-          Market regime: {regimeMultiplier.label}
-        </span>
-      </div>
     </div>
   );
 }
@@ -139,10 +102,10 @@ function PanelHeader() {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ForwardPressurePanel({ forwardSignals, scoreResult, detailData }) {
+export default function ForwardPressurePanel({ forwardSignals, scoreResult, detailData, liveSignalKeys = [], analystReviewedKeys = {} }) {
   if (!scoreResult) return null;
 
-  const { forward, regime } = scoreResult;
+  const { forward } = scoreResult;
   const band = forward.band;
 
   // Sort signals by score descending so highest risk is always first
@@ -161,9 +124,7 @@ export default function ForwardPressurePanel({ forwardSignals, scoreResult, deta
       {/* Gauge */}
       <ForwardScoreGauge
         score={forward.raw}
-        amplified={forward.amplified}
         band={band}
-        regimeMultiplier={regime.multiplier}
       />
 
       {/* Signal summary strip */}
@@ -195,7 +156,15 @@ export default function ForwardPressurePanel({ forwardSignals, scoreResult, deta
       {/* Signal cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {sortedSignals.map(([key, value]) => (
-          <SignalCard key={key} signalKey={key} value={value} detailData={detailData} />
+          <SignalCard
+            key={key}
+            signalKey={key}
+            value={value}
+            detailData={detailData}
+            isLive={liveSignalKeys.includes(key)}
+            isAnalystReviewed={key in analystReviewedKeys}
+            lastAnalystReview={analystReviewedKeys[key]}
+          />
         ))}
       </div>
 
@@ -209,7 +178,7 @@ export default function ForwardPressurePanel({ forwardSignals, scoreResult, deta
         color: "#C7D0D9",
         lineHeight: 1.6,
       }}>
-        <strong>Methodology:</strong> Forward score is a weighted composite of six independent leading indicators, amplified by the current market regime multiplier. Trigger queue fires only on signal convergence — a minimum of two signals above threshold — to avoid false positives from single-signal noise.
+        <strong>Methodology:</strong> Forward score is a weighted composite of independent leading indicators. This is combined with current market conditions (Regime) via a Current x Future risk grid — see the Risk Score at the top of the page for the full combined view. Trigger queue fires only on signal convergence — a minimum of two signals above threshold — to avoid false positives from single-signal noise.
       </div>
     </div>
   );

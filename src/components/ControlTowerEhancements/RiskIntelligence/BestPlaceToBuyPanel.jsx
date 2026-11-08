@@ -367,7 +367,9 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
                     display: "flex", alignItems: "center", gap: 16,
                     padding: "14px 18px",
                     background: isBest ? "#F0FDF4" : "rgba(2,6,23,0.4)",
-                    border: `0.5px solid ${isBest ? "#86EFAC" : "rgba(148,163,184,0.12)"}`,
+                    borderTop: `0.5px solid ${isBest ? "#86EFAC" : "rgba(148,163,184,0.12)"}`,
+                    borderRight: `0.5px solid ${isBest ? "#86EFAC" : "rgba(148,163,184,0.12)"}`,
+                    borderBottom: `0.5px solid ${isBest ? "#86EFAC" : "rgba(148,163,184,0.12)"}`,
                     borderLeft: `3px solid ${riskColor(entry.compositeScore)}`,
                     borderRadius: 8,
                   }}

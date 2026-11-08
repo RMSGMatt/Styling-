@@ -228,7 +228,9 @@ export default function SupplierScreeningPanel() {
                     key={r.row}
                     style={{
                       background: "rgba(2,6,23,0.4)",
-                      border: "0.5px solid rgba(148,163,184,0.12)",
+                      borderTop: "0.5px solid rgba(148,163,184,0.12)",
+                      borderRight: "0.5px solid rgba(148,163,184,0.12)",
+                      borderBottom: "0.5px solid rgba(148,163,184,0.12)",
                       borderLeft: `3px solid ${color}`,
                       borderRadius: 8,
                       overflow: "hidden",

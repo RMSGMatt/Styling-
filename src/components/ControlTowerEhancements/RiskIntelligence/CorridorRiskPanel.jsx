@@ -425,7 +425,9 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
               {/* Executive summary */}
               <div style={{
                 background: "rgba(2,6,23,0.4)",
-                border: "0.5px solid rgba(148,163,184,0.15)",
+                borderTop: "0.5px solid rgba(148,163,184,0.15)",
+                borderRight: "0.5px solid rgba(148,163,184,0.15)",
+                borderBottom: "0.5px solid rgba(148,163,184,0.15)",
                 borderLeft: `3px solid ${riskColor(compositeScore)}`,
                 borderRadius: 8,
                 padding: "14px 18px",
@@ -517,7 +519,9 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                       return (
                         <div key={key} style={{
                           background: isTop ? "rgba(249,115,22,0.12)" : "rgba(2,6,23,0.4)",
-                          border: `0.5px solid ${isTop ? "#FED7AA" : "rgba(148,163,184,0.12)"}`,
+                          borderTop: `0.5px solid ${isTop ? "#FED7AA" : "rgba(148,163,184,0.12)"}`,
+                          borderRight: `0.5px solid ${isTop ? "#FED7AA" : "rgba(148,163,184,0.12)"}`,
+                          borderBottom: `0.5px solid ${isTop ? "#FED7AA" : "rgba(148,163,184,0.12)"}`,
                           borderLeft: `3px solid ${isTop ? "#f97316" : riskColor(score) + "60"}`,
                           borderRadius: 6,
                           padding: "10px 14px",

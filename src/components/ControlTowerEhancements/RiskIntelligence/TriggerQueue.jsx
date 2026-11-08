@@ -65,7 +65,9 @@ function TriggerCard({ trigger, onLaunch, onDismiss, dismissed }) {
   return (
     <div style={{
       background:   "rgba(2,6,23,0.5)",
-      border:       `0.5px solid ${borderColor}`,
+      borderTop:    `0.5px solid ${borderColor}`,
+      borderRight:  `0.5px solid ${borderColor}`,
+      borderBottom: `0.5px solid ${borderColor}`,
       borderLeft:   `3px solid ${borderColor}`,
       borderRadius: 10,
       overflow:     "hidden",
