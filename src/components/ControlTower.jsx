@@ -150,7 +150,7 @@ function KpiCard({ value, label, risk, trend, deltaText }) {
 
 const SITE_TYPE_LABEL = { supplier: "Supplier site", plant: "Plant", dc: "Distribution center", customer: "Customer site" };
 
-function FacilityDrawer({ facility, snapshot, exposure, onSimulate, onClose }) {
+function FacilityDrawer({ facility, snapshot, exposure, risk, onOpenRisk, onSimulate, onClose }) {
   const name = String(facility || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const siteInfo = (exposure?.sites || []).find((x) => x.name === facility);
   const exps = (exposure?.exposures || []).filter((e) => e.site === facility);
@@ -159,6 +159,8 @@ function FacilityDrawer({ facility, snapshot, exposure, onSimulate, onClose }) {
   const pastDue = Number(fStat?.past_due_units || 0);
   const overduePos = Number(sStat?.overdue_pos || 0);
   const hasData = !!snapshot;
+  const siteRisk = (risk?.sites || []).find((x) => x.name === facility);
+  const countryRisk = siteRisk ? (risk?.countries || []).find((x) => x.code === siteRisk.code) : null;
   let status = "No data for this site yet", statusColor = "#64748B";
   if (exps.length) { status = "Exposed to a live hazard"; statusColor = exps.some((e) => e.severity === "high") ? "#EF4444" : "#F59E0B"; }
   else if (pastDue > 0 || overduePos > 0) { status = "Open issues in your data"; statusColor = "#F59E0B"; }
@@ -202,6 +204,18 @@ function FacilityDrawer({ facility, snapshot, exposure, onSimulate, onClose }) {
         <div className="px-6 py-4 space-y-4 flex-1 overflow-y-auto">
           {!hasData && (
             <p className="text-sm" style={{ color: "#94A3B8" }}>Add your orders, purchase orders and inventory on the Control Tower to see operational figures for this site.</p>
+          )}
+          {siteRisk && countryRisk && (
+            <div className="rounded-xl px-4 py-3" style={{ background: "rgba(9,25,19,0.5)", border: "1px solid rgba(148,163,184,0.2)" }}>
+              <p className="text-[10px] uppercase tracking-widest mb-1.5" style={{ color: riskTone(siteRisk.country_score) }}>
+                Country risk: {siteRisk.country} {siteRisk.country_score} ({siteRisk.country_label.toLowerCase()}) <span style={{ color: "#FCD34D" }}>AI-assessed</span>
+              </p>
+              {countryRisk.top_factor && <p className="text-xs" style={{ color: "#94A3B8" }}>Biggest driver: {FACTOR_LABEL[countryRisk.top_factor] || countryRisk.top_factor}. {countryRisk.reason}</p>}
+              {countryRisk.summary && <p className="text-sm mt-2" style={{ color: "#e2e8e0" }}>{countryRisk.summary}</p>}
+              {siteRisk.advisory_level >= 3 && <p className="text-xs mt-2" style={{ color: "#FCA5A5" }}>{countryRisk.advisory_label}</p>}
+              {siteRisk.uflpa_flagged && <p className="text-xs mt-1" style={{ color: "#FCA5A5" }}>Name matches the UFLPA entity list.</p>}
+              {onOpenRisk && <button type="button" onClick={() => { onOpenRisk(); onClose(); }} className="mt-3 text-xs underline" style={{ color: "#9FD63A" }}>Open in Risk Intelligence</button>}
+            </div>
           )}
           {exps.map((e, i) => (
             <div key={i} className="rounded-xl px-4 py-3" style={{ background: "#0d3d2e", border: "1px solid rgba(159,214,58,0.2)" }}>
@@ -701,6 +715,62 @@ function exposureAlerts(exposure) {
   }));
 }
 
+const riskTone = (score) => (score >= 80 ? "#EF4444" : score >= 60 ? "#F97316" : score >= 35 ? "#EAB308" : "#22C55E");
+const FACTOR_LABEL = { geopolitical: "geopolitics", political_stability: "political stability", natural_disaster: "natural disasters", chokepoint: "shipping chokepoints", infrastructure: "infrastructure" };
+
+// Country risk for the sites in the network, ranked with how each site is doing. Country scores are AI-assessed.
+const RiskTag = ({ children, tone }) => (
+  <span className="ml-2 align-middle text-[10px] font-semibold px-1.5 py-0.5 rounded-full border" style={{ color: tone, borderColor: `${tone}66`, background: `${tone}14` }}>{children}</span>
+);
+
+function NetworkRiskCard({ risk, state, onSelectSite, onOpenRisk }) {
+  const box = { borderColor: "rgba(148,163,184,0.15)", background: "rgba(9,25,19,0.5)" };
+  if (state === "loading") {
+    return (
+      <section className="mb-6 rounded-2xl border px-5 py-4" style={box} data-testid="network-risk-block">
+        <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Network risk</h2>
+        <div className="text-sm mt-1" style={{ color: "#64748B" }}>Assessing country risk for your sites. The first run can take up to half a minute.</div>
+      </section>
+    );
+  }
+  if (state !== "ready" || !risk?.sites?.length) return null;
+  const top = risk.sites.slice(0, 5);
+  return (
+    <section className="mb-6 rounded-2xl border px-5 py-4" style={box} data-testid="network-risk-block">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Network risk <span className="ml-2 align-middle text-[10px] px-2 py-0.5 rounded-full border font-semibold" style={{ color: "#FCD34D", borderColor: "rgba(252,211,77,0.4)" }}>AI-assessed</span></h2>
+          <div className="text-sm" style={{ color: "#64748B" }}>Where country risk and open issues in your data meet. {risk.countries.length} countr{risk.countries.length === 1 ? "y" : "ies"} assessed.</div>
+        </div>
+        {onOpenRisk && <button type="button" onClick={onOpenRisk} className="px-3 py-1.5 rounded-lg text-xs font-semibold border" style={{ borderColor: "rgba(159,214,58,0.35)", color: "#9FD63A" }}>Open Risk Intelligence</button>}
+      </div>
+      <ul className="mt-3 space-y-2">
+        {top.map((r) => (
+          <li key={r.name} className="rounded-xl px-3 py-2 flex items-start gap-3 cursor-pointer" style={{ background: "rgba(2,6,23,0.35)" }} onClick={() => onSelectSite && onSelectSite(r.name)}>
+            <span className="mt-0.5 shrink-0 text-xs font-bold rounded-md px-2 py-0.5" style={{ background: `${riskTone(r.country_score)}22`, color: riskTone(r.country_score) }} title={`Country risk ${r.country_label}`}>{r.country_score}</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold" style={{ color: "#E2E8F0" }}>{r.name.replace(/_/g, " ")} <span className="font-normal" style={{ color: "#64748B" }}>{r.country}</span>
+                {r.live_hazard && <RiskTag tone="#F59E0B">Live hazard</RiskTag>}
+                {(r.status === "bad" || r.status === "watch") && <RiskTag tone={r.status === "bad" ? "#EF4444" : "#F59E0B"}>Open issues</RiskTag>}
+                {r.advisory_level >= 3 && <RiskTag tone="#EF4444">Advisory L{r.advisory_level}</RiskTag>}
+                {r.uflpa_flagged && <RiskTag tone="#EF4444">UFLPA</RiskTag>}
+              </span>
+              <span className="block text-xs" style={{ color: "#94A3B8" }}>{r.reason}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {(risk.not_scored?.length > 0 || risk.skipped?.length > 0) && (
+        <p className="mt-2 text-[11px]" style={{ color: "#FCD34D" }}>
+          {risk.not_scored?.length > 0 && `Could not assess: ${risk.not_scored.map((x) => x.country).join(", ")}. `}
+          {risk.skipped?.length > 0 && `Country not recognized for: ${risk.skipped.join(", ")}.`}
+        </p>
+      )}
+      <p className="mt-2 text-[11px]" style={{ color: "#64748B" }}>Country scores are AI-assessed and cached for 24 hours. State Department advisories and the UFLPA entity check are not AI.</p>
+    </section>
+  );
+}
+
 function ExposureBlock({ exposure, state, example, setExample, onAddLocations, onSimulate }) {
   const sevColor = { high: "#FCA5A5", medium: "#FCD34D" };
   const box = { borderColor: "rgba(148,163,184,0.15)", background: "rgba(9,25,19,0.5)" };
@@ -1109,6 +1179,24 @@ export default function ControlTower({
     })();
     return () => { cancelled = true; };
   }, [snapshot, exposureExample, API_BASE_CT]);
+  const [netRisk, setNetRisk] = useState(null);
+  const [netRiskState, setNetRiskState] = useState("idle");
+  useEffect(() => {
+    if (!snapshot) { setNetRisk(null); setNetRiskState("idle"); return undefined; }
+    let cancelled = false;
+    setNetRiskState("loading");
+    (async () => {
+      try {
+        const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+        const res = await fetch(`${API_BASE_CT}/api/network-risk`, { headers: { Authorization: `Bearer ${token}` } });
+        const body = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        setNetRisk(body);
+        setNetRiskState(body.status === "ok" ? "ready" : "none");
+      } catch { if (!cancelled) setNetRiskState("error"); }
+    })();
+    return () => { cancelled = true; };
+  }, [snapshot?.uploaded_at, snapshot?.source, API_BASE_CT]);
   const changeWindow = async (d) => {
     try {
       const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
@@ -1151,7 +1239,13 @@ export default function ControlTower({
     });
     return Object.values(best);
   }, [exposure]);
-  const mapHealth = useMemo(() => Object.fromEntries((exposure?.sites || []).filter((x) => x.status).map((x) => [x.name, { status: x.status, reason: x.reason }])), [exposure]);
+  const mapHealth = useMemo(() => {
+    const risk = Object.fromEntries((netRisk?.sites || []).map((r) => [r.name, r]));
+    return Object.fromEntries((exposure?.sites || []).filter((x) => x.status).map((x) => {
+      const r = risk[x.name];
+      return [x.name, { status: x.status, reason: x.reason + (r ? `. ${r.country} country risk ${r.country_score} (${r.country_label.toLowerCase()}, AI-assessed)` : "") }];
+    }));
+  }, [exposure, netRisk]);
   const mapLanes = useMemo(() => exposure?.lanes || [], [exposure]);
   const hazardLinks = useMemo(() => {
     const coords = Object.fromEntries((exposure?.sites || []).map((x) => [x.name, x]));
@@ -1634,6 +1728,7 @@ export default function ControlTower({
                     </section>
                     <ExposureBlock exposure={exposure} state={exposureState} example={exposureExample} setExample={setExposureExample}
                       onAddLocations={() => setShowSnapshotCard(true)} onSimulate={simulateExposure} />
+                    <NetworkRiskCard risk={netRisk} state={netRiskState} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
                     {rest.length > 0 && (
                       <section className="mb-6">
                         <button type="button" onClick={() => setMoreMetrics(!moreMetrics)} className="text-sm underline" style={{ color: "#94A3B8" }}>
@@ -1785,6 +1880,8 @@ export default function ControlTower({
           facility={selectedFacility}
           snapshot={snapshot}
           exposure={exposure}
+          risk={netRisk?.status === "ok" ? netRisk : null}
+          onOpenRisk={() => switchView("risk")}
           onSimulate={simulateExposure}
           onClose={() => setSelectedFacility(null)}
         />
