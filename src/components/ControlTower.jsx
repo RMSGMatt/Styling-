@@ -645,6 +645,8 @@ const SNAP_ACTIONS = {
   supplier_on_time: "Escalate with the late suppliers and confirm recovery dates.",
   supplier_lead_time: "Check whether lead times have moved and update planning parameters.",
   overdue_pos: "Chase the overdue purchase orders today.",
+  line_fill: "Look at which order lines are missing in full, even when unit volume looks fine.",
+  min_days_of_supply: "Place or expedite orders for the lowest-cover parts first.",
   days_of_supply: "Review parts with the lowest cover and place or expedite orders.",
   below_safety: "Review the parts under safety stock and expedite replenishment.",
 };
