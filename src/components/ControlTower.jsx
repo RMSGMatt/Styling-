@@ -1151,6 +1151,15 @@ export default function ControlTower({
     });
     return Object.values(best);
   }, [exposure]);
+  const mapHealth = useMemo(() => Object.fromEntries((exposure?.sites || []).filter((x) => x.status).map((x) => [x.name, { status: x.status, reason: x.reason }])), [exposure]);
+  const mapLanes = useMemo(() => exposure?.lanes || [], [exposure]);
+  const hazardLinks = useMemo(() => {
+    const coords = Object.fromEntries((exposure?.sites || []).map((x) => [x.name, x]));
+    return (exposure?.exposures || []).filter((e) => e.hazard_lat != null && e.hazard_lon != null && coords[e.site]).map((e) => ({
+      site: e.site, siteLat: coords[e.site].lat, siteLng: coords[e.site].lon, hazLat: e.hazard_lat, hazLng: e.hazard_lon,
+      radiusKm: e.radius_km, distanceKm: e.distance_km, severity: e.severity,
+    }));
+  }, [exposure]);
   const snapAlerts = [...snapshotAlerts(snapshot), ...exposureAlerts(exposure)];
   const snapByKey = Object.fromEntries((snapshot?.kpis || []).map((k) => [k.key, k]));
 
@@ -1501,6 +1510,9 @@ export default function ControlTower({
                     locationsUrl={locationsUrl || simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
                     onFacilitySelect={handleFacilitySelect}
                     exposedSites={exposedSites}
+                    siteHealth={mapHealth}
+                    lanes={mapLanes}
+                    hazardLinks={hazardLinks}
                   />
                 </div>
 

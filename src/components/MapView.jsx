@@ -64,6 +64,9 @@ export default function MapView({
   locationsUrl,
   onFacilitySelect,
   exposedSites = [], // [{ name, lat, lng, severity, label }] sites inside a live hazard radius
+  siteHealth = {}, // { [siteName]: { status: "good"|"watch"|"bad", reason } } from the network snapshot
+  lanes = [], // [{ from, to, kind, status, detail, path: [[lng, lat], [lng, lat]] }]
+  hazardLinks = [], // [{ site, siteLat, siteLng, hazLat, hazLng, radiusKm, distanceKm, severity }]
   height = "560px", // ✅ explicit default height so map can render
 }) {
   // --------------------------------------------------------------------------
@@ -112,12 +115,23 @@ export default function MapView({
   // Store facility bounds so user can re-center later
   const facilityBoundsRef = useRef(null);
 
+  // Map-intelligence refs: kept in refs so the feed fetchers (which capture closures once) always see current values.
+  const nearOnlyRef = useRef(true);
+  const siteHealthRef = useRef({});
+  const lastHazardRef = useRef({}); // { [sourceKey]: { map, features, destRef, emojiFn, titleFn } }
+  const refilterRef = useRef(null);
+  const applyHealthRef = useRef(null);
+  const lanesWiredRef = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
+
   const [layerVisibility, setLayerVisibility] = useState({
     facilities: true,
     usgs: true,
     noaa: true,
     gdacs: true,
     live: false,
+    nearOnly: true, // only hazards within range of your sites
+    lanes: true, // supplier-plant-customer lanes
   });
 
   // 🩺 Feed health — tracks whether each live feed's last fetch actually
@@ -241,6 +255,64 @@ export default function MapView({
         Math.sin(dLng / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
+
+  // How far from a site a hazard still matters. Mirrors the backend exposure radii.
+  const hazardNearKm = (sourceKey, props = {}) => {
+    if (sourceKey === "usgs") return Number(props.mag ?? props.magnitude ?? 0) >= 6 ? 300 : 150;
+    if (sourceKey === "gdacs") {
+      const t = String(props.eventtype || props.type || "").toUpperCase();
+      if (/TC|CYCLONE|HURRICANE|TYPHOON/.test(t)) return 300;
+      if (/FL|FLOOD|VO|VOLCAN/.test(t)) return 100;
+      if (/WF|FIRE/.test(t)) return 50;
+      return 150;
+    }
+    return 300; // NOAA weather alerts
+  };
+  // No sites loaded yet means nothing to filter against, so show everything.
+  const isNearNetwork = (lat, lng, sourceKey, props) => {
+    const pts = facilityCoordsRef.current;
+    if (!pts.length) return true;
+    const r = hazardNearKm(sourceKey, props) + 50;
+    return pts.some((f) => haversineKm(lat, lng, f.lat, f.lng) <= r);
+  };
+
+  // Great-circle arc between two [lng, lat] points, with longitudes unwrapped so a Pacific crossing
+  // is drawn the short way instead of back across Eurasia.
+  const arcPath = (a, b, n = 40) => {
+    const rad = Math.PI / 180, deg = 180 / Math.PI;
+    const lng1 = a[0] * rad, lat1 = a[1] * rad, lng2 = b[0] * rad, lat2 = b[1] * rad;
+    const d = 2 * Math.asin(Math.sqrt(Math.sin((lat2 - lat1) / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin((lng2 - lng1) / 2) ** 2));
+    if (!d) return [a, b];
+    const pts = [];
+    let prev = null;
+    for (let i = 0; i <= n; i++) {
+      const f = i / n, A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
+      const x = A * Math.cos(lat1) * Math.cos(lng1) + B * Math.cos(lat2) * Math.cos(lng2);
+      const y = A * Math.cos(lat1) * Math.sin(lng1) + B * Math.cos(lat2) * Math.sin(lng2);
+      const z = A * Math.sin(lat1) + B * Math.sin(lat2);
+      let lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * deg;
+      let lng = Math.atan2(y, x) * deg;
+      if (prev !== null) { while (lng - prev > 180) lng -= 360; while (lng - prev < -180) lng += 360; }
+      prev = lng;
+      pts.push([lng, lat]);
+    }
+    return pts;
+  };
+
+  const HEALTH_COLORS = { good: "#9FD63A", watch: "#F59E0B", bad: "#EF4444" };
+  const applyHealthColors = () => {
+    const health = siteHealthRef.current || {};
+    const has = Object.keys(health).length > 0;
+    facilityMarkersRef.current.forEach((m, idx) => {
+      const f = facilityCoordsRef.current[idx];
+      if (!f) return;
+      const el = m.getElement();
+      const h = health[String(f.facility).trim().toLowerCase()];
+      el.style.background = h && HEALTH_COLORS[h.status] ? HEALTH_COLORS[h.status] : has ? "#64748B" : "#9FD63A";
+      el.title = h ? `${f.facility}: ${h.reason}` : has ? `${f.facility}: no data in your files` : "";
+    });
+  };
+  applyHealthRef.current = applyHealthColors;
 
   // Builds a GeoJSON polygon approximating a circle — used for the impact
   // radius fill layer. No turf dependency; ~64 points is plenty smooth at
@@ -461,6 +533,8 @@ export default function MapView({
       if (count > 0) {
         facilityBoundsRef.current = bounds;
       }
+      if (applyHealthRef.current) applyHealthRef.current();
+      if (refilterRef.current) refilterRef.current(); // hazards may have loaded before the sites did
     },
     [onFacilitySelect]
   );
@@ -469,7 +543,8 @@ export default function MapView({
      6) GENERIC GEOJSON MARKER RENDERER
      ============================================================================ */
   const renderPointMarkersFromGeoJSON = useCallback(
-    (map, features, destRef, emojiFn, titleFn) => {
+    (map, features, destRef, emojiFn, titleFn, sourceKey) => {
+      if (sourceKey) lastHazardRef.current[sourceKey] = { map, features, destRef, emojiFn, titleFn };
       clearMarkers(destRef);
         // Guard: map may be unmounted/recreated while async fetch resolves
         if (!map || typeof map.getCanvasContainer !== "function" || !map.getCanvasContainer()) return;
@@ -498,6 +573,7 @@ export default function MapView({
 
           const [lng, lat] = coords.map(Number);
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          if (sourceKey && nearOnlyRef.current && !isNearNetwork(lat, lng, sourceKey, props)) return;
 
           // Guard: map may be unmounted/recreated while async data loads
           if (!map || typeof map.getCanvasContainer !== "function" || !map.getCanvasContainer()) {
@@ -642,7 +718,8 @@ export default function MapView({
         feats,
         noaaMarkersRef,
         (p) => getEmojiForNOAA(p),
-        (p) => `NOAA Alert • ${p.event || "Alert"}`
+        (p) => `NOAA Alert • ${p.event || "Alert"}`,
+        "noaa"
       );
 
       // 🚨 Crisis tier — NWS "Extreme" severity (its own highest tier). Most
@@ -770,7 +847,8 @@ export default function MapView({
         feats,
         gdacsMarkersRef,
         (p) => getEmojiForGDACS(p),
-        (p) => `GDACS • ${p.name || p.type || "Event"}`
+        (p) => `GDACS • ${p.name || p.type || "Event"}`,
+        "gdacs"
       );
 
       // 🚨 Crisis tier — GDACS "Red" alert level events (the agency's own
@@ -909,7 +987,8 @@ export default function MapView({
         filteredFeats,
         usgsMarkersRef,
         (p) => getEmojiForUSGSQuake(p),
-        (p) => getTitleForUSGSQuake(p)
+        (p) => getTitleForUSGSQuake(p),
+        "usgs"
       );
 
       // 🚨 Crisis tier — M6.5+ within the last 48h gets a pulsing marker,
@@ -1031,6 +1110,7 @@ export default function MapView({
     );
 
     const onLoad = async () => {
+      setMapReady(true);
       try {
         // 🌍 Globe + atmosphere
         map.setProjection("globe");
@@ -1265,6 +1345,92 @@ export default function MapView({
     return () => clearMarkers(exposedMarkersRef);
   }, [exposedSites, onFacilitySelect]);
 
+  // Near-my-sites filter: re-draw the cached hazard markers when the toggle flips.
+  const refilterHazards = () => {
+    nearOnlyRef.current = !!layerVisibility.nearOnly;
+    Object.entries(lastHazardRef.current).forEach(([key, e]) => {
+      renderPointMarkersFromGeoJSON(e.map, e.features, e.destRef, e.emojiFn, e.titleFn, key);
+    });
+  };
+  refilterRef.current = refilterHazards;
+  useEffect(() => {
+    refilterHazards();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layerVisibility.nearOnly]);
+
+  // Site health colors on the facility dots.
+  useEffect(() => {
+    siteHealthRef.current = Object.fromEntries(Object.entries(siteHealth || {}).map(([k, v]) => [String(k).trim().toLowerCase(), v]));
+    applyHealthColors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteHealth]);
+
+  // Shared helper: create or update a GeoJSON source and its layers once the style is ready.
+  const upsertGeo = (map, id, data, layers) => {
+    try {
+      if (map.getSource(id)) { map.getSource(id).setData(data); return; }
+      map.addSource(id, { type: "geojson", data });
+      layers.forEach((l) => map.addLayer({ ...l, source: id }));
+    } catch (e) {
+      console.warn("Map layer failed:", id, e);
+    }
+  };
+  const whenStyleReady = (map, fn) => {
+    if (map.isStyleLoaded()) fn();
+    else map.once("idle", fn);
+  };
+
+  // Why a site is exposed: impact radius circle plus a dashed line from the hazard to the site.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return undefined;
+    const feats = [];
+    (hazardLinks || []).forEach((h) => {
+      if (![h.hazLat, h.hazLng, h.siteLat, h.siteLng, h.radiusKm].every(Number.isFinite)) return;
+      feats.push({ type: "Feature", properties: { kind: "radius" }, geometry: circleGeoJSON(h.hazLng, h.hazLat, h.radiusKm).geometry });
+      feats.push({ type: "Feature", properties: { kind: "link", label: `${h.distanceKm} km` }, geometry: { type: "LineString", coordinates: arcPath([h.hazLng, h.hazLat], [h.siteLng, h.siteLat], 16) } });
+    });
+    const run = () => upsertGeo(map, "forc-hazard-links", { type: "FeatureCollection", features: feats }, [
+      { id: "forc-hazard-radius-fill", type: "fill", filter: ["==", ["get", "kind"], "radius"], paint: { "fill-color": "#ef4444", "fill-opacity": 0.1 } },
+      { id: "forc-hazard-radius-line", type: "line", filter: ["==", ["get", "kind"], "radius"], paint: { "line-color": "#ef4444", "line-width": 1.2, "line-opacity": 0.6 } },
+      { id: "forc-hazard-link-line", type: "line", filter: ["==", ["get", "kind"], "link"], paint: { "line-color": "#ffffff", "line-width": 1.6, "line-opacity": 0.85, "line-dasharray": [2, 2] } },
+      { id: "forc-hazard-link-label", type: "symbol", filter: ["==", ["get", "kind"], "link"], layout: { "symbol-placement": "line-center", "text-field": ["get", "label"], "text-size": 11 }, paint: { "text-color": "#ffffff", "text-halo-color": "#0B0F13", "text-halo-width": 1.5 } },
+    ]);
+    whenStyleReady(map, run);
+    return undefined;
+  }, [hazardLinks, mapReady]);
+
+  // Supplier to plant to customer lanes, colored by status. Click a lane for the detail.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return undefined;
+    const feats = layerVisibility.lanes
+      ? (lanes || []).filter((l) => Array.isArray(l.path) && l.path.length === 2).map((l) => ({
+          type: "Feature",
+          properties: { status: l.status, from: l.from, to: l.to, kind: l.kind, detail: l.detail },
+          geometry: { type: "LineString", coordinates: arcPath(l.path[0], l.path[1]) },
+        }))
+      : [];
+    const byStatus = (bad, watch, good) => ["match", ["get", "status"], "bad", bad, "watch", watch, good];
+    const run = () => {
+      upsertGeo(map, "forc-lanes", { type: "FeatureCollection", features: feats }, [
+        { id: "forc-lanes-line", type: "line", layout: { "line-cap": "round" }, paint: { "line-color": byStatus("#EF4444", "#F59E0B", "#9FD63A"), "line-width": byStatus(2.6, 2, 1.1), "line-opacity": byStatus(0.9, 0.75, 0.28) } },
+        { id: "forc-lanes-hit", type: "line", paint: { "line-color": "#000000", "line-width": 10, "line-opacity": 0.01 } },
+      ]);
+      if (!lanesWiredRef.current && map.getLayer("forc-lanes-hit")) {
+        lanesWiredRef.current = true;
+        map.on("click", "forc-lanes-hit", (e) => {
+          const p = e.features?.[0]?.properties;
+          if (p) setSelectedAlert({ title: `${p.from} → ${p.to}`, description: `${p.kind === "supply" ? "Supply lane" : "Customer lane"}\n${p.detail}` });
+        });
+        map.on("mouseenter", "forc-lanes-hit", () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", "forc-lanes-hit", () => { map.getCanvas().style.cursor = ""; });
+      }
+    };
+    whenStyleReady(map, run);
+    return undefined;
+  }, [lanes, layerVisibility.lanes, mapReady]);
+
   // 🎯 Re-center: if facilities exist, fit to them; else return to globe view
   const recenter = () => {
     const map = mapRef.current;
@@ -1449,6 +1615,30 @@ export default function MapView({
           </div>
 
           <button
+            onClick={() => toggle("nearOnly")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              layerVisibility.nearOnly
+                ? "bg-[rgba(159,214,58,0.15)] text-[#9FD63A] border-[rgba(159,214,58,0.5)]"
+                : "bg-slate-900/50 text-slate-300 border-slate-700"
+            }`}
+            title="Show only hazards within range of your sites"
+          >
+            📍 Near my sites
+          </button>
+
+          <button
+            onClick={() => toggle("lanes")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+              layerVisibility.lanes
+                ? "bg-[rgba(159,214,58,0.15)] text-[#9FD63A] border-[rgba(159,214,58,0.5)]"
+                : "bg-slate-900/50 text-slate-300 border-slate-700"
+            }`}
+            title="Supplier, plant and customer lanes"
+          >
+            🔗 Lanes
+          </button>
+
+          <button
             onClick={recenter}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-slate-900/50 text-slate-300 border-slate-700 hover:border-lime-400/40 hover:bg-slate-800/60"
             title="Re-center: fits to facilities if available, otherwise returns to full globe"
@@ -1471,6 +1661,20 @@ export default function MapView({
           className="w-full"
           style={{ height }}
         />
+
+        {(Object.keys(siteHealth || {}).length > 0 || (lanes || []).length > 0) && (
+          <div
+            className="absolute left-3 bottom-3 rounded-lg px-3 py-2 text-[11px]"
+            style={{ background: "rgba(11,15,19,0.85)", border: "1px solid rgba(148,163,184,0.2)", color: "#C7D0D9", zIndex: 9, pointerEvents: "none" }}
+          >
+            <div className="font-semibold mb-1" style={{ color: "#E2E8F0" }}>Site health</div>
+            {[["#9FD63A", "OK"], ["#F59E0B", "Watch"], ["#EF4444", "Act"], ["#64748B", "No data"]].map(([c, l]) => (
+              <div key={l} className="flex items-center gap-1.5"><span style={{ width: 9, height: 9, borderRadius: 999, background: c, border: "1.5px solid white", display: "inline-block" }} />{l}</div>
+            ))}
+            {layerVisibility.lanes && (lanes || []).length > 0 && <div className="mt-1.5" style={{ color: "#94A3B8" }}>Lines: lanes, red = problem</div>}
+            {layerVisibility.nearOnly && <div style={{ color: "#94A3B8" }}>Hazards: near your sites only</div>}
+          </div>
+        )}
 
         {selectedAlert && (
           <div
