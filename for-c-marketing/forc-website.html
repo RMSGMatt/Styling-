@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FOR-C — Decisions Under Pressure</title>
+  <title>FOR-C: Decisions Under Pressure</title>
   <meta name="description" content="Supply chain intelligence for automotive Tier 1 suppliers. Simulate any disruption against your real network in minutes." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -157,6 +157,41 @@
     .footer-links a:hover { color:var(--white); }
     .footer-copy { font-size:11px; color:rgba(122,148,136,.45); }
 
+    /* SIGNAL GRID */
+    .signal-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-top:48px; }
+    .signal-card { background:var(--charcoal-light); border:1px solid rgba(255,255,255,.07); border-radius:12px; padding:22px 22px 20px; }
+    .signal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .signal-name { font-family:'Montserrat',sans-serif; font-size:15px; font-weight:700; color:var(--white); }
+    .signal-badge { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--mint); background:rgba(46,196,166,.1); border:1px solid rgba(46,196,166,.25); padding:3px 9px; border-radius:20px; white-space:nowrap; }
+    .signal-sources { font-size:12.5px; line-height:1.6; color:var(--midgrey); }
+    .signal-sources b { color:var(--offwhite); font-weight:600; }
+
+    /* CORRIDOR PANEL */
+    .corridor-panel { background:var(--charcoal-light); border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:32px 32px 28px; margin-top:40px; }
+    .corridor-panel-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:24px; }
+    .corridor-route { font-family:'Montserrat',sans-serif; font-size:16px; font-weight:700; color:var(--white); }
+    .corridor-badges { display:flex; gap:10px; flex-wrap:wrap; }
+    .corridor-badge { font-size:11px; font-weight:700; letter-spacing:.04em; padding:5px 12px; border-radius:20px; }
+    .corridor-badge.clear { color:var(--lime); background:rgba(159,214,58,.1); border:1px solid rgba(159,214,58,.3); }
+    .corridor-badge.advisory { color:#F4C542; background:rgba(244,197,66,.1); border:1px solid rgba(244,197,66,.3); }
+    .factor-row { display:grid; grid-template-columns:180px 1fr 44px; align-items:center; gap:14px; padding:9px 0; }
+    .factor-label { font-size:12.5px; font-weight:600; color:var(--offwhite); text-transform:uppercase; letter-spacing:.03em; }
+    .factor-track { height:7px; border-radius:4px; background:rgba(255,255,255,.08); overflow:hidden; }
+    .factor-fill { height:100%; border-radius:4px; }
+    .factor-val { font-size:12.5px; font-weight:700; color:var(--offwhite); text-align:right; }
+    .corridor-caption { margin-top:22px; padding-top:20px; border-top:1px solid rgba(255,255,255,.07); font-size:13px; line-height:1.65; color:var(--midgrey); }
+
+    /* BRIEFS */
+    .briefs-section { background:var(--darkgreen); border-top:1px solid rgba(159,214,58,.1); border-bottom:1px solid rgba(159,214,58,.1); }
+    .brief-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; margin-top:48px; }
+    .brief-card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:24px 22px; display:flex; flex-direction:column; gap:14px; }
+    .brief-meta { display:flex; align-items:center; justify-content:space-between; }
+    .brief-date { font-size:11px; color:var(--midgrey); letter-spacing:.04em; }
+    .brief-tag { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--mint); border:1px solid rgba(46,196,166,.25); padding:3px 9px; border-radius:20px; }
+    .brief-card h3 { font-family:'Montserrat',sans-serif; font-size:15px; font-weight:700; color:var(--white); line-height:1.4; }
+    .brief-card p { font-size:13px; line-height:1.6; color:var(--midgrey); }
+    .brief-card a { font-size:12px; font-weight:700; color:var(--lime); text-decoration:none; }
+
     /* RESPONSIVE */
     @media (max-width:640px) {
       nav { padding:0 20px; }
@@ -178,9 +213,11 @@
   <a class="nav-wordmark" href="#">FOR-C</a>
   <div class="nav-links">
     <a href="#mandate">The Mandate</a>
+    <a href="#intelligence">Risk Intelligence</a>
     <a href="#usecases">Use Cases</a>
     <a href="#roi">Why FOR-C</a>
     <a href="#how">How It Works</a>
+    <a href="#briefs">Briefs</a>
     <a href="#contact" class="nav-cta">Request a Demo</a>
   </div>
 </nav>
@@ -190,7 +227,7 @@
   <div class="hero-wordmark">FOR-C</div>
   <div class="hero-tagline-small">Decisions Under Pressure</div>
   <h1>Your supply chain<br>has a blind spot.<br><span>FOR-C removes it.</span></h1>
-  <p class="hero-sub">Supply chain intelligence for automotive Tier 1 suppliers — built by practitioners, for the people who get the call when the line stops.</p>
+  <p class="hero-sub">Supply chain intelligence for automotive Tier 1 suppliers, built by practitioners, for the people who get the call when the line stops.</p>
   <div class="hero-actions">
     <a href="#contact" class="btn-primary">Request a Demo</a>
     <a href="#how" class="btn-outline">See How It Works</a>
@@ -222,7 +259,7 @@
 <div class="mandate-band" id="mandate">
   <div class="mandate-inner">
     <div class="mandate-label">OEM Tier N Mandate</div>
-    <p class="mandate-text">Ford, GM, Stellantis, and Toyota NA are requiring Tier 1 suppliers to map and demonstrate visibility into their Tier 2 and Tier 3 supply base. The question coming next is not <strong>"can you show us the map?"</strong> — it's <strong>"what happens to our production line if any node on that map fails?"</strong> FOR-C answers that question.</p>
+    <p class="mandate-text">Ford, GM, Stellantis, and Toyota NA are requiring Tier 1 suppliers to map and demonstrate visibility into their Tier 2 and Tier 3 supply base. The question coming next is not <strong>"can you show us the map?"</strong>, it's <strong>"what happens to our production line if any node on that map fails?"</strong> FOR-C answers that question.</p>
   </div>
 </div>
 
@@ -231,7 +268,7 @@
   <div class="container">
     <div class="section-label">What FOR-C Delivers</div>
     <h2 class="section-title">Built for decisions.<br>Not just visibility.</h2>
-    <p class="section-sub">Most tools tell you a risk exists. FOR-C tells you what it does to your production line — and what to do about it.</p>
+    <p class="section-sub">Most tools tell you a risk exists. FOR-C tells you what it does to your production line, and what to do about it.</p>
     <div class="props-grid">
       <div class="prop-card lime reveal">
         <h3>See it coming.</h3>
@@ -239,12 +276,65 @@
       </div>
       <div class="prop-card mint reveal">
         <h3>Show your OEM customers.</h3>
-        <p>Ford, GM, and Toyota are requiring Tier N supply chain visibility. FOR-C gives you simulation data — not assumptions — to back up your contingency plan.</p>
+        <p>Ford, GM, and Toyota are requiring Tier N supply chain visibility. FOR-C gives you simulation data, not assumptions, to back up your contingency plan.</p>
       </div>
       <div class="prop-card white reveal">
         <h3>Make the call with confidence.</h3>
         <p>When leadership asks "what happens if X fails" you have an answer. KPI scorecard, blast radius, countermeasures, and a board-ready PDF in one click.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- RISK INTELLIGENCE PLATFORM -->
+<section id="intelligence">
+  <div class="container">
+    <div class="section-label">The Input Layer</div>
+    <h2 class="section-title">Six commodities, tracked continuously.</h2>
+    <p class="section-sub">Before you can simulate a disruption, you need to know one is building. FOR-C tracks government and market data across the commodities that actually break automotive lines, semiconductors, battery materials, rare earth metals, steel, resins, and rubber.</p>
+    <div class="signal-grid">
+      <div class="signal-card reveal">
+        <div class="signal-head"><div class="signal-name">Semiconductors &amp; MCU</div><div class="signal-badge">MULTI-SOURCE</div></div>
+        <div class="signal-sources">SEC EDGAR/XBRL capex disclosures across 11 fabs and suppliers, plus <b>GDELT</b> news-volume tracking on export controls and fab disruptions.</div>
+      </div>
+      <div class="signal-card reveal">
+        <div class="signal-head"><div class="signal-name">Lithium &amp; Battery</div><div class="signal-badge">MULTI-SOURCE</div></div>
+        <div class="signal-sources"><b>FRED</b> commodity price series and <b>GDELT</b> coverage of mining and refining disruptions feeding cell and pack supply.</div>
+      </div>
+      <div class="signal-card reveal">
+        <div class="signal-head"><div class="signal-name">Rare Earth Metals</div><div class="signal-badge">MULTI-SOURCE</div></div>
+        <div class="signal-sources">Export licensing and trade-policy signal via <b>GDELT</b>, cross-referenced against <b>USASpending.gov</b> de-risking awards.</div>
+      </div>
+      <div class="signal-card reveal">
+        <div class="signal-head"><div class="signal-name">Steel &amp; Aluminum</div><div class="signal-badge">MULTI-SOURCE</div></div>
+        <div class="signal-sources"><b>BLS PPI</b> producer price data alongside HRC and aluminum spot pricing, read together with tariff-policy coverage.</div>
+      </div>
+      <div class="signal-card reveal">
+        <div class="signal-head"><div class="signal-name">Automotive Resins</div><div class="signal-badge">MULTI-SOURCE</div></div>
+        <div class="signal-sources">Petrochemical feedstock risk and PP resin spot pricing, tracked against upstream refinery and chemical-plant disruption signals.</div>
+      </div>
+      <div class="signal-card reveal">
+        <div class="signal-head"><div class="signal-name">Natural Rubber</div><div class="signal-badge">MULTI-SOURCE</div></div>
+        <div class="signal-sources">RSS3 and TSR20 spot pricing plus <b>GDACS</b> weather-disaster alerts across Thailand and Ivory Coast production regions.</div>
+      </div>
+    </div>
+
+    <div class="corridor-panel reveal">
+      <div class="corridor-panel-head">
+        <div class="corridor-route">Corridor Risk Example: Taiwan → United States</div>
+        <div class="corridor-badges">
+          <span class="corridor-badge clear">UFLPA: Clear</span>
+          <span class="corridor-badge advisory">State Dept Advisory: Level 2</span>
+        </div>
+      </div>
+      <div class="factor-row"><div class="factor-label">Geopolitical</div><div class="factor-track"><div class="factor-fill" style="width:74%; background:var(--red);"></div></div><div class="factor-val">74</div></div>
+      <div class="factor-row"><div class="factor-label">Political Stability</div><div class="factor-track"><div class="factor-fill" style="width:38%; background:var(--lime);"></div></div><div class="factor-val">38</div></div>
+      <div class="factor-row"><div class="factor-label">Natural Disaster</div><div class="factor-track"><div class="factor-fill" style="width:52%; background:var(--mint);"></div></div><div class="factor-val">52</div></div>
+      <div class="factor-row"><div class="factor-label">Chokepoint</div><div class="factor-track"><div class="factor-fill" style="width:81%; background:var(--red);"></div></div><div class="factor-val">81</div></div>
+      <div class="factor-row"><div class="factor-label">Infrastructure</div><div class="factor-track"><div class="factor-fill" style="width:29%; background:var(--lime);"></div></div><div class="factor-val">29</div></div>
+      <div class="factor-row"><div class="factor-label">Tariff</div><div class="factor-track"><div class="factor-fill" style="width:47%; background:var(--mint);"></div></div><div class="factor-val">47</div></div>
+      <div class="factor-row"><div class="factor-label">Substitutability</div><div class="factor-track"><div class="factor-fill" style="width:63%; background:var(--mint);"></div></div><div class="factor-val">63</div></div>
+      <div class="corridor-caption">Each corridor is scored across these seven factors, layered with UFLPA forced-labor screening and State Department travel advisories as authoritative, non-AI checks. Use it to compare sourcing candidates side by side, or to screen a supplier list in bulk before you commit.</div>
     </div>
   </div>
 </section>
@@ -262,7 +352,7 @@
       </div>
       <div class="uc-card reveal">
         <h3>Sole-Source Supplier Failure</h3>
-        <p>One supplier goes bankrupt or loses certification. FOR-C shows you the cascade — which plants go down, in what order, and how long you have to act.</p>
+        <p>One supplier goes bankrupt or loses certification. FOR-C shows you the cascade, which plants go down, in what order, and how long you have to act.</p>
       </div>
       <div class="uc-card reveal">
         <h3>OEM Compliance Preparation</h3>
@@ -272,11 +362,34 @@
   </div>
 </section>
 
+<!-- CAPABILITIES -->
+<section class="usecases">
+  <div class="container">
+    <div class="section-label" style="color:#1A4A2A;">Beyond The Simulation</div>
+    <h2 class="section-title" style="color:var(--charcoal);">The rest of the decision, not just the model.</h2>
+    <p class="section-sub" style="color:#445544;">Running the scenario is the middle of the job. FOR-C also covers what comes before it and what you do after.</p>
+    <div class="uc-grid">
+      <div class="uc-card reveal">
+        <h3>Describe It, Don't Configure It</h3>
+        <p>Type a disruption in plain language, "Taiwan chip fab goes down for 6 weeks starting mid-October", and get back a structured scenario (facility, severity, start date, duration) ready to run.</p>
+      </div>
+      <div class="uc-card reveal">
+        <h3>Safety Stock Optimizer</h3>
+        <p>Feed in your lanes, inventory, demand variability, and cost structure. Get back a recommended safety stock level, a cost-vs-service-level tradeoff curve, and a breakdown of cycle stock versus real safety margin, not a rule of thumb.</p>
+      </div>
+      <div class="uc-card reveal">
+        <h3>Executive Report, One Click</h3>
+        <p>A branded, multi-page PDF with your Business Balance Index score, KPI scorecard, disruption signals, and countermeasure rankings, built for the meeting where someone above you asks "what happens if X fails."</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ROI + CONTRAST -->
 <section class="roi-section" id="roi">
   <div class="container">
     <div class="section-label" style="color:#1A4A2A;">The Business Case</div>
-    <h2 class="section-title reveal" style="color:var(--charcoal);">The teams using FOR-C<br>don't just manage risk —<br><span style="color:#1A6B3A;">they lead with it.</span></h2>
+    <h2 class="section-title reveal" style="color:var(--charcoal);">The teams using FOR-C<br>don't just manage risk,<br><span style="color:#1A6B3A;">they lead with it.</span></h2>
     <div style="margin-top:36px;">
       <div class="roi-banner reveal">
         <div class="big">A single automotive line-stop event costs $50,000–$500,000 per hour.</div>
@@ -299,7 +412,7 @@
             <li>Impact modeled before it reaches your line</li>
             <li>Simulation-backed data, OEM-ready in minutes</li>
             <li>Contingency plan with KPI evidence attached</li>
-            <li>False confidence window visible — act early</li>
+            <li>False confidence window visible, act early</li>
             <li>Recovery pre-planned before the event</li>
           </ul>
         </div>
@@ -311,8 +424,8 @@
 
 <!-- QUOTE BAND -->
 <div class="quote-band">
-  <p class="quote-text reveal">"105 days of a green dashboard — then the line misses at 42% service in a single week."</p>
-  <p class="quote-source reveal">Live simulation — 11-facility automotive electronics network, 90-day Taiwan disruption scenario</p>
+  <p class="quote-text reveal">"105 days of a green dashboard, then the line misses at 42% service in a single week."</p>
+  <p class="quote-source reveal">Live simulation: 11-facility automotive electronics network, 90-day Taiwan disruption scenario</p>
 </div>
 
 <!-- HOW IT WORKS -->
@@ -324,12 +437,12 @@
       <div class="how-card reveal">
         <div class="how-num">01</div>
         <h3>Upload your network</h3>
-        <p>Locations, lanes, BOM, processes, demand — your actual supply chain data. CSV upload, no integration required.</p>
+        <p>Locations, lanes, BOM, processes, demand, your actual supply chain data. CSV upload, no integration required.</p>
       </div>
       <div class="how-card reveal">
         <div class="how-num">02</div>
         <h3>Define the disruption</h3>
-        <p>Any facility, any severity, any duration. Taiwan blockade, Japan earthquake, supplier bankruptcy — you set the scenario.</p>
+        <p>Any facility, any severity, any duration. Taiwan blockade, Japan earthquake, supplier bankruptcy, you set the scenario.</p>
       </div>
       <div class="how-card reveal">
         <div class="how-num">03</div>
@@ -345,11 +458,40 @@
   </div>
 </section>
 
+<!-- SIGNAL BRIEFS -->
+<section class="briefs-section" id="briefs">
+  <div class="container">
+    <div class="section-label">From The Signal Feed</div>
+    <h2 class="section-title">Signal Briefs</h2>
+    <p class="section-sub">Short, dated notes tied to what the feeds are actually showing, not general commentary. Free to read, no login.</p>
+    <div class="brief-grid">
+      <div class="brief-card reveal">
+        <div class="brief-meta"><span class="brief-date">Sep 22, 2026</span><span class="brief-tag">Rare Earth Metals</span></div>
+        <h3>What the latest export licensing language actually changes for Tier 1s</h3>
+        <p>News coverage volume on the new licensing rule versus the 2023 restriction, and why the substitutability factor moved less than the headlines suggest.</p>
+        <a href="#">Read →</a>
+      </div>
+      <div class="brief-card reveal">
+        <div class="brief-meta"><span class="brief-date">Sep 11, 2026</span><span class="brief-tag">Steel &amp; Aluminum</span></div>
+        <h3>HRC spot price divergence and what it's telling us about Q4 tariff exposure</h3>
+        <p>Reading the producer price index alongside spot pricing to separate a real cost shift from a seasonal blip before it hits a sourcing decision.</p>
+        <a href="#">Read →</a>
+      </div>
+      <div class="brief-card reveal">
+        <div class="brief-meta"><span class="brief-date">Aug 29, 2026</span><span class="brief-tag">Semiconductors &amp; MCU</span></div>
+        <h3>Capex filings say more about fab risk than the news cycle does</h3>
+        <p>What eleven companies' SEC capex disclosures show about where de-risking spend is actually going this quarter, and where it isn't.</p>
+        <a href="#">Read →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- PILOT + CONTACT -->
 <section class="pilot-section" id="pilot">
   <div class="container">
     <div class="pilot-box" id="contact">
-      <h2>Pilot Program — Now Accepting Applications</h2>
+      <h2>Pilot Program: Now Accepting Applications</h2>
       <p>We're working with a select group of Tier 1 automotive suppliers on scoped pilot engagements built around your actual network and supply base. You walk away with simulation results for your highest-priority disruption scenario, a full KPI scorecard, and OEM-ready contingency documentation.</p>
       <div class="pilot-tags">
         <span class="pilot-tag">Custom-scoped</span>
@@ -409,8 +551,8 @@
           <textarea name="message" placeholder="Tell us about your network, current challenges, or what you'd like to simulate..."></textarea>
         </div>
         <button type="submit" class="form-submit">Request a Demo →</button>
-        <p class="form-note">We'll respond within one business day. No pitch deck — just a live simulation on a network that looks like yours.</p>
-        <div class="form-success" id="formSuccess">✓ Thanks — we'll be in touch within one business day.</div>
+        <p class="form-note">We'll respond within one business day. No pitch deck, just a live simulation on a network that looks like yours.</p>
+        <div class="form-success" id="formSuccess">✓ Thanks, we'll be in touch within one business day.</div>
       </form>
     </div>
   </div>
@@ -426,7 +568,9 @@
     <div class="footer-links">
       <a href="mailto:matt.loy@for-c.com">matt.loy@for-c.com</a>
       <a href="#contact">Request a Demo</a>
+      <a href="#intelligence">Risk Intelligence</a>
       <a href="#how">How It Works</a>
+      <a href="#briefs">Briefs</a>
       <a href="#mandate">OEM Mandate</a>
     </div>
     <p class="footer-copy">© 2026 FOR-C. All rights reserved.</p>
@@ -458,7 +602,7 @@
       if (!res.ok) throw new Error();
     } catch {
       // Mailto fallback
-      const sub = encodeURIComponent(`FOR-C Demo Request — ${data.company || ''}`);
+      const sub = encodeURIComponent(`FOR-C Demo Request: ${data.company || ''}`);
       const body = encodeURIComponent(`Name: ${data.firstName} ${data.lastName}\nEmail: ${data.email}\nCompany: ${data.company}\nRole: ${data.role}\nScenario: ${data.scenario}\n\n${data.message || ''}`);
       window.open(`mailto:matt.loy@for-c.com?subject=${sub}&body=${body}`);
     }
