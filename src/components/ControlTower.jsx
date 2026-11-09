@@ -20,6 +20,7 @@ import BillingView from "./ControlTowerEhancements/BillingView.jsx";
 import RiskIntelligenceView from "./ControlTowerEhancements/RiskIntelligence/RiskIntelligenceView";
 import { useRiskTriggers } from "./ControlTowerEhancements/RiskIntelligence/useRiskTriggers";
 import { SCENARIO_CONFIG } from "./ControlTowerEhancements/RiskIntelligence/scenarioConfig";
+import { getApiBase } from "../config/apiBase";
 import IngestKeysCard from "./ControlTowerEhancements/IngestKeysCard";
 import PartsAtRiskCard from "./ControlTowerEhancements/PartsAtRiskCard";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
@@ -968,7 +969,7 @@ function LatestRunVerdict({ simulationHistory, switchView }) {
     setState("loading");
     (async () => {
       try {
-        const API_BASE = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
+        const API_BASE = getApiBase();
         const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
         const res = await fetch(`${API_BASE}/api/run-kpis/${runId}`, { headers: { Authorization: `Bearer ${token}` } });
         const body = await res.json().catch(() => ({}));
@@ -1053,7 +1054,7 @@ export default function ControlTower({
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        const API_BASE = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
+        const API_BASE = getApiBase();
         const res = await fetch(`${API_BASE}/api/news-feed`);
         const data = await res.json();
         if (data.status === "success" && data.headlines?.length) {
@@ -1152,7 +1153,7 @@ export default function ControlTower({
   const [ctNarrative, setCtNarrative] = useState("");
   const [narrativeLoading, setNarrativeLoading] = useState(false);
 
-  const API_BASE_CT = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
+  const API_BASE_CT = getApiBase();
   const [snapshot, setSnapshot] = useState(null);
   const [snapshotState, setSnapshotState] = useState("loading");
   const [showSnapshotCard, setShowSnapshotCard] = useState(false);

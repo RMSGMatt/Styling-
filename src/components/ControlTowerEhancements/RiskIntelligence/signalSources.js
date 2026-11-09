@@ -7,11 +7,12 @@
 // backend wiring is a drop-in replacement.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { getApiBase } from "../../../config/apiBase";
 import { fetchLiveSemiconductorForwardOverrides, fetchLiveLithiumForwardOverrides, fetchLiveSemiconductorRegimeOverrides, fetchLiveRareEarthForwardOverrides, fetchLiveSteelAluminumForwardOverrides, fetchLiveResinsForwardOverrides, fetchLiveRubberForwardOverrides } from "./liveSignals";
 
 export const USE_MOCK_DATA = true;
 
-export const API_BASE = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000";
+export const API_BASE = getApiBase();
 
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -33,7 +33,8 @@ const FEDERAL_REGISTER_BASE = "https://www.federalregister.gov/api/v1/documents.
 // SEC EDGAR full-text search (https://efts.sec.gov/LATEST/search-index) is
 // no longer called directly from here — see fetchMiningProductionGuidanceLive
 // below for why. The URL lives in the backend route now.
-const API_BASE = import.meta?.env?.VITE_API_BASE || "http://127.0.0.1:5000"; // same convention as signalSources.js
+import { getApiBase } from "../../../config/apiBase";
+const API_BASE = getApiBase(); // production falls back to Render, see config/apiBase.js
 
 function daysAgoISO(days) {
   const d = new Date();
