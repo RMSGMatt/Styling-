@@ -1675,6 +1675,7 @@ export default function SimulationDashboard({
   const [pendingSampleLabel, setPendingSampleLabel] = useState("Sample: Taiwan fab disruption");
   const filesRefSim = useRef(files);
   filesRefSim.current = files;
+  const autoLoadedRef = useRef(false); // true while the loaded files came from a sample or the network, not a user upload
   const [sampleLoading, setSampleLoading] = useState(false);
   const [sampleError, setSampleError] = useState("");
   const [healthIssues, setHealthIssues] = useState([]);
@@ -1805,6 +1806,7 @@ export default function SimulationDashboard({
       if (key && !claimedKeys.has(key)) {
         claimedKeys.add(key);
         matched.push({ key, label: SIM_INPUT_LABELS[key], filename: file.name });
+        autoLoadedRef.current = false;
         handleFileChange(key, file);
       } else if (key && claimedKeys.has(key)) {
         // Another file already claimed this slot — flag as unmatched rather
@@ -2796,6 +2798,7 @@ export default function SimulationDashboard({
         const ptxt = pr.ok ? await pr.text() : "";
         handleFileChange("unitPrices", ptxt && !ptxt.trim().startsWith("<") ? new File([ptxt], "unit_prices.csv", { type: "text/csv" }) : null);
       } catch (e) { handleFileChange("unitPrices", null); }
+      autoLoadedRef.current = true;
       const sampleLabel = opts.label || "Sample: Taiwan fab disruption";
       setRunName(sampleLabel);
       setPendingSampleLabel(sampleLabel);
@@ -2830,6 +2833,7 @@ export default function SimulationDashboard({
         handleFileChange(key, new File([text], `${file}.csv`, { type: "text/csv" }));
       }
       handleFileChange("unitPrices", typeof body.files?.unit_prices === "string" ? new File([body.files.unit_prices], "unit_prices.csv", { type: "text/csv" }) : null);
+      autoLoadedRef.current = true;
       const label = opts.label || "Your network: baseline";
       setRunName(label);
       setPendingSampleLabel(label);
@@ -2867,7 +2871,7 @@ export default function SimulationDashboard({
       let label = "";
       try { localStorage.removeItem("forc_exposure_sim"); label = localStorage.getItem("currentScenarioName") || ""; } catch {}
       // Only auto-run on the built-in sample network when the user has not loaded their own files.
-      if (!filesRefSim.current?.demand) {
+      if (!filesRefSim.current?.demand || autoLoadedRef.current) {
         loadNetwork({ keepScenario: true, label: label || "Exposure scenario" }).then((r) => {
           if (r === "none") loadSample({ keepScenario: true, label: label || "Exposure scenario" });
         });
@@ -3074,7 +3078,7 @@ export default function SimulationDashboard({
                       <span className="text-[11px]" style={{ color: files[key] ? "#9CF700" : "#94a3b8", fontWeight: files[key] ? "500" : "400" }}>{files[key] ? `✓ ${files[key].name}` : "No file selected"}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <input key={`upload-${key}-${files[key]?.name || "empty"}`} id={`upload-${key}`} type="file" accept=".csv" onChange={(e) => handleFileChange(key, e.target.files[0])} className="hidden" />
+                      <input key={`upload-${key}-${files[key]?.name || "empty"}`} id={`upload-${key}`} type="file" accept=".csv" onChange={(e) => { autoLoadedRef.current = false; return handleFileChange(key, e.target.files[0]); }} className="hidden" />
                       <label htmlFor={`upload-${key}`} className="cursor-pointer px-3 py-1 rounded-md text-[11px] border text-slate-200 hover:bg-slate-800/70 transition" style={{ borderColor: "#2A3542", backgroundColor: "rgba(2,6,23,0.55)" }}>Upload</label>
                       {files[key] ? <button type="button" onClick={() => handleFileChange(key, null)} className="h-7 w-7 rounded-md text-[12px] font-bold border transition" style={{ borderColor: "rgba(248,113,113,0.45)", color: "#fca5a5", backgroundColor: "rgba(127,29,29,0.18)" }} title={`Clear ${label}`}>×</button> : null}
                     </div>
