@@ -1,6 +1,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { showToast } from "../Toasts";
+import { getApiBase } from "../../config/apiBase";
 
 /* ---------------------------
    Local storage “DB”
@@ -13,7 +14,7 @@ function seedList() {
   const now = new Date().toISOString();
   const empty = { demandAdjustments: [], laneAdjustments: [], inventoryPolicies: [], disruptionScenarios: [] };
   const mk = (name, notes, tags, meta) => ({
-    id: genId(), name, notes, tags, createdAt: now, updatedAt: now,
+    id: genId(), name, notes, tags, createdAt: now, updatedAt: now, seed: true,
     data: { name, ...empty, meta: { source: "library_seed", ...meta } },
   });
   return [
@@ -47,6 +48,34 @@ function loadScenarios() {
 function persistScenarios(list) {
   localStorage.setItem(KEY, JSON.stringify(list));
 }
+
+/* ---------------------------
+   Account storage (backend)
+---------------------------- */
+function authToken() {
+  return localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+}
+async function api(path, options = {}) {
+  const res = await fetch(`${getApiBase()}${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken()}`, ...(options.headers || {}) },
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
+  return body;
+}
+function toEnvelope(item) {
+  return { lib: 1, id: item.id, notes: item.notes || "", tags: item.tags || [], createdAt: item.createdAt || "", updatedAt: item.updatedAt || "", scenario: item.data || {} };
+}
+function fromRow(row) {
+  const d = row?.data;
+  if (d && d.lib === 1) {
+    return { id: d.id || `srv-${row.id}`, serverId: row.id, name: row.name, notes: d.notes || "", tags: Array.isArray(d.tags) ? d.tags : [],
+      data: d.scenario || {}, createdAt: d.createdAt || row.created_at || "", updatedAt: d.updatedAt || row.created_at || "" };
+  }
+  return { id: `srv-${row.id}`, serverId: row.id, name: row.name, notes: "", tags: [], data: d || {}, createdAt: row.created_at || "", updatedAt: row.created_at || "" };
+}
+
 function genId() {
   return Date.now() + "-" + Math.random().toString(36).slice(2);
 }
@@ -117,6 +146,9 @@ function useFocusTrap({ open, onClose }) {
 
 export default function ScenarioLibrary({ userPlan, getCurrentScenario, onApplyScenario }) {
   const [scenarios, setScenarios] = useState(loadScenarios());
+  const scenariosRef = useRef(scenarios);
+  scenariosRef.current = scenarios;
+  const [accountSync, setAccountSync] = useState("idle"); // idle | ok | local
 
   // UI
   const [search, setSearch] = useState("");
@@ -170,23 +202,82 @@ export default function ScenarioLibrary({ userPlan, getCurrentScenario, onApplyS
     return scenarios.some((s) => normalize(s.name) === n && s.id !== idToIgnore);
   }
 
-  function createScenario(payload) {
-    const next = [{ ...payload }, ...scenarios];
+  // Every change is kept on this device right away and sent to your account in the background.
+  function commit(prev, next) {
     persistScenarios(next);
     setScenarios(next);
+    syncDiff(prev, next);
+  }
+
+  async function syncDiff(prev, next) {
+    if (!authToken()) return;
+    try {
+      const prevById = new Map(prev.map((x) => [x.id, x]));
+      const nextIds = new Set(next.map((x) => x.id));
+      for (const old of prev) {
+        if (!nextIds.has(old.id) && old.serverId) await api(`/api/scenarios/${old.serverId}`, { method: "DELETE" });
+      }
+      for (const item of next) {
+        const before = prevById.get(item.id);
+        const serverId = item.serverId || before?.serverId || null;
+        const changed = !before || before.updatedAt !== item.updatedAt || before.name !== item.name || !serverId;
+        if (!changed) continue;
+        if (before && before.name !== item.name && before.serverId) await api(`/api/scenarios/${before.serverId}`, { method: "DELETE" });
+        const out = await api("/api/scenarios", { method: "POST", body: JSON.stringify({ name: item.name, data: toEnvelope(item) }) });
+        setScenarios((cur) => {
+          const upd = cur.map((x) => (x.id === item.id ? { ...x, serverId: out.id } : x));
+          persistScenarios(upd);
+          return upd;
+        });
+      }
+      setAccountSync("ok");
+    } catch (e) {
+      setAccountSync("local");
+      showToast({ type: "warn", message: "Saved on this device only. Could not reach your account." });
+    }
+  }
+
+  function createScenario(payload) {
+    commit(scenarios, [{ ...payload }, ...scenarios]);
   }
 
   function updateScenario(payload) {
-    const next = scenarios.map((s) => (s.id === payload.id ? { ...payload } : s));
-    persistScenarios(next);
-    setScenarios(next);
+    commit(scenarios, scenarios.map((s) => (s.id === payload.id ? { ...payload, serverId: s.serverId } : s)));
   }
 
   function deleteScenario(id) {
-    const next = scenarios.filter((s) => s.id !== id);
-    persistScenarios(next);
-    setScenarios(next);
+    commit(scenarios, scenarios.filter((s) => s.id !== id));
   }
+
+  // Pull your saved scenarios from your account when the library opens, and upload any that only exist here.
+  useEffect(() => {
+    if (!authToken()) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const out = await api("/api/scenarios");
+        if (cancelled) return;
+        const server = (out.scenarios || []).map(fromRow);
+        const names = new Set(server.map((x) => String(x.name || "").toLowerCase()));
+        const localOnly = scenariosRef.current.filter((x) => !x.serverId && !names.has(String(x.name || "").toLowerCase()));
+        const toUpload = server.length > 0 ? localOnly.filter((x) => !x.seed) : localOnly;
+        let merged = [...server, ...toUpload];
+        setScenarios(merged);
+        persistScenarios(merged);
+        for (const item of toUpload) {
+          const res = await api("/api/scenarios", { method: "POST", body: JSON.stringify({ name: item.name, data: toEnvelope(item) }) });
+          if (cancelled) return;
+          merged = merged.map((x) => (x.id === item.id ? { ...x, serverId: res.id } : x));
+          setScenarios(merged);
+          persistScenarios(merged);
+        }
+        setAccountSync("ok");
+      } catch (e) {
+        if (!cancelled) setAccountSync("local");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   /* ---------------------------
      Open/close modal
@@ -389,6 +480,12 @@ export default function ScenarioLibrary({ userPlan, getCurrentScenario, onApplyS
               <span className="text-[11px] px-2 py-1 rounded-full border border-emerald-900/40 bg-[#04120e] text-emerald-100">
                 Plan: {isPro ? "Pro" : "Free"}
               </span>
+
+              {accountSync !== "idle" && (
+                <span className="text-[11px] px-2 py-1 rounded-full border border-emerald-900/30 bg-[#020617] text-slate-300">
+                  {accountSync === "ok" ? "Saved to your account" : "This device only"}
+                </span>
+              )}
 
               {activeScenarioLoaded ? (
                 <span className="text-[11px] px-2 py-1 rounded-full border border-emerald-800/60 bg-emerald-950/30 text-emerald-200">

@@ -501,14 +501,12 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
     setError(null);
     try {
       const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
-      const revenueAtRisk = Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 847000);
       const res = await fetch(`${apiBase}/api/safety-stock/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           target_service_level: sl / 100,
           doh_floor_days: dohDays,
-          revenue_at_risk: revenueAtRisk > 0 ? revenueAtRisk * 12 : 847000,
           lanes,
           inventory,
           demand,
@@ -1013,13 +1011,11 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
     const fetch95 = async () => {
       try {
         const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
-        const revenueAtRisk = Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 847000);
         const res = await fetch(`${apiBase}/api/safety-stock/optimize`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             target_service_level: 0.95,
-            revenue_at_risk: revenueAtRisk > 0 ? revenueAtRisk * 12 : 847000,
             lanes,
             inventory,
             demand,
@@ -1240,7 +1236,6 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             target_service_level: 0.95,
-            revenue_at_risk: 847000,
             lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs,
           }),
         });
