@@ -375,7 +375,7 @@ function TabNav({ activeTab, setActiveTab, hasRun, showAdvanced, setShowAdvanced
 // Selling prices by SKU from the run's unit_prices file; the optimizer uses them to value what a buffer protects.
 let UNIT_PRICES_BY_SKU = {};
 
-function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, bomRows, unitCostsRows) {
+export function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, bomRows, unitCostsRows) {
   // Different CSV exports across runs use inconsistent header casing/naming
   // (confirmed: one file used "facility,sku,initial inventory", another used
   // "Facility,SKU,quantity"). Look up fields case-insensitively across known

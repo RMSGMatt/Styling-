@@ -10,6 +10,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState, useRef, useEffect } from "react";
 import Papa from "papaparse";
+import { getApiBase } from "../../../config/apiBase";
+import { buildSafetyStockPayload } from "../../SimulationDashboard";
 import {
   loadLatestSnapshot,
   fetchNetworkSafetyStock,
@@ -43,6 +45,48 @@ export default function SafetyStockView() {
   const snapshot = manualSnapshot || net?.current || null;
   const previous = manualSnapshot ? manualPrevious : (net?.previous || null);
   const fromNetwork = !manualSnapshot && !!net?.current;
+
+  // Buffer recommendation for one row: runs the optimizer on the same network inputs the Simulation tab uses.
+  const simRef = useRef(null);
+  const [rec, setRec] = useState(null); // { key, state: "loading" | "done" | "error", hit?, message? }
+  const recommend = async (row) => {
+    const key = `${row.facility}::${row.sku}`;
+    if (rec?.key === key && rec.state !== "loading") { setRec(null); return; }
+    setRec({ key, state: "loading" });
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+      const base = getApiBase();
+      if (!simRef.current) {
+        const r = await fetch(`${base}/api/network-snapshot/sim-inputs`, { headers: { Authorization: `Bearer ${token}` } });
+        const b = await r.json().catch(() => ({}));
+        if (!r.ok || b.status !== "ok") throw new Error((b.errors && b.errors[0]) || "Load a network with a bill of materials and process capacities to get recommendations.");
+        simRef.current = b.files;
+      }
+      const f = simRef.current;
+      const parse = (t) => Papa.parse(String(t || "").replace(/^\uFEFF/, ""), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, "").trim() }).data || [];
+      const payload = buildSafetyStockPayload(parse(f.lanes), parse(f.location_materials), parse(f.demand), parse(f.bom), []);
+      const by = {};
+      for (const r of parse(f.unit_prices)) {
+        const sku = String(r.sku ?? "").trim().toUpperCase();
+        const price = Number(r.unit_price);
+        if (sku && price > 0) (by[sku] = by[sku] || []).push(price);
+      }
+      const prices = {};
+      for (const [k, v] of Object.entries(by)) { v.sort((a, b) => a - b); prices[k] = v[Math.floor(v.length / 2)]; }
+      const res = await fetch(`${base}/api/safety-stock/optimize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...payload, unit_prices: prices, target_service_level: 0.95, doh_floor_days: row.floor ?? DEFAULT_DOH_FLOOR }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data.ok) throw new Error(data.error || "The optimizer could not run on this network.");
+      const list = data.recommendation?.recommendations || [];
+      const hit = list.find((x) => String(x.facility).toUpperCase() === String(row.facility).toUpperCase() && String(x.sku).toUpperCase() === String(row.sku).toUpperCase()) || null;
+      setRec({ key, state: "done", hit });
+    } catch (e) {
+      setRec({ key, state: "error", message: e?.message || "Could not get a recommendation." });
+    }
+  };
   const [dragOver, setDragOver] = useState(false);
   const [uploadSummary, setUploadSummary] = useState(null); // { added, skipped } | null
   const [parseError, setParseError] = useState(null);
@@ -184,7 +228,7 @@ export default function SafetyStockView() {
           onChange={(e) => handleFile(e.target.files?.[0])}
         />
         <p className="text-sm font-semibold" style={{ color: "#9FD63A" }}>
-          {snapshot ? "Drop a new snapshot to replace, or click to browse" : "Drop your current inventory CSV here, or click to browse"}
+          {fromNetwork ? "Optional: drop a CSV here to override the network data, or click to browse" : snapshot ? "Drop a new snapshot to replace, or click to browse" : "Drop your current inventory CSV here, or click to browse"}
         </p>
         <p className="text-xs mt-1" style={{ color: "#64748B" }}>
           Expected columns: facility, sku, current_doh, doh_floor (optional — defaults to {DEFAULT_DOH_FLOOR} days)
@@ -220,14 +264,17 @@ export default function SafetyStockView() {
                 <th className="text-right px-4 py-2.5 text-xs font-semibold" style={{ color: "#64748B" }}>Floor</th>
                 <th className="text-right px-4 py-2.5 text-xs font-semibold" style={{ color: "#64748B" }}>Change</th>
                 <th className="text-right px-4 py-2.5 text-xs font-semibold" style={{ color: "#64748B" }}>Status</th>
+                {fromNetwork && <th className="text-right px-4 py-2.5 text-xs font-semibold" style={{ color: "#64748B" }}>Buffer</th>}
               </tr>
             </thead>
             <tbody>
               {tableRows.map((row, i) => {
                 const style = SEVERITY_STYLE[row.severity];
                 const changeColor = row.pctChange == null ? "#64748B" : row.pctChange < 0 ? "#FCA5A5" : "#86efac";
+                const rowKey = `${row.facility}::${row.sku}`;
                 return (
-                  <tr key={`${row.facility}::${row.sku}`} style={{ background: i % 2 ? "rgba(9,25,19,0.3)" : "transparent" }}>
+                  <React.Fragment key={rowKey}>
+                  <tr style={{ background: i % 2 ? "rgba(9,25,19,0.3)" : "transparent" }}>
                     <td className="px-4 py-2.5" style={{ color: "#E2E8F0" }}>{row.facility}</td>
                     <td className="px-4 py-2.5" style={{ color: "#E2E8F0" }}>{row.sku}</td>
                     <td className="px-4 py-2.5 text-right" style={{ color: "#64748B" }}>
@@ -246,7 +293,37 @@ export default function SafetyStockView() {
                         {style.label}
                       </span>
                     </td>
+                    {fromNetwork && (
+                      <td className="px-4 py-2.5 text-right">
+                        {row.severity !== "ok" && (
+                          <button
+                            onClick={() => recommend(row)}
+                            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg"
+                            style={{ color: "#9FD63A", border: "1px solid rgba(159,214,58,0.35)", background: "rgba(9,25,19,0.5)" }}
+                          >
+                            {rec?.key === rowKey && rec.state !== "loading" ? "Hide" : "Recommend"}
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
+                  {rec?.key === rowKey && (
+                    <tr style={{ background: "rgba(9,25,19,0.55)" }}>
+                      <td colSpan={8} className="px-4 py-3 text-xs" style={{ color: "#E2E8F0" }}>
+                        {rec.state === "loading" && "Working out a buffer from your network..."}
+                        {rec.state === "error" && <span style={{ color: "#FCA5A5" }}>{rec.message}</span>}
+                        {rec.state === "done" && (rec.hit ? (
+                          <span>
+                            {rec.hit.action}. Cost about ${Math.round(rec.hit.additional_cost_usd || 0).toLocaleString("en-US")}; protects about ${Math.round(rec.hit.revenue_protected_usd || 0).toLocaleString("en-US")}
+                            {typeof rec.hit.roi === "number" ? ` (${rec.hit.roi.toFixed(1)}x)` : ""}. Sized for a 95% service level using your demand, lead times and unit prices.
+                          </span>
+                        ) : (
+                          <span>No buffer increase is recommended here at a 95% service level. This part is already covered against normal demand and lead-time variability.</span>
+                        ))}
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
