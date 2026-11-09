@@ -73,10 +73,26 @@ export default function SafetyStockView() {
       }
       const prices = {};
       for (const [k, v] of Object.entries(by)) { v.sort((a, b) => a - b); prices[k] = v[Math.floor(v.length / 2)]; }
+      // Use the monitor's own measured usage and unit costs so the recommendation agrees with the days on hand shown here
+      // (otherwise demand is rolled up from customer orders, which can differ from what each site actually consumes).
+      const demandByFac = { ...(payload.demand_by_facility || {}) };
+      const sigmaByFac = { ...(payload.demand_sigma_by_facility || {}) };
+      const costBy = {};
+      for (const r of net?.current?.rows || []) {
+        const fac = String(r.facility).toUpperCase();
+        const sku = String(r.sku).toUpperCase();
+        if (r.avg_daily_usage > 0) {
+          demandByFac[fac] = { ...(demandByFac[fac] || {}), [sku]: r.avg_daily_usage };
+          sigmaByFac[fac] = { ...(sigmaByFac[fac] || {}), [sku]: 0 };
+        }
+        if (r.unit_cost > 0) (costBy[sku] = costBy[sku] || []).push(r.unit_cost);
+      }
+      const unitCosts = { ...(payload.unit_costs || {}) };
+      for (const [k, v] of Object.entries(costBy)) { v.sort((x, y) => x - y); unitCosts[k] = v[Math.floor(v.length / 2)]; }
       const res = await fetch(`${base}/api/safety-stock/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...payload, unit_prices: prices, target_service_level: 0.95, doh_floor_days: row.floor ?? DEFAULT_DOH_FLOOR }),
+        body: JSON.stringify({ ...payload, demand_by_facility: demandByFac, demand_sigma_by_facility: sigmaByFac, unit_costs: unitCosts, unit_prices: prices, target_service_level: 0.95, doh_floor_days: row.floor ?? DEFAULT_DOH_FLOOR }),
       });
       const data = await res.json().catch(() => ({}));
       if (!data.ok) throw new Error(data.error || "The optimizer could not run on this network.");
@@ -315,7 +331,7 @@ export default function SafetyStockView() {
                         {rec.state === "done" && (rec.hit ? (
                           <span>
                             {rec.hit.action}. Cost about ${Math.round(rec.hit.additional_cost_usd || 0).toLocaleString("en-US")}; protects about ${Math.round(rec.hit.revenue_protected_usd || 0).toLocaleString("en-US")}
-                            {typeof rec.hit.roi === "number" ? ` (${rec.hit.roi.toFixed(1)}x)` : ""}. Sized for a 95% service level using your demand, lead times and unit prices.
+                            {typeof rec.hit.roi === "number" ? ` (${rec.hit.roi.toFixed(1)}x)` : ""}. Sized for a 95% service level using each site's measured usage, lead times and unit costs.
                           </span>
                         ) : (
                           <span>No buffer increase is recommended here at a 95% service level. This part is already covered against normal demand and lead-time variability.</span>
