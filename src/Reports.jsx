@@ -14,9 +14,14 @@ function formatDateOnly(value) {
   return d.toLocaleDateString();
 }
 
+function isMissing(value) {
+  return value === null || value === undefined || value === "";
+}
+
 function formatNumber(value, digits = 0) {
+  if (isMissing(value)) return "n/a";
   const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "n/a";
   return n.toLocaleString(undefined, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -24,14 +29,16 @@ function formatNumber(value, digits = 0) {
 }
 
 function formatPercent(value, digits = 1) {
+  if (isMissing(value)) return "n/a";
   const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "n/a";
   return `${n.toFixed(digits)}%`;
 }
 
 function formatCurrency(value) {
+  if (isMissing(value)) return "n/a";
   const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "n/a";
   return n.toLocaleString(undefined, {
     style: "currency",
     currency: "USD",
@@ -252,76 +259,68 @@ function getKpiValueClass(kind, value) {
 }
 
 
-function computeFrontendBbi(selectedRun) {
+function kpiNum(...values) {
+  for (const v of values) {
+    if (v === null || v === undefined || v === "") continue;
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function scorecardRow(scorecard, key) {
+  for (const g of scorecard?.groups || []) {
+    for (const r of g.rows || []) if (r.key === key) return r;
+  }
+  return null;
+}
+
+// Number of days, Infinity when the network never recovers, null when unknown.
+function recoveryDays(live, kpis) {
+  const r = scorecardRow(live?.scorecard, "ttr");
+  if (r) {
+    if (r.state === "not_recovered") return Infinity;
+    if (typeof r.during === "number") return r.during;
+  }
+  return kpiNum(kpis?.ttrDays, kpis?.timeToRecoverDays, kpis?.timeToRecovery);
+}
+
+// Weighted score over the inputs that exist. Missing inputs are left out, never counted as perfect.
+function computeFrontendBbi(selectedRun, live) {
   const kpis = selectedRun?.raw?.kpis || {};
+  const onTime = kpiNum(kpis.onTimeFulfillment);
+  if (onTime === null) return null;
 
-  const onTimePct = Number(kpis?.onTimeFulfillment || 0);
-  const totalDemand = Number(kpis?.serviceTruth?.totalDemand || 0);
-  const peakBacklogUnits = Number(
-    kpis?.peakBacklogUnits ??
-    kpis?.peakBacklog ??
-    0
-  );
-  const missedServiceDays = Number(
-    kpis?.missedServiceDays ??
-    kpis?.serviceTruth?.daysWithMissedService ??
-    0
-  );
-  const ttrDays = Number(
-    kpis?.ttrDays ??
-    kpis?.timeToRecoverDays ??
-    0
-  );
+  const parts = [[0.55, onTime]];
 
-  const backlogRatePct =
-    totalDemand > 0 ? (peakBacklogUnits / totalDemand) * 100 : 0;
+  const peak = kpiNum(kpis.peakBacklogUnits, kpis.peakBacklog);
+  const total = kpiNum(kpis.serviceTruth?.totalDemand);
+  if (peak !== null && total !== null && total > 0) {
+    parts.push([0.2, 100 - Math.min((peak / total) * 100, 100)]);
+  }
 
-  const backlogPenaltyBasis = Math.min(backlogRatePct, 100);
-  const missedDaysPenaltyBasis = Math.min((missedServiceDays / 90) * 100, 100);
-  const ttrPenaltyBasis = Math.min((ttrDays / 30) * 100, 100);
+  const missed = kpiNum(kpis.missedServiceDays, kpis.serviceTruth?.daysWithMissedService);
+  if (missed !== null) parts.push([0.15, 100 - Math.min((missed / 90) * 100, 100)]);
 
-  const score =
-    0.55 * onTimePct +
-    0.20 * (100 - backlogPenaltyBasis) +
-    0.15 * (100 - missedDaysPenaltyBasis) +
-    0.10 * (100 - ttrPenaltyBasis);
+  const ttr = recoveryDays(live, kpis);
+  if (ttr === Infinity) parts.push([0.1, 0]);
+  else if (ttr !== null) parts.push([0.1, 100 - Math.min((ttr / 30) * 100, 100)]);
 
+  const weight = parts.reduce((t, [w]) => t + w, 0);
+  const score = parts.reduce((t, [w, v]) => t + w * v, 0) / weight;
   return Math.max(0, Math.min(100, Number(score.toFixed(1))));
 }
 
-
-function normalizeRunKpis(selectedRun) {
+function normalizeRunKpis(selectedRun, live) {
   const source = selectedRun?.raw?.kpis || {};
-
-  console.log("RUN KPI SOURCE OF TRUTH", source);
+  const rev = live?.scorecard?.revenue_at_risk;
 
   return {
-    serviceLevel: pickValue(
-      Number(source.onTimeFulfillment || 0),
-      source.onTimeFill,
-      
-      
-    ),
-    demandAtRisk: pickValue(
-      source.unitsAtRisk,
-      source.lateFulfilledUnits,
-      source.occurrenceUnfulfilledUnits
-    ),
-    unfulfilledDemand: pickValue(
-      source.peakBacklog,
-      source.peakBacklogUnits,
-      source.backorderVolume,
-      source.endingBacklogExposure
-    ),
-    ttrDays: pickValue(
-      source.ttrDays,
-      source.timeToRecoverDays,
-      source.timeToRecovery
-    ),
-    revenueExposure: pickValue(
-      source.revenueExposure,
-      source.estimatedRevenueExposure
-    ),
+    serviceLevel: kpiNum(source.onTimeFulfillment, source.onTimeFill),
+    demandAtRisk: kpiNum(source.unitsAtRisk, source.lateFulfilledUnits, source.occurrenceUnfulfilledUnits),
+    unfulfilledDemand: kpiNum(source.peakBacklog, source.peakBacklogUnits, source.backorderVolume, source.endingBacklogExposure),
+    ttrDays: recoveryDays(live, source),
+    revenueExposure: typeof rev === "number" ? rev : null,
   };
 }
 
@@ -380,6 +379,31 @@ export default function Reports(props) {
     return runs.find((run) => run.runId === selectedRunId) || null;
   }, [runs, selectedRunId]);
 
+  const [live, setLive] = useState(null);
+
+  useEffect(() => {
+    setLive(null);
+    if (!selectedRunId) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+        const res = await fetch(`${apiBase}/api/run-kpis/${encodeURIComponent(selectedRunId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok && body?.scorecard?.ok) {
+          setLive({ kpis: body.kpis || {}, scorecard: body.scorecard });
+        }
+      } catch {
+        /* the report still renders from the stored run */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRunId, apiBase]);
+
   const selectedRunReport = useMemo(() => {
     if (!selectedRun) return null;
 
@@ -388,71 +412,29 @@ export default function Reports(props) {
 
     if (!base) return null;
 
-    const onTimePct = Number(kpis?.onTimeFulfillment || 0);
-    const totalDemand = Number(kpis?.serviceTruth?.totalDemand || 0);
-    const peakBacklogUnits = Number(
-      kpis?.peakBacklogUnits ??
-      kpis?.peakBacklog ??
-      0
-    );
-    const missedServiceDays = Number(
-      kpis?.missedServiceDays ??
-      kpis?.serviceTruth?.daysWithMissedService ??
-      0
-    );
-    const ttrDays = Number(
-      kpis?.ttrDays ??
-      kpis?.timeToRecoverDays ??
-      0
-    );
-
+    const onTimePct = kpiNum(kpis.onTimeFulfillment);
+    const totalDemand = kpiNum(kpis.serviceTruth?.totalDemand);
+    const peakBacklogUnits = kpiNum(kpis.peakBacklogUnits, kpis.peakBacklog);
     const backlogRatePct =
-      totalDemand > 0 ? (peakBacklogUnits / totalDemand) * 100 : 0;
-
-    const frontendBbi = (() => {
-      const backlogPenaltyBasis = Math.min(backlogRatePct, 100);
-      const missedDaysPenaltyBasis = Math.min((missedServiceDays / 90) * 100, 100);
-      const ttrPenaltyBasis = Math.min((ttrDays / 30) * 100, 100);
-
-      const score =
-        0.55 * onTimePct +
-        0.20 * (100 - backlogPenaltyBasis) +
-        0.15 * (100 - missedDaysPenaltyBasis) +
-        0.10 * (100 - ttrPenaltyBasis);
-
-      return Math.max(0, Math.min(100, Number(score.toFixed(1))));
-    })();
+      totalDemand !== null && totalDemand > 0 && peakBacklogUnits !== null
+        ? (peakBacklogUnits / totalDemand) * 100
+        : null;
+    const frontendBbi = computeFrontendBbi(selectedRun, live);
 
     const rewriteText = (text) => {
       if (!text || typeof text !== "string") return text;
-
       let out = text;
-
-      out = out.replace(
-        /Network Resilience Score \(NRS\) \d+(\.\d+)?\/100/gi,
-        `BBI Interpretation ${frontendBbi}/100`
-      );
-
-      out = out.replace(
-        /Network Resilience Score:\s*\d+(\.\d+)?\/100/gi,
-        `Network Resilience Score: ${frontendBbi}/100`
-      );
-
-      out = out.replace(
-        /BBI \d+(\.\d+)?\/100/gi,
-        `BBI ${frontendBbi}/100`
-      );
-
-      out = out.replace(
-        /On-time fulfillment:\s*\d+(\.\d+)?%/gi,
-        `On-time fulfillment: ${onTimePct.toFixed(1)}%`
-      );
-
-      out = out.replace(
-        /Backorder rate:\s*\d+(\.\d+)?%/gi,
-        `Backorder rate: ${backlogRatePct.toFixed(1)}%`
-      );
-
+      if (frontendBbi !== null) {
+        out = out.replace(/Network Resilience Score \(NRS\) \d+(\.\d+)?\/100/gi, `BBI Interpretation ${frontendBbi}/100`);
+        out = out.replace(/Network Resilience Score:\s*\d+(\.\d+)?\/100/gi, `Network Resilience Score: ${frontendBbi}/100`);
+        out = out.replace(/BBI \d+(\.\d+)?\/100/gi, `BBI ${frontendBbi}/100`);
+      }
+      if (onTimePct !== null) {
+        out = out.replace(/On-time fulfillment:\s*\d+(\.\d+)?%/gi, `On-time fulfillment: ${onTimePct.toFixed(1)}%`);
+      }
+      if (backlogRatePct !== null) {
+        out = out.replace(/Backorder rate:\s*\d+(\.\d+)?%/gi, `Backorder rate: ${backlogRatePct.toFixed(1)}%`);
+      }
       return out;
     };
 
@@ -469,28 +451,21 @@ export default function Reports(props) {
           }))
         : base.sections,
     };
-  }, [selectedRun]);
+  }, [selectedRun, live]);
 
   const selectedRunKpis = useMemo(() => {
     if (!selectedRun) return null;
-    return normalizeRunKpis(selectedRun);
-  }, [selectedRun]);
+    return normalizeRunKpis(selectedRun, live);
+  }, [selectedRun, live]);
 
   const selectedRunBbi = useMemo(() => {
     if (!selectedRun) return null;
-    return computeFrontendBbi(selectedRun);
-  }, [selectedRun]);
+    return computeFrontendBbi(selectedRun, live);
+  }, [selectedRun, live]);
 
   const selectedRunBbiTone = useMemo(() => {
     return getBbiTone(selectedRunBbi);
   }, [selectedRunBbi]);
-
-  useEffect(() => {
-    if (!selectedRun) return;
-    console.log("REPORT CHECK", selectedRun);
-    console.log("🧮 [BBI] raw kpis:", selectedRun?.raw?.kpis);
-    console.log("🧮 [BBI] selectedRunBbi:", selectedRunBbi);
-  }, [selectedRun, selectedRunBbi]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -743,7 +718,7 @@ export default function Reports(props) {
                         </span>
                       </div>
                       <div className={`text-6xl font-semibold tracking-tight ${selectedRunBbiTone.valueClass}`}>
-                        {selectedRunBbi !== null && selectedRunBbi !== undefined ? `${selectedRunBbi}/100` : "—"}
+                        {selectedRunBbi !== null && selectedRunBbi !== undefined ? `${selectedRunBbi}/100` : "n/a"}
                       </div>
                       <div className="text-sm text-slate-300 mt-2">
                         Derived from service level, backlog severity, missed service days, and TTR.
@@ -769,15 +744,16 @@ export default function Reports(props) {
                       <MetricCard
                         label="TTR"
                         value={
-                          selectedRunKpis?.ttrDays !== null &&
-                          selectedRunKpis?.ttrDays !== undefined
-                            ? `${formatNumber(selectedRunKpis?.ttrDays)} days`
-                            : "—"
+                          selectedRunKpis?.ttrDays === Infinity
+                            ? "Not recovered"
+                            : typeof selectedRunKpis?.ttrDays === "number"
+                              ? `${formatNumber(selectedRunKpis.ttrDays)} days`
+                              : "n/a"
                         }
                         valueClassName={getKpiValueClass("ttrDays", selectedRunKpis?.ttrDays)}
                       />
                       <MetricCard
-                        label="Revenue Exposure"
+                        label="Revenue at Risk"
                         value={formatCurrency(selectedRunKpis?.revenueExposure)}
                         valueClassName={getKpiValueClass("revenueExposure", selectedRunKpis?.revenueExposure)}
                       />
@@ -893,36 +869,43 @@ export default function Reports(props) {
                               method: "POST",
                               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                               body: JSON.stringify({
-                                scenario: selectedRun?.raw?.run_id ? `Nexty Electronics — Run ${selectedRun.raw.run_id.slice(-8)}` : activeScenarioName || "Nexty Electronics Simulation",
-                                networkName: "Nexty Electronics Network",
+                                scenario: selectedRun?.label || activeScenarioName || "Simulation",
                                 aiNarrative: (() => {
-                                  const svc = selectedRunKpis?.serviceLevel ?? 0;
-                                  const ttr = selectedRunKpis?.ttrDays ?? 0;
-                                  const rev = selectedRunKpis?.revenueExposure ?? 0;
-                                  const backlog = selectedRunKpis?.unfulfilledDemand ?? 0;
-                                  if (!svc) return selectedRunReport?.sections?.find(s => s.id === "overview")?.body || "";
-                                  return `This simulation run shows on-time service at ${svc.toFixed(1)}%, with a peak backlog of ${backlog.toLocaleString()} units and an estimated revenue exposure of $${rev.toLocaleString()}. Full network recovery is projected at ${ttr} days.`;
+                                  const k = selectedRunKpis || {};
+                                  if (typeof k.serviceLevel !== "number") {
+                                    return selectedRunReport?.sections?.find((s) => s.id === "overview")?.body || "";
+                                  }
+                                  let t = `This simulation run shows on-time service at ${k.serviceLevel.toFixed(1)}%`;
+                                  if (typeof k.unfulfilledDemand === "number") t += `, with a peak backlog of ${k.unfulfilledDemand.toLocaleString()} units`;
+                                  if (typeof k.revenueExposure === "number") t += ` and revenue at risk of $${Math.round(k.revenueExposure).toLocaleString()}`;
+                                  t += ".";
+                                  if (k.ttrDays === Infinity) t += " The network does not fully recover within the simulation window.";
+                                  else if (typeof k.ttrDays === "number") t += ` Full network recovery is projected at ${k.ttrDays} days.`;
+                                  return t;
                                 })(),
                                 kpis: {
                                   serviceLevelPct: selectedRunKpis?.serviceLevel ?? 0,
                                   peakBacklogUnits: selectedRunKpis?.unfulfilledDemand ?? 0,
-                                  timeToRecoverDays: selectedRunKpis?.ttrDays ?? 0,
+                                  timeToRecoverDays: Number.isFinite(selectedRunKpis?.ttrDays) ? selectedRunKpis.ttrDays : null,
+                                  notRecovered: selectedRunKpis?.ttrDays === Infinity,
                                   timeToSurviveDays: selectedRunKpis?.ttsDays ?? selectedRun?.raw?.kpis?.ttsDays ?? 0,
                                   demandAtRiskUnits: selectedRunKpis?.demandAtRisk ?? 0,
-                                  revenueExposure: selectedRunKpis?.revenueExposure ?? 0,
+                                  revenueExposure: selectedRunKpis?.revenueExposure ?? null,
+                                  worstWeeklyServicePct: kpiNum(selectedRun?.raw?.kpis?.worstWeeklyServicePct),
+                                  falseConfidenceDays: kpiNum(selectedRun?.raw?.kpis?.falseConfidenceDays),
                                 },
                                 disruptionSignals: {
-                                facilitiesImpacted: selectedRun?.raw?.kpis?.impactedFacilities ?? 0,
-                                highRiskSkuCount: selectedRun?.raw?.kpis?.unitsAtRisk ?? 0,
-                                occurrenceCount: selectedRun?.raw?.kpis?.occurrenceCount ?? 0,
-                                revenueExposure: selectedRunKpis?.revenueExposure ?? 0,
-                                severityMix: {},
-                                highRiskSkus: [],
-                              },
+                                  facilitiesImpacted: selectedRun?.raw?.kpis?.impactedFacilities ?? 0,
+                                  highRiskSkuCount: selectedRun?.raw?.kpis?.unitsAtRisk ?? 0,
+                                  occurrenceCount: selectedRun?.raw?.kpis?.occurrenceCount ?? 0,
+                                  revenueExposure: selectedRunKpis?.revenueExposure ?? null,
+                                  severityMix: {},
+                                  highRiskSkus: [],
+                                },
                               countermeasures,
                                 runMetadata: {
-                                  runId: selectedRun?.run_id || selectedRun?.id || "",
-                                  timestamp: selectedRun?.timestamp || "",
+                                  runId: selectedRun?.runId || "",
+                                  timestamp: selectedRun?.createdAt || "",
                                 },
                               }),
                             });
