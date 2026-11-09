@@ -2841,7 +2841,7 @@ export default function SimulationDashboard({
           </div>
           <button type="button" onClick={loadSample} disabled={sampleLoading || isRunning}
             className="rounded-md px-5 py-2.5 text-sm font-semibold disabled:opacity-50" style={{ background: "#9FD63A", color: "#0B1220" }}>
-            {sampleLoading || isRunning || pendingSample ? "Running the sample scenario" : "Run the sample scenario"}
+            {sampleLoading || isRunning || pendingSample ? "Running the scenario" : "Run the sample scenario"}
           </button>
           <button type="button" onClick={() => loadNetwork().then((r) => { if (r === "none") setSampleError("Load a network in Control Tower first."); })} disabled={sampleLoading || isRunning}
             className="rounded-md px-5 py-2 text-sm font-semibold disabled:opacity-50 border" style={{ borderColor: "#9FD63A", color: "#9FD63A" }}>
