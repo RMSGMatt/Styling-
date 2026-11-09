@@ -7,9 +7,39 @@ import { showToast } from "../Toasts";
 ---------------------------- */
 const KEY = "forc_scenarios";
 
+const SEED_FLAG = "forc_scenarios_seeded_v1";
+
+function seedList() {
+  const now = new Date().toISOString();
+  const empty = { demandAdjustments: [], laneAdjustments: [], inventoryPolicies: [], disruptionScenarios: [] };
+  const mk = (name, notes, tags, meta) => ({
+    id: genId(), name, notes, tags, createdAt: now, updatedAt: now,
+    data: { name, ...empty, meta: { source: "library_seed", ...meta } },
+  });
+  return [
+    mk("Taiwan fab outage, 60 days", "Full outage at FAB_TAIWAN_01 starting one week out. Runs on your loaded network, or the example network.", ["network", "outage"],
+      { relative: { facility: "FAB_TAIWAN_01", offsetDays: 7, durationDays: 60, severity: 1 } }),
+    mk("Taiwan fab degraded 50%, 30 days", "Half capacity at FAB_TAIWAN_01 for a month, starting one week out.", ["network", "partial"],
+      { relative: { facility: "FAB_TAIWAN_01", offsetDays: 7, durationDays: 30, severity: 0.5 } }),
+    mk("Distributor: Baseline", "Illustrative distributor network with no disruption.", ["distributor", "illustrative"], { sampleDir: "distributor/1_baseline" }),
+    mk("Distributor: Allocation cut", "Supplier allocation is cut. Illustrative distributor network.", ["distributor", "illustrative"], { sampleDir: "distributor/2_allocation_cut" }),
+    mk("Distributor: Allocation cut, repositioned stock", "Allocation cut with stock repositioned ahead of it.", ["distributor", "illustrative"], { sampleDir: "distributor/2b_allocation_cut_repositioned" }),
+    mk("Distributor: End of life, stock only", "End-of-life part with existing stock only.", ["distributor", "illustrative"], { sampleDir: "distributor/3_eol_stock_only" }),
+    mk("Distributor: End of life, last-time buy", "End-of-life part with a last-time buy placed.", ["distributor", "illustrative"], { sampleDir: "distributor/4_eol_last_time_buy" }),
+  ];
+}
+
 function loadScenarios() {
   try {
-    return JSON.parse(localStorage.getItem(KEY) || "[]");
+    let list = JSON.parse(localStorage.getItem(KEY) || "[]");
+    if (!Array.isArray(list)) list = [];
+    if (!localStorage.getItem(SEED_FLAG)) {
+      localStorage.setItem(SEED_FLAG, "1");
+      const have = new Set(list.map((x) => String(x?.name || "").toLowerCase()));
+      list = [...list, ...seedList().filter((x) => !have.has(x.name.toLowerCase()))];
+      localStorage.setItem(KEY, JSON.stringify(list));
+    }
+    return list;
   } catch {
     return [];
   }

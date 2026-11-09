@@ -1123,8 +1123,17 @@ export default function ControlTower({
   }, []);
 
   function applyScenario(data, name = "") {
-    const clean = data || {};
+    let clean = data || {};
     const label = name || clean.name || "Saved scenario";
+    const rel = clean?.meta?.relative;
+    if (rel && rel.facility) {
+      const iso = (d) => d.toISOString().slice(0, 10);
+      const start = new Date(Date.now() + (Number(rel.offsetDays) || 0) * 86400000);
+      const end = new Date(start.getTime() + (Number(rel.durationDays) || 30) * 86400000);
+      const sev = Number(rel.severity ?? 1);
+      clean = { ...clean, disruptionScenarios: [{ facility: rel.facility, startDate: iso(start), endDate: iso(end), severity: sev, production_impact: sev, shipping_impact: sev }] };
+    }
+    const sampleDir = clean?.meta?.sampleDir;
     setScenario(clean);
     setScenarioName(label);
     try {
@@ -1133,10 +1142,16 @@ export default function ControlTower({
       localStorage.setItem("currentScenarioJSON", json);
       localStorage.setItem("forc_active_scenario", json);
       localStorage.setItem("currentScenarioName", label);
-      localStorage.setItem("forc_exposure_sim", "1");
+      if (sampleDir) {
+        localStorage.setItem("forc_sample_dir", sampleDir);
+        localStorage.setItem("forc_sample_label", label);
+        localStorage.setItem("forc_run_sample", "1");
+      } else {
+        localStorage.setItem("forc_exposure_sim", "1");
+      }
     } catch {}
     switchView("simulation");
-    try { window.dispatchEvent(new Event("forc-exposure-sim")); } catch {}
+    try { window.dispatchEvent(new Event(sampleDir ? "forc-run-sample" : "forc-exposure-sim")); } catch {}
   }
 
   const resolvedPlan =

@@ -2852,7 +2852,17 @@ export default function SimulationDashboard({
   }, [pendingSample, isSimulationReady, isRunning]);
 
   useEffect(() => {
-    const go = () => { try { localStorage.removeItem("forc_run_sample"); } catch {} loadSample(); };
+    const go = () => {
+      let dir = "", label = "";
+      try {
+        localStorage.removeItem("forc_run_sample");
+        dir = localStorage.getItem("forc_sample_dir") || "";
+        label = localStorage.getItem("forc_sample_label") || "";
+        localStorage.removeItem("forc_sample_dir");
+        localStorage.removeItem("forc_sample_label");
+      } catch {}
+      loadSample(dir ? { dir, label: label || undefined } : {});
+    };
     const goExposure = () => {
       let label = "";
       try { localStorage.removeItem("forc_exposure_sim"); label = localStorage.getItem("currentScenarioName") || ""; } catch {}
