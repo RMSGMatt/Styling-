@@ -22,6 +22,7 @@ import { useRiskTriggers } from "./ControlTowerEhancements/RiskIntelligence/useR
 import { SCENARIO_CONFIG } from "./ControlTowerEhancements/RiskIntelligence/scenarioConfig";
 import { getApiBase } from "../config/apiBase";
 import IngestKeysCard from "./ControlTowerEhancements/IngestKeysCard";
+import CompareRuns from "./CompareRuns";
 import PartsAtRiskCard from "./ControlTowerEhancements/PartsAtRiskCard";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
 import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
@@ -948,6 +949,16 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
   );
 }
 
+function runIdOf(run) {
+  if (!run) return null;
+  if (run.run_id && /^\d{8}_\d{6}_/.test(run.run_id)) return run.run_id;
+  for (const v of Object.values(run)) {
+    const m = typeof v === "string" ? v.match(/(\d{8}_\d{6}_[0-9a-f]{6,})/) : null;
+    if (m) return m[1];
+  }
+  return null;
+}
+
 // Latest-run verdict at the top of the Control Tower: the one sentence that matters,
 // four headline measures, and a way in. Reads the saved run through /api/run-kpis.
 function LatestRunVerdict({ simulationHistory, switchView }) {
@@ -1136,6 +1147,8 @@ export default function ControlTower({
   const isAdmin = resolvedRole === "admin";
 
   const [activeView, setActiveView] = useState("dashboard");
+  const [compareIds, setCompareIds] = useState([]);
+  const [showCompare, setShowCompare] = useState(false);
   // Set when the unified attention panel's "Review in Risk Intelligence" is
   // clicked, so
   // RiskIntelligenceView mounts on the correct commodity/tab instead of
@@ -1795,6 +1808,28 @@ export default function ControlTower({
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {Array.isArray(simulationHistory) && simulationHistory.length > 1 && (
+                    <div className="flex items-center justify-between gap-3 text-xs" style={{ color: "#94A3B8" }}>
+                      <span>Tick 2 or 3 runs to compare them side by side.</span>
+                      <button
+                        disabled={compareIds.length < 2}
+                        onClick={() => setShowCompare(true)}
+                        className="rounded-xl border px-3 py-1.5 text-sm font-semibold transition disabled:opacity-40"
+                        style={{ color: "#9FD63A", borderColor: "rgba(159,214,58,0.35)", background: "rgba(9,25,19,0.5)" }}
+                      >
+                        Compare ({compareIds.length})
+                      </button>
+                    </div>
+                  )}
+                  {showCompare && compareIds.length >= 2 && (
+                    <CompareRuns
+                      runs={compareIds.map((id) => {
+                        const r = (simulationHistory || []).find((x) => runIdOf(x) === id);
+                        return { id, label: r?.name || r?.raw?.scenario_name || r?.scenario_name || "Baseline Run" };
+                      })}
+                      onClose={() => setShowCompare(false)}
+                    />
+                  )}
                   {Array.isArray(simulationHistory) && simulationHistory.length > 0 ? (
                     simulationHistory.map((run, idx) => {
                       const kpis = run?.kpis || run?.raw?.kpis || {};
@@ -1832,6 +1867,20 @@ export default function ControlTower({
                                 <div className="text-xs" style={{ color: "#64748B" }}>{(() => { const raw = run.created_at || run.timestamp || ""; if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(raw)) return raw; const d = new Date(raw.replace(" ", "T") + "Z"); if (isNaN(d)) return raw; const q = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${q(d.getMonth() + 1)}-${q(d.getDate())} ${q(d.getHours())}:${q(d.getMinutes())}:${q(d.getSeconds())}`; })()} {runId && `· ${runId}`}</div>
                               </div>
                             </div>
+                            {runIdOf(run) && (
+                              <label className="shrink-0 flex items-center gap-1 text-xs cursor-pointer" style={{ color: "#94A3B8" }} title="Select to compare">
+                                <input
+                                  type="checkbox"
+                                  checked={compareIds.includes(runIdOf(run))}
+                                  onChange={(e) => {
+                                    const id = runIdOf(run);
+                                    setShowCompare(false);
+                                    setCompareIds((prev) => e.target.checked ? (prev.includes(id) || prev.length >= 3 ? prev : [...prev, id]) : prev.filter((x) => x !== id));
+                                  }}
+                                />
+                                Compare
+                              </label>
+                            )}
                             <button
                               onClick={() => (typeof onReloadRun === "function" ? onReloadRun(run) : switchView?.("simulation"))}
                               className="shrink-0 rounded-xl border px-3 py-1.5 text-sm font-semibold transition"
