@@ -1629,6 +1629,7 @@ export default function ControlTower({
                     siteHealth={mapHealth}
                     lanes={mapLanes}
                     hazardLinks={hazardLinks}
+                    autoFit
                     height="400px"
                   />
                 </div>
