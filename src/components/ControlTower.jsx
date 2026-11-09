@@ -1113,14 +1113,19 @@ export default function ControlTower({
 
   function applyScenario(data, name = "") {
     const clean = data || {};
+    const label = name || clean.name || "Saved scenario";
     setScenario(clean);
-    setScenarioName(name || "");
+    setScenarioName(label);
     try {
-      localStorage.setItem("currentScenario", JSON.stringify(clean));
-      localStorage.setItem("currentScenarioName", name || "");
+      const json = JSON.stringify(clean);
+      localStorage.setItem("currentScenario", json);
+      localStorage.setItem("currentScenarioJSON", json);
+      localStorage.setItem("forc_active_scenario", json);
+      localStorage.setItem("currentScenarioName", label);
+      localStorage.setItem("forc_exposure_sim", "1");
     } catch {}
-    console.log("[ControlTower] Applied scenario:", { name, data: clean });
-    window.location.href = "/simulation";
+    switchView("simulation");
+    try { window.dispatchEvent(new Event("forc-exposure-sim")); } catch {}
   }
 
   const resolvedPlan =
@@ -1872,7 +1877,15 @@ export default function ControlTower({
             <section className="mt-10">
               <ScenarioLibrary
                 userPlan={resolvedPlan}
-                getCurrentScenario={() => scenario}
+                getCurrentScenario={() => {
+                  for (const k of ["currentScenarioJSON", "forc_active_scenario", "currentScenario"]) {
+                    try {
+                      const v = JSON.parse(localStorage.getItem(k) || "null");
+                      if (v && typeof v === "object" && Object.keys(v).length > 0) return v;
+                    } catch {}
+                  }
+                  return scenario;
+                }}
                 onApplyScenario={(data, meta) => applyScenario(data, meta?.name)}
               />
             </section>
