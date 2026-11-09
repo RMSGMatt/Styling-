@@ -141,6 +141,10 @@ import {
 } from "../apiClient/scenarios.js";
 import SupplierNetworkGraph from "./SupplierNetworkGraph";
 
+
+// True while the files in the Simulation inputs came from a sample or the network, not a user upload.
+const AUTO_LOADED = { current: false };
+
 ChartJS.register(
   LineElement,
   CategoryScale,
@@ -1675,7 +1679,7 @@ export default function SimulationDashboard({
   const [pendingSampleLabel, setPendingSampleLabel] = useState("Sample: Taiwan fab disruption");
   const filesRefSim = useRef(files);
   filesRefSim.current = files;
-  const autoLoadedRef = useRef(false); // true while the loaded files came from a sample or the network, not a user upload
+  const autoLoadedRef = AUTO_LOADED; // module-level so it survives leaving and re-entering the Simulation tab
   const [sampleLoading, setSampleLoading] = useState(false);
   const [sampleError, setSampleError] = useState("");
   const [healthIssues, setHealthIssues] = useState([]);
