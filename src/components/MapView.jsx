@@ -69,6 +69,7 @@ export default function MapView({
   hazardLinks = [], // [{ site, siteLat, siteLng, hazLat, hazLng, radiusKm, distanceKm, severity }]
   height = "560px", // ✅ explicit default height so map can render
   boldLanes = false, // draw healthy lanes thicker and brighter (used by the Simulation tab)
+  autoFit = false, // frame the camera on the facilities when they load
 }) {
   // --------------------------------------------------------------------------
   // API base (canonical, NO localhost fallback)
@@ -533,11 +534,12 @@ export default function MapView({
 
       if (count > 0) {
         facilityBoundsRef.current = bounds;
+        if (autoFit) setTimeout(() => fitToBoundsSafe(map, bounds, 70), 400);
       }
       if (applyHealthRef.current) applyHealthRef.current();
       if (refilterRef.current) refilterRef.current(); // hazards may have loaded before the sites did
     },
-    [onFacilitySelect]
+    [onFacilitySelect, autoFit, fitToBoundsSafe]
   );
 
   /* ============================================================================
@@ -1416,7 +1418,7 @@ export default function MapView({
     const byStatus = (bad, watch, good) => ["match", ["get", "status"], "bad", bad, "watch", watch, good];
     const run = () => {
       upsertGeo(map, "forc-lanes", { type: "FeatureCollection", features: feats }, [
-        { id: "forc-lanes-line", type: "line", layout: { "line-cap": "round" }, paint: { "line-color": byStatus("#EF4444", "#F59E0B", "#9FD63A"), "line-width": boldLanes ? byStatus(3.4, 2.8, 2.2) : byStatus(2.6, 2, 1.1), "line-opacity": boldLanes ? byStatus(1, 0.95, 0.8) : byStatus(0.9, 0.75, 0.28) } },
+        { id: "forc-lanes-line", type: "line", layout: { "line-cap": "round" }, paint: { "line-color": byStatus("#EF4444", "#F59E0B", "#9FD63A"), "line-width": boldLanes ? byStatus(5, 4.4, 3.6) : byStatus(2.6, 2, 1.1), "line-opacity": boldLanes ? byStatus(1, 1, 0.9) : byStatus(0.9, 0.75, 0.28) } },
         { id: "forc-lanes-hit", type: "line", paint: { "line-color": "#000000", "line-width": 10, "line-opacity": 0.01 } },
       ]);
       if (!lanesWiredRef.current && map.getLayer("forc-lanes-hit")) {
