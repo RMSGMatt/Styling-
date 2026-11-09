@@ -1094,9 +1094,7 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
   const facilitiesImpacted = new Set(impactRows.map((row) => row.facility || row.Facility).filter((x) => typeof x === "string" && x.trim() !== "")).size;
 
   const revenueExposureDisplayValue = (() => {
-    const directRevenue = Number(exec?.revenueExposure ?? exec?.estimatedRevenueExposure ?? 0);
-    if (directRevenue > 0) return directRevenue;
-    return Number(exec?.demandAtRiskUnits ?? 0) * 100;
+    return typeof exec?.revenueExposure === "number" ? exec.revenueExposure : null;
   })();
 
   const uniqueRunoutRows = classifyFacilitySkuRisk(runoutRows)
@@ -1162,7 +1160,7 @@ function DisruptionSignalsPanel({ disruptionImpactData, runoutRiskData, executiv
         </div>
         <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400">Revenue Exposure</p>
-          <p className="text-3xl font-bold tracking-tight font-bold" style={{ color: "#9CF700" }}>{formatCurrencyCompact(revenueExposureDisplayValue, { zeroIsDash: false })}</p>
+          <p className="text-3xl font-bold tracking-tight font-bold" style={{ color: "#9CF700" }}>{revenueExposureDisplayValue === null ? "n/a" : formatCurrencyCompact(revenueExposureDisplayValue, { zeroIsDash: false })}</p>
         </div>
         <div className="bg-slate-900/50 border border-slate-600 hover:border-lime-400/60 hover:bg-slate-800/60 transition rounded-xl p-3">
           <div className="group relative inline-block">
@@ -2098,6 +2096,7 @@ export default function SimulationDashboard({
         setFormFile(formData, "bom", files.bom, files.bom?.name || "bom.csv");
         setFormFile(formData, "location_materials", files.locationMaterials, files.locationMaterials?.name || "location_materials.csv");
         if (files.lanes) setFormFile(formData, "lanes", files.lanes, files.lanes?.name || "lanes.csv");
+        if (files.unitPrices) setFormFile(formData, "unit_prices", files.unitPrices, "unit_prices.csv");
         const originalDemandText = await readFileAsText(files.demand);
         const originalDisruptionsText = await readFileAsText(files.disruptions);
         const originalLocMaterialsText = await readFileAsText(files.locationMaterials);
@@ -2175,8 +2174,8 @@ export default function SimulationDashboard({
     timeToSurviveDays: Number(kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? 0),
     worstWeeklyServicePct: Number(kpis?.worstWeeklyServicePct ?? 0),
     falseConfidenceDays: Number(kpis?.falseConfidenceDays ?? 0),
-    revenueExposure: Number(kpis?.revenueExposure ?? 0),
-    estimatedRevenueExposure: Number(kpis?.estimatedRevenueExposure ?? 0),
+    revenueExposure: (typeof scorecard?.revenue_at_risk === "number" ? scorecard.revenue_at_risk : null),
+    estimatedRevenueExposure: 0,
     simulationStartDate: kpis?.simulationStartDate ?? null,
     simulationEndDate: kpis?.simulationEndDate ?? null,
     horizonWeeks: kpis?.horizonWeeks ?? null,
@@ -2549,7 +2548,7 @@ export default function SimulationDashboard({
             {[
               { label: "Service Level", value: typeof kpis?.onTimeFulfillment === 'number' ? `${kpis.onTimeFulfillment.toFixed(1)}%` : '-', color: "text-green-400" },
               { label: "Demand at Risk", value: formatNumber(kpis?.demandAtRiskUnits ?? kpis?.occurrenceUnfulfilledUnits ?? kpis?.unitsAtRisk ?? kpis?.peakBacklogUnits ?? 0, { zeroIsDash: true }), color: "text-yellow-400" },
-              { label: "Revenue Exposure", value: formatCurrencyCompact(kpis?.revenueExposure ?? 0), color: "text-red-400" },
+              { label: "Revenue Exposure", value: typeof scorecard?.revenue_at_risk === "number" ? formatCurrencyCompact(scorecard.revenue_at_risk, { zeroIsDash: false }) : "n/a", color: "text-red-400" },
               { label: "Peak Backlog", value: formatNumber(kpis?.peakBacklog ?? 0, { zeroIsDash: true }), color: "text-orange-400" },
               { label: "Time to Recover", value: `${kpis?.timeToRecoverDays ?? '-'}d`, color: "text-blue-400" },
               { label: "Time to Survive", value: `${kpis?.timeToSurviveDays ?? kpis?.ttsDays ?? '-'}d`, color: "text-purple-400" },
@@ -2792,6 +2791,11 @@ export default function SimulationDashboard({
         const blob = await res.blob();
         handleFileChange(key, new File([blob], `${file}.csv`, { type: "text/csv" }));
       }
+      try {
+        const pr = await fetch(`/sample-network/${typeof opts.dir === "string" && opts.dir ? opts.dir + "/" : ""}unit_prices.csv`);
+        const ptxt = pr.ok ? await pr.text() : "";
+        handleFileChange("unitPrices", ptxt && !ptxt.trim().startsWith("<") ? new File([ptxt], "unit_prices.csv", { type: "text/csv" }) : null);
+      } catch (e) { handleFileChange("unitPrices", null); }
       const sampleLabel = opts.label || "Sample: Taiwan fab disruption";
       setRunName(sampleLabel);
       setPendingSampleLabel(sampleLabel);
@@ -2825,6 +2829,7 @@ export default function SimulationDashboard({
         if (typeof text !== "string") throw new Error(file);
         handleFileChange(key, new File([text], `${file}.csv`, { type: "text/csv" }));
       }
+      handleFileChange("unitPrices", typeof body.files?.unit_prices === "string" ? new File([body.files.unit_prices], "unit_prices.csv", { type: "text/csv" }) : null);
       const label = opts.label || "Your network: baseline";
       setRunName(label);
       setPendingSampleLabel(label);
