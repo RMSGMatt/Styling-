@@ -68,6 +68,7 @@ export default function MapView({
   lanes = [], // [{ from, to, kind, status, detail, path: [[lng, lat], [lng, lat]] }]
   hazardLinks = [], // [{ site, siteLat, siteLng, hazLat, hazLng, radiusKm, distanceKm, severity }]
   height = "560px", // ✅ explicit default height so map can render
+  boldLanes = false, // draw healthy lanes thicker and brighter (used by the Simulation tab)
 }) {
   // --------------------------------------------------------------------------
   // API base (canonical, NO localhost fallback)
@@ -1415,7 +1416,7 @@ export default function MapView({
     const byStatus = (bad, watch, good) => ["match", ["get", "status"], "bad", bad, "watch", watch, good];
     const run = () => {
       upsertGeo(map, "forc-lanes", { type: "FeatureCollection", features: feats }, [
-        { id: "forc-lanes-line", type: "line", layout: { "line-cap": "round" }, paint: { "line-color": byStatus("#EF4444", "#F59E0B", "#9FD63A"), "line-width": byStatus(2.6, 2, 1.1), "line-opacity": byStatus(0.9, 0.75, 0.28) } },
+        { id: "forc-lanes-line", type: "line", layout: { "line-cap": "round" }, paint: { "line-color": byStatus("#EF4444", "#F59E0B", "#9FD63A"), "line-width": boldLanes ? byStatus(3.4, 2.8, 2.2) : byStatus(2.6, 2, 1.1), "line-opacity": boldLanes ? byStatus(1, 0.95, 0.8) : byStatus(0.9, 0.75, 0.28) } },
         { id: "forc-lanes-hit", type: "line", paint: { "line-color": "#000000", "line-width": 10, "line-opacity": 0.01 } },
       ]);
       if (!lanesWiredRef.current && map.getLayer("forc-lanes-hit")) {
@@ -1430,7 +1431,7 @@ export default function MapView({
     };
     whenStyleReady(map, run);
     return undefined;
-  }, [lanes, layerVisibility.lanes, mapReady]);
+  }, [lanes, layerVisibility.lanes, mapReady, boldLanes]);
 
   // 🎯 Re-center: if facilities exist, fit to them; else return to globe view
   const recenter = () => {

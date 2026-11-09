@@ -3000,7 +3000,7 @@ export default function SimulationDashboard({
               <div className="text-[11px] text-slate-400">Updated {new Date().toLocaleTimeString()}</div>
             </div>
             <div className="h-[26rem] rounded-2xl overflow-hidden border border-slate-700/70 bg-slate-950/80 shadow-inner">
-              <MapView locationsUrl={locationsUrl} selectedFacility={selectedFacility} onFacilityClick={handleFacilityClick} onFacilitySelect={handleFacilityClick} exposedSites={simMap.exposed} siteHealth={simMap.health} lanes={simMap.lanes} />
+              <MapView locationsUrl={locationsUrl} selectedFacility={selectedFacility} onFacilityClick={handleFacilityClick} onFacilitySelect={handleFacilityClick} exposedSites={simMap.exposed} siteHealth={simMap.health} lanes={simMap.lanes} boldLanes />
             </div>
           </div>
 
