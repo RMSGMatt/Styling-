@@ -463,7 +463,7 @@ export default function ScenarioBuilder({
       const res = await fetch(`${apiBase}/api/narrative/parse-scenario`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: nlQuery }),
+        body: JSON.stringify({ query: nlQuery, facilities: availableFacilities }),
       });
       const data = await res.json();
       if (data.status === "success" && data.scenario) {
@@ -612,7 +612,7 @@ export default function ScenarioBuilder({
           {activeSection === "lanes" && (
             <div className="space-y-3">
               <p className="text-[11px] text-slate-400">
-                Add lead time delays to specific lanes — e.g. NEXTY → DENSO delayed by 5 days due to port congestion.
+                Add lead time delays to specific lanes — e.g. a supplier to your plant delayed by 5 days due to port congestion.
               </p>
               {laneDelays.length === 0 && (
                 <div className="rounded-xl border border-slate-700/40 bg-slate-900/30 p-4 text-center">

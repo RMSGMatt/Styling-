@@ -2375,7 +2375,6 @@ export default function SimulationDashboard({
                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                         body: JSON.stringify({
                           scenario: runName || "Supply Chain Disruption Scenario",
-                          networkName: "Nexty Electronics Network",
                           aiNarrative: aiNarrative || narrativeSummary,
                           kpis: { serviceLevelPct: execOnTimePct, peakBacklogUnits: execPeakBacklog, timeToRecoverDays: execTtrDays, timeToSurviveDays: execTtsDays, demandAtRiskUnits: execLateUnits, revenueExposure: execRevenueExposure, worstWeeklyServicePct: execWorstWeeklyPct, falseConfidenceDays: execFalseConfidenceDays },
                           suggestedScenarios,
