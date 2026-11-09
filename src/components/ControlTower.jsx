@@ -1030,6 +1030,7 @@ function LatestRunVerdict({ simulationHistory, switchView }) {
 export default function ControlTower({
   switchView,
   simulationHistory,
+  onReloadRun,
   onLogout,
   userPlan,
   locationsUrl,
@@ -1823,7 +1824,7 @@ export default function ControlTower({
                               </div>
                             </div>
                             <button
-                              onClick={() => switchView?.("simulation")}
+                              onClick={() => (typeof onReloadRun === "function" ? onReloadRun(run) : switchView?.("simulation"))}
                               className="shrink-0 rounded-xl border px-3 py-1.5 text-sm font-semibold transition"
                               style={{ color: "#9FD63A", borderColor: "rgba(159,214,58,0.35)", background: "rgba(9,25,19,0.5)" }}
                             >
