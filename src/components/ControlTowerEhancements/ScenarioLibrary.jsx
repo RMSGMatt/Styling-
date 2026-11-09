@@ -10,6 +10,16 @@ const KEY = "forc_scenarios";
 
 const SEED_FLAG = "forc_scenarios_seeded_v1";
 
+const SEED_NAMES = [
+  "Taiwan fab outage, 60 days",
+  "Taiwan fab degraded 50%, 30 days",
+  "Distributor: Baseline",
+  "Distributor: Allocation cut",
+  "Distributor: Allocation cut, repositioned stock",
+  "Distributor: End of life, stock only",
+  "Distributor: End of life, last-time buy",
+];
+
 function seedList() {
   const now = new Date().toISOString();
   const empty = { demandAdjustments: [], laneAdjustments: [], inventoryPolicies: [], disruptionScenarios: [] };
@@ -422,10 +432,14 @@ export default function ScenarioLibrary({ userPlan, getCurrentScenario, onApplyS
       return matchQ && matchTags;
     });
 
+    // Ties (the starter scenarios share one timestamp) fall back to the starter order, then the name,
+    // so the list reads the same on every device.
+    const seedIdx = (x) => { const i = SEED_NAMES.indexOf(x?.name); return i === -1 ? 999 : i; };
+    const tie = (a, b) => seedIdx(a) - seedIdx(b) || (a.name || "").localeCompare(b.name || "");
     if (sort === "updatedDesc") {
-      list = list.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+      list = list.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || "") || tie(a, b));
     } else if (sort === "createdDesc") {
-      list = list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+      list = list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "") || tie(a, b));
     } else if (sort === "nameAsc") {
       list = list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     }
