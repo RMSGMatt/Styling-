@@ -38,13 +38,13 @@ const METRICS = [
   { label: "Revenue at risk", key: "revenue", fmt: money, dir: -1 },
   { label: "Time to recover", key: "ttr", fmt: days, dir: -1 },
   { label: "Customers impacted", key: "customers", fmt: (v) => (typeof v === "number" ? String(v) : "n/a"), dir: -1 },
-  { label: "Days exposed before it shows", key: "hidden", fmt: days, dir: -1 },
-  { label: "First shortage", key: "first", fmt: (v) => v || "None", dir: 0 },
+  { label: "Days exposed before it shows", key: "hidden", fmt: days, dir: 0 },
+  { label: "First shortage (later is better)", key: "first", fmt: (v) => v || "None", dir: 1, rank: (v) => (v ? Date.parse(v) : Infinity) },
 ];
 
 function bestIndex(vals, dir) {
   if (!dir) return -1;
-  const ok = vals.map((v, i) => [v, i]).filter(([v]) => typeof v === "number");
+  const ok = vals.map((v, i) => [v, i]).filter(([v]) => typeof v === "number" && !Number.isNaN(v));
   if (ok.length < 2) return -1;
   const target = dir === 1 ? Math.max(...ok.map(([v]) => v)) : Math.min(...ok.map(([v]) => v));
   const hits = ok.filter(([v]) => v === target);
@@ -118,7 +118,7 @@ export default function CompareRuns({ runs, onClose }) {
               <tbody>
                 {METRICS.map((mt) => {
                   const vals = cols.map((c) => c.m[mt.key]);
-                  const best = bestIndex(vals, mt.dir);
+                  const best = bestIndex(mt.rank ? vals.map(mt.rank) : vals, mt.dir);
                   return (
                     <tr key={mt.key} className="border-t" style={{ borderColor: "#143629" }}>
                       <td className="py-2 pr-3" style={{ color: "#94A3B8" }}>{mt.label}</td>
