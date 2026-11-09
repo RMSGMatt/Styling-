@@ -2704,7 +2704,7 @@ export default function SimulationDashboard({
       if (!opts.keepScenario) clearActiveScenario();
       const names = { demand: "demand", disruptions: "disruptions", locations: "locations", processes: "processes", bom: "bom", locationMaterials: "location_materials", lanes: "lanes" };
       for (const [key, file] of Object.entries(names)) {
-        const res = await fetch(`/sample-network/${file}.csv`);
+        const res = await fetch(`/sample-network/${typeof opts.dir === "string" && opts.dir ? opts.dir + "/" : ""}${file}.csv`);
         if (!res.ok) throw new Error(file);
         const blob = await res.blob();
         handleFileChange(key, new File([blob], `${file}.csv`, { type: "text/csv" }));
@@ -2847,6 +2847,24 @@ export default function SimulationDashboard({
             className="rounded-md px-5 py-2 text-sm font-semibold disabled:opacity-50 border" style={{ borderColor: "#9FD63A", color: "#9FD63A" }}>
             Simulate my network
           </button>
+          <div className="flex flex-col items-center gap-2 max-w-xl">
+            <p className="text-xs text-slate-400">Distributor example: franchised lines, three distribution centers, three defense programs</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                ["1_baseline", "Baseline"],
+                ["2_allocation_cut", "Allocation cut"],
+                ["2b_allocation_cut_repositioned", "Allocation cut, repositioned stock"],
+                ["3_eol_stock_only", "End of life, stock only"],
+                ["4_eol_last_time_buy", "End of life, last-time buy"],
+              ].map(([dir, label]) => (
+                <button key={dir} type="button" disabled={sampleLoading || isRunning}
+                  onClick={() => loadSample({ dir: `distributor/${dir}`, label: `Distributor: ${label}` })}
+                  className="rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 border" style={{ borderColor: "rgba(159,214,58,0.5)", color: "#9FD63A" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           {sampleError && <p className="text-xs text-amber-300 max-w-md text-center">{sampleError}</p>}
           {healthIssues.map((m) => <p key={m} className="text-xs text-amber-300 max-w-md text-center">{m}</p>)}
           <p className="text-xs text-slate-500">Or upload your own six CSV files in Simulation Inputs.</p>
