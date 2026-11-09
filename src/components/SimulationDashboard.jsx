@@ -2131,7 +2131,8 @@ export default function SimulationDashboard({
         overwriteCsvIfValid("demand", transformedDemand, files.demand?.name || "demand.csv");
         overwriteCsvIfValid("disruptions", transformedDisruptions, files.disruptions?.name || "disruptions.csv");
         overwriteCsvIfValid("location_materials", transformedLocMaterials, files.locationMaterials?.name || "location_materials.csv");
-        if (runLabel) formData.append("run_name", runLabel);
+        const effLabel = runLabel || (() => { try { const n = localStorage.getItem("currentScenarioName"); return n ? `${n} (${new Date().toISOString().slice(0, 10)})` : ""; } catch (e) { return ""; } })();
+        if (effLabel) formData.append("run_name", effLabel);
         await handleSubmit(formData);
       }
     } catch (err) { alert("Scenario run failed. Check console + backend logs for details."); }
