@@ -1825,7 +1825,11 @@ export default function ControlTower({
                     <CompareRuns
                       runs={compareIds.map((id) => {
                         const r = (simulationHistory || []).find((x) => runIdOf(x) === id);
-                        return { id, label: r?.name || r?.raw?.scenario_name || r?.scenario_name || "Baseline Run" };
+                        const nm = r?.name || r?.raw?.scenario_name || r?.scenario_name || "Baseline Run";
+                        const raw = r?.created_at || r?.timestamp || "";
+                        let when = "";
+                        if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(raw)) { const d = new Date(raw.replace(" ", "T") + "Z"); if (!isNaN(d)) when = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+                        return { id, label: when ? `${nm} (${when})` : nm };
                       })}
                       onClose={() => setShowCompare(false)}
                     />
