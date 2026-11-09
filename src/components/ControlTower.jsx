@@ -1820,7 +1820,7 @@ export default function ControlTower({
                               )}
                               <div className="min-w-0">
                                 <div className="font-bold truncate" style={{ color: "#9FD63A" }}>{runLabel}</div>
-                                <div className="text-xs" style={{ color: "#64748B" }}>{run.created_at || run.timestamp || ""} {runId && `· ${runId}`}</div>
+                                <div className="text-xs" style={{ color: "#64748B" }}>{(() => { const raw = run.created_at || run.timestamp || ""; if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(raw)) return raw; const d = new Date(raw.replace(" ", "T") + "Z"); if (isNaN(d)) return raw; const q = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${q(d.getMonth() + 1)}-${q(d.getDate())} ${q(d.getHours())}:${q(d.getMinutes())}:${q(d.getSeconds())}`; })()} {runId && `· ${runId}`}</div>
                               </div>
                             </div>
                             <button
