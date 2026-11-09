@@ -268,6 +268,23 @@ function kpiNum(...values) {
   return null;
 }
 
+// Stored run KPIs when present, else the ones computed from the run's saved output files.
+function kpisOf(run, live) {
+  const raw = run?.raw || {};
+  if (raw.kpis && typeof raw.kpis === "object" && Object.keys(raw.kpis).length) return raw.kpis;
+  if (typeof raw.kpis_json === "string") {
+    try {
+      const parsed = JSON.parse(raw.kpis_json);
+      if (parsed && typeof parsed === "object" && Object.keys(parsed).length) return parsed;
+    } catch {
+      /* fall through */
+    }
+  } else if (raw.kpis_json && typeof raw.kpis_json === "object" && Object.keys(raw.kpis_json).length) {
+    return raw.kpis_json;
+  }
+  return live?.kpis || {};
+}
+
 function scorecardRow(scorecard, key) {
   for (const g of scorecard?.groups || []) {
     for (const r of g.rows || []) if (r.key === key) return r;
@@ -287,7 +304,7 @@ function recoveryDays(live, kpis) {
 
 // Weighted score over the inputs that exist. Missing inputs are left out, never counted as perfect.
 function computeFrontendBbi(selectedRun, live) {
-  const kpis = selectedRun?.raw?.kpis || {};
+  const kpis = kpisOf(selectedRun, live);
   const onTime = kpiNum(kpis.onTimeFulfillment);
   if (onTime === null) return null;
 
@@ -312,7 +329,7 @@ function computeFrontendBbi(selectedRun, live) {
 }
 
 function normalizeRunKpis(selectedRun, live) {
-  const source = selectedRun?.raw?.kpis || {};
+  const source = kpisOf(selectedRun, live);
   const rev = live?.scorecard?.revenue_at_risk;
 
   return {
@@ -407,10 +424,19 @@ export default function Reports(props) {
   const selectedRunReport = useMemo(() => {
     if (!selectedRun) return null;
 
-    const base = normalizeExecutiveReport(selectedRun.report, selectedRun);
-    const kpis = selectedRun?.raw?.kpis || {};
-
-    if (!base) return null;
+    const base =
+      normalizeExecutiveReport(selectedRun.report, selectedRun) || {
+        title: selectedRun.label || "Run summary",
+        subtitle: "Scorecard summary for this run. No written narrative was generated for it.",
+        generatedAt: null,
+        scenarioName: selectedRun.label || "",
+        dateRangeStart: null,
+        dateRangeEnd: null,
+        sections: [],
+        risks: [],
+        actions: [],
+      };
+    const kpis = kpisOf(selectedRun, live);
 
     const onTimePct = kpiNum(kpis.onTimeFulfillment);
     const totalDemand = kpiNum(kpis.serviceTruth?.totalDemand);
@@ -603,7 +629,7 @@ export default function Reports(props) {
                         </span>
                       ) : (
                         <span className="text-[10px] px-2 py-1 rounded-full bg-slate-500/15 text-slate-300 border border-slate-400/20">
-                          No report attached
+                          Scorecard only
                         </span>
                       )}
                     </div>
@@ -888,16 +914,16 @@ export default function Reports(props) {
                                   peakBacklogUnits: selectedRunKpis?.unfulfilledDemand ?? 0,
                                   timeToRecoverDays: Number.isFinite(selectedRunKpis?.ttrDays) ? selectedRunKpis.ttrDays : null,
                                   notRecovered: selectedRunKpis?.ttrDays === Infinity,
-                                  timeToSurviveDays: selectedRunKpis?.ttsDays ?? selectedRun?.raw?.kpis?.ttsDays ?? 0,
+                                  timeToSurviveDays: selectedRunKpis?.ttsDays ?? kpisOf(selectedRun, live)?.ttsDays ?? 0,
                                   demandAtRiskUnits: selectedRunKpis?.demandAtRisk ?? 0,
                                   revenueExposure: selectedRunKpis?.revenueExposure ?? null,
-                                  worstWeeklyServicePct: kpiNum(selectedRun?.raw?.kpis?.worstWeeklyServicePct),
-                                  falseConfidenceDays: kpiNum(selectedRun?.raw?.kpis?.falseConfidenceDays),
+                                  worstWeeklyServicePct: kpiNum(kpisOf(selectedRun, live)?.worstWeeklyServicePct),
+                                  falseConfidenceDays: kpiNum(kpisOf(selectedRun, live)?.falseConfidenceDays),
                                 },
                                 disruptionSignals: {
-                                  facilitiesImpacted: selectedRun?.raw?.kpis?.impactedFacilities ?? 0,
-                                  highRiskSkuCount: selectedRun?.raw?.kpis?.unitsAtRisk ?? 0,
-                                  occurrenceCount: selectedRun?.raw?.kpis?.occurrenceCount ?? 0,
+                                  facilitiesImpacted: kpisOf(selectedRun, live)?.impactedFacilities ?? 0,
+                                  highRiskSkuCount: kpisOf(selectedRun, live)?.unitsAtRisk ?? 0,
+                                  occurrenceCount: kpisOf(selectedRun, live)?.occurrenceCount ?? 0,
                                   revenueExposure: selectedRunKpis?.revenueExposure ?? null,
                                   severityMix: {},
                                   highRiskSkus: [],
