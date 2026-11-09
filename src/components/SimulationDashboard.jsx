@@ -2999,8 +2999,8 @@ export default function SimulationDashboard({
               <h2 className="text-sm font-semibold flex items-center gap-2 text-slate-50"><span style={{ color: "#9CF700" }}>🌐 Network Map</span></h2>
               <div className="text-[11px] text-slate-400">Updated {new Date().toLocaleTimeString()}</div>
             </div>
-            <div className="h-[26rem] rounded-2xl overflow-hidden border border-slate-700/70 bg-slate-950/80 shadow-inner">
-              <MapView locationsUrl={locationsUrl} selectedFacility={selectedFacility} onFacilityClick={handleFacilityClick} onFacilitySelect={handleFacilityClick} exposedSites={simMap.exposed} siteHealth={simMap.health} lanes={simMap.lanes} boldLanes autoFit />
+            <div className="h-[32rem] rounded-2xl overflow-hidden border border-slate-700/70 bg-slate-950/80 shadow-inner">
+              <MapView locationsUrl={locationsUrl} selectedFacility={selectedFacility} onFacilityClick={handleFacilityClick} onFacilitySelect={handleFacilityClick} exposedSites={simMap.exposed} siteHealth={simMap.health} lanes={simMap.lanes} boldLanes autoFit height="512px" />
             </div>
           </div>
 

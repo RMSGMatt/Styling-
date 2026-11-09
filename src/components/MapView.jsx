@@ -534,7 +534,7 @@ export default function MapView({
 
       if (count > 0) {
         facilityBoundsRef.current = bounds;
-        if (autoFit) setTimeout(() => fitToBoundsSafe(map, bounds, 70), 400);
+        if (autoFit) setTimeout(() => fitToBoundsSafe(map, bounds, { top: 60, bottom: 40, left: 260, right: 60 }), 400);
       }
       if (applyHealthRef.current) applyHealthRef.current();
       if (refilterRef.current) refilterRef.current(); // hazards may have loaded before the sites did
