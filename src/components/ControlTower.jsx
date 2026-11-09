@@ -1692,6 +1692,8 @@ export default function ControlTower({
                           localStorage.setItem("forc_active_scenario", JSON.stringify(baselineScenario));
                           localStorage.setItem("currentScenarioJSON", JSON.stringify(baselineScenario));
                           localStorage.setItem("currentScenarioName", "Control Tower Baseline");
+                          localStorage.setItem("forc_exposure_sim", "1");
+                          try { window.dispatchEvent(new Event("forc-exposure-sim")); } catch (e2) { }
                         } catch (e) { console.warn("Could not pre-populate scenario:", e); }
                         switchView("simulation");
                       }}
