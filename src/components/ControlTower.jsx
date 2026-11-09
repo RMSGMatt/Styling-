@@ -1630,7 +1630,8 @@ export default function ControlTower({
                     lanes={mapLanes}
                     hazardLinks={hazardLinks}
                     autoFit
-                    height="400px"
+                    fitLeft={120}
+                    height="460px"
                   />
                 </div>
 

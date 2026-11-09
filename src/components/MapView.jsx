@@ -70,6 +70,7 @@ export default function MapView({
   height = "560px", // ✅ explicit default height so map can render
   boldLanes = false, // draw healthy lanes thicker and brighter (used by the Simulation tab)
   autoFit = false, // frame the camera on the facilities when they load
+  fitLeft = 260, // left padding when auto-fitting (clears the legend)
 }) {
   // --------------------------------------------------------------------------
   // API base (canonical, NO localhost fallback)
@@ -534,12 +535,12 @@ export default function MapView({
 
       if (count > 0) {
         facilityBoundsRef.current = bounds;
-        if (autoFit) setTimeout(() => fitToBoundsSafe(map, bounds, { top: 60, bottom: 40, left: 260, right: 60 }), 400);
+        if (autoFit) setTimeout(() => fitToBoundsSafe(map, bounds, { top: 60, bottom: 40, left: fitLeft, right: 60 }), 400);
       }
       if (applyHealthRef.current) applyHealthRef.current();
       if (refilterRef.current) refilterRef.current(); // hazards may have loaded before the sites did
     },
-    [onFacilitySelect, autoFit, fitToBoundsSafe]
+    [onFacilitySelect, autoFit, fitLeft, fitToBoundsSafe]
   );
 
   /* ============================================================================
