@@ -1691,6 +1691,88 @@ export default function SimulationDashboard({
   const [folderDrag, setFolderDrag] = useState(false);
   const [folderDropSummary, setFolderDropSummary] = useState(null);
   const runsPerPage = 5;
+  // Map overlays driven by this run: site health, lanes, and the disrupted site.
+  const [simCoords, setSimCoords] = useState({});
+  const [simLaneRows, setSimLaneRows] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    const f = files?.locations;
+    const parse = (text) => Papa.parse(String(text || "").replace(/^\uFEFF/, ""), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, "").trim() }).data;
+    (async () => {
+      try {
+        const text = f && typeof f.text === "function" ? await f.text() : null;
+        if (!text) { if (!cancelled) setSimCoords({}); return; }
+        const out = {};
+        parse(text).forEach((r) => {
+          const name = String(r.Facility || r.facility || "").trim();
+          const lat = Number(r.Lat ?? r.lat), lon = Number(r.Lon ?? r.lon ?? r.Lng);
+          if (name && Number.isFinite(lat) && Number.isFinite(lon)) out[name] = { lat, lon };
+        });
+        if (!cancelled) setSimCoords(out);
+      } catch { if (!cancelled) setSimCoords({}); }
+    })();
+    return () => { cancelled = true; };
+  }, [files?.locations]);
+  useEffect(() => {
+    let cancelled = false;
+    const f = files?.lanes;
+    (async () => {
+      try {
+        const text = f && typeof f.text === "function" ? await f.text() : null;
+        if (!text) { if (!cancelled) setSimLaneRows([]); return; }
+        const rows = Papa.parse(text.replace(/^\uFEFF/, ""), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, "").trim() }).data;
+        if (!cancelled) setSimLaneRows(rows);
+      } catch { if (!cancelled) setSimLaneRows([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [files?.lanes]);
+  const simMap = useMemo(() => {
+    const rows = Array.isArray(runoutRiskData) ? runoutRiskData : [];
+    const byFac = new Map();
+    for (const r of rows) {
+      const fac = String(r.facility || r.Facility || "").trim().toUpperCase();
+      if (!fac) continue;
+      let g = byFac.get(fac);
+      if (!g) { g = { high: 0, med: 0, firstHigh: null, highSku: "", medSku: "", disrupted: false }; byFac.set(fac, g); }
+      const lvl = String(r.risk_level || r.RiskLevel || "low").toLowerCase().trim();
+      const dt = String(r.date || "").slice(0, 10);
+      if (String(r.disrupted).toLowerCase() === "true") g.disrupted = true;
+      if (lvl === "high") { g.high += 1; if (!g.firstHigh || (dt && dt < g.firstHigh)) { g.firstHigh = dt; g.highSku = String(r.sku || r.SKU || ""); } }
+      else if (lvl === "medium" || lvl === "med") { g.med += 1; if (!g.medSku) g.medSku = String(r.sku || r.SKU || ""); }
+    }
+    const nameFor = (up) => Object.keys(simCoords).find((n) => n.toUpperCase() === up) || up;
+    const health = {};
+    const exposed = [];
+    byFac.forEach((g, up) => {
+      const name = nameFor(up);
+      let status = "good", reason = "No shortage in this run";
+      if (g.high > 0) { status = "bad"; reason = `Runs short of ${g.highSku || "a part"} from ${g.firstHigh || "during the run"} (${g.high} high-risk days)`; }
+      else if (g.med > 0) { status = "watch"; reason = `Thin on ${g.medSku || "a part"} (${g.med} medium-risk days)`; }
+      if (g.disrupted) { status = "bad"; reason = "Disrupted directly in this scenario. " + (g.high > 0 ? reason : "No downstream shortage here."); }
+      health[name] = { status, reason };
+      const c = simCoords[name];
+      if (g.disrupted && c) exposed.push({ name, lat: c.lat, lng: c.lon, severity: "high", label: "Disrupted in this scenario" });
+    });
+    const hasResults = byFac.size > 0;
+    const pair = new Map();
+    for (const r of simLaneRows) {
+      const a = String(r.from_facility || r.from || "").trim(), b = String(r.to_facility || r.to || "").trim();
+      const A = Object.keys(simCoords).find((n) => n.toUpperCase() === a.toUpperCase()), B = Object.keys(simCoords).find((n) => n.toUpperCase() === b.toUpperCase());
+      if (!A || !B) continue;
+      const key = `${A}>${B}`;
+      const cur = pair.get(key) || { from: A, to: B, kind: String(r.lane_type || r.type || "supply").toLowerCase(), skus: new Set(), lt: Number(r.lead_time_days || r.lead_time || 0) };
+      cur.skus.add(String(r.sku || r.SKU || ""));
+      pair.set(key, cur);
+    }
+    const rank = { bad: 2, watch: 1, good: 0 };
+    const lanes = [...pair.values()].map((l) => {
+      const sa = health[l.from]?.status || "good", sb = health[l.to]?.status || "good";
+      const status = !hasResults ? "good" : (rank[sa] >= rank[sb] ? sa : sb);
+      return { from: l.from, to: l.to, kind: l.kind, status, detail: `${l.skus.size} part${l.skus.size === 1 ? "" : "s"}${l.lt ? `, ${l.lt} day lead time` : ""}`,
+        path: [[simCoords[l.from].lon, simCoords[l.from].lat], [simCoords[l.to].lon, simCoords[l.to].lat]] };
+    });
+    return { health, exposed, lanes };
+  }, [runoutRiskData, simCoords, simLaneRows]);
 
   // Shared reset used by both "Clear Active Scenario" (War Room) and
   // "Reset to Uploaded Files" (Simulation Inputs). Previously these two
@@ -2918,7 +3000,7 @@ export default function SimulationDashboard({
               <div className="text-[11px] text-slate-400">Updated {new Date().toLocaleTimeString()}</div>
             </div>
             <div className="h-[26rem] rounded-2xl overflow-hidden border border-slate-700/70 bg-slate-950/80 shadow-inner">
-              <MapView locationsUrl={locationsUrl} selectedFacility={selectedFacility} onFacilityClick={handleFacilityClick} />
+              <MapView locationsUrl={locationsUrl} selectedFacility={selectedFacility} onFacilityClick={handleFacilityClick} onFacilitySelect={handleFacilityClick} exposedSites={simMap.exposed} siteHealth={simMap.health} lanes={simMap.lanes} />
             </div>
           </div>
 
