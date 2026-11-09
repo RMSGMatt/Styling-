@@ -372,6 +372,9 @@ function TabNav({ activeTab, setActiveTab, hasRun, showAdvanced, setShowAdvanced
 // template (lanes.csv: from_facility,to_facility,sku,lead_time_days,lane_type;
 // location_materials.csv: facility,sku,initial inventory) — filtered
 // defensively in case of blank trailing rows from CSV parsing.
+// Selling prices by SKU from the run's unit_prices file; the optimizer uses them to value what a buffer protects.
+let UNIT_PRICES_BY_SKU = {};
+
 function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, bomRows, unitCostsRows) {
   // Different CSV exports across runs use inconsistent header casing/naming
   // (confirmed: one file used "facility,sku,initial inventory", another used
@@ -474,7 +477,7 @@ function buildSafetyStockPayload(lanesRows, locationMaterialsRows, demandRows, b
     if (sku && !isNaN(cost) && cost > 0) unit_costs[sku] = cost;
   }
 
-  return { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs };
+  return { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs, unit_prices: UNIT_PRICES_BY_SKU };
 }
 
 function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsData, demandData, bomData, unitCostsData }) {
@@ -491,7 +494,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
 
   const fetchOptimization = React.useCallback(async (sl, dohDays) => {
     if (!hasRun) return;
-    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData, unitCostsData);
+    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs, unit_prices } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData, unitCostsData);
     if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
       setError("Upload lanes.csv, location_materials.csv, and demand.csv for this run to enable safety stock optimization.");
       setResult(null);
@@ -515,6 +518,7 @@ function SafetyStockPanel({ kpis, apiBase, hasRun, lanesData, locationMaterialsD
           demand_sigma_by_facility,
           bom,
           unit_costs,
+          unit_prices,
         }),
       });
       const data = await res.json();
@@ -1001,7 +1005,7 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
 
   React.useEffect(() => {
     if (!hasRun) return;
-    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData, unitCostsData);
+    const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs, unit_prices } = buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData, unitCostsData);
     if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
       // Summary card silently stays empty if this run's network data isn't
       // available yet — the Actions tab panel below surfaces the clear message.
@@ -1024,6 +1028,7 @@ function SafetyStockSummaryCard({ kpis, apiBase, hasRun, onNavigateToActions, la
             demand_sigma_by_facility,
             bom,
             unit_costs,
+            unit_prices,
           }),
         });
         const data = await res.json();
@@ -1224,7 +1229,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
     if (!hasNarrativeRun) { setSafetyStockRecs([]); return; }
     (async () => {
       try {
-        const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs } =
+        const { lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs, unit_prices } =
           buildSafetyStockPayload(lanesData, locationMaterialsData, demandData, bomData, unitCostsData);
         if (lanes.length === 0 || inventory.length === 0 || Object.keys(demand).length === 0) {
           setSafetyStockRecs([]);
@@ -1236,7 +1241,7 @@ function MaterialRiskPanel({ runoutRiskData, countermeasuresData, executiveKpis,
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             target_service_level: 0.95,
-            lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs,
+            lanes, inventory, demand, demand_sigma, demand_by_facility, demand_sigma_by_facility, bom, unit_costs, unit_prices,
           }),
         });
         const data = await res.json();
@@ -1948,6 +1953,28 @@ export default function SimulationDashboard({
   // lets a real cost sheet replace that fallback when provided, without
   // requiring it — absence of this file changes nothing about existing
   // behavior, matching how Lanes already works.
+  // Selling prices from this run's unit_prices file (sku, unit_price[, facility]); median per SKU.
+  useEffect(() => {
+    if (!files.unitPrices) { UNIT_PRICES_BY_SKU = {}; return undefined; }
+    let cancelled = false;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (cancelled) return;
+      const rows = Papa.parse(String(e.target.result || "").replace(/^\uFEFF/, ""), { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, "").trim().toLowerCase() }).data || [];
+      const by = {};
+      for (const r of rows) {
+        const sku = String(r.sku ?? "").trim().toUpperCase();
+        const price = Number(r.unit_price);
+        if (sku && price > 0) (by[sku] = by[sku] || []).push(price);
+      }
+      const out = {};
+      for (const [k, v] of Object.entries(by)) { v.sort((a, b) => a - b); out[k] = v[Math.floor(v.length / 2)]; }
+      UNIT_PRICES_BY_SKU = out;
+    };
+    reader.readAsText(files.unitPrices);
+    return () => { cancelled = true; };
+  }, [files.unitPrices]);
+
   useEffect(() => {
     if (!files.unitCosts) { setParsedUnitCostsData([]); return; }
     const reader = new FileReader();

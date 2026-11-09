@@ -8,10 +8,11 @@
 // seam in safetyStockStore.js is where a future live ERP feed plugs in
 // without this component needing to change.
 // ─────────────────────────────────────────────────────────────────────────────
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Papa from "papaparse";
 import {
   loadLatestSnapshot,
+  fetchNetworkSafetyStock,
   loadPreviousSnapshot,
   saveSnapshot,
   clearSnapshots,
@@ -30,8 +31,18 @@ const SEVERITY_STYLE = {
 };
 
 export default function SafetyStockView() {
-  const [snapshot, setSnapshot] = useState(() => loadLatestSnapshot());
-  const [previous, setPrevious] = useState(() => loadPreviousSnapshot());
+  const [manualSnapshot, setSnapshot] = useState(() => loadLatestSnapshot());
+  const [manualPrevious, setPrevious] = useState(() => loadPreviousSnapshot());
+  const [net, setNet] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchNetworkSafetyStock().then((n) => { if (!cancelled) setNet(n); });
+    return () => { cancelled = true; };
+  }, []);
+  // A CSV the user uploaded wins; otherwise days on hand come from the loaded network.
+  const snapshot = manualSnapshot || net?.current || null;
+  const previous = manualSnapshot ? manualPrevious : (net?.previous || null);
+  const fromNetwork = !manualSnapshot && !!net?.current;
   const [dragOver, setDragOver] = useState(false);
   const [uploadSummary, setUploadSummary] = useState(null); // { added, skipped } | null
   const [parseError, setParseError] = useState(null);
@@ -128,9 +139,9 @@ export default function SafetyStockView() {
             <span
               className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
               style={{ background: "transparent", color: "#eab308", border: "1px solid rgba(234,179,8,0.5)" }}
-              title="Data source: manual CSV upload. A live ERP feed will use the same adapter seam once available."
+              title={fromNetwork ? "Days on hand are calculated from the network loaded in Control Tower: on-hand inventory divided by average daily usage." : "Data source: manual CSV upload."}
             >
-              CSV UPLOAD
+              {fromNetwork ? "NETWORK DATA" : "CSV UPLOAD"}
             </span>
           </h2>
           <p className="text-xs mt-1" style={{ color: "#94A3B8" }}>
@@ -142,13 +153,13 @@ export default function SafetyStockView() {
             )}
           </p>
         </div>
-        {snapshot && (
+        {manualSnapshot && (
           <button
             onClick={handleClear}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg"
             style={{ background: "rgba(239,68,68,0.1)", color: "#FCA5A5", border: "1px solid rgba(239,68,68,0.35)" }}
           >
-            Clear snapshots
+            {net?.current ? "Use network data" : "Clear snapshots"}
           </button>
         )}
       </div>
@@ -195,7 +206,7 @@ export default function SafetyStockView() {
 
       {!snapshot ? (
         <div className="rounded-xl px-4 py-6 text-center text-sm" style={{ background: "rgba(9,25,19,0.4)", color: "#64748B" }}>
-          No snapshot loaded yet. Upload a CSV to see current safety stock status.
+          No snapshot loaded yet. Load a network with inventory and average daily usage in Control Tower, or upload a CSV, to see current safety stock status.
         </div>
       ) : (
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "rgba(159,214,58,0.2)" }}>
@@ -223,7 +234,7 @@ export default function SafetyStockView() {
                       {row.previousDoh != null ? row.previousDoh.toFixed(1) : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-right" style={{ color: "#E2E8F0" }}>{row.current_doh.toFixed(1)}</td>
-                    <td className="px-4 py-2.5 text-right" style={{ color: "#64748B" }}>{row.floor}</td>
+                    <td className="px-4 py-2.5 text-right" style={{ color: "#64748B" }}>{Number.isInteger(row.floor) ? row.floor : Number(row.floor).toFixed(1)}</td>
                     <td className="px-4 py-2.5 text-right" style={{ color: changeColor }}>
                       {row.pctChange == null ? "—" : `${row.pctChange > 0 ? "+" : ""}${row.pctChange.toFixed(0)}%`}
                     </td>

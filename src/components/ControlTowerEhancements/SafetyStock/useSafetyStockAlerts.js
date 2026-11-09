@@ -8,15 +8,20 @@
 // if a user has Control Tower open in two tabs and uploads in one).
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useCallback } from "react";
-import { loadLatestSnapshot, loadPreviousSnapshot, deriveSafetyStockAlerts } from "./safetyStockStore";
+import { loadLatestSnapshot, loadPreviousSnapshot, deriveSafetyStockAlerts, fetchNetworkSafetyStock } from "./safetyStockStore";
 
 export function useSafetyStockAlerts() {
   const [alerts, setAlerts] = useState([]);
   const [latestSnapshot, setLatestSnapshot] = useState(null);
 
-  const refresh = useCallback(() => {
-    const current = loadLatestSnapshot();
-    const previous = loadPreviousSnapshot();
+  // A CSV the user uploaded wins; otherwise the days on hand come from the loaded network.
+  const refresh = useCallback(async () => {
+    let current = loadLatestSnapshot();
+    let previous = loadPreviousSnapshot();
+    if (!current) {
+      const net = await fetchNetworkSafetyStock();
+      if (net) { current = net.current; previous = net.previous; }
+    }
     setLatestSnapshot(current);
     setAlerts(current ? deriveSafetyStockAlerts(current, previous) : []);
   }, []);

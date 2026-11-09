@@ -18,6 +18,8 @@
 // a snapshot actually came from.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { getApiBase } from "../../../config/apiBase";
+
 const STORAGE_KEY = "forc_safety_stock_snapshots";
 const MAX_SNAPSHOTS_KEPT = 2; // current + previous, for % change comparison. v1 is intentionally simple — see note below on why this isn't more.
 
@@ -93,6 +95,26 @@ const pickField = (row, candidates) => {
 // shape. Returns { rows, skipped } — skipped rows (missing facility/sku/DOH)
 // are reported so the upload UI can tell the user something didn't parse
 // instead of silently dropping rows.
+// Days on hand derived from the network loaded in Control Tower (inventory / average daily usage).
+// Returns { current, previous } shaped like the CSV snapshots, or null when no network or usage data is available.
+export async function fetchNetworkSafetyStock() {
+  try {
+    const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+    if (!token) return null;
+    const res = await fetch(`${getApiBase()}/api/network-snapshot/safety-stock`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    const body = await res.json();
+    if (body?.status !== "ok" || !Array.isArray(body.rows) || body.rows.length === 0) return null;
+    const stamp = (d) => (d ? new Date(`${d}T00:00:00`).toISOString() : new Date().toISOString());
+    const current = { timestamp: stamp(body.as_of), source: "network", rows: body.rows.map((r) => ({ ...r })) };
+    const prevRows = body.rows.filter((r) => typeof r.previous_doh === "number").map((r) => ({ facility: r.facility, sku: r.sku, current_doh: r.previous_doh }));
+    const previous = prevRows.length ? { timestamp: stamp(body.previous_as_of), source: "network", rows: prevRows } : null;
+    return { current, previous };
+  } catch (e) {
+    return null;
+  }
+}
+
 export function normalizeCsvRows(parsedRows) {
   const rows = [];
   let skipped = 0;
