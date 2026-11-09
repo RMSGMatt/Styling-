@@ -2720,6 +2720,42 @@ export default function SimulationDashboard({
     }
   };
 
+  // Build the simulator inputs from the network loaded in Control Tower and run it.
+  // Returns "ok", "none" (no network loaded) or "blocked" (a message is shown).
+  const loadNetwork = async (opts = {}) => {
+    setSampleLoading(true);
+    setSampleError("");
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+      const res = await fetch(`${API_BASE}/api/network-snapshot/sim-inputs`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.status === 404) return "none";
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.status !== "ok") {
+        const errs = Array.isArray(body.errors) && body.errors.length ? body.errors : ["Could not build the simulation from your network."];
+        setSampleError(errs.join(" "));
+        return "blocked";
+      }
+      if (!opts.keepScenario) clearActiveScenario();
+      const names = { demand: "demand", disruptions: "disruptions", locations: "locations", processes: "processes", bom: "bom", locationMaterials: "location_materials", lanes: "lanes" };
+      for (const [key, file] of Object.entries(names)) {
+        const text = body.files?.[file === "location_materials" ? "location_materials" : file];
+        if (typeof text !== "string") throw new Error(file);
+        handleFileChange(key, new File([text], `${file}.csv`, { type: "text/csv" }));
+      }
+      const label = opts.label || "Your network: baseline";
+      setRunName(label);
+      setPendingSampleLabel(label);
+      setPendingSample(true);
+      if (Array.isArray(body.warnings) && body.warnings.length) setSampleError(body.warnings.join(" "));
+      return "ok";
+    } catch (e) {
+      setSampleError("Could not build the simulation from your network.");
+      return "blocked";
+    } finally {
+      setSampleLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (pendingSample && isSimulationReady && !isRunning) {
       setPendingSample(false);
@@ -2733,7 +2769,11 @@ export default function SimulationDashboard({
       let label = "";
       try { localStorage.removeItem("forc_exposure_sim"); label = localStorage.getItem("currentScenarioName") || ""; } catch {}
       // Only auto-run on the built-in sample network when the user has not loaded their own files.
-      if (!filesRefSim.current?.demand) loadSample({ keepScenario: true, label: label || "Exposure scenario" });
+      if (!filesRefSim.current?.demand) {
+        loadNetwork({ keepScenario: true, label: label || "Exposure scenario" }).then((r) => {
+          if (r === "none") loadSample({ keepScenario: true, label: label || "Exposure scenario" });
+        });
+      }
     };
     try { if (localStorage.getItem("forc_exposure_sim") === "1") goExposure(); } catch {}
     window.addEventListener("forc-exposure-sim", goExposure);
@@ -2803,7 +2843,11 @@ export default function SimulationDashboard({
             className="rounded-md px-5 py-2.5 text-sm font-semibold disabled:opacity-50" style={{ background: "#9FD63A", color: "#0B1220" }}>
             {sampleLoading || isRunning || pendingSample ? "Running the sample scenario" : "Run the sample scenario"}
           </button>
-          {sampleError && <p className="text-xs text-amber-300">{sampleError}</p>}
+          <button type="button" onClick={() => loadNetwork().then((r) => { if (r === "none") setSampleError("Load a network in Control Tower first."); })} disabled={sampleLoading || isRunning}
+            className="rounded-md px-5 py-2 text-sm font-semibold disabled:opacity-50 border" style={{ borderColor: "#9FD63A", color: "#9FD63A" }}>
+            Simulate my network
+          </button>
+          {sampleError && <p className="text-xs text-amber-300 max-w-md text-center">{sampleError}</p>}
           {healthIssues.map((m) => <p key={m} className="text-xs text-amber-300 max-w-md text-center">{m}</p>)}
           <p className="text-xs text-slate-500">Or upload your own six CSV files in Simulation Inputs.</p>
         </div>
