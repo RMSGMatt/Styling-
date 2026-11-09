@@ -1834,7 +1834,7 @@ export default function SimulationDashboard({
   const execFalseConfidenceDays = Number(runKpis?.falseConfidenceDays ?? exec.falseConfidenceDays ?? 0);
   const execTtrDays = Number(exec.timeToRecoverDays || 0);
   const execTtsDays = Number(exec.timeToSurviveDays || 0);
-  const execRevenueExposure = Number(exec.revenueExposure || 0);
+  const execRevenueExposure = typeof scorecard?.revenue_at_risk === "number" ? scorecard.revenue_at_risk : 0;
 
   const hasNarrativeRun = execOnTimePct > 0 || execLateUnits > 0 || execPeakBacklog > 0 || execTtrDays > 0 || execRevenueExposure > 0;
   const isHealthy = hasNarrativeRun && execOnTimePct >= 97;
