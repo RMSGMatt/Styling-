@@ -2379,8 +2379,8 @@ export default function SimulationDashboard({
                           kpis: { serviceLevelPct: execOnTimePct, peakBacklogUnits: execPeakBacklog, timeToRecoverDays: execTtrDays, timeToSurviveDays: (Number.isFinite(execTtsDays) ? execTtsDays : null), demandAtRiskUnits: execLateUnits, revenueExposure: (typeof scorecard?.revenue_at_risk === "number" ? scorecard.revenue_at_risk : null), worstWeeklyServicePct: execWorstWeeklyPct, falseConfidenceDays: execFalseConfidenceDays },
                           suggestedScenarios,
                           disruptionSignals: {
-                            facilitiesImpacted: Array.isArray(disruptionImpactData) ? new Set(disruptionImpactData.map(r => r.facility || r.Facility).filter(Boolean)).size : 0,
-                            highRiskSkuCount: Array.isArray(runoutRiskData) ? new Set(runoutRiskData.filter(r => (r.risk_level || "").toLowerCase().includes("high")).map(r => r.sku || r.SKU)).size : 0,
+                            facilitiesImpacted: (Array.isArray(disruptionImpactData) ? new Set(disruptionImpactData.map(r => r.facility || r.Facility).filter(Boolean)).size : 0) || null,
+                            highRiskSkuCount: (Array.isArray(runoutRiskData) ? new Set(runoutRiskData.filter(r => (r.risk_level || "").toLowerCase().includes("high")).map(r => r.sku || r.SKU)).size : 0) || null,
                             highRiskSkus: Array.isArray(runoutRiskData) ? [...new Set(classifyFacilitySkuRisk(runoutRiskData).filter(r => r.risk_level === "high").map(r => r.sku))].slice(0, 5) : [],
                             occurrenceCount: Array.isArray(disruptionImpactData) ? disruptionImpactData.length : 0,
                             revenueExposure: (typeof scorecard?.revenue_at_risk === "number" ? scorecard.revenue_at_risk : null),
@@ -2390,7 +2390,30 @@ export default function SimulationDashboard({
                           generatedLocal: new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" }),
                           generatedDateLocal: new Date().toLocaleDateString("en-US", { dateStyle: "long" }),
                           revenueBasis: scorecard?.revenue_basis || "",
-                          runMetadata: { runId: simulationHistory?.[0]?.run_id || simulationHistory?.[0]?.timestamp || "", timestamp: simulationHistory?.[0]?.timestamp || "", timestampLocal: simulationHistory?.[0]?.timestamp ? new Date(simulationHistory[0].timestamp).toLocaleString() : "" },
+                          runMetadata: (() => {
+                            // The run open on screen, not the newest one in history.
+                            let loadedRunId = "";
+                            for (const u of Object.values(outputUrls || {})) {
+                              const m = typeof u === "string" ? u.match(/(\d{8}_\d{6}_[0-9a-f]{6,})/) : null;
+                              if (m) { loadedRunId = m[1]; break; }
+                            }
+                            const loadedRun = (simulationHistory || []).find((r) => (r?.run_id || r?.runId) === loadedRunId) || null;
+                            // Stored timestamps carry no time zone and are UTC; read them as UTC so they convert to local time.
+                            const asUtc = (t) => {
+                              if (!t) return null;
+                              const str = String(t);
+                              const d = /(Z|[+-]\d{2}:?\d{2})$/.test(str) ? new Date(str) : new Date(str.replace(" ", "T") + "Z");
+                              return Number.isNaN(d.getTime()) ? null : d;
+                            };
+                            const ts = loadedRun?.timestamp || loadedRun?.created_at || "";
+                            const idTime = loadedRunId ? `${loadedRunId.slice(0, 4)}-${loadedRunId.slice(4, 6)}-${loadedRunId.slice(6, 8)}T${loadedRunId.slice(9, 11)}:${loadedRunId.slice(11, 13)}:${loadedRunId.slice(13, 15)}` : "";
+                            const when = asUtc(ts) || asUtc(idTime);
+                            return {
+                              runId: loadedRunId || simulationHistory?.[0]?.run_id || "",
+                              timestamp: ts || idTime,
+                              timestampLocal: when ? when.toLocaleString("en-US", { dateStyle: "short", timeStyle: "medium" }) : "",
+                            };
+                          })(),
                         })
                       });
                       if (!res.ok) throw new Error("Report generation failed");

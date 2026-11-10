@@ -921,9 +921,9 @@ export default function Reports(props) {
                                   falseConfidenceDays: kpiNum(kpisOf(selectedRun, live)?.falseConfidenceDays),
                                 },
                                 disruptionSignals: {
-                                  facilitiesImpacted: kpisOf(selectedRun, live)?.impactedFacilities ?? 0,
-                                  highRiskSkuCount: kpisOf(selectedRun, live)?.unitsAtRisk ?? 0,
-                                  occurrenceCount: kpisOf(selectedRun, live)?.occurrenceCount ?? 0,
+                                  facilitiesImpacted: kpisOf(selectedRun, live)?.impactedFacilities ?? null,
+                                  highRiskSkuCount: null,
+                                  occurrenceCount: kpisOf(selectedRun, live)?.occurrenceCount ?? null,
                                   revenueExposure: selectedRunKpis?.revenueExposure ?? null,
                                   severityMix: {},
                                   highRiskSkus: [],
