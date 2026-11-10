@@ -2376,18 +2376,21 @@ export default function SimulationDashboard({
                         body: JSON.stringify({
                           scenario: runName || "Supply Chain Disruption Scenario",
                           aiNarrative: aiNarrative || narrativeSummary,
-                          kpis: { serviceLevelPct: execOnTimePct, peakBacklogUnits: execPeakBacklog, timeToRecoverDays: execTtrDays, timeToSurviveDays: execTtsDays, demandAtRiskUnits: execLateUnits, revenueExposure: execRevenueExposure, worstWeeklyServicePct: execWorstWeeklyPct, falseConfidenceDays: execFalseConfidenceDays },
+                          kpis: { serviceLevelPct: execOnTimePct, peakBacklogUnits: execPeakBacklog, timeToRecoverDays: execTtrDays, timeToSurviveDays: (Number.isFinite(execTtsDays) ? execTtsDays : null), demandAtRiskUnits: execLateUnits, revenueExposure: (typeof scorecard?.revenue_at_risk === "number" ? scorecard.revenue_at_risk : null), worstWeeklyServicePct: execWorstWeeklyPct, falseConfidenceDays: execFalseConfidenceDays },
                           suggestedScenarios,
                           disruptionSignals: {
                             facilitiesImpacted: Array.isArray(disruptionImpactData) ? new Set(disruptionImpactData.map(r => r.facility || r.Facility).filter(Boolean)).size : 0,
                             highRiskSkuCount: Array.isArray(runoutRiskData) ? new Set(runoutRiskData.filter(r => (r.risk_level || "").toLowerCase().includes("high")).map(r => r.sku || r.SKU)).size : 0,
                             highRiskSkus: Array.isArray(runoutRiskData) ? [...new Set(classifyFacilitySkuRisk(runoutRiskData).filter(r => r.risk_level === "high").map(r => r.sku))].slice(0, 5) : [],
                             occurrenceCount: Array.isArray(disruptionImpactData) ? disruptionImpactData.length : 0,
-                            revenueExposure: execRevenueExposure,
+                            revenueExposure: (typeof scorecard?.revenue_at_risk === "number" ? scorecard.revenue_at_risk : null),
                             severityMix: Array.isArray(runoutRiskData) ? runoutRiskData.reduce((acc, r) => { const l = (r.risk_level || "").toLowerCase(); if (l.includes("high")) acc.high = (acc.high || 0) + 1; else if (l.includes("med")) acc.medium = (acc.medium || 0) + 1; else if (l.includes("low")) acc.low = (acc.low || 0) + 1; return acc; }, {}) : {},
                           },
                           countermeasures: Array.isArray(countermeasuresData) ? countermeasuresData.slice(0, 5) : [],
-                          runMetadata: { runId: simulationHistory?.[0]?.run_id || simulationHistory?.[0]?.timestamp || "", timestamp: simulationHistory?.[0]?.timestamp || "" },
+                          generatedLocal: new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" }),
+                          generatedDateLocal: new Date().toLocaleDateString("en-US", { dateStyle: "long" }),
+                          revenueBasis: scorecard?.revenue_basis || "",
+                          runMetadata: { runId: simulationHistory?.[0]?.run_id || simulationHistory?.[0]?.timestamp || "", timestamp: simulationHistory?.[0]?.timestamp || "", timestampLocal: simulationHistory?.[0]?.timestamp ? new Date(simulationHistory[0].timestamp).toLocaleString() : "" },
                         })
                       });
                       if (!res.ok) throw new Error("Report generation failed");

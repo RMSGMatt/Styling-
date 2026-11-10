@@ -914,7 +914,7 @@ export default function Reports(props) {
                                   peakBacklogUnits: selectedRunKpis?.unfulfilledDemand ?? 0,
                                   timeToRecoverDays: Number.isFinite(selectedRunKpis?.ttrDays) ? selectedRunKpis.ttrDays : null,
                                   notRecovered: selectedRunKpis?.ttrDays === Infinity,
-                                  timeToSurviveDays: selectedRunKpis?.ttsDays ?? kpisOf(selectedRun, live)?.ttsDays ?? 0,
+                                  timeToSurviveDays: selectedRunKpis?.ttsDays ?? kpisOf(selectedRun, live)?.ttsDays ?? null,
                                   demandAtRiskUnits: selectedRunKpis?.demandAtRisk ?? 0,
                                   revenueExposure: selectedRunKpis?.revenueExposure ?? null,
                                   worstWeeklyServicePct: kpiNum(kpisOf(selectedRun, live)?.worstWeeklyServicePct),
@@ -929,9 +929,13 @@ export default function Reports(props) {
                                   highRiskSkus: [],
                                 },
                               countermeasures,
+                                generatedLocal: new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" }),
+                                generatedDateLocal: new Date().toLocaleDateString("en-US", { dateStyle: "long" }),
+                                revenueBasis: live?.scorecard?.revenue_basis || "",
                                 runMetadata: {
                                   runId: selectedRun?.runId || "",
                                   timestamp: selectedRun?.createdAt || "",
+                                  timestampLocal: selectedRun?.createdAt ? formatDateTime(selectedRun.createdAt) : "",
                                 },
                               }),
                             });
