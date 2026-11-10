@@ -1,16 +1,26 @@
 import React, { useEffect, useMemo, useState } from "react";
 
+// Stored run timestamps without a time zone ("2026-11-10 02:28:50") are UTC.
+function parseWhen(value) {
+  if (!value) return null;
+  const str = String(value);
+  const d = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(str)
+    ? new Date(str.replace(" ", "T") + "Z")
+    : new Date(str);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function formatDateTime(value) {
   if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
+  const d = parseWhen(value);
+  if (!d) return String(value);
   return d.toLocaleString();
 }
 
 function formatDateOnly(value) {
   if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
+  const d = parseWhen(value);
+  if (!d) return String(value);
   return d.toLocaleDateString();
 }
 
@@ -71,7 +81,7 @@ function getRunLabel(run, index = 0) {
   const runId = getRunId(run);
   const shortId = runId ? runId.slice(-8) : null;
   const createdAt = getRunCreatedAt(run);
-  const dateLabel = createdAt ? new Date(createdAt).toLocaleDateString() : null;
+  const dateLabel = createdAt ? (parseWhen(createdAt)?.toLocaleDateString() ?? null) : null;
   return (
     run?.scenario_name ||
     run?.scenarioName ||
@@ -109,8 +119,8 @@ function normalizeRuns(simulationHistory) {
     })
     .filter((run) => run.runId)
     .sort((a, b) => {
-      const aTime = new Date(a.createdAt || 0).getTime();
-      const bTime = new Date(b.createdAt || 0).getTime();
+      const aTime = parseWhen(a.createdAt)?.getTime() || 0;
+      const bTime = parseWhen(b.createdAt)?.getTime() || 0;
       return bTime - aTime;
     });
 }
