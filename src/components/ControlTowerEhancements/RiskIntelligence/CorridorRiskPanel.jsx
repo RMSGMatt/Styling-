@@ -3,9 +3,10 @@
 // FOR-C Risk Intelligence — Geopolitical corridor risk scorer
 // Calls /api/risk-intelligence/corridor on the Flask backend
 // ─────────────────────────────────────────────────────────────────────────────
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { getApiBase } from "../../../config/apiBase";
 import { riskColor100 as riskColor, riskLabel100 as riskLabel } from "./riskScoreEngine";
+import { fetchNetworkSites, pickSiteInCountry, defaultReceivingSite, disruptionWindow } from "./networkSites";
 
 const API_BASE = getApiBase();
 
@@ -58,23 +59,6 @@ const VARIABLE_META = {
   substitutability:    { label: "Import Substitution",         desc: "Nearshoring feasibility, domestic production capacity, allied alternatives" },
 };
 
-// Facility mapping: closest facility per origin country (for scenario pre-fill)
-const ORIGIN_TO_FACILITY = {
-  TWN: "TSMC_TAIWAN",
-  JPN: "MURATA_JAPAN",
-  CHN: "TSMC_TAIWAN",
-  KOR: "TDK_JAPAN",
-  VNM: "NEXTY_MARYVILLE",
-  MYS: "NEXTY_MARYVILLE",
-  THA: "NEXTY_MARYVILLE",
-  IND: "NEXTY_MARYVILLE",
-  MEX: "DENSO_BATTLE_CREEK",
-  CAN: "DENSO_BATTLE_CREEK",
-  DEU: "AISIN_SEIKI_US",
-  POL: "AISIN_SEIKI_US",
-  CZE: "AISIN_SEIKI_US",
-};
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // riskColor/riskLabel now imported from riskScoreEngine.js — this file
 // previously maintained its own identical copy of both, independently
@@ -96,6 +80,14 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
   const [loading,           setLoading]           = useState(false);
   const [error,             setError]             = useState(null);
   const [activeRegion,      setActiveRegion]      = useState("All");
+  const [network,           setNetwork]           = useState({ loading: true, ok: false, sites: [], start: null });
+  const [facilityPick,      setFacilityPick]      = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNetworkSites().then((r) => { if (!cancelled) setNetwork({ loading: false, ...r }); });
+    return () => { cancelled = true; };
+  }, []);
 
   const regions = ["All", ...Array.from(new Set(ORIGINS.map((o) => o.region)))];
   const filteredOrigins = activeRegion === "All"
@@ -160,11 +152,19 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
       )
     : null;
 
+  // Point the scenario at one of the user's own sites: one in the origin country if there is one,
+  // otherwise the site closest to the customer. The user can change it.
+  const siteInOrigin = selectedOrigin ? pickSiteInCountry(network.sites, selectedOrigin.name) : null;
+  const suggestedSite = siteInOrigin || defaultReceivingSite(network.sites);
+  const chosenFacility = (selectedOrigin && facilityPick[selectedOrigin.code]) || suggestedSite?.facility || "";
+  const scenarioWindow = disruptionWindow(network.start, 60);
+
   // Wire "Simulate This Disruption →" into handleLaunchScenario
   const handleSimulate = () => {
     if (!selectedOrigin || compositeScore === null || !onLaunchScenario) return;
 
-    const facility = ORIGIN_TO_FACILITY[selectedOrigin.code] || "NEXTY_MARYVILLE";
+    const facility = chosenFacility;
+    if (!facility || !scenarioWindow) return;
     const severity = severityFromScore(compositeScore);
     const scenarioName = `${selectedOrigin.name} Corridor Risk — ${selectedCommodity.label}`;
 
@@ -173,17 +173,18 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
       params: {
         facility,
         severity,
-        startDate: "2025-07-01",
-        endDate: "2025-08-30",
+        startDate: scenarioWindow.start,
+        endDate: scenarioWindow.end,
         disruptionScenarios: [{
           facility,
-          startDate: "2025-07-01",
-          endDate: "2025-08-30",
+          startDate: scenarioWindow.start,
+          endDate: scenarioWindow.end,
           severity,
           production_impact: severity,
           shipping_impact: 0,
         }],
         name: scenarioName,
+        autoRun: true,
       },
     });
   };
@@ -582,14 +583,30 @@ export default function CorridorRiskPanel({ onLaunchScenario }) {
                   </div>
                   <div style={{ fontSize: 13, color: "#6B8070", lineHeight: 1.5 }}>
                     FOR-C will simulate a {selectedOrigin.name} disruption at{" "}
-                    <span style={{ color: "#9FD63A" }}>
-                      {ORIGIN_TO_FACILITY[selectedOrigin.code] || "the nearest facility"}
-                    </span>{" "}
+                    {network.sites.length > 0 ? (
+                      <select
+                        value={chosenFacility}
+                        onChange={(e) => setFacilityPick((p) => ({ ...p, [selectedOrigin.code]: e.target.value }))}
+                        style={{ background: "rgba(2,6,23,0.6)", color: "#9FD63A", border: "0.5px solid rgba(159,214,58,0.4)", borderRadius: 6, padding: "2px 6px", fontSize: 13 }}
+                      >
+                        {network.sites.map((s) => (
+                          <option key={s.facility} value={s.facility}>{s.facility}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span style={{ color: "#EAB308" }}>{network.loading ? "your network..." : "(load a network first)"}</span>
+                    )}{" "}
                     with severity {Math.round(severityFromScore(compositeScore) * 100)}% — matching this corridor's risk score.
+                    {network.sites.length > 0 && !siteInOrigin && (
+                      <span style={{ display: "block", marginTop: 4, fontSize: 12, color: "#8A9E94" }}>
+                        None of your sites is in {selectedOrigin.name}, so pick the site this corridor feeds.
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button
                   onClick={handleSimulate}
+                  disabled={!chosenFacility || !scenarioWindow}
                   style={{
                     background: "linear-gradient(90deg, #9FD63A, #22c55e)",
                     color: "#111B21",

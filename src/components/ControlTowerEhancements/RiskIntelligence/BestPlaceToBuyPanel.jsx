@@ -12,9 +12,10 @@
 // as a recommended semiconductor source, regardless of how low its political-
 // risk score might be, because it does not fabricate semiconductors.
 // ─────────────────────────────────────────────────────────────────────────────
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { getApiBase } from "../../../config/apiBase";
 import { riskColor100 as riskColor, riskLabel100 as riskLabel } from "./riskScoreEngine";
+import { fetchNetworkSites, defaultReceivingSite, disruptionWindow } from "./networkSites";
 import {
   filterViableOrigins,
   getAvailabilityNote,
@@ -86,6 +87,14 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
   const [error,             setError]             = useState(null);
   const [hasRun,            setHasRun]            = useState(false);
   const [upgradeRequired,   setUpgradeRequired]   = useState(false);
+  const [network,           setNetwork]           = useState({ loading: true, ok: false, sites: [], start: null });
+  const [siteChoice,        setSiteChoice]        = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchNetworkSites().then((r) => { if (!cancelled) setNetwork({ loading: false, ...r }); });
+    return () => { cancelled = true; };
+  }, []);
 
   const viableOrigins   = useMemo(() => filterViableOrigins(ORIGINS, selectedCommodity.id), [selectedCommodity]);
   const excludedOrigins = useMemo(() => getExcludedOrigins(ORIGINS, selectedCommodity.id), [selectedCommodity]);
@@ -189,24 +198,28 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
 
   const handleSimulateBest = (entry) => {
     if (!onLaunchScenario || !entry.result) return;
+    const facility = siteChoice || defaultReceivingSite(network.sites)?.facility || "";
+    const win = disruptionWindow(network.start, 60);
+    if (!facility || !win) return;
     const severity = entry.compositeScore >= 80 ? 1.0 : entry.compositeScore >= 60 ? 0.7 : entry.compositeScore >= 35 ? 0.5 : 0.3;
     const scenarioName = `${entry.origin.name} Corridor Risk — ${selectedCommodity.label}`;
     onLaunchScenario({
       scenario: scenarioName,
       params: {
-        facility: "NEXTY_MARYVILLE",
+        facility,
         severity,
-        startDate: "2025-07-01",
-        endDate: "2025-08-30",
+        startDate: win.start,
+        endDate: win.end,
         disruptionScenarios: [{
-          facility: "NEXTY_MARYVILLE",
-          startDate: "2025-07-01",
-          endDate: "2025-08-30",
+          facility,
+          startDate: win.start,
+          endDate: win.end,
           severity,
           production_impact: severity,
           shipping_impact: 0,
         }],
         name: scenarioName,
+        autoRun: true,
       },
     });
   };
@@ -345,6 +358,21 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
             >
               Upgrade to Enterprise →
             </button>
+          </div>
+        )}
+
+        {results.length > 0 && !loading && network.sites.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 13, color: "#94A3B8" }}>
+            <span>Simulate impact at</span>
+            <select
+              value={siteChoice || defaultReceivingSite(network.sites)?.facility || ""}
+              onChange={(e) => setSiteChoice(e.target.value)}
+              style={{ background: "rgba(2,6,23,0.6)", color: "#9FD63A", border: "0.5px solid rgba(159,214,58,0.4)", borderRadius: 6, padding: "3px 8px", fontSize: 13 }}
+            >
+              {network.sites.map((s) => (
+                <option key={s.facility} value={s.facility}>{s.facility}</option>
+              ))}
+            </select>
           </div>
         )}
 

@@ -545,12 +545,20 @@ export const RUBBER_TRIGGER_CONFIG = {
 // its own copy of these localStorage key names.
 // ─────────────────────────────────────────────────────────────────────────────
 export function launchScenarioToSimulation({ scenario, params, source = "risk_intelligence_trigger" }, switchView) {
+  const { autoRun, ...rest } = params || {};
   try {
-    const scenarioPayload = { name: scenario, ...params, source };
+    const scenarioPayload = { name: scenario, ...rest, source };
     localStorage.setItem("currentScenario", JSON.stringify(scenarioPayload));
     localStorage.setItem("currentScenarioName", scenario);
     // Also set the format that SimulationDashboard reads
     localStorage.setItem("currentScenarioJSON", JSON.stringify(scenarioPayload));
+    if (autoRun) {
+      localStorage.setItem("forc_active_scenario", JSON.stringify(scenarioPayload));
+      localStorage.setItem("forc_exposure_sim", "1");
+    }
   } catch {}
   if (switchView) switchView("simulation");
+  if (autoRun) {
+    try { window.dispatchEvent(new Event("forc-exposure-sim")); } catch {}
+  }
 }
