@@ -63,6 +63,34 @@ const LOCAL_RUNS_KEY = "forc_local_runs_v1";
 // (not inside the component) so both loadLocalRunsSafe and
 // fetchSimulationHistory share one implementation instead of two that
 // could quietly drift apart.
+// One run can reach history twice (a saved server copy and a local copy, or two saves).
+// Key on the run id so each run is listed once, keeping the richer copy and any extra fields (such as a report).
+function runKeyOf(r) {
+  const direct = r?.run_id || r?.runId;
+  if (direct) return String(direct);
+  let blob = "";
+  try { blob = JSON.stringify([r?.flow_url, r?.outputUrls?.flow_output_file_url]); } catch { blob = ""; }
+  const m = blob.match(/(\d{8}_\d{6}_[0-9a-f]{6,})/);
+  if (m) return m[1];
+  const fallback = r?.id ?? r?.timestamp ?? r?.created_at;
+  return fallback !== undefined && fallback !== null ? String(fallback) : "";
+}
+
+function dedupeRuns(list) {
+  const score = (r) => (r?.kpis_json || r?.kpis?.onTimeFulfillment != null || r?.raw?.kpis?.onTimeFulfillment != null ? 2 : 0) + (r?._source === "remote" ? 1 : 0);
+  const best = new Map();
+  let anon = 0;
+  for (const r of Array.isArray(list) ? list : []) {
+    const k = runKeyOf(r);
+    if (!k) { best.set(`__anon_${anon++}`, r); continue; }
+    const cur = best.get(k);
+    if (!cur) { best.set(k, r); continue; }
+    const [winner, loser] = score(r) > score(cur) ? [r, cur] : [cur, r];
+    best.set(k, { ...loser, ...winner });
+  }
+  return [...best.values()];
+}
+
 function getRunTimestamp(run) {
   const explicit = run?.created_at || run?.createdAt || run?.timestamp;
   if (explicit) {
@@ -737,9 +765,10 @@ export default function App() {
       // Control Tower's map, baselineOptions' slice(1)) as "the current
       // run." The backend's own ordering isn't guaranteed to be newest-
       // first, so this can't just trust whatever order the API returned.
-      merged.sort((a, b) => getRunTimestamp(b) - getRunTimestamp(a));
+      const unique = dedupeRuns(merged);
+      unique.sort((a, b) => getRunTimestamp(b) - getRunTimestamp(a));
 
-      setSimulationHistory(merged);
+      setSimulationHistory(unique);
       // Merge backend kpis_json fields into kpis state — but only when the
       // user isn't actively viewing a specific older run (currentlyViewedRunId
       // unset, or it matches the latest run anyway). Without this guard, any
@@ -747,7 +776,7 @@ export default function App() {
       // periodic refetch — silently overwrites a deliberately-opened run's
       // KPIs with whatever is now most recent, discarding what "Open" loaded.
       try {
-        const latest = merged?.[0];
+        const latest = unique?.[0];
         const latestId = latest?.run_id || latest?.id || null;
         const shouldBackfill = opts.forceBackfill === true || !currentlyViewedRunId || currentlyViewedRunId === latestId;
         console.log("[FORC-DEBUG] history-refresh kpis guard — currentlyViewedRunId:", currentlyViewedRunId, "latestId:", latestId, "shouldBackfill:", shouldBackfill);
@@ -2278,8 +2307,9 @@ setSimulationHistory((prev) => {
         // order above to already put the newest run (which should be the
         // one just completed) at index 0 — if any remote entries exist,
         // they'd otherwise sit ahead of the run that just finished.
-        merged.sort((a, b) => getRunTimestamp(b) - getRunTimestamp(a));
-        return merged;
+        const unique = dedupeRuns(merged);
+        unique.sort((a, b) => getRunTimestamp(b) - getRunTimestamp(a));
+        return unique;
       });
 
       
