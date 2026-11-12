@@ -116,7 +116,7 @@ function loadLocalRunsSafe() {
     // Sorted newest-first here so every call site gets correct ordering
     // for free, rather than each of the 4+ places that call this needing
     // to remember to sort themselves.
-    return [...arr].sort((a, b) => getRunTimestamp(b) - getRunTimestamp(a));
+    return dedupeRuns(arr).sort((a, b) => getRunTimestamp(b) - getRunTimestamp(a));
   } catch {
     return [];
   }
