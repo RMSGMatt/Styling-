@@ -2376,7 +2376,7 @@ export default function SimulationDashboard({
                         body: JSON.stringify({
                           scenario: runName || "Supply Chain Disruption Scenario",
                           aiNarrative: aiNarrative || narrativeSummary,
-                          kpis: { serviceLevelPct: execOnTimePct, peakBacklogUnits: execPeakBacklog, timeToRecoverDays: execTtrDays, timeToSurviveDays: (Number.isFinite(execTtsDays) ? execTtsDays : null), demandAtRiskUnits: execLateUnits, revenueExposure: (typeof scorecard?.revenue_at_risk === "number" ? scorecard.revenue_at_risk : null), worstWeeklyServicePct: execWorstWeeklyPct, falseConfidenceDays: execFalseConfidenceDays },
+                          kpis: { totalDemandUnits: scorecard?.total_demand_units ?? null, serviceLevelPct: execOnTimePct, peakBacklogUnits: execPeakBacklog, timeToRecoverDays: execTtrDays, timeToSurviveDays: (Number.isFinite(execTtsDays) ? execTtsDays : null), demandAtRiskUnits: execLateUnits, revenueExposure: (typeof scorecard?.revenue_at_risk === "number" ? scorecard.revenue_at_risk : null), worstWeeklyServicePct: execWorstWeeklyPct, falseConfidenceDays: execFalseConfidenceDays },
                           suggestedScenarios,
                           disruptionSignals: {
                             facilitiesImpacted: (Array.isArray(disruptionImpactData) ? new Set(disruptionImpactData.map(r => r.facility || r.Facility).filter(Boolean)).size : 0) || null,

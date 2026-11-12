@@ -924,6 +924,7 @@ export default function Reports(props) {
                                   peakBacklogUnits: selectedRunKpis?.unfulfilledDemand ?? 0,
                                   timeToRecoverDays: Number.isFinite(selectedRunKpis?.ttrDays) ? selectedRunKpis.ttrDays : null,
                                   notRecovered: selectedRunKpis?.ttrDays === Infinity,
+                                  totalDemandUnits: live?.scorecard?.total_demand_units ?? kpiNum(kpisOf(selectedRun, live)?.serviceTruth?.totalDemand),
                                   timeToSurviveDays: selectedRunKpis?.ttsDays ?? kpisOf(selectedRun, live)?.ttsDays ?? null,
                                   demandAtRiskUnits: selectedRunKpis?.demandAtRisk ?? 0,
                                   revenueExposure: selectedRunKpis?.revenueExposure ?? null,
