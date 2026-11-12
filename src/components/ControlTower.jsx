@@ -949,6 +949,44 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
   );
 }
 
+// Revenue at risk per run, read from the same scorecard that Compare and the PDF use.
+// (The figure saved with a run can be stale, so the repository chips do not use it.)
+const REPO_REVENUE_CACHE = {};
+function useRepoRevenue(history) {
+  const [vals, setVals] = useState({ ...REPO_REVENUE_CACHE });
+  useEffect(() => {
+    let cancelled = false;
+    const ids = (Array.isArray(history) ? history : [])
+      .map(runIdOf)
+      .filter((id) => id && /^\d{8}_\d{6}_[0-9a-f]{6,}$/.test(id) && !(id in REPO_REVENUE_CACHE));
+    if (!ids.length) return undefined;
+    const base = getApiBase();
+    let token = "";
+    try { token = localStorage.getItem("token") || localStorage.getItem("access_token") || ""; } catch { token = ""; }
+    let next = 0;
+    const worker = async () => {
+      while (!cancelled && next < ids.length) {
+        const id = ids[next++];
+        try {
+          const res = await fetch(`${base}/api/run-kpis/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+          const body = await res.json().catch(() => ({}));
+          if (res.ok && body?.scorecard?.ok) {
+            REPO_REVENUE_CACHE[id] = typeof body.scorecard.revenue_at_risk === "number" ? body.scorecard.revenue_at_risk : null;
+          } else if (res.status === 404) {
+            REPO_REVENUE_CACHE[id] = null;
+          }
+        } catch {
+          /* leave it unset and try again next time */
+        }
+        if (!cancelled) setVals({ ...REPO_REVENUE_CACHE });
+      }
+    };
+    Promise.all([worker(), worker(), worker()]);
+    return () => { cancelled = true; };
+  }, [history]);
+  return vals;
+}
+
 function runIdOf(run) {
   if (!run) return null;
   if (run.run_id && /^\d{8}_\d{6}_/.test(run.run_id)) return run.run_id;
@@ -1046,6 +1084,7 @@ export default function ControlTower({
   userPlan,
   locationsUrl,
 }) {
+  const repoRevenue = useRepoRevenue(simulationHistory);
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [tourActive, setTourActive] = useState(() => {
     return localStorage.getItem("forc_tour_done") !== "true";
@@ -1854,7 +1893,8 @@ export default function ControlTower({
                       const kpis = run?.kpis || run?.raw?.kpis || {};
                       const svc = Number(kpis?.onTimeFulfillment ?? kpis?.serviceLevelPct ?? 0);
                       const ttr = Number(kpis?.ttrDays ?? kpis?.timeToRecoverDays ?? 0);
-                      const rev = Number(kpis?.revenueExposure ?? kpis?.estimatedRevenueExposure ?? 0);
+                      const scRev = repoRevenue[runIdOf(run)];
+                      const rev = typeof scRev === "number" ? scRev : 0;
                       const nrs = (() => {
                         if (!svc) return null;
                         const backlog = Number(kpis?.peakBacklogUnits ?? kpis?.peakBacklog ?? 0);
@@ -1921,7 +1961,7 @@ export default function ControlTower({
                               )}
                               {rev > 0 && (
                                 <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-orange-500/15 text-orange-300">
-                                  ${rev >= 1000 ? `${(rev/1000).toFixed(0)}K` : rev} exposure
+                                  {rev >= 1e6 ? `$${(rev / 1e6).toFixed(1)}M` : rev >= 1e3 ? `$${Math.round(rev / 1e3)}K` : `$${Math.round(rev)}`} revenue at risk
                                 </span>
                               )}
                               <span className="px-2 py-1 rounded-lg text-xs font-semibold" style={{ background: `${nrsColor}18`, color: nrsColor }}>
