@@ -1459,7 +1459,7 @@ export default function ControlTower({
       {/* ── Sidebar ── */}
       <aside className="w-64 bg-[#0a2e22] text-white p-6 space-y-6 h-screen overflow-y-auto">
         <div className="flex items-center justify-center mb-4">
-          <img src="/logo.png" alt="FOR-C Logo" className="h-12 w-auto rounded-lg" />
+          <img src="/logo-horizontal-dark.png" alt="FOR-C Logo" className="h-12 w-auto" />
         </div>
 
         <div className="flex flex-col items-center space-y-2">
