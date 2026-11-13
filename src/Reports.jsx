@@ -467,9 +467,15 @@ export default function Reports(props) {
       }
       if (onTimePct !== null) {
         out = out.replace(/On-time fulfillment:\s*\d+(\.\d+)?%/gi, `On-time fulfillment: ${onTimePct.toFixed(1)}%`);
+        out = out.replace(/service at \d+(\.\d+)?%/gi, `service at ${onTimePct.toFixed(1)}%`);
       }
       if (backlogRatePct !== null) {
         out = out.replace(/Backorder rate:\s*\d+(\.\d+)?%/gi, `Backorder rate: ${backlogRatePct.toFixed(1)}%`);
+        out = out.replace(/backorder rate of \d+(\.\d+)?%/gi, `backorder rate of ${backlogRatePct.toFixed(1)}%`);
+      }
+      const occurrences = kpiNum(kpis.occurrenceCount);
+      if (occurrences !== null) {
+        out = out.replace(/\d+ exception events/gi, `${occurrences} exception events`);
       }
       return out;
     };
