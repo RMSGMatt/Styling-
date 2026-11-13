@@ -24,6 +24,7 @@ export function computeClock(levers, firstShortageDate, disruptionStart) {
   if (!firstShortageDate) return [];
   const first = parse(firstShortageDate);
   const d0 = disruptionStart ? parse(disruptionStart) : null;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
   return levers.map((l) => {
     const days = Math.max(0, Number(l.days) || 0);
     const order = new Date(first.getTime() - days * MS);
@@ -31,6 +32,7 @@ export function computeClock(levers, firstShortageDate, disruptionStart) {
       ...l,
       days,
       orderBy: toIso(order),
+      isPast: order < now,
       beforeDisruption: d0 ? order < d0 : false,
       leadDaysBeforeDisruption: d0 ? Math.round((d0 - order) / MS) : null,
     };
@@ -77,8 +79,15 @@ export default function DecisionClock({ firstShortageDate, disruptionStart, sku,
                   />
                 </td>
                 <td className="py-2 font-semibold text-slate-50 whitespace-nowrap">
-                  {fmtLong(r.orderBy)}
-                  {r.beforeDisruption && (
+                  {r.isPast ? (
+                    <>
+                      <span className="text-slate-400 line-through">{fmtLong(r.orderBy)}</span>
+                      <span className="block text-[11px] font-normal text-red-300">
+                        Already passed. Too late for this response unless it can arrive faster.
+                      </span>
+                    </>
+                  ) : fmtLong(r.orderBy)}
+                  {!r.isPast && r.beforeDisruption && (
                     <span className="block text-[11px] font-normal text-amber-300">
                       {r.leadDaysBeforeDisruption} days before the disruption starts, so it would have to be in place beforehand
                     </span>
