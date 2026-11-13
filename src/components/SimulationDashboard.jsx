@@ -2336,7 +2336,7 @@ export default function SimulationDashboard({
               <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-300/90 mb-2">Recommended action</p>
               <ul className="space-y-2 text-sm text-slate-200">
                 {isHealthy ? (
-                  <><li>• Continue monitoring Taiwan Strait supplier concentration risk.</li><li>• Validate buffer inventory levels ahead of Q3 demand peak.</li><li>• Run blockade scenario to quantify latent exposure.</li></>
+                  <><li>• Keep monitoring risk signals on your most concentrated sources and lanes.</li><li>• Check buffer coverage on the SKUs that built the largest backlog in this run.</li><li>• Run a disruption scenario on your most concentrated source to quantify latent exposure.</li></>
                 ) : (
                   <><li>• Prioritize the constrained component path immediately.</li><li>• Protect customer-facing service before backlog accelerates.</li><li>• Expedite the limiting supply node to reduce recovery time.</li></>
                 )}
