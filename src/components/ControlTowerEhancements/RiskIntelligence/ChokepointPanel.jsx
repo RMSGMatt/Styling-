@@ -34,6 +34,172 @@ function fmtDate(iso) {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
+function addDays(iso, n) {
+  const d = new Date(`${String(iso).slice(0, 10)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + Math.round(n));
+  return d.toISOString().slice(0, 10);
+}
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+// Months to qualify an alternative: low end if North America has one, midpoint if partial, high end if none.
+function recoveryMonths(c) {
+  const [lo, hi] = c?.switchMonths || [6, 12];
+  return c?.northAmerica === "Available" ? lo : c?.northAmerica === "Partial" ? Math.round((lo + hi) / 2) : hi;
+}
+
+// Component categories (tier 0) that sit downstream of a node in the graph.
+function categoriesFor(ds, id) {
+  const up = {};
+  (ds.graph?.edges || []).forEach(([a, b]) => { (up[b] = up[b] || []).push(a); });
+  const nodes = Object.fromEntries((ds.graph?.nodes || []).map((n) => [n.id, n]));
+  const seen = new Set(), out = new Set(), stack = [id];
+  while (stack.length) {
+    const x = stack.pop();
+    (up[x] || []).forEach((y) => { if (!seen.has(y)) { seen.add(y); stack.push(y); if (nodes[y]?.tier === 0) out.add(y); } });
+  }
+  if (nodes[id]?.tier === 0) out.add(id);
+  return [...out];
+}
+
+function topSuppliers(c, n = 3) {
+  return (c.suppliers || []).filter((s) => s[1] != null && !/^Rest of world/.test(s[0])).slice(0, n).map((s) => `${s[0]} ${s[1]}%`).join(" · ");
+}
+
+// ── Detail card shared by map, heat map and risk scores ─────────────────────
+function CpDetail({ c, exp, onCut }) {
+  if (!c) return null;
+  const row = (k, v, note) => v ? (
+    <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 8, padding: "6px 0", borderTop: `1px solid ${LINE}` }}>
+      <div style={{ color: DIM, fontSize: 12, textTransform: "uppercase", letterSpacing: ".05em" }}>{k}</div>
+      <div><span style={{ color: "#E8F2EC" }}>{v}</span>{note && <span style={{ color: MUTED }}>. {note}</span>}</div>
+    </div>) : null;
+  return (
+    <div style={{ ...PANEL, marginTop: 10, fontSize: 13.5, color: MUTED }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+        <ScorePill s={c.score} />
+        <b style={{ color: "#E8F2EC", fontSize: 15 }}>{c.name}</b>
+        <span>{c.layer} · {c.what}</span>
+        <span style={{ marginLeft: "auto", fontSize: 12 }}>Likelihood {c.likelihood} × impact {c.impact}</span>
+      </div>
+      {row("Market", c.structure, c.structureNote)}
+      {row("Suppliers", topSuppliers(c, 5), c.basis)}
+      {row("Supply now", c.supply, c.supplyNote)}
+      {row("Policy risk", c.geo, c.geoNote)}
+      {row("Switch time", c.switchMonths ? `${c.switchMonths[0]}-${c.switchMonths[1]} months` : null, c.switchNote)}
+      {row("North America", c.northAmerica, c.northAmericaNote)}
+      {exp && row("Your parts", `${exp.parts.join(", ")} at ${exp.sites.length} site${exp.sites.length === 1 ? "" : "s"}`, exp.min_days_cover != null ? `Thinnest cover ${exp.min_days_cover} days` : null)}
+      {onCut && <div style={{ marginTop: 10 }}><button type="button" style={actBtn} onClick={onCut}>Cut {c.name} and date the impact</button></div>}
+    </div>
+  );
+}
+
+// ── Heat map: likelihood × impact ───────────────────────────────────────────
+function HeatMap({ list, selected, onSelect, exposedIds }) {
+  const cell = (l, i) => list.filter((c) => c.likelihood === l && c.impact === i);
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "34px repeat(5, minmax(140px, 1fr))", gap: 4, minWidth: 760 }}>
+        {[5, 4, 3, 2, 1].map((l) => (
+          <React.Fragment key={l}>
+            <div style={{ color: MUTED, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>{l}</div>
+            {[1, 2, 3, 4, 5].map((i) => {
+              const t = scoreTone(l * i);
+              return (
+                <div key={i} style={{ minHeight: 78, background: t.bg, border: `1px solid ${t.bd}55`, borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ fontSize: 10.5, color: t.fg, opacity: 0.6 }}>{l * i}</div>
+                  {cell(l, i).map((c) => (
+                    <button key={c.id} type="button" onClick={() => onSelect(selected === c.id ? null : c.id)}
+                            style={{ textAlign: "left", fontSize: 12, padding: "3px 6px", borderRadius: 4, cursor: "pointer", color: "#111B21", fontWeight: 600,
+                                     background: selected === c.id ? LIME : t.bd, border: exposedIds?.has(c.id) ? "2px solid #E8F2EC" : "2px solid transparent" }}>
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </React.Fragment>
+        ))}
+        <div />
+        {[1, 2, 3, 4, 5].map((i) => <div key={i} style={{ color: MUTED, fontSize: 12, textAlign: "center" }}>{i}</div>)}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: DIM, marginTop: 6 }}>
+        <span>Rows: likelihood (supply state plus policy risk)</span>
+        <span>Columns: impact (how many categories it feeds, switch time, North American alternative)</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Risk scores table ───────────────────────────────────────────────────────
+function RiskScores({ list, selected, onSelect, expById }) {
+  const [sort, setSort] = useState("score");
+  const [layer, setLayer] = useState("all");
+  const layers = [...new Set(list.map((c) => c.layer))];
+  const rows = list.filter((c) => layer === "all" || c.layer === layer).slice().sort((a, b) =>
+    sort === "switch" ? (b.switchMonths?.[1] || 0) - (a.switchMonths?.[1] || 0) : sort === "name" ? a.name.localeCompare(b.name) : (b.score - a.score) || (b.impact - a.impact));
+  const SUP = { Constrained: "#F87171", Tight: "#F4A742", Balanced: MUTED, Surplus: "#4ADE80" };
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
+        {["all", ...layers].map((k) => <button key={k} type="button" style={chip(layer === k)} onClick={() => setLayer(k)}>{k === "all" ? "All layers" : k}</button>)}
+        <span style={{ marginLeft: "auto", fontSize: 12, color: DIM }}>Sort</span>
+        {[["score", "Score"], ["switch", "Switch time"], ["name", "Name"]].map(([k, l]) => <button key={k} type="button" style={chip(sort === k)} onClick={() => setSort(k)}>{l}</button>)}
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={tbl}>
+          <thead><tr>{["Score", "L × I", "Chokepoint", "Layer", "Market", "Top suppliers", "Supply", "Policy", "Switch", "N. America", ...(expById ? ["Your parts"] : [])].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+          <tbody>
+            {rows.map((c) => (
+              <tr key={c.id} onClick={() => onSelect(selected === c.id ? null : c.id)} style={{ cursor: "pointer", background: selected === c.id ? "rgba(159,214,58,0.08)" : "transparent" }}>
+                <td style={td}><ScorePill s={c.score} /></td>
+                <td style={{ ...td, whiteSpace: "nowrap" }}>{c.likelihood} × {c.impact}</td>
+                <td style={{ ...td, color: "#E8F2EC", fontWeight: 600 }}>{c.name}</td>
+                <td style={td}>{c.layer}</td>
+                <td style={td}>{c.structure}</td>
+                <td style={{ ...td, minWidth: 200 }}>{topSuppliers(c)}</td>
+                <td style={{ ...td, color: SUP[c.supply] || MUTED }}>{c.supply}</td>
+                <td style={td}>{c.geo}</td>
+                <td style={{ ...td, whiteSpace: "nowrap" }}>{c.switchMonths ? `${c.switchMonths[0]}-${c.switchMonths[1]} mo` : "n/a"}</td>
+                <td style={td}>{c.northAmerica}</td>
+                {expById && <td style={{ ...td, color: expById[c.id] ? LIME : DIM }}>{expById[c.id] ? expById[c.id].parts.length : 0}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Industry-level cut, for accounts without a network loaded ──────────────
+function IndustryCut({ ds, cut, pipe, defaults }) {
+  const cps = Object.fromEntries((ds.chokepoints || []).map((c) => [c.id, c]));
+  const nodes = Object.fromEntries((ds.graph?.nodes || []).map((n) => [n.id, n]));
+  const rows = [];
+  cut.forEach((id) => {
+    const c = cps[id]; if (!c) return;
+    const wk = pipe[id] ?? defaults[id] ?? 12;
+    categoriesFor(ds, id).forEach((cat) => rows.push({ cat, c, wk, dry: addDays(todayIso(), wk * 7), rec: recoveryMonths(c) }));
+  });
+  const cats = [...new Set(rows.map((r) => r.cat))];
+  if (!cut.length) return null;
+  return (
+    <div>
+      <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 10, padding: "12px 14px", marginBottom: 12, fontSize: 14, color: "#E8F2EC" }}>
+        Cutting <b>{cut.map((id) => cps[id]?.name).join(", ")}</b> reaches <b>{cats.length}</b> component categor{cats.length === 1 ? "y" : "ies"}: {cats.map((k) => nodes[k]?.name || k).join(", ")}.
+        {" "}Load your network to date the outage part by part using your own days of cover.
+      </div>
+      <table style={tbl}>
+        <thead><tr>{["Component category", "Via", "Pipeline", "Pipeline runs out", "Qualify alternative"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+        <tbody>{rows.map((r, i) => (
+          <tr key={i}><td style={{ ...td, color: "#E8F2EC", fontWeight: 600 }}>{nodes[r.cat]?.name || r.cat}</td><td style={td}>{r.c.name}</td>
+            <td style={td}>{r.wk} wk</td><td style={{ ...td, color: "#E8F2EC" }}>{fmtDate(r.dry)}</td><td style={td}>{r.rec} mo</td></tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Relationship map ─────────────────────────────────────────────────────────
 function ChokepointMap({ ds, counts, selected, onSelect }) {
   const G = ds.graph || { nodes: [], edges: [] };
@@ -117,12 +283,14 @@ function ChokepointMap({ ds, counts, selected, onSelect }) {
 // ── Main panel ───────────────────────────────────────────────────────────────
 const VIEWS = [
   { key: "map", label: "Map" },
-  { key: "exposure", label: "Your exposure" },
+  { key: "heat", label: "Heat map" },
+  { key: "scores", label: "Risk scores" },
+  { key: "exposure", label: "Your exposure", needsData: true },
   { key: "simulate", label: "Cut a chokepoint" },
-  { key: "mapping", label: "Part mapping" },
+  { key: "mapping", label: "Part mapping", needsData: true },
 ];
 
-export default function ChokepointPanel({ switchView }) {
+export default function ChokepointPanel({ switchView, onLaunchScenario }) {
   const apiBase = getApiBase();
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
@@ -168,6 +336,42 @@ export default function ChokepointPanel({ switchView }) {
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
 
+  const cutNow = (ids) => { setCut(ids); setView("simulate"); if (ok) runSim({ cut: ids }); else setSim(null); };
+
+  // Hand a dated cut to the full simulator: each affected site is disrupted from the day its
+  // first exposed part runs dry until an alternative is qualified, offset from the start of the loaded data.
+  const launchFull = async () => {
+    if (!sim || !onLaunchScenario) return;
+    let start = todayIso(), horizon = null;
+    try {
+      const r = await fetch(`${apiBase}/api/network-snapshot/sim-inputs`, { headers: { Authorization: `Bearer ${token()}` } });
+      const j = await r.json().catch(() => ({}));
+      if (j?.summary?.start) start = String(j.summary.start).slice(0, 10);
+      if (j?.summary?.horizon_days) horizon = Number(j.summary.horizon_days);
+    } catch { /* fall back to today */ }
+    const bySite = {};
+    sim.parts.forEach((p) => {
+      if (p.runs_dry_day == null || !p.facility) return;
+      const s = bySite[p.facility] || (bySite[p.facility] = { first: Infinity, end: 0 });
+      s.first = Math.min(s.first, p.runs_dry_day);
+      s.end = Math.max(s.end, p.runs_dry_day + p.recovery_months * 30);
+    });
+    const rows = Object.entries(bySite).map(([facility, s]) => ({
+      facility, startDate: addDays(start, s.first), endDate: addDays(start, s.end), severity: 1.0, production_impact: 1.0, shipping_impact: 0,
+    }));
+    if (!rows.length) { setErr("No dated parts to send. Parts need usage data to be dated."); return; }
+    const first = Math.min(...Object.values(bySite).map((s) => s.first));
+    if (horizon && first >= horizon) {
+      setErr(`Your first part runs dry on day ${first}, after the ${horizon}-day simulation window ends. Within that window your cover holds; extend the demand horizon to simulate the outage.`);
+      return;
+    }
+    const name = `Chokepoint cut: ${sim.cut_names.join(", ")}`;
+    onLaunchScenario({ scenario: name, params: {
+      facility: rows[0].facility, severity: 1.0, startDate: rows[0].startDate, endDate: rows[0].endDate,
+      disruptionScenarios: rows, name, autoRun: true,
+    } });
+  };
+
   const setMap = async (sku, value) => {
     setErr("");
     try {
@@ -211,7 +415,7 @@ export default function ChokepointPanel({ switchView }) {
 
       {/* View switch */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        {VIEWS.filter((v) => ok || v.key === "map").map((v) => (
+        {VIEWS.filter((v) => ok || !v.needsData).map((v) => (
           <button key={v.key} type="button" onClick={() => setView(v.key)} style={chip(view === v.key)}>{v.label}</button>
         ))}
       </div>
@@ -227,10 +431,26 @@ export default function ChokepointPanel({ switchView }) {
                 {cps[sel] && <><ScorePill s={cps[sel].score} /> · {cps[sel].structure} · supply {String(cps[sel].supply || "").toLowerCase()} · policy risk {String(cps[sel].geo || "").toLowerCase()}. {cps[sel].supplyNote}</>}
                 {selExp && <div style={{ marginTop: 6, color: "#E8F2EC" }}>Your parts: {selExp.parts.join(", ")} at {selExp.sites.length} site{selExp.sites.length === 1 ? "" : "s"}{selExp.min_days_cover != null && <>, thinnest cover {selExp.min_days_cover} days</>}{selExp.finished_goods.length > 0 && <>. Feeds {selExp.finished_goods.join(", ")}</>}.</div>}
                 {selCat && <div style={{ marginTop: 6, color: "#E8F2EC" }}>Your parts here: {selCat.parts.join(", ")}. Routes through {selCat.chokepoints.length} scored chokepoints.</div>}
-                {ok && cps[sel] && <div style={{ marginTop: 8 }}><button type="button" style={actBtn} onClick={() => { setCut([sel]); setView("simulate"); runSim({ cut: [sel] }); }}>Cut {cps[sel].name} and date the impact</button></div>}
+                {cps[sel] && <div style={{ marginTop: 8 }}><button type="button" style={actBtn} onClick={() => cutNow([sel])}>Cut {cps[sel].name} and date the impact</button></div>}
               </>
             )}
           </div>
+        </>
+      )}
+
+      {view === "heat" && (
+        <>
+          <div style={PANEL}><HeatMap list={ds.chokepoints || []} selected={sel} onSelect={setSel} exposedIds={ok ? new Set(ex.chokepoints.map((r) => r.id)) : null} /></div>
+          {ok && <div style={{ fontSize: 12, color: DIM, marginTop: 6 }}>White outline: your parts route through it.</div>}
+          {cps[sel] ? <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} /> : <div style={{ ...PANEL, marginTop: 10, fontSize: 14, color: MUTED }}>Tap a chokepoint for its suppliers, supply state and switch time.</div>}
+        </>
+      )}
+
+      {view === "scores" && (
+        <>
+          <div style={PANEL}><RiskScores list={ds.chokepoints || []} selected={sel} onSelect={setSel} expById={ok ? Object.fromEntries(ex.chokepoints.map((r) => [r.id, r])) : null} /></div>
+          {cps[sel] && <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} />}
+          <div style={{ fontSize: 12, color: DIM, marginTop: 8 }}>Score = likelihood × impact, each 1 to 5. 15 and above is critical.</div>
         </>
       )}
 
@@ -254,7 +474,7 @@ export default function ChokepointPanel({ switchView }) {
                       <td style={td}>{r.sites.length}</td>
                       <td style={{ ...td, color: r.min_days_cover != null && r.min_days_cover < 14 ? "#F87171" : MUTED }}>{r.min_days_cover != null ? `${r.min_days_cover} d` : "n/a"}</td>
                       <td style={td}>{r.finished_goods.join(", ") || (data.has_bom ? "none" : "add a BOM")}</td>
-                      <td style={td}><button type="button" style={linkBtn} onClick={() => { setCut([r.id]); setView("simulate"); runSim({ cut: [r.id] }); }}>Cut</button></td>
+                      <td style={td}><button type="button" style={linkBtn} onClick={() => cutNow([r.id])}>Cut</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -264,11 +484,13 @@ export default function ChokepointPanel({ switchView }) {
         </div>
       )}
 
-      {view === "simulate" && ok && (
+      {view === "simulate" && (
         <div style={PANEL}>
-          <div style={{ fontSize: 13, color: MUTED, marginBottom: 8 }}>Pick a scenario or cut individual chokepoints. Each part runs dry after the material already in the pipeline plus its own days of cover from your snapshot.</div>
+          <div style={{ fontSize: 13, color: MUTED, marginBottom: 8 }}>{ok
+            ? "Pick a scenario or cut individual chokepoints. Each part runs dry after the material already in the pipeline plus its own days of cover from your snapshot."
+            : "Pick a scenario or cut individual chokepoints to see which component categories it reaches and when the material already in the pipeline runs out."}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            {data.presets.map((p) => <button key={p.key} type="button" style={chip(false)} onClick={() => { setCut(p.cut); runSim({ cut: p.cut }); }}>{p.label}</button>)}
+            {data.presets.map((p) => <button key={p.key} type="button" style={chip(false)} onClick={() => cutNow(p.cut)}>{p.label}</button>)}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
             {(ds.chokepoints || []).slice().sort((a, b) => b.score - a.score).map((c) => {
@@ -287,11 +509,22 @@ export default function ChokepointPanel({ switchView }) {
                          style={{ width: 110, padding: "5px 8px", borderRadius: 6, border: `1px solid ${LINE}`, background: "#0B1418", color: "#E8F2EC" }} />
                 </label>
               ))}
-              <button type="button" disabled={busy} style={actBtn} onClick={() => runSim({ cut })}>{busy ? "Running…" : "Run"}</button>
+              {ok && <button type="button" disabled={busy} style={actBtn} onClick={() => runSim({ cut })}>{busy ? "Running…" : "Run"}</button>}
               <button type="button" style={chip(false)} onClick={() => { setCut([]); setSim(null); }}>Clear</button>
             </div>
           )}
-          {sim && sim.status === "ok" && <SimResult sim={sim} hasBom={data.has_bom} />}
+          {!ok && <IndustryCut ds={ds} cut={cut} pipe={pipe} defaults={data.pipeline_weeks} />}
+          {ok && sim && sim.status === "ok" && (
+            <>
+              <SimResult sim={sim} hasBom={data.has_bom} />
+              {onLaunchScenario && sim.summary.parts_hit > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}` }}>
+                  <button type="button" style={actBtn} onClick={launchFull}>Run in full simulator</button>
+                  <span style={{ fontSize: 12, color: DIM }}>Disrupts each affected site from the day its first part runs dry until an alternative is qualified, so you see fill rate, backlog and revenue at risk.</span>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

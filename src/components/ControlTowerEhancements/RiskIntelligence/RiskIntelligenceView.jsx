@@ -784,7 +784,7 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
       ) : activeTab === "supplierlist" ? (
         <SupplierScreeningPanel />
       ) : activeTab === "chokepoints" ? (
-        <ChokepointPanel switchView={switchView} />
+        <ChokepointPanel switchView={switchView} onLaunchScenario={handleLaunchScenario} />
       ) : loading ? (
         <LoadingState />
       ) : (
