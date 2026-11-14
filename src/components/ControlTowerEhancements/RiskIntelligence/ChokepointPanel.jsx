@@ -14,6 +14,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getApiBase } from "../../../config/apiBase";
 import { renderReportHtml } from "./chokepointReport";
+import SignalsView from "./SignalsView";
 
 const LIME = "#9FD63A", MINT = "#2EC4A6", MUTED = "#94A3B8", DIM = "#64748B", LINE = "rgba(148,163,184,0.18)";
 const PANEL = { background: "rgba(2,6,23,0.45)", border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 };
@@ -306,6 +307,7 @@ function ChokepointMap({ ds, counts, selected, onSelect, heads = LABELS.parts.co
 // ── Main panel ───────────────────────────────────────────────────────────────
 const VIEWS = [
   { key: "alerts", label: "Alerts", needsData: true },
+  { key: "signals", label: "Signals", industrialOnly: true },
   { key: "map", label: "Map" },
   { key: "heat", label: "Heat map" },
   { key: "scores", label: "Risk scores" },
@@ -357,6 +359,8 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
   const [view, setView] = useState("map");
+  const [sigSel, setSigSel] = useState(null);
+  const authHeader = useCallback(() => ({ Authorization: `Bearer ${token()}` }), []);
   const [sel, setSel] = useState(null);
   const [cut, setCut] = useState([]);
   const [pipe, setPipe] = useState({});
@@ -370,6 +374,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
     if (e === edition) return;
     try { localStorage.setItem("forc_cp_edition", e); } catch { /* storage unavailable */ }
     setEditionState(e); setData(null); setSel(null); setCut([]); setPipe({}); setSim(null);
+    if (e !== "industrial" && view === "signals") setView("map");
   };
 
   const load = useCallback(async () => {
@@ -415,7 +420,10 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
   };
   const markSeen = async () => { setAlertBusy(true); await loadAlerts("POST"); setAlertBusy(false); };
   // Open an alert: switch to its edition, then select the chokepoint on the risk scores view once the data is in.
-  const openAlert = (a) => { setPendingSel(a.cp); if (a.edition !== edition) setEdition(a.edition); setView("scores"); };
+  const openAlert = (a) => {
+    if (a.chain) { setSigSel(a.chain); if (edition !== "industrial") setEdition("industrial"); setView("signals"); return; }
+    setPendingSel(a.cp); if (a.edition !== edition) setEdition(a.edition); setView("scores");
+  };
   useEffect(() => {
     if (pendingSel && data?.edition === edition) {
       setSel(pendingSel); setPendingSel(null);
@@ -548,7 +556,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
 
       {/* View switch */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        {VIEWS.filter((v) => ok || !v.needsData).map((v) => (
+        {VIEWS.filter((v) => (ok || !v.needsData) && (!v.industrialOnly || edition === "industrial")).map((v) => (
           <button key={v.key} type="button" onClick={() => setView(v.key)} style={chip(view === v.key)}>
             {isLanes && v.key === "mapping" ? "Lane mapping" : v.label}
             {v.key === "alerts" && alerts?.unseen > 0 && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: "#111B21", background: "#F87171", borderRadius: 8, padding: "0 6px" }}>{alerts.unseen}</span>}
@@ -558,6 +566,11 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
       {err && <div style={{ color: "#F87171", fontSize: 13, marginBottom: 10 }}>{err}</div>}
 
       {view === "alerts" && ok && <AlertsView alerts={alerts} onOpen={openAlert} onSeen={markSeen} busy={alertBusy} />}
+
+      {view === "signals" && edition === "industrial" && (
+        <SignalsView apiBase={apiBase} authHeader={authHeader} selected={sigSel} onSelect={setSigSel} onCut={cutNow}
+                     switchView={switchView} knownIds={new Set(Object.keys(cps))} />
+      )}
 
       {view === "map" && (
         <>
