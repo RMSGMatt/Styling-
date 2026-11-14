@@ -160,7 +160,10 @@ export default function SignalsView({ apiBase, authHeader, selected, onSelect, o
             <div style={{ fontSize: 17, fontWeight: 700, color: INK }}>{card.headline}</div>
           </div>
           <div style={{ fontSize: 13, color: MUTED, marginTop: 6 }}>
-            {card.confirm.tiers} of 3 upstream tiers tightening{card.since && card.stage !== "none" && <> · {STAGE[card.stage].label} since {fmt(card.since)}</>}
+            {card.confirm.tiers} of 3 upstream tiers tightening
+            {card.since && card.stage !== "none" && (card.act_on_cover
+              ? <> · {STAGE[card.chain_stage]?.label || "Warning"} since {fmt(card.since)} · <b style={{ color: STAGE.act.color }}>Act on your cover today</b></>
+              : <> · {STAGE[card.stage].label} since {fmt(card.since)}</>)}
           </div>
           {card.window_text && <div style={{ fontSize: 14, color: card.window?.status === "overdue" ? "#F4A742" : INK, marginTop: 6, fontWeight: 600 }}>{card.window_text}{card.window?.lag_weeks && <span style={{ fontWeight: 400, color: DIM }}> ({card.window.lag_weeks[0]} to {card.window.lag_weeks[1]} weeks after the {card.window.anchor} tier moved)</span>}</div>}
           <TierStrip tiers={card.tiers} />
