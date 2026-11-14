@@ -12,6 +12,7 @@ import CorridorRiskPanel    from "./CorridorRiskPanel";
 import BestPlaceToBuyPanel  from "./BestPlaceToBuyPanel";
 import CountryWatchListPanel from "./CountryWatchListPanel";
 import SupplierScreeningPanel from "./SupplierScreeningPanel";
+import ChokepointPanel from "./ChokepointPanel";
 import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, RARE_EARTH_FORWARD_WEIGHTS, RARE_EARTH_REGIME_WEIGHTS, STEEL_ALUMINUM_FORWARD_WEIGHTS, STEEL_ALUMINUM_REGIME_WEIGHTS, RESINS_FORWARD_WEIGHTS, RESINS_REGIME_WEIGHTS, RUBBER_FORWARD_WEIGHTS, RUBBER_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG, RARE_EARTH_TRIGGER_CONFIG, STEEL_ALUMINUM_TRIGGER_CONFIG, RESINS_TRIGGER_CONFIG, RUBBER_TRIGGER_CONFIG, launchScenarioToSimulation } from "./riskScoreEngine";
 import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL, MOCK_RARE_EARTH_SIGNAL_DETAIL, MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL, MOCK_RESINS_SIGNAL_DETAIL, MOCK_RUBBER_SIGNAL_DETAIL, API_BASE } from "./signalSources";
 import RiskScoreHistoryChart from "./RiskScoreHistoryChart";
@@ -55,6 +56,7 @@ const GROUPS = [
   { key: "analysis", label: "Commodity Analysis" },
   { key: "tools",    label: "AI Tools" },
   { key: "trends",   label: "Trends" },
+  { key: "chokepoints", label: "Chokepoints" },
 ];
 
 const TABS = [
@@ -131,6 +133,16 @@ const TABS = [
     badge:       null,
     description: "Risk score history across all commodities, over time",
     group:       "trends",
+  },
+  {
+    key:         "chokepoints",
+    label:       "Chokepoint Map",
+    badge:       "New",
+    badgeColor:  "#11200A",
+    badgeBg:     "#9FD63A",
+    badgeBorder: "#9FD63A",
+    description: "Where your parts converge on a handful of upstream suppliers, and when a cutoff reaches you",
+    group:       "chokepoints",
   },
 ];
 // ── Summary header bar ────────────────────────────────────────────────────────
@@ -671,7 +683,7 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
             )}
           </h2>
           {/* Commodity selector — hidden on corridor, bestplace, and watchlist tabs */}
-          {activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
+          {activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && activeTab !== "chokepoints" && (
             <CommoditySelector
               selected={selectedCommodity}
               onChange={setSelectedCommodity}
@@ -685,9 +697,11 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
             ? "Ranks every country that actually produces the selected commodity by corridor risk, lowest first. Countries with no production presence are excluded — not just scored low."
             : activeTab === "watchlist"
             ? "A standing, commodity-agnostic risk ranking of every tracked country — geopolitical, political, disaster, and chokepoint exposure only."
+            : activeTab === "chokepoints"
+            ? "Common components traced to the process steps and materials they share, scored on market structure, current supply and policy risk. Mapped to your own parts, with the day each one runs dry if a chokepoint is cut."
             : "Two-layer predictive risk model. Forward signals identify what's building upstream 3–18 months ahead. Current conditions confirm the regime your network is operating in today."}
         </p>
-        {lastUpdated && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
+        {lastUpdated && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && activeTab !== "chokepoints" && (
           <div style={{ fontSize: 13, color: "#B4B2A9", marginTop: 6 }}>
             Last updated: {lastUpdated.toLocaleTimeString()} ·{" "}
             <span style={{ color: uncoveredSignalKeys.length === 0 ? "#9FD63A" : "#eab308" }}>
@@ -695,12 +709,12 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
             </span>
           </div>
         )}
-        {error && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && (
+        {error && activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && activeTab !== "chokepoints" && (
           <div style={{ fontSize: 13, color: "#854F0B", marginTop: 4 }}>{error}</div>
         )}
       </div>
       {/* Summary bar — hidden on corridor tab */}
-      {activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && !loading && (
+      {activeTab !== "corridor" && activeTab !== "bestplace" && activeTab !== "watchlist" && activeTab !== "supplierlist" && activeTab !== "chokepoints" && !loading && (
         <SummaryBar scoreResult={scoreResult} lastUpdated={lastUpdated} />
       )}
 
@@ -731,7 +745,7 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
       </div>
       {/* Tab navigation — second level, hidden for the Trends group,
           which has only one view and nothing to sub-select. */}
-      {activeGroup !== "trends" && (
+      {activeGroup !== "trends" && activeGroup !== "chokepoints" && (
         <TabBar
           active={activeTab}
           onChange={setActiveTab}
@@ -769,6 +783,8 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
         <CountryWatchListPanel onSelectCountry={(origin) => { setActiveTab("corridor"); }} />
       ) : activeTab === "supplierlist" ? (
         <SupplierScreeningPanel />
+      ) : activeTab === "chokepoints" ? (
+        <ChokepointPanel switchView={switchView} />
       ) : loading ? (
         <LoadingState />
       ) : (
