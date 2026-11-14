@@ -311,6 +311,18 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     if (firstTabInGroup) setActiveTab(firstTabInGroup.key);
   };
   const [forwardSignals,    setForwardSignals]    = useState(null);
+
+  // Unread chokepoint alerts for the badge on the Chokepoints group. The panel updates it when alerts are marked seen.
+  const [cpAlerts, setCpAlerts] = useState(0);
+  useEffect(() => {
+    let live = true;
+    const tok = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+    fetch(`${API_BASE}/api/chokepoints/alerts`, { headers: { Authorization: `Bearer ${tok}` } })
+      .then((r) => r.json()).then((b) => { if (live && b?.status === "ok") setCpAlerts(b.unseen || 0); }).catch(() => {});
+    const onAlerts = (e) => setCpAlerts(e?.detail?.unseen || 0);
+    window.addEventListener("forc-cp-alerts", onAlerts);
+    return () => { live = false; window.removeEventListener("forc-cp-alerts", onAlerts); };
+  }, []);
   const [liveSignalKeys,    setLiveSignalKeys]    = useState([]);
   // No reliable free live source exists for this signal — Murata, TDK,
   // Taiyo Yuden, and Samsung Electro-Mechanics are all foreign filers
@@ -739,6 +751,9 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
               }}
             >
               {g.label}
+              {g.key === "chokepoints" && cpAlerts > 0 && (
+                <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#111B21", background: "#F87171", borderRadius: 8, padding: "1px 7px" }}>{cpAlerts}</span>
+              )}
             </button>
           );
         })}

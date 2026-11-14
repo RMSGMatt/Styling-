@@ -95,7 +95,7 @@ function CpDetail({ c, exp, onCut, L = LABELS.parts }) {
       <div><span style={{ color: "#E8F2EC" }}>{v}</span>{note && <span style={{ color: MUTED }}>. {note}</span>}</div>
     </div>) : null;
   return (
-    <div style={{ ...PANEL, marginTop: 10, fontSize: 13.5, color: MUTED }}>
+    <div id="cp-detail" style={{ ...PANEL, marginTop: 10, fontSize: 13.5, color: MUTED }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
         <ScorePill s={c.score} />
         <b style={{ color: "#E8F2EC", fontSize: 15 }}>{c.name}</b>
@@ -304,6 +304,7 @@ function ChokepointMap({ ds, counts, selected, onSelect, heads = LABELS.parts.co
 
 // ── Main panel ───────────────────────────────────────────────────────────────
 const VIEWS = [
+  { key: "alerts", label: "Alerts", needsData: true },
   { key: "map", label: "Map" },
   { key: "heat", label: "Heat map" },
   { key: "scores", label: "Risk scores" },
@@ -311,6 +312,44 @@ const VIEWS = [
   { key: "simulate", label: "Cut a chokepoint" },
   { key: "mapping", label: "Part mapping", needsData: true },
 ];
+
+const SEV = { high: "#F87171", medium: "#F4A742", low: "#4ADE80" };
+const ED_LABEL = { industrial: "Industrial and automotive", medtech: "MedTech", logistics: "Ports and routes" };
+
+// What changed on the chokepoints the user's parts and lanes route through, across all three editions.
+function AlertsView({ alerts, onOpen, onSeen, busy }) {
+  if (!alerts) return <div style={{ ...PANEL, color: MUTED }}>Loading alerts…</div>;
+  const unseen = alerts.alerts.filter((a) => !a.seen).length;
+  return (
+    <div style={PANEL}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ fontSize: 14, color: "#E8F2EC" }}>
+          {unseen ? <><b>{unseen}</b> new alert{unseen === 1 ? "" : "s"} on chokepoints your parts and lanes route through.</> : "No new alerts. Standing issues are listed below."}
+        </div>
+        {unseen > 0 && <button type="button" style={{ ...actBtn, marginLeft: "auto" }} disabled={busy} onClick={onSeen}>{busy ? "Saving…" : "Mark all as seen"}</button>}
+      </div>
+      <div style={{ fontSize: 12, color: DIM, marginBottom: 10 }}>
+        Compared with your last "mark as seen" (first look saves a starting point). Datasets reviewed: {Object.entries(alerts.editions || {}).map(([k, v]) => `${v.label} ${fmtDate(v.dataset_updated)}`).join(" · ")}.
+      </div>
+      {alerts.alerts.length === 0 ? <div style={{ color: MUTED, fontSize: 14 }}>Nothing to flag: no critical scores, thin cover or near-term dates on your chokepoints.</div> : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {alerts.alerts.map((a) => (
+            <div key={a.id} style={{ display: "grid", gridTemplateColumns: "10px 1fr auto", gap: 12, alignItems: "start", padding: "10px 12px", borderRadius: 8,
+                                    border: `1px solid ${a.seen ? LINE : `${SEV[a.severity]}55`}`, background: a.seen ? "transparent" : "rgba(255,255,255,0.02)", opacity: a.seen ? 0.7 : 1 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 5, background: SEV[a.severity], marginTop: 5 }} />
+              <div>
+                <div style={{ fontSize: 14, color: "#E8F2EC", fontWeight: 600 }}>{a.title}{!a.seen && <span style={{ marginLeft: 8, fontSize: 10.5, color: "#111B21", background: LIME, borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>NEW</span>}</div>
+                <div style={{ fontSize: 13, color: MUTED, marginTop: 2 }}>{a.detail}</div>
+                <div style={{ fontSize: 11.5, color: DIM, marginTop: 4 }}>{ED_LABEL[a.edition] || a.edition}{a.score != null && <> · score {a.score}</>}</div>
+              </div>
+              <button type="button" style={linkBtn} onClick={() => onOpen(a)}>Open</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ChokepointPanel({ switchView, onLaunchScenario }) {
   const apiBase = getApiBase();
@@ -342,6 +381,32 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
     } catch (e) { setErr(e.message || "Could not load chokepoints."); }
   }, [apiBase, edition]);
   useEffect(() => { load(); }, [load]);
+
+  const [alerts, setAlerts] = useState(null);
+  const [alertBusy, setAlertBusy] = useState(false);
+  const [pendingSel, setPendingSel] = useState(null);
+  const loadAlerts = useCallback(async (method = "GET") => {
+    try {
+      const res = await fetch(`${apiBase}/api/chokepoints/alerts${method === "POST" ? "/seen" : ""}`, { method, headers: { Authorization: `Bearer ${token()}` } });
+      const body = await res.json().catch(() => ({}));
+      if (body.status === "ok") {
+        setAlerts(body);
+        try { window.dispatchEvent(new CustomEvent("forc-cp-alerts", { detail: { unseen: body.unseen } })); } catch { /* old browsers */ }
+        return body;
+      }
+    } catch { /* alerts are optional */ }
+    return null;
+  }, [apiBase]);
+  useEffect(() => { loadAlerts().then((b) => { if (b && b.unseen > 0) setView("alerts"); }); }, [loadAlerts]);
+  const markSeen = async () => { setAlertBusy(true); await loadAlerts("POST"); setAlertBusy(false); };
+  // Open an alert: switch to its edition, then select the chokepoint on the risk scores view once the data is in.
+  const openAlert = (a) => { setPendingSel(a.cp); if (a.edition !== edition) setEdition(a.edition); setView("scores"); };
+  useEffect(() => {
+    if (pendingSel && data?.edition === edition) {
+      setSel(pendingSel); setPendingSel(null);
+      setTimeout(() => { try { document.getElementById("cp-detail")?.scrollIntoView({ behavior: "smooth", block: "center" }); } catch { /* no DOM */ } }, 150);
+    }
+  }, [pendingSel, data, edition]);
 
   const ds = data?.dataset;
   const cps = useMemo(() => Object.fromEntries((ds?.chokepoints || []).map((c) => [c.id, c])), [ds]);
@@ -468,10 +533,15 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
       {/* View switch */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         {VIEWS.filter((v) => ok || !v.needsData).map((v) => (
-          <button key={v.key} type="button" onClick={() => setView(v.key)} style={chip(view === v.key)}>{isLanes && v.key === "mapping" ? "Lane mapping" : v.label}</button>
+          <button key={v.key} type="button" onClick={() => setView(v.key)} style={chip(view === v.key)}>
+            {isLanes && v.key === "mapping" ? "Lane mapping" : v.label}
+            {v.key === "alerts" && alerts?.unseen > 0 && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: "#111B21", background: "#F87171", borderRadius: 8, padding: "0 6px" }}>{alerts.unseen}</span>}
+          </button>
         ))}
       </div>
       {err && <div style={{ color: "#F87171", fontSize: 13, marginBottom: 10 }}>{err}</div>}
+
+      {view === "alerts" && ok && <AlertsView alerts={alerts} onOpen={openAlert} onSeen={markSeen} busy={alertBusy} />}
 
       {view === "map" && (
         <>
