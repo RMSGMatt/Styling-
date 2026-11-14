@@ -66,8 +66,28 @@ function topSuppliers(c, n = 3) {
   return (c.suppliers || []).filter((s) => s[1] != null && !/^Rest of world/.test(s[0])).slice(0, n).map((s) => `${s[0]} ${s[1]}%`).join(" · ");
 }
 
+// Words that change with the edition. Ports and routes reuses the same fields with route meanings.
+const LABELS = {
+  parts: {
+    cols: ["Purchase category", "Process step", "Material chokepoint", "Market structure"],
+    market: "Market", shares: "Suppliers", supply: "Supply now", geo: "Policy risk", sw: "Switch time", na: "North America",
+    th: ["Market", "Top suppliers", "Supply", "Policy", "Switch", "N. America"], exTh: ["Market", "Supply"],
+    unit: "part", units: "parts", mapUnit: "Part", mapped: "parts mapped to a purchase category",
+    mapNote: "Parts are matched to a purchase category from their names, separately for each edition. Correct any that are wrong; your choice always wins. Finished goods and parts outside these categories can stay unmapped.",
+    simNote: "Pick a scenario or cut individual chokepoints. Each part runs dry after the material already in the pipeline plus its own days of cover from your snapshot.",
+  },
+  lanes: {
+    cols: ["Trade lane", "Gateway", "Sea passage", "Bypass"],
+    market: "Bypass", shares: "Share of flows", supply: "Capacity now", geo: "Security and policy", sw: "Time to normal", na: "Alternative route",
+    th: ["Bypass", "Share of flows", "Capacity", "Security", "Time to normal", "Alt. route"], exTh: ["Bypass", "Capacity"],
+    unit: "lane", units: "lanes", mapUnit: "Supply lane", mapped: "supply lanes mapped to a trade lane",
+    mapNote: "Supply lanes come from your purchase orders: supplier site country to receiving site country. Asia to North America defaults to the West Coast; switch a lane to the East or Gulf Coast or to air if that is how it ships. Domestic lanes stay unmapped.",
+    simNote: "Pick a scenario or cut individual chokepoints. A cut with a bypass delays each lane by its reroute days; a part runs short only if its cover is thinner than the delay. A cut with no practical bypass stops the lane.",
+  },
+};
+
 // ── Detail card shared by map, heat map and risk scores ─────────────────────
-function CpDetail({ c, exp, onCut }) {
+function CpDetail({ c, exp, onCut, L = LABELS.parts }) {
   if (!c) return null;
   const row = (k, v, note) => v ? (
     <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 8, padding: "6px 0", borderTop: `1px solid ${LINE}` }}>
@@ -82,12 +102,12 @@ function CpDetail({ c, exp, onCut }) {
         <span>{c.layer} · {c.what}</span>
         <span style={{ marginLeft: "auto", fontSize: 12 }}>Likelihood {c.likelihood} × impact {c.impact}</span>
       </div>
-      {row("Market", c.structure, c.structureNote)}
-      {row("Suppliers", topSuppliers(c, 5), c.basis)}
-      {row("Supply now", c.supply, c.supplyNote)}
-      {row("Policy risk", c.geo, c.geoNote)}
-      {row("Switch time", c.switchMonths ? `${c.switchMonths[0]}-${c.switchMonths[1]} months` : null, c.switchNote)}
-      {row("North America", c.northAmerica, c.northAmericaNote)}
+      {row(L.market, c.structure, c.structureNote)}
+      {row(L.shares, topSuppliers(c, 5), c.basis)}
+      {row(L.supply, c.supply, c.supplyNote)}
+      {row(L.geo, c.geo, c.geoNote)}
+      {row(L.sw, c.switchMonths ? `${c.switchMonths[0]}-${c.switchMonths[1]} months` : null, c.switchNote)}
+      {row(L.na, c.northAmerica, c.northAmericaNote)}
       {exp && row("Your parts", `${exp.parts.join(", ")} at ${exp.sites.length} site${exp.sites.length === 1 ? "" : "s"}`, exp.min_days_cover != null ? `Thinnest cover ${exp.min_days_cover} days` : null)}
       {onCut && <div style={{ marginTop: 10 }}><button type="button" style={actBtn} onClick={onCut}>Cut {c.name} and date the impact</button></div>}
     </div>
@@ -132,7 +152,7 @@ function HeatMap({ list, selected, onSelect, exposedIds }) {
 }
 
 // ── Risk scores table ───────────────────────────────────────────────────────
-function RiskScores({ list, selected, onSelect, expById }) {
+function RiskScores({ list, selected, onSelect, expById, L = LABELS.parts }) {
   const [sort, setSort] = useState("score");
   const [layer, setLayer] = useState("all");
   const layers = [...new Set(list.map((c) => c.layer))];
@@ -148,7 +168,7 @@ function RiskScores({ list, selected, onSelect, expById }) {
       </div>
       <div style={{ overflowX: "auto" }}>
         <table style={tbl}>
-          <thead><tr>{["Score", "L × I", "Chokepoint", "Layer", "Market", "Top suppliers", "Supply", "Policy", "Switch", "N. America", ...(expById ? ["Your parts"] : [])].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Score", "L × I", "Chokepoint", "Layer", ...L.th, ...(expById ? [`Your ${L.units}`] : [])].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
           <tbody>
             {rows.map((c) => (
               <tr key={c.id} onClick={() => onSelect(selected === c.id ? null : c.id)} style={{ cursor: "pointer", background: selected === c.id ? "rgba(159,214,58,0.08)" : "transparent" }}>
@@ -173,13 +193,13 @@ function RiskScores({ list, selected, onSelect, expById }) {
 }
 
 // ── Industry-level cut, for accounts without a network loaded ──────────────
-function IndustryCut({ ds, cut, pipe, defaults }) {
+function IndustryCut({ ds, cut, pipe, defaults, lanes = false }) {
   const cps = Object.fromEntries((ds.chokepoints || []).map((c) => [c.id, c]));
   const nodes = Object.fromEntries((ds.graph?.nodes || []).map((n) => [n.id, n]));
   const rows = [];
   cut.forEach((id) => {
     const c = cps[id]; if (!c) return;
-    const wk = pipe[id] ?? defaults[id] ?? 12;
+    const wk = pipe[id] ?? defaults[id] ?? (lanes ? 7 : 12);
     categoriesFor(ds, id).forEach((cat) => rows.push({ cat, c, wk, dry: addDays(todayIso(), wk * 7), rec: recoveryMonths(c) }));
   });
   const cats = [...new Set(rows.map((r) => r.cat))];
@@ -187,14 +207,15 @@ function IndustryCut({ ds, cut, pipe, defaults }) {
   return (
     <div>
       <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 10, padding: "12px 14px", marginBottom: 12, fontSize: 14, color: "#E8F2EC" }}>
-        Cutting <b>{cut.map((id) => cps[id]?.name).join(", ")}</b> reaches <b>{cats.length}</b> purchase categor{cats.length === 1 ? "y" : "ies"}: {cats.map((k) => nodes[k]?.name || k).join(", ")}.
-        {" "}Load your network to date the outage part by part using your own days of cover.
+        Cutting <b>{cut.map((id) => cps[id]?.name).join(", ")}</b> reaches <b>{cats.length}</b> {lanes ? `trade lane${cats.length === 1 ? "" : "s"}` : `purchase categor${cats.length === 1 ? "y" : "ies"}`}: {cats.map((k) => nodes[k]?.name || k).join(", ")}.
+        {" "}{lanes ? "Load your network to see which of your supply lanes and parts run short." : "Load your network to date the outage part by part using your own days of cover."}
       </div>
       <table style={tbl}>
-        <thead><tr>{["Purchase category", "Via", "Pipeline", "Pipeline runs out", "Qualify alternative"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+        <thead><tr>{(lanes ? ["Trade lane", "Via", "Bypass", "Reroute delay", "Time to normal"] : ["Purchase category", "Via", "Pipeline", "Pipeline runs out", "Qualify alternative"]).map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => (
           <tr key={i}><td style={{ ...td, color: "#E8F2EC", fontWeight: 600 }}>{nodes[r.cat]?.name || r.cat}</td><td style={td}>{r.c.name}</td>
-            <td style={td}>{r.wk} wk</td><td style={{ ...td, color: "#E8F2EC" }}>{fmtDate(r.dry)}</td><td style={td}>{r.rec} mo</td></tr>
+            {lanes ? <><td style={td}>{r.c.structure}</td><td style={{ ...td, color: "#E8F2EC" }}>{/^No practical/.test(r.c.structure || "") ? "Lane stops" : `${r.wk} days`}</td><td style={td}>{r.c.switchMonths ? `${r.c.switchMonths[0]}-${r.c.switchMonths[1]} mo` : "n/a"}</td></>
+              : <><td style={td}>{r.wk} wk</td><td style={{ ...td, color: "#E8F2EC" }}>{fmtDate(r.dry)}</td><td style={td}>{r.rec} mo</td></>}</tr>
         ))}</tbody>
       </table>
     </div>
@@ -202,7 +223,7 @@ function IndustryCut({ ds, cut, pipe, defaults }) {
 }
 
 // ── Relationship map ─────────────────────────────────────────────────────────
-function ChokepointMap({ ds, counts, selected, onSelect }) {
+function ChokepointMap({ ds, counts, selected, onSelect, heads = LABELS.parts.cols }) {
   const G = ds.graph || { nodes: [], edges: [] };
   const cps = useMemo(() => Object.fromEntries((ds.chokepoints || []).map((c) => [c.id, c])), [ds]);
   const { up, down } = useMemo(() => {
@@ -252,7 +273,7 @@ function ChokepointMap({ ds, counts, selected, onSelect }) {
   return (
     <div style={{ overflowX: "auto" }}>
       <svg width={W} height={H + top + 8} viewBox={`0 0 ${W} ${H + top + 8}`} role="img" aria-label="Purchase categories to process steps to material chokepoints and market structure">
-        {["Purchase category", "Process step", "Material chokepoint", "Market structure"].map((h, t) => (
+        {heads.map((h, t) => (
           <text key={h} x={xs[t] + BW / 2} y={16} textAnchor="middle" fill={MUTED} fontSize={11} letterSpacing=".06em">{h.toUpperCase()}</text>
         ))}
         {G.edges.map(([a, b], i) => {
@@ -358,6 +379,16 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
       if (j?.summary?.start) start = String(j.summary.start).slice(0, 10);
       if (j?.summary?.horizon_days) horizon = Number(j.summary.horizon_days);
     } catch { /* fall back to today */ }
+    if (sim.edition === "logistics") {
+      // Each cut lane becomes a stop at its supplier site for the delay (or until normal transit returns), from two weeks into the data.
+      const rows = (sim.disruptions || []).map((d) => ({
+        facility: d.facility, startDate: addDays(start, 14), endDate: addDays(start, 14 + d.days), severity: 1.0, production_impact: 1.0, shipping_impact: 1.0,
+      }));
+      if (!rows.length) { setErr("None of your lanes route through this cut."); return; }
+      const name = `Route cut: ${sim.cut_names.join(", ")}`;
+      onLaunchScenario({ scenario: name, params: { facility: rows[0].facility, severity: 1.0, startDate: rows[0].startDate, endDate: rows[0].endDate, disruptionScenarios: rows, name, autoRun: true } });
+      return;
+    }
     const bySite = {};
     sim.parts.forEach((p) => {
       if (p.runs_dry_day == null || !p.facility) return;
@@ -407,6 +438,8 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
   if (!ds) return <div>{editionBar}<div style={{ ...PANEL, color: "#F87171" }}>{err || "Chokepoint data is unavailable."}</div></div>;
 
   const ex = data.exposure;
+  const isLanes = edition === "logistics";
+  const L = isLanes ? LABELS.lanes : LABELS.parts;
   const selInfo = sel ? (cps[sel] || nodes[sel]) : null;
   const selExp = sel && ex ? ex.chokepoints.find((r) => r.id === sel) : null;
   const selCat = sel && ex ? ex.categories.find((c) => c.category === sel) : null;
@@ -419,7 +452,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
         {ok ? (<>
           <Stat big={ex.exposed_count} label="chokepoints your parts route through" />
           <Stat big={ex.critical_count} label="of them critical (score 15+)" tone={ex.critical_count ? "#F87171" : null} />
-          <Stat big={`${ex.mapped} of ${ex.total_skus}`} label="parts mapped to a purchase category" />
+          <Stat big={`${ex.mapped} of ${ex.total_skus}`} label={L.mapped} />
         </>) : (
           <div style={{ ...PANEL, flex: 1, color: MUTED, fontSize: 14 }}>
             {data.status === "upgrade_required"
@@ -435,20 +468,20 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
       {/* View switch */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         {VIEWS.filter((v) => ok || !v.needsData).map((v) => (
-          <button key={v.key} type="button" onClick={() => setView(v.key)} style={chip(view === v.key)}>{v.label}</button>
+          <button key={v.key} type="button" onClick={() => setView(v.key)} style={chip(view === v.key)}>{isLanes && v.key === "mapping" ? "Lane mapping" : v.label}</button>
         ))}
       </div>
       {err && <div style={{ color: "#F87171", fontSize: 13, marginBottom: 10 }}>{err}</div>}
 
       {view === "map" && (
         <>
-          <div style={PANEL}><ChokepointMap ds={ds} counts={counts} selected={sel} onSelect={setSel} /></div>
+          <div style={PANEL}><ChokepointMap ds={ds} counts={counts} selected={sel} onSelect={setSel} heads={L.cols} /></div>
           <div style={{ ...PANEL, marginTop: 10, fontSize: 14, color: MUTED }}>
-            {!selInfo ? "Tap any box to trace its chain. Lime badges show how many of your parts sit in each category." : (
+            {!selInfo ? `Tap any box to trace its chain. Lime badges show how many of your parts sit in each ${isLanes ? "trade lane" : "category"}.` : (
               <>
                 <b style={{ color: "#E8F2EC" }}>{selInfo.name}</b>{" "}
                 {cps[sel] && <><ScorePill s={cps[sel].score} /> · {cps[sel].structure} · supply {String(cps[sel].supply || "").toLowerCase()} · policy risk {String(cps[sel].geo || "").toLowerCase()}. {cps[sel].supplyNote}</>}
-                {selExp && <div style={{ marginTop: 6, color: "#E8F2EC" }}>Your parts: {selExp.parts.join(", ")} at {selExp.sites.length} site{selExp.sites.length === 1 ? "" : "s"}{selExp.min_days_cover != null && <>, thinnest cover {selExp.min_days_cover} days</>}{selExp.finished_goods.length > 0 && <>. Feeds {selExp.finished_goods.join(", ")}</>}.</div>}
+                {selExp && <div style={{ marginTop: 6, color: "#E8F2EC" }}>{selExp.lanes ? <>Your lanes: {selExp.lanes.join("; ")}. </> : null}Your parts: {selExp.parts.join(", ")} at {selExp.sites.length} site{selExp.sites.length === 1 ? "" : "s"}{selExp.min_days_cover != null && <>, thinnest cover {selExp.min_days_cover} days</>}{selExp.finished_goods.length > 0 && <>. Feeds {selExp.finished_goods.join(", ")}</>}.</div>}
                 {selCat && <div style={{ marginTop: 6, color: "#E8F2EC" }}>Your parts here: {selCat.parts.join(", ")}. Routes through {selCat.chokepoints.length} scored chokepoints.</div>}
                 {cps[sel] && <div style={{ marginTop: 8 }}><button type="button" style={actBtn} onClick={() => cutNow([sel])}>Cut {cps[sel].name} and date the impact</button></div>}
               </>
@@ -461,14 +494,14 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
         <>
           <div style={PANEL}><HeatMap list={ds.chokepoints || []} selected={sel} onSelect={setSel} exposedIds={ok ? new Set(ex.chokepoints.map((r) => r.id)) : null} /></div>
           {ok && <div style={{ fontSize: 12, color: DIM, marginTop: 6 }}>White outline: your parts route through it.</div>}
-          {cps[sel] ? <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} /> : <div style={{ ...PANEL, marginTop: 10, fontSize: 14, color: MUTED }}>Tap a chokepoint for its suppliers, supply state and switch time.</div>}
+          {cps[sel] ? <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} L={L} /> : <div style={{ ...PANEL, marginTop: 10, fontSize: 14, color: MUTED }}>Tap a chokepoint for its suppliers, supply state and switch time.</div>}
         </>
       )}
 
       {view === "scores" && (
         <>
-          <div style={PANEL}><RiskScores list={ds.chokepoints || []} selected={sel} onSelect={setSel} expById={ok ? Object.fromEntries(ex.chokepoints.map((r) => [r.id, r])) : null} /></div>
-          {cps[sel] && <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} />}
+          <div style={PANEL}><RiskScores list={ds.chokepoints || []} selected={sel} onSelect={setSel} expById={ok ? Object.fromEntries(ex.chokepoints.map((r) => [r.id, r])) : null} L={L} /></div>
+          {cps[sel] && <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} L={L} />}
           <div style={{ fontSize: 12, color: DIM, marginTop: 8 }}>Score = likelihood × impact, each 1 to 5. 15 and above is critical.</div>
         </>
       )}
@@ -481,7 +514,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
           {ex.chokepoints.length === 0 ? <div style={{ color: MUTED }}>None of your mapped parts route through a scored chokepoint. Check Part mapping.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={tbl}>
-                <thead><tr>{["Score", "Chokepoint", "Market", "Supply", "Your parts", "Sites", "Thinnest cover", "Finished goods", ""].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                <thead><tr>{["Score", "Chokepoint", ...L.exTh, "Your parts", "Sites", "Thinnest cover", "Finished goods", ""].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
                 <tbody>
                   {ex.chokepoints.filter((r) => !critOnly || r.score >= 15).map((r) => (
                     <tr key={r.id}>
@@ -506,7 +539,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
       {view === "simulate" && (
         <div style={PANEL}>
           <div style={{ fontSize: 13, color: MUTED, marginBottom: 8 }}>{ok
-            ? "Pick a scenario or cut individual chokepoints. Each part runs dry after the material already in the pipeline plus its own days of cover from your snapshot."
+            ? L.simNote
             : "Pick a scenario or cut individual chokepoints to see which purchase categories it reaches and when the material already in the pipeline runs out."}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
             {data.presets.map((p) => <button key={p.key} type="button" style={chip(false)} onClick={() => cutNow(p.cut)}>{p.label}</button>)}
@@ -522,8 +555,8 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 12 }}>
               {cut.map((id) => (
                 <label key={id} style={{ fontSize: 12, color: MUTED, display: "flex", flexDirection: "column", gap: 3 }}>
-                  {cps[id]?.name} pipeline (weeks)
-                  <input type="number" min={0} value={pipe[id] ?? data.pipeline_weeks[id] ?? 12}
+                  {cps[id]?.name} {data.knob?.label || "pipeline (weeks)"}
+                  <input type="number" min={0} value={pipe[id] ?? data.pipeline_weeks[id] ?? (isLanes ? 7 : 12)}
                          onChange={(e) => setPipe({ ...pipe, [id]: e.target.value === "" ? undefined : Number(e.target.value) })}
                          style={{ width: 110, padding: "5px 8px", borderRadius: 6, border: `1px solid ${LINE}`, background: "#0B1418", color: "#E8F2EC" }} />
                 </label>
@@ -532,14 +565,14 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
               <button type="button" style={chip(false)} onClick={() => { setCut([]); setSim(null); }}>Clear</button>
             </div>
           )}
-          {!ok && <IndustryCut ds={ds} cut={cut} pipe={pipe} defaults={data.pipeline_weeks} />}
+          {!ok && <IndustryCut ds={ds} cut={cut} pipe={pipe} defaults={data.pipeline_weeks} lanes={isLanes} />}
           {ok && sim && sim.status === "ok" && (
             <>
               <SimResult sim={sim} hasBom={data.has_bom} />
               {onLaunchScenario && sim.summary.parts_hit > 0 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}` }}>
                   <button type="button" style={actBtn} onClick={launchFull}>Run in full simulator</button>
-                  <span style={{ fontSize: 12, color: DIM }}>Disrupts each affected site from the day its first part runs dry until an alternative is qualified, so you see fill rate, backlog and revenue at risk.</span>
+                  <span style={{ fontSize: 12, color: DIM }}>{isLanes ? "Stops shipments from each affected supplier site for the reroute delay (or until normal transit returns), so you see fill rate, backlog and revenue at risk." : "Disrupts each affected site from the day its first part runs dry until an alternative is qualified, so you see fill rate, backlog and revenue at risk."}</span>
                 </div>
               )}
             </>
@@ -549,14 +582,14 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
 
       {view === "mapping" && ok && (
         <div style={PANEL}>
-          <div style={{ fontSize: 13, color: MUTED, marginBottom: 10 }}>Parts are matched to a purchase category from their names, separately for each edition. Correct any that are wrong; your choice always wins. Finished goods and parts outside these categories can stay unmapped.</div>
+          <div style={{ fontSize: 13, color: MUTED, marginBottom: 10 }}>{L.mapNote}</div>
           <div style={{ overflowX: "auto" }}>
             <table style={tbl}>
-              <thead><tr>{["Part", "Category", "Source"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+              <thead><tr>{[L.mapUnit, isLanes ? "Trade lane" : "Category", "Source", ...(isLanes ? ["Parts"] : [])].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.mapping.map((m) => (
                   <tr key={m.sku}>
-                    <td style={{ ...td, color: "#E8F2EC" }}>{m.sku}</td>
+                    <td style={{ ...td, color: "#E8F2EC" }}>{m.label || m.sku}</td>
                     <td style={td}>
                       <select value={m.source === "user" ? (m.category || "none") : ""} onChange={(e) => setMap(m.sku, e.target.value)}
                               style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${LINE}`, background: "#0B1418", color: "#E8F2EC" }}>
@@ -566,6 +599,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
                       </select>
                     </td>
                     <td style={{ ...td, color: m.source === "user" ? LIME : DIM }}>{m.source === "user" ? "You" : m.source === "auto" ? "Auto" : "Unmapped"}</td>
+                    {isLanes && <td style={td}>{(m.parts || []).join(", ")}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -579,7 +613,9 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
 
 function SimResult({ sim, hasBom }) {
   const s = sim.summary;
-  const maxDay = Math.max(30, ...sim.parts.map((p) => (p.runs_dry_day || 0) + p.recovery_months * 30));
+  const lanes = sim.edition === "logistics";
+  const outage = (p) => (p.outage_days != null ? p.outage_days : p.recovery_months * 30);
+  const maxDay = Math.max(30, ...sim.parts.map((p) => (p.runs_dry_day || 0) + outage(p)));
   const pct = (d) => `${Math.min(100, (d / maxDay) * 100)}%`;
   return (
     <div>
@@ -590,6 +626,7 @@ function SimResult({ sim, hasBom }) {
             {hasBom && <> and <b>{s.finished_goods_hit}</b> finished good{s.finished_goods_hit === 1 ? "" : "s"}</>}.
             {s.first_date && <> First to run dry: <b>{s.first_part}</b> at {s.first_site} on <b>{fmtDate(s.first_date)}</b> (day {s.first_day}).</>}
             {s.worst_recovery_months != null && <> Qualifying an alternative takes up to <b>{s.worst_recovery_months} months</b>.</>}
+            {lanes && <> <b>{s.short_lines}</b> of {s.lines_hit} lane-part{s.lines_hit === 1 ? "" : "s"} run short; {s.covered_lines} are covered by stock on hand.{s.worst_outage_days ? <> Longest gap: <b>{s.worst_outage_days} days</b>.</> : null}</>}
             {s.undated > 0 && <> {s.undated} line{s.undated === 1 ? " has" : "s have"} no usage data and cannot be dated.</>}
           </>
         )}
@@ -608,22 +645,22 @@ function SimResult({ sim, hasBom }) {
       )}
       {sim.parts.length > 0 && (
         <>
-          <div style={{ fontSize: 12, color: MUTED, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Parts (green = on hand and pipeline, red = outage until an alternative is qualified)</div>
+          <div style={{ fontSize: 12, color: MUTED, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>{lanes ? "Parts (green = cover, red = gap until rerouted shipments or normal transit arrive)" : "Parts (green = on hand and pipeline, red = outage until an alternative is qualified)"}</div>
           <div style={{ overflowX: "auto" }}>
             <table style={tbl}>
-              <thead><tr>{["Part", "Site", "Via", "Cover", "Runs dry", "Recovery", "Timeline"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+              <thead><tr>{["Part", "Site", "Via", "Cover", lanes ? "Runs short" : "Runs dry", lanes ? "Gap" : "Recovery", "Timeline"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
               <tbody>{sim.parts.map((p, i) => (
                 <tr key={i}>
                   <td style={{ ...td, color: "#E8F2EC", fontWeight: 600 }}>{p.sku}{p.below_safety && <span style={{ color: "#F87171", fontSize: 11 }}> below safety</span>}</td>
-                  <td style={td}>{p.facility}</td><td style={td}>{p.via_names.join(", ")}</td>
-                  <td style={td}>{p.days_cover != null ? `${p.days_cover} d + ${p.pipeline_weeks} wk` : "n/a"}</td>
-                  <td style={{ ...td, color: "#E8F2EC" }}>{p.runs_dry_date ? fmtDate(p.runs_dry_date) : "n/a"}</td>
-                  <td style={td}>{p.recovery_months} mo</td>
+                  <td style={td}>{p.facility}{p.origin && <div style={{ fontSize: 11, color: DIM }}>from {p.origin}</div>}</td><td style={td}>{p.via_names.join(", ")}</td>
+                  <td style={td}>{p.cover_label || (p.days_cover != null ? `${p.days_cover} d + ${p.pipeline_weeks} wk` : "n/a")}</td>
+                  <td style={{ ...td, color: "#E8F2EC" }}>{p.runs_dry_date ? fmtDate(p.runs_dry_date) : (p.recovery_label === "covered" ? "covered" : "n/a")}</td>
+                  <td style={{ ...td, color: p.recovery_label === "covered" ? "#4ADE80" : MUTED }}>{p.recovery_label || `${p.recovery_months} mo`}</td>
                   <td style={{ ...td, minWidth: 180 }}>
                     {p.runs_dry_day != null && (
                       <div style={{ position: "relative", height: 12, background: "rgba(148,163,184,0.12)", borderRadius: 4 }}>
                         <div style={{ position: "absolute", left: 0, width: pct(p.runs_dry_day), height: 12, background: "rgba(74,222,128,0.45)", borderRadius: "4px 0 0 4px" }} />
-                        <div style={{ position: "absolute", left: pct(p.runs_dry_day), width: pct(p.recovery_months * 30), height: 12, background: "#EF4444", borderRadius: "0 4px 4px 0" }} />
+                        <div style={{ position: "absolute", left: pct(p.runs_dry_day), width: pct(outage(p)), height: 12, background: "#EF4444", borderRadius: "0 4px 4px 0" }} />
                       </div>
                     )}
                   </td>
