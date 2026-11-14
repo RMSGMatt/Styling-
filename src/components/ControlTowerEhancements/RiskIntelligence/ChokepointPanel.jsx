@@ -13,6 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getApiBase } from "../../../config/apiBase";
+import { renderReportHtml } from "./chokepointReport";
 
 const LIME = "#9FD63A", MINT = "#2EC4A6", MUTED = "#94A3B8", DIM = "#64748B", LINE = "rgba(148,163,184,0.18)";
 const PANEL = { background: "rgba(2,6,23,0.45)", border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 };
@@ -398,6 +399,20 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
     return null;
   }, [apiBase]);
   useEffect(() => { loadAlerts().then((b) => { if (b && b.unseen > 0) setView("alerts"); }); }, [loadAlerts]);
+  // Open the one-page report in a new window. The window opens first so the popup is not blocked, then fills in.
+  const openReport = async () => {
+    const title = window.prompt("Company or network name for the report (optional):", "") ?? null;
+    if (title === null) return;
+    const w = window.open("", "_blank");
+    if (!w) { setErr("Allow pop-ups for this site to open the report."); return; }
+    w.document.write("<p style='font-family:Arial;padding:24px'>Building your chokepoint exposure report…</p>");
+    try {
+      const res = await fetch(`${apiBase}/api/chokepoints/report`, { headers: { Authorization: `Bearer ${token()}` } });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.status !== "ok") throw new Error((body.errors || [])[0] || "Could not build the report.");
+      w.document.open(); w.document.write(renderReportHtml(body, title.trim())); w.document.close();
+    } catch (e) { w.document.body.innerHTML = `<p style='font-family:Arial;padding:24px;color:#B42318'>${String(e.message || e)}</p>`; }
+  };
   const markSeen = async () => { setAlertBusy(true); await loadAlerts("POST"); setAlertBusy(false); };
   // Open an alert: switch to its edition, then select the chokepoint on the risk scores view once the data is in.
   const openAlert = (a) => { setPendingSel(a.cp); if (a.edition !== edition) setEdition(a.edition); setView("scores"); };
@@ -525,6 +540,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
               : <>The industry map is below. <b style={{ color: "#E8F2EC" }}>Load your network data</b> in the Control Tower to see which chokepoints your own parts route through.{switchView && <> <button type="button" onClick={() => switchView("dashboard")} style={linkBtn}>Open Control Tower</button></>}</>}
           </div>
         )}
+        {ok && <button type="button" style={{ ...actBtn, alignSelf: "center" }} onClick={openReport}>Exposure report</button>}
         <div style={{ fontSize: 12, color: DIM, alignSelf: "flex-end" }}>
           Dataset reviewed {fmtDate(ds.meta?.updated)} · {ds.data_source === "live" ? "live from for-c.com" : "bundled copy"}
         </div>
