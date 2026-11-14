@@ -2,7 +2,8 @@
 // ChokepointPanel.jsx
 // FOR-C Risk Intelligence: Chokepoints
 //
-// The public Chokepoint Watch dataset (for-c.com/chokepoints) joined to the
+// The public Chokepoint Watch datasets (for-c.com/chokepoints, industrial and
+// automotive, and for-c.com/chokepoints/medtech) joined to the
 // user's own network snapshot: which of their parts route through which
 // upstream chokepoints, and, when a chokepoint is cut, the day each part runs
 // dry and the finished goods it takes down with it.
@@ -47,7 +48,7 @@ function recoveryMonths(c) {
   return c?.northAmerica === "Available" ? lo : c?.northAmerica === "Partial" ? Math.round((lo + hi) / 2) : hi;
 }
 
-// Component categories (tier 0) that sit downstream of a node in the graph.
+// Purchase categories (tier 0) that sit downstream of a node in the graph.
 function categoriesFor(ds, id) {
   const up = {};
   (ds.graph?.edges || []).forEach(([a, b]) => { (up[b] = up[b] || []).push(a); });
@@ -186,11 +187,11 @@ function IndustryCut({ ds, cut, pipe, defaults }) {
   return (
     <div>
       <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.35)", borderRadius: 10, padding: "12px 14px", marginBottom: 12, fontSize: 14, color: "#E8F2EC" }}>
-        Cutting <b>{cut.map((id) => cps[id]?.name).join(", ")}</b> reaches <b>{cats.length}</b> component categor{cats.length === 1 ? "y" : "ies"}: {cats.map((k) => nodes[k]?.name || k).join(", ")}.
+        Cutting <b>{cut.map((id) => cps[id]?.name).join(", ")}</b> reaches <b>{cats.length}</b> purchase categor{cats.length === 1 ? "y" : "ies"}: {cats.map((k) => nodes[k]?.name || k).join(", ")}.
         {" "}Load your network to date the outage part by part using your own days of cover.
       </div>
       <table style={tbl}>
-        <thead><tr>{["Component category", "Via", "Pipeline", "Pipeline runs out", "Qualify alternative"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+        <thead><tr>{["Purchase category", "Via", "Pipeline", "Pipeline runs out", "Qualify alternative"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => (
           <tr key={i}><td style={{ ...td, color: "#E8F2EC", fontWeight: 600 }}>{nodes[r.cat]?.name || r.cat}</td><td style={td}>{r.c.name}</td>
             <td style={td}>{r.wk} wk</td><td style={{ ...td, color: "#E8F2EC" }}>{fmtDate(r.dry)}</td><td style={td}>{r.rec} mo</td></tr>
@@ -250,8 +251,8 @@ function ChokepointMap({ ds, counts, selected, onSelect }) {
   };
   return (
     <div style={{ overflowX: "auto" }}>
-      <svg width={W} height={H + top + 8} viewBox={`0 0 ${W} ${H + top + 8}`} role="img" aria-label="Component categories to process steps to material chokepoints and market structure">
-        {["Component category", "Process step", "Material chokepoint", "Market structure"].map((h, t) => (
+      <svg width={W} height={H + top + 8} viewBox={`0 0 ${W} ${H + top + 8}`} role="img" aria-label="Purchase categories to process steps to material chokepoints and market structure">
+        {["Purchase category", "Process step", "Material chokepoint", "Market structure"].map((h, t) => (
           <text key={h} x={xs[t] + BW / 2} y={16} textAnchor="middle" fill={MUTED} fontSize={11} letterSpacing=".06em">{h.toUpperCase()}</text>
         ))}
         {G.edges.map(([a, b], i) => {
@@ -301,16 +302,24 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
   const [sim, setSim] = useState(null);
   const [busy, setBusy] = useState(false);
   const [critOnly, setCritOnly] = useState(false);
+  const [edition, setEditionState] = useState(() => {
+    try { return localStorage.getItem("forc_cp_edition") || "industrial"; } catch { return "industrial"; }
+  });
+  const setEdition = (e) => {
+    if (e === edition) return;
+    try { localStorage.setItem("forc_cp_edition", e); } catch { /* storage unavailable */ }
+    setEditionState(e); setData(null); setSel(null); setCut([]); setPipe({}); setSim(null);
+  };
 
   const load = useCallback(async () => {
     setErr("");
     try {
-      const res = await fetch(`${apiBase}/api/chokepoints`, { headers: { Authorization: `Bearer ${token()}` } });
+      const res = await fetch(`${apiBase}/api/chokepoints?edition=${encodeURIComponent(edition)}`, { headers: { Authorization: `Bearer ${token()}` } });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.msg || "Could not load chokepoints.");
       setData(body);
     } catch (e) { setErr(e.message || "Could not load chokepoints."); }
-  }, [apiBase]);
+  }, [apiBase, edition]);
   useEffect(() => { load(); }, [load]);
 
   const ds = data?.dataset;
@@ -328,7 +337,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
     try {
       const res = await fetch(`${apiBase}/api/chokepoints/simulate`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ ...body, pipeline_weeks: pipe }),
+        body: JSON.stringify({ ...body, edition, pipeline_weeks: pipe }),
       });
       const out = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((out.errors || [])[0] || "Simulation failed.");
@@ -365,7 +374,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
       setErr(`Your first part runs dry on day ${first}, after the ${horizon}-day simulation window ends. Within that window your cover holds; extend the demand horizon to simulate the outage.`);
       return;
     }
-    const name = `Chokepoint cut: ${sim.cut_names.join(", ")}`;
+    const name = `${edition === "medtech" ? "MedTech chokepoint" : "Chokepoint"} cut: ${sim.cut_names.join(", ")}`;
     onLaunchScenario({ scenario: name, params: {
       facility: rows[0].facility, severity: 1.0, startDate: rows[0].startDate, endDate: rows[0].endDate,
       disruptionScenarios: rows, name, autoRun: true,
@@ -375,7 +384,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
   const setMap = async (sku, value) => {
     setErr("");
     try {
-      const res = await fetch(`${apiBase}/api/chokepoints/mapping`, {
+      const res = await fetch(`${apiBase}/api/chokepoints/mapping?edition=${encodeURIComponent(edition)}`, {
         method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
         body: JSON.stringify({ mapping: { [sku]: value || null } }),
       });
@@ -385,8 +394,17 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
     } catch { setErr("Could not save."); }
   };
 
-  if (!data && !err) return <div style={{ ...PANEL, color: MUTED }}>Loading chokepoints…</div>;
-  if (!ds) return <div style={{ ...PANEL, color: "#F87171" }}>{err || "Chokepoint data is unavailable."}</div>;
+  const editionBar = (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+      <span style={{ fontSize: 12, color: DIM, textTransform: "uppercase", letterSpacing: ".06em" }}>Edition</span>
+      {(data?.editions || [{ key: "industrial", label: "Industrial and automotive" }, { key: "medtech", label: "MedTech" }]).map((e) => (
+        <button key={e.key} type="button" onClick={() => setEdition(e.key)} style={chip(edition === e.key)} aria-pressed={edition === e.key}>{e.label}</button>
+      ))}
+    </div>
+  );
+
+  if (!data && !err) return <div>{editionBar}<div style={{ ...PANEL, color: MUTED }}>Loading chokepoints…</div></div>;
+  if (!ds) return <div>{editionBar}<div style={{ ...PANEL, color: "#F87171" }}>{err || "Chokepoint data is unavailable."}</div></div>;
 
   const ex = data.exposure;
   const selInfo = sel ? (cps[sel] || nodes[sel]) : null;
@@ -395,12 +413,13 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
 
   return (
     <div>
+      {editionBar}
       {/* Status strip */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
         {ok ? (<>
           <Stat big={ex.exposed_count} label="chokepoints your parts route through" />
           <Stat big={ex.critical_count} label="of them critical (score 15+)" tone={ex.critical_count ? "#F87171" : null} />
-          <Stat big={`${ex.mapped} of ${ex.total_skus}`} label="parts mapped to a component category" />
+          <Stat big={`${ex.mapped} of ${ex.total_skus}`} label="parts mapped to a purchase category" />
         </>) : (
           <div style={{ ...PANEL, flex: 1, color: MUTED, fontSize: 14 }}>
             {data.status === "upgrade_required"
@@ -488,7 +507,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
         <div style={PANEL}>
           <div style={{ fontSize: 13, color: MUTED, marginBottom: 8 }}>{ok
             ? "Pick a scenario or cut individual chokepoints. Each part runs dry after the material already in the pipeline plus its own days of cover from your snapshot."
-            : "Pick a scenario or cut individual chokepoints to see which component categories it reaches and when the material already in the pipeline runs out."}</div>
+            : "Pick a scenario or cut individual chokepoints to see which purchase categories it reaches and when the material already in the pipeline runs out."}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
             {data.presets.map((p) => <button key={p.key} type="button" style={chip(false)} onClick={() => cutNow(p.cut)}>{p.label}</button>)}
           </div>
@@ -530,7 +549,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
 
       {view === "mapping" && ok && (
         <div style={PANEL}>
-          <div style={{ fontSize: 13, color: MUTED, marginBottom: 10 }}>Parts are matched to a component category from their names. Correct any that are wrong; your choice always wins. Finished goods and parts outside these categories can stay unmapped.</div>
+          <div style={{ fontSize: 13, color: MUTED, marginBottom: 10 }}>Parts are matched to a purchase category from their names, separately for each edition. Correct any that are wrong; your choice always wins. Finished goods and parts outside these categories can stay unmapped.</div>
           <div style={{ overflowX: "auto" }}>
             <table style={tbl}>
               <thead><tr>{["Part", "Category", "Source"].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
