@@ -110,6 +110,9 @@ function ForYou({ card, personalized, switchView }) {
           ? <> {you.cover_short ? "That is before the window closes." : "That lasts past the window."}</>
           : <> {you.cover_short ? "Under 13 weeks, so a re-order at stretched lead times may not land in time." : "Enough to ride out a stretched re-order."}</>)}
       </div>
+      {(card.own_orders || []).filter((o) => o.padded).map((o) => (
+        <div key={o.sku} style={{ color: "#F4A742" }}>Your open POs for {o.sku} cover {Math.round(o.open_days)} days of use against a {Math.round(o.lead_days)}-day lead time. If lead times ease, that is excess stock; consider firming dates instead of adding orders.</div>
+      ))}
       {you.worst?.length > 0 && (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
           <thead><tr><th style={th}>Part</th><th style={th}>Sites</th><th style={th}>Thinnest cover (days)</th></tr></thead>
@@ -123,6 +126,8 @@ function ForYou({ card, personalized, switchView }) {
 export default function SignalsView({ apiBase, authHeader, selected, onSelect, onCut, switchView, knownIds }) {
   const [res, setRes] = useState(null);
   const [err, setErr] = useState("");
+  const [tick, setTick] = useState(0);
+  const reload = () => setTick((t) => t + 1);
   useEffect(() => {
     let live = true;
     (async () => {
@@ -134,7 +139,7 @@ export default function SignalsView({ apiBase, authHeader, selected, onSelect, o
       } catch (e) { if (live) setErr(e.message || "Could not load signals."); }
     })();
     return () => { live = false; };
-  }, [apiBase, authHeader]);
+  }, [apiBase, authHeader, tick]);
 
   if (err) return <div style={{ ...PANEL, color: "#F87171" }}>{err}</div>;
   if (!res) return <div style={{ ...PANEL, color: MUTED }}>Loading signals…</div>;
@@ -177,6 +182,21 @@ export default function SignalsView({ apiBase, authHeader, selected, onSelect, o
           {card.label && (
             <Section title="Real constraint or panic ordering?">
               <div style={{ fontSize: 13, color: MUTED }}><b style={{ color: INK }}>{card.label.label}</b> · hoarding signal {card.label.hoarding}. {card.label.upstream_tight ? "Upstream tiers are tight, so the constraint looks real." : "Upstream tiers are steady, so part of the rise may be customers padding orders."}{card.label.note && <span style={{ color: DIM }}> {card.label.note}</span>}</div>
+              {(card.label.lines?.length > 0 || card.label.own?.length > 0) && (
+                <ul style={{ margin: "6px 0 0", paddingLeft: 18, display: "grid", gap: 3 }}>
+                  {card.label.lines.map((ln, i) => (
+                    <li key={i} style={{ fontSize: 12.5, color: MUTED }}>
+                      <span style={{ color: ln.points === "panic" ? "#F4A742" : "#4ADE80", fontWeight: 600 }}>{ln.points === "panic" ? "Padding" : "Real demand"}</span>: {ln.date ? `${fmt(ln.date)}: ` : ""}{ln.note}
+                      {ln.url && <> <a href={ln.url} target="_blank" rel="noopener noreferrer" style={{ color: LIME, fontSize: 11.5 }}>source</a></>}
+                    </li>
+                  ))}
+                  {card.label.own.map((o) => (
+                    <li key={o.sku} style={{ fontSize: 12.5, color: MUTED }}>
+                      <span style={{ color: o.padded ? "#F4A742" : "#4ADE80", fontWeight: 600 }}>Your orders</span>: {o.text}{o.padded ? ", more than the lead time needs" : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Section>
           )}
 
@@ -193,6 +213,56 @@ export default function SignalsView({ apiBase, authHeader, selected, onSelect, o
       )}
 
       <DriftTable drift={res.po_drift} />
+      {res.personalized && res.pool && <PoolPanel pool={res.pool} apiBase={apiBase} authHeader={authHeader} onChange={reload} />}
+    </div>
+  );
+}
+
+const FAMILY = { mcu: "MCUs and processors", mem: "Memory", pwr: "Power semiconductors", pcb: "PCBs", pas: "Passives", con: "Connectors" };
+
+function PoolPanel({ pool, apiBase, authHeader, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      await fetch(`${apiBase}/api/chokepoints/signals/pool`, {
+        method: "PUT", headers: { ...authHeader(), "Content-Type": "application/json" }, body: JSON.stringify({ opt_in: !pool.opt_in }),
+      });
+      onChange();
+    } finally { setBusy(false); }
+  };
+  return (
+    <div style={PANEL}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: INK }}>FOR-C lead-time index</div>
+        <div style={{ fontSize: 12.5, color: DIM }}>PO drift pooled across companies, by part family</div>
+        <button type="button" onClick={toggle} disabled={busy}
+                style={{ ...actBtn, marginLeft: "auto", padding: "5px 12px", ...(pool.opt_in ? { background: "transparent", color: LIME, border: `1px solid ${LIME}` } : {}) }}>
+          {busy ? "Saving…" : pool.opt_in ? "Stop contributing" : "Contribute and see the index"}
+        </button>
+      </div>
+      <div style={{ fontSize: 12.5, color: MUTED, marginTop: 6 }}>
+        {pool.opt_in
+          ? "You are contributing. "
+          : "Off. "}
+        Each company shares one summary per part family: the median change in quoted lead time and average lateness. No part numbers, suppliers, prices or quantities.
+        A family is published only when {pool.min_contributors} or more companies contribute, and only as medians across companies. Stopping removes your data at once.
+      </div>
+      {pool.families.length > 0 && (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, marginTop: 8 }}>
+          <thead><tr><th style={th}>Part family</th><th style={th}>Companies</th><th style={th}>Quoted lead time, 6 weeks</th><th style={th}>Lines due, days late</th></tr></thead>
+          <tbody>
+            {pool.families.map((f) => (
+              <tr key={f.family}>
+                <td style={td}>{FAMILY[f.family] || f.family}</td>
+                <td style={td}>{f.contributors}{f.status === "building" && <span style={{ color: DIM }}> (needs {f.needed} more)</span>}</td>
+                <td style={td}>{f.status === "published" && f.lt_change != null ? `${f.lt_change > 0 ? "+" : ""}${Math.round(f.lt_change * 100)}%` : <span style={{ color: DIM }}>not yet published</span>}</td>
+                <td style={td}>{f.status === "published" && f.late_days != null ? f.late_days : <span style={{ color: DIM }}>not yet published</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
