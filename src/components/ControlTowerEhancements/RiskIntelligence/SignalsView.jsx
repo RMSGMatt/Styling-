@@ -297,16 +297,20 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
         <thead><tr><th style={th}>#</th><th style={th}>Option</th><th style={th}>Line-down days</th><th style={th}>Revenue at risk</th><th style={th}>Cost</th><th style={th}>Watch out</th></tr></thead>
         <tbody>
-          {opt.options.map((o, i) => (
-            <tr key={o.key} style={{ opacity: o.feasible ? 1 : 0.55 }}>
+          {opt.options.map((o, i) => {
+            // An option that changes nothing in this window reads as background, not as a warning.
+            const noEffect = o.key !== "hold" && o.line_down_days != null && !(o.days_avoided > 0);
+            return (
+            <tr key={o.key} style={{ opacity: o.feasible && !noEffect ? 1 : 0.55 }}>
               <td style={td}>{i + 1}</td>
               <td style={td}><b style={{ color: INK }}>{o.title}</b><div style={{ color: DIM }}>{o.how}</div></td>
               <td style={td}>{o.line_down_days == null ? "n/a" : <>{o.line_down_days}{o.days_avoided > 0 && <span style={{ color: "#4ADE80" }}> (−{o.days_avoided})</span>}</>}</td>
               <td style={td}>{money(o.revenue_at_risk) ?? "n/a"}</td>
               <td style={td}>{o.cost != null ? money(o.cost) : "n/a"}{o.cost_note && <div style={{ color: DIM }}>{o.cost_note}</div>}</td>
-              <td style={{ ...td, color: o.note ? "#F4A742" : DIM }}>{o.note || o.risk || ""}</td>
+              <td style={{ ...td, color: o.note && !o.feasible ? "#F4A742" : o.note ? MUTED : DIM }}>{o.note || o.risk || ""}</td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
       <div style={{ fontSize: 11.5, color: DIM }}>
