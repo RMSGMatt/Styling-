@@ -39,7 +39,8 @@ function TierStrip({ tiers }) {
             <div style={{ fontSize: 11.5, color: DIM, textTransform: "uppercase", letterSpacing: ".05em" }}>{i + 1}. {t.label}</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: s.color, marginTop: 2 }}>{s.label}</div>
             <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
-              {t.start ? `since ${fmt(t.start)}` : t.note ? t.note : t.fresh ? `${t.agree} of ${t.fresh} signals tightening` : "no live signals"}
+              {t.tier === "pos" && t.fresh ? `${t.agree} of ${t.fresh} supplier parts drifting${t.start ? ` since ${fmt(t.start)}` : ""}`
+                : t.start ? `since ${fmt(t.start)}` : t.note ? t.note : t.fresh ? `${t.agree} of ${t.fresh} signals tightening` : "no live signals"}
             </div>
           </div>
         );
@@ -67,14 +68,16 @@ function History({ history }) {
 function Evidence({ tiers }) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
-      {tiers.filter((t) => t.tier !== "pos").map((t) => (
+      {tiers.filter((t) => t.tier !== "pos" || t.lines.length || t.note).map((t) => (
         <div key={t.tier}>
           <div style={{ fontSize: 12.5, color: INK, fontWeight: 600 }}>{t.label} <span style={{ color: (STATE[t.state] || STATE.no_data).color, fontWeight: 600 }}>· {(STATE[t.state] || STATE.no_data).label}</span></div>
-          {t.lines.length === 0 ? <div style={{ fontSize: 12.5, color: DIM }}>No signals on this tier yet.</div> : (
+          {t.lines.length === 0 ? <div style={{ fontSize: 12.5, color: DIM }}>{t.tier === "pos" && t.note ? t.note : "No signals on this tier yet."}</div> : (
             <ul style={{ margin: "4px 0 0", paddingLeft: 18, display: "grid", gap: 3 }}>
               {t.lines.map((ln, i) => (
                 <li key={`${ln.signal}-${i}`} style={{ fontSize: 12.5, color: ln.tightening || (ln.score ?? 0) >= 1 ? INK : MUTED }}>
-                  {ln.kind === "event" ? (
+                  {ln.kind === "po" ? (
+                    <><b style={{ color: (STATE[ln.state] || STATE.stable).color, fontWeight: 600 }}>{ln.name}</b>: {ln.note}</>
+                  ) : ln.kind === "event" ? (
                     <>{fmt(ln.date)}: {ln.note}{ln.until && <span style={{ color: DIM }}> (held through {month(ln.until)})</span>}</>
                   ) : ln.status === "no_data" ? (
                     <>{ln.name}: <span style={{ color: DIM }}>not loaded yet</span></>
@@ -184,11 +187,51 @@ export default function SignalsView({ apiBase, authHeader, selected, onSelect, o
           </Section>
 
           <Section title="Options">
-            <div style={{ fontSize: 12.5, color: DIM, marginBottom: 8 }}>Ranked options with simulated outcomes (extend cover, reserve capacity, qualify an alternate) arrive with PO drift signals. For now you can date the impact of losing this chain's chokepoints.</div>
+            <div style={{ fontSize: 12.5, color: DIM, marginBottom: 8 }}>Ranked options with simulated outcomes (extend cover, reserve capacity, qualify an alternate) come next. For now you can date the impact of losing this chain's chokepoints.</div>
             {cutIds.length > 0 && <button type="button" style={actBtn} onClick={() => onCut(cutIds)}>Cut {card.name} chokepoints and date the impact</button>}
           </Section>
         </div>
       )}
+
+      <DriftTable drift={res.po_drift} />
+    </div>
+  );
+}
+
+function DriftTable({ drift }) {
+  const [all, setAll] = useState(false);
+  if (!drift?.pairs?.length) return null;
+  const moving = drift.pairs.filter((p) => p.state === "surge" || p.state === "tightening");
+  const rows = all ? drift.pairs : moving;
+  return (
+    <div style={PANEL}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: INK }}>Your suppliers: PO drift</div>
+        <div style={{ fontSize: 12.5, color: DIM }}>
+          {moving.length} of {drift.pairs.length} supplier parts drifting · last 6 weeks against the 12 before · POs through {fmt(drift.as_of)}
+        </div>
+        <button type="button" onClick={() => setAll(!all)} style={{ ...linkBtn, fontSize: 12.5, marginLeft: "auto" }}>{all ? "Show drifting only" : "Show all"}</button>
+      </div>
+      {rows.length === 0 ? <div style={{ fontSize: 13, color: MUTED, marginTop: 8 }}>No supplier part is drifting on your POs.</div> : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, marginTop: 8 }}>
+          <thead><tr><th style={th}>Supplier</th><th style={th}>Part</th><th style={th}>State</th><th style={th}>What moved</th><th style={th}>POs</th></tr></thead>
+          <tbody>
+            {rows.map((p) => {
+              const hits = p.metrics.filter((m) => m.state === "tightening" || m.state === "surge");
+              const s = STATE[p.state] || { label: "Too few POs", color: DIM };
+              return (
+                <tr key={`${p.supplier}|${p.sku}`}>
+                  <td style={td}>{p.supplier}</td><td style={td}>{p.sku}</td>
+                  <td style={{ ...td, color: s.color, fontWeight: 600 }}>{p.state === "thin" ? "Too few POs" : s.label}</td>
+                  <td style={td}>{(hits.length ? hits : p.metrics.slice(0, 1)).map((m) => m.text).join("; ")}</td>
+                  <td style={td}>{p.lines}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      <div style={{ fontSize: 11.5, color: DIM, marginTop: 8 }}>Push-outs need two uploads of the same open POs; they appear after your next refresh.</div>
     </div>
   );
 }
