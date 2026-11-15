@@ -135,8 +135,8 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
       throw err;
     }
 
-    const data = await res.json();
-    if (data.status !== "success") throw new Error(data.error || `Scoring failed for ${origin.name}`);
+    const data = await res.json().catch(() => ({}));
+    if (data.status !== "success") throw new Error(data.error || `scoring failed (HTTP ${res.status})`);
     return data.result;
   }, []);
 
@@ -195,6 +195,27 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
     setResults(ranked);
     setLoading(false);
   }, [viableOrigins, selectedCommodity, scoreOrigin]);
+
+  // Re-score one country that failed (a cut-off AI reply or a busy service), then re-rank.
+  const [retrying, setRetrying] = useState(null);
+  const retryOne = async (origin) => {
+    setRetrying(origin.code);
+    try {
+      const result = await scoreOrigin(origin, selectedCommodity);
+      const compositeScore = Math.round(
+        Object.entries(result.scores).reduce((acc, [key, val]) => acc + val * (selectedCommodity.weights[key] || 0), 0)
+      );
+      setResults((rs) => rs.map((r) => (r.origin.code === origin.code ? { origin, result, compositeScore } : r)).sort((a, b) => {
+        if (a.compositeScore === null) return 1;
+        if (b.compositeScore === null) return -1;
+        return a.compositeScore - b.compositeScore;
+      }));
+    } catch (e) {
+      setResults((rs) => rs.map((r) => (r.origin.code === origin.code ? { ...r, error: e.message } : r)));
+    } finally {
+      setRetrying(null);
+    }
+  };
 
   const handleSimulateBest = (entry) => {
     if (!onLaunchScenario || !entry.result) return;
@@ -381,8 +402,12 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
             {results.map((entry, idx) => {
               if (entry.compositeScore === null) {
                 return (
-                  <div key={entry.origin.code} style={{ padding: "10px 14px", background: "rgba(2,6,23,0.4)", border: "0.5px solid rgba(148,163,184,0.12)", borderRadius: 8, fontSize: 13, color: "rgba(148,163,184,0.3)" }}>
-                    {entry.origin.flag} {entry.origin.name} — scoring unavailable
+                  <div key={entry.origin.code} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "rgba(2,6,23,0.4)", border: "0.5px solid rgba(244,167,66,0.35)", borderRadius: 8, fontSize: 13, color: "#94A3B8" }}>
+                    <span>{entry.origin.flag} {entry.origin.name}: not scored this run{entry.error ? ` (${entry.error})` : ""}. It is a valid source; the scoring call failed.</span>
+                    <button type="button" onClick={() => retryOne(entry.origin)} disabled={retrying === entry.origin.code}
+                            style={{ marginLeft: "auto", padding: "4px 12px", borderRadius: 6, border: "1px solid #2EC4A6", background: "transparent", color: "#2EC4A6", cursor: "pointer", fontSize: 12.5, whiteSpace: "nowrap" }}>
+                      {retrying === entry.origin.code ? "Scoring…" : "Retry"}
+                    </button>
                   </div>
                 );
               }
@@ -394,10 +419,10 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
                   style={{
                     display: "flex", alignItems: "center", gap: 16,
                     padding: "14px 18px",
-                    background: isBest ? "#F0FDF4" : "rgba(2,6,23,0.4)",
-                    borderTop: `0.5px solid ${isBest ? "#86EFAC" : "rgba(148,163,184,0.12)"}`,
-                    borderRight: `0.5px solid ${isBest ? "#86EFAC" : "rgba(148,163,184,0.12)"}`,
-                    borderBottom: `0.5px solid ${isBest ? "#86EFAC" : "rgba(148,163,184,0.12)"}`,
+                    background: isBest ? "rgba(22,163,74,0.12)" : "rgba(2,6,23,0.4)",
+                    borderTop: `0.5px solid ${isBest ? "rgba(74,222,128,0.45)" : "rgba(148,163,184,0.12)"}`,
+                    borderRight: `0.5px solid ${isBest ? "rgba(74,222,128,0.45)" : "rgba(148,163,184,0.12)"}`,
+                    borderBottom: `0.5px solid ${isBest ? "rgba(74,222,128,0.45)" : "rgba(148,163,184,0.12)"}`,
                     borderLeft: `3px solid ${riskColor(entry.compositeScore)}`,
                     borderRadius: 8,
                   }}
@@ -420,7 +445,7 @@ export default function BestPlaceToBuyPanel({ onLaunchScenario }) {
                       <span style={{ padding: "2px 8px", borderRadius: 20, background: badge.bg, color: badge.color, border: `0.5px solid ${badge.border}` }}>
                         {badge.label}
                       </span>
-                      <span style={{ color: "rgba(148,163,184,0.3)", marginLeft: 6 }}>{entry.origin.region}</span>
+                      <span style={{ color: "rgba(148,163,184,0.6)", marginLeft: 6 }}>{entry.origin.region}</span>
                     </div>
                   </div>
 
