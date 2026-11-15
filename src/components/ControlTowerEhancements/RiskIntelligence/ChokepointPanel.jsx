@@ -305,14 +305,16 @@ function ChokepointMap({ ds, counts, selected, onSelect, heads = LABELS.parts.co
 }
 
 // ── Main panel ───────────────────────────────────────────────────────────────
+// Ordered as the user's loop: what is coming (Signals, Alerts), does it hit me (Your exposure), what if (Cut a chokepoint),
+// then the reference views and setup.
 const VIEWS = [
-  { key: "alerts", label: "Alerts", needsData: true },
   { key: "signals", label: "Signals", industrialOnly: true },
+  { key: "alerts", label: "Alerts", needsData: true },
+  { key: "exposure", label: "Your exposure", needsData: true },
+  { key: "simulate", label: "Cut a chokepoint" },
   { key: "map", label: "Map" },
   { key: "heat", label: "Heat map" },
   { key: "scores", label: "Risk scores" },
-  { key: "exposure", label: "Your exposure", needsData: true },
-  { key: "simulate", label: "Cut a chokepoint" },
   { key: "mapping", label: "Part mapping", needsData: true },
 ];
 
@@ -354,12 +356,11 @@ function AlertsView({ alerts, onOpen, onSeen, busy }) {
   );
 }
 
-export default function ChokepointPanel({ switchView, onLaunchScenario }) {
+export default function ChokepointPanel({ switchView, onLaunchScenario, initialView, initialChain }) {
   const apiBase = getApiBase();
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
-  const [view, setView] = useState("map");
-  const [sigSel, setSigSel] = useState(null);
+  const [sigSel, setSigSel] = useState(initialChain || null);
   const authHeader = useCallback(() => ({ Authorization: `Bearer ${token()}` }), []);
   const [sel, setSel] = useState(null);
   const [cut, setCut] = useState([]);
@@ -368,8 +369,11 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
   const [busy, setBusy] = useState(false);
   const [critOnly, setCritOnly] = useState(false);
   const [edition, setEditionState] = useState(() => {
+    if (initialChain) return "industrial";            // signal chains live in the industrial edition
     try { return localStorage.getItem("forc_cp_edition") || "industrial"; } catch { return "industrial"; }
   });
+  // Open on Signals, the screen that answers "what is coming and what do I do"; other editions open on the map.
+  const [view, setView] = useState(() => initialView || (edition === "industrial" ? "signals" : "map"));
   const setEdition = (e) => {
     if (e === edition) return;
     try { localStorage.setItem("forc_cp_edition", e); } catch { /* storage unavailable */ }
@@ -403,7 +407,8 @@ export default function ChokepointPanel({ switchView, onLaunchScenario }) {
     } catch { /* alerts are optional */ }
     return null;
   }, [apiBase]);
-  useEffect(() => { loadAlerts().then((b) => { if (b && b.unseen > 0) setView("alerts"); }); }, [loadAlerts]);
+  // Unread alerts open first, unless the user came for a specific view or chain (a Dashboard tile).
+  useEffect(() => { loadAlerts().then((b) => { if (b && b.unseen > 0 && !initialView && !initialChain) setView("alerts"); }); }, [loadAlerts]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Open the one-page report in a new window. The window opens first so the popup is not blocked, then fills in.
   const openReport = async () => {
     const title = window.prompt("Company or network name for the report (optional):", "") ?? null;

@@ -24,6 +24,7 @@ import { getApiBase } from "../config/apiBase";
 import IngestKeysCard from "./ControlTowerEhancements/IngestKeysCard";
 import CompareRuns from "./CompareRuns";
 import PartsAtRiskCard from "./ControlTowerEhancements/PartsAtRiskCard";
+import { EarlyWarningView, EarlyWarningStrip } from "./ControlTowerEhancements/RiskIntelligence/EarlyWarning";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
 import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
 
@@ -1201,6 +1202,19 @@ export default function ControlTower({
   const isAdmin = resolvedRole === "admin";
 
   const [activeView, setActiveView] = useState("dashboard");
+  // Early Warning: which chain to open (from a Dashboard tile) and the unread alert count for the sidebar badge.
+  const [earlyFocus, setEarlyFocus] = useState(null);
+  const [cpUnseen, setCpUnseen] = useState(0);
+  useEffect(() => {
+    let live = true;
+    const tok = localStorage.getItem("token") || localStorage.getItem("access_token") || "";
+    fetch(`${getApiBase()}/api/chokepoints/alerts`, { headers: { Authorization: `Bearer ${tok}` } })
+      .then((r) => r.json()).then((b) => { if (live && b?.status === "ok") setCpUnseen(b.unseen || 0); }).catch(() => {});
+    const onAlerts = (e) => setCpUnseen(e?.detail?.unseen || 0);
+    window.addEventListener("forc-cp-alerts", onAlerts);
+    return () => { live = false; window.removeEventListener("forc-cp-alerts", onAlerts); };
+  }, []);
+  const openEarlyWarning = (chain) => { setEarlyFocus(chain ? { chain, at: Date.now() } : null); setActiveView("early"); };
   const [compareIds, setCompareIds] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
   // Set when the unified attention panel's "Review in Risk Intelligence" is
@@ -1485,6 +1499,20 @@ export default function ControlTower({
                 </a>
               </li>
 
+              {/* ── Early Warning: the chokepoint and signal-chain loop, one click from anywhere ── */}
+              <li>
+                <a
+                  onClick={() => openEarlyWarning(null)}
+                  className={`block cursor-pointer ${activeView === "early" ? "text-lime-300" : "hover:underline"}`}
+                  style={activeView === "early" ? {} : { color: "#9FD63A" }}
+                >
+                  🚨 Early Warning
+                  {cpUnseen > 0 && (
+                    <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#111B21", background: "#F87171", borderRadius: 8, padding: "1px 7px" }}>{cpUnseen}</span>
+                  )}
+                </a>
+              </li>
+
               {/* ── v3: Risk Intelligence ── */}
               <li>
                 <a
@@ -1493,7 +1521,6 @@ export default function ControlTower({
                     setActiveView("risk");
                   }}
                   className={`block cursor-pointer ${activeView === "risk" ? "text-lime-300" : "hover:underline"}`}
-                  style={activeView === "risk" ? {} : { color: "#9FD63A" }}
                 >
                   🔭 Risk Intelligence
                 </a>
@@ -1634,6 +1661,13 @@ export default function ControlTower({
             </section>
           )}
 
+          {/* ── Early Warning ── */}
+          {activeView === "early" && (
+            <section className="mt-2">
+              <EarlyWarningView switchView={switchView} focus={earlyFocus} />
+            </section>
+          )}
+
           {/* ── v3: Safety Stock Monitor ── */}
           {activeView === "safetystock" && (
             <section className="mt-2">
@@ -1669,6 +1703,8 @@ export default function ControlTower({
                   </button>
                 </div>
               )}
+
+              <EarlyWarningStrip apiBase={API_BASE_CT} onOpen={openEarlyWarning} />
 
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div id="tour-map" className="lg:col-span-2 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
