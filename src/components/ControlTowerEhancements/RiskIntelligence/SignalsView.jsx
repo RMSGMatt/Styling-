@@ -337,6 +337,9 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
   );
   if (!personalized) return <div style={{ fontSize: 12.5, color: MUTED }}>Load your network to see options scored on your parts, cover and revenue.</div>;
   if (card.stage === "none") return <div style={{ fontSize: 12.5, color: MUTED }}>No options needed while the chain is quiet.</div>;
+  if (card.stage === "watch") {
+    return <div style={{ fontSize: 12.5, color: MUTED, display: "grid", gap: 8 }}>Options appear if the chain reaches Warning, when two adjacent tiers agree. One tier tightening alone is too early to act on.<div>{cutBtn}</div></div>;
+  }
   if (!opt || opt.status !== "ok") {
     return <div style={{ fontSize: 12.5, color: MUTED, display: "grid", gap: 8 }}>{opt?.note || "No options to score for this chain."}<div>{cutBtn}</div></div>;
   }
