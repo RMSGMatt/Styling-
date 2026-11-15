@@ -187,8 +187,7 @@ export default function SignalsView({ apiBase, authHeader, selected, onSelect, o
           </Section>
 
           <Section title="Options">
-            <div style={{ fontSize: 12.5, color: DIM, marginBottom: 8 }}>Ranked options with simulated outcomes (extend cover, reserve capacity, qualify an alternate) come next. For now you can date the impact of losing this chain's chokepoints.</div>
-            {cutIds.length > 0 && <button type="button" style={actBtn} onClick={() => onCut(cutIds)}>Cut {card.name} chokepoints and date the impact</button>}
+            <Options key={card.id} card={card} apiBase={apiBase} authHeader={authHeader} cutIds={cutIds} onCut={onCut} personalized={res.personalized} />
           </Section>
         </div>
       )}
@@ -232,6 +231,89 @@ function DriftTable({ drift }) {
         </table>
       )}
       <div style={{ fontSize: 11.5, color: DIM, marginTop: 8 }}>Push-outs need two uploads of the same open POs; they appear after your next refresh.</div>
+    </div>
+  );
+}
+
+const money = (v) => (v == null ? null : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `$${Math.round(v / 1e3)}k` : `$${Math.round(v)}`);
+
+function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
+  const [opt, setOpt] = useState(card.options || null);
+  const [knob, setKnob] = useState(() => ({
+    stretch_weeks: card.options?.assumptions?.stretch_weeks ?? 12,
+    premium_pct: card.options?.assumptions?.premium_pct ?? 5,
+    spot_multiple: card.options?.assumptions?.spot_multiple ?? 3,
+  }));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  useEffect(() => { setOpt(card.options || null); }, [card.id, card.options]);
+
+  const rerun = async () => {
+    setBusy(true); setErr("");
+    try {
+      const r = await fetch(`${apiBase}/api/chokepoints/signals/options`, {
+        method: "POST", headers: { ...authHeader(), "Content-Type": "application/json" }, body: JSON.stringify({ chain: card.id, ...knob }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((body.errors || [])[0] || "Could not recalculate.");
+      setOpt(body);
+    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  const cutBtn = cutIds.length > 0 && (
+    <button type="button" style={{ ...actBtn, background: "transparent", color: LIME, border: `1px solid ${LIME}` }} onClick={() => onCut(cutIds)}>
+      Cut {card.name} chokepoints in the simulator
+    </button>
+  );
+  if (!personalized) return <div style={{ fontSize: 12.5, color: MUTED }}>Load your network to see options scored on your parts, cover and revenue.</div>;
+  if (card.stage === "none") return <div style={{ fontSize: 12.5, color: MUTED }}>No options needed while the chain is quiet.</div>;
+  if (!opt || opt.status !== "ok") {
+    return <div style={{ fontSize: 12.5, color: MUTED, display: "grid", gap: 8 }}>{opt?.note || "No options to score for this chain."}<div>{cutBtn}</div></div>;
+  }
+  const a = opt.assumptions, b = opt.baseline;
+  const field = (key, label, min, max, step, unit) => (
+    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: MUTED }}>
+      {label}
+      <input type="number" min={min} max={max} step={step} value={knob[key]}
+             onChange={(e) => setKnob({ ...knob, [key]: e.target.value })}
+             style={{ width: 64, background: "rgba(2,6,23,0.6)", color: INK, border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 6px" }} />
+      {unit}
+    </label>
+  );
+  return (
+    <div style={{ display: "grid", gap: 10 }}>
+      <div style={{ fontSize: 13, color: MUTED }}>
+        If you hold: <b style={{ color: b.line_down_days > 0 ? "#F87171" : INK }}>{b.line_down_days} line-down days</b> across {b.sites_short} site{b.sites_short === 1 ? "" : "s"}
+        {b.revenue_at_risk != null && <>, <b style={{ color: INK }}>{money(b.revenue_at_risk)}</b> of revenue at risk{b.revenue_basis === "site" && <span style={{ color: DIM }}> (whole-site revenue, an upper bound; add a BOM to narrow it)</span>}</>}
+        {b.first_short && <>, first part short {fmt(b.first_short)}</>}.
+      </div>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+        {field("stretch_weeks", "Lead times stretch by", 1, 52, 1, "weeks")}
+        {field("premium_pct", "Reservation premium", 0, 50, 1, "%")}
+        {field("spot_multiple", "Broker price", 1, 10, 0.5, "x")}
+        <button type="button" style={{ ...actBtn, padding: "5px 12px" }} onClick={rerun} disabled={busy}>{busy ? "Scoring…" : "Recalculate"}</button>
+        {err && <span style={{ fontSize: 12.5, color: "#F87171" }}>{err}</span>}
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+        <thead><tr><th style={th}>#</th><th style={th}>Option</th><th style={th}>Line-down days</th><th style={th}>Revenue at risk</th><th style={th}>Cost</th><th style={th}>Watch out</th></tr></thead>
+        <tbody>
+          {opt.options.map((o, i) => (
+            <tr key={o.key} style={{ opacity: o.feasible ? 1 : 0.55 }}>
+              <td style={td}>{i + 1}</td>
+              <td style={td}><b style={{ color: INK }}>{o.title}</b><div style={{ color: DIM }}>{o.how}</div></td>
+              <td style={td}>{o.line_down_days == null ? "n/a" : <>{o.line_down_days}{o.days_avoided > 0 && <span style={{ color: "#4ADE80" }}> (−{o.days_avoided})</span>}</>}</td>
+              <td style={td}>{money(o.revenue_at_risk) ?? "n/a"}</td>
+              <td style={td}>{o.cost != null ? money(o.cost) : "n/a"}{o.cost_note && <div style={{ color: DIM }}>{o.cost_note}</div>}</td>
+              <td style={{ ...td, color: o.note ? "#F4A742" : DIM }}>{o.note || o.risk || ""}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ fontSize: 11.5, color: DIM }}>
+        Model: supply pauses for the lead-time stretch from {a.starts_in_days > 0 ? `${a.starts_in_days} days from now (the window's midpoint)` : "now (lead times are already moving)"}; a part runs short by the stretch minus its days of cover.
+        Ranked by cost per line-down day avoided. FOR-C assumptions, not a forecast: change them above.
+      </div>
+      <div>{cutBtn}</div>
     </div>
   );
 }
