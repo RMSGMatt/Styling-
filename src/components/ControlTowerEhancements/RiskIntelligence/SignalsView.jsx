@@ -379,8 +379,8 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
         <div style={{ fontSize: 12, color: DIM }}>Using your {a.stretch_weeks}-week stretch for every part. Clear the box and recalculate to use live quotes.</div>
       ) : a.stretch_by_sku?.length > 0 ? (
         <div style={{ fontSize: 12, color: MUTED }}>
-          Stretch from live distributor quotes, against your recent POs: {a.stretch_by_sku.map((x, i) => (
-            <span key={x.sku}>{i > 0 && "; "}<b style={{ color: INK }}>{x.sku}</b> {x.weeks} wks ({x.quoted_weeks} quoted vs {x.usual_weeks} usual)</span>
+          Stretch from live distributor quotes, against your {a.stretch_by_sku.every((x) => x.usual_source === "plan") ? "planned lead times" : a.stretch_by_sku.every((x) => x.usual_source === "pos") ? "recent POs" : "planned lead times or recent POs"}: {a.stretch_by_sku.map((x, i) => (
+            <span key={x.sku}>{i > 0 && "; "}<b style={{ color: INK }}>{x.sku}</b> {x.weeks} wks ({x.quoted_weeks} quoted vs {x.usual_weeks} {x.usual_source === "plan" ? "planned" : "usual"})</span>
           ))}.{a.unquoted?.length > 0 && <> No quote for {a.unquoted.join(", ")}: {a.stretch_weeks} weeks assumed.</>}
         </div>
       ) : null}
@@ -505,7 +505,7 @@ function PartQuotes({ skus, apiBase, authHeader }) {
                   </td>
                   <td style={td}>
                     {p.lead_weeks != null ? <>{p.lead_weeks} wks{p.lead_weeks_max != null && p.lead_weeks_max !== p.lead_weeks && <span style={{ color: DIM }}> to {p.lead_weeks_max}</span>}</> : "n/a"}
-                    {p.planned_lead_days != null && p.lead_weeks != null && <div style={{ fontSize: 11, color: DIM }}>your recent POs: {Math.round(p.planned_lead_days / 7 * 10) / 10} wks</div>}
+                    {p.planned_lead_days != null && p.lead_weeks != null && <div style={{ fontSize: 11, color: DIM }}>{p.planned_lead_source === "plan" ? "your planned lead time" : "your recent POs"}: {Math.round(p.planned_lead_days / 7 * 10) / 10} wks</div>}
                   </td>
                   <td style={td}>{p.stock != null ? n0(p.stock) : "n/a"}</td>
                   <td style={td}>{p.days_cover != null ? `${p.days_cover} days` : "n/a"}</td>
