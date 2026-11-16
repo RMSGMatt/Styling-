@@ -759,7 +759,7 @@ export const MOCK_FORWARD_SIGNALS = {
   // prices up ~700% YoY per a July 2026 Bloomberg report. Real,
   // named automotive executives (Honda, Yamaha) directly cited
   // production impact from this exact dynamic.
-  capacity_allocation_mix_shift: 0.97, // Real, severe memory (DRAM/HBM) capacity reallocation to AI — see comment above for sourcing
+  capacity_allocation_mix_shift: 0.97, // Reviewed 2026-11-16, unchanged. Real, severe memory (DRAM/HBM) capacity reallocation to AI — see comment above for sourcing
   raw_material_supply_risk:      0.72, // Gallium/germanium suspension until Nov '26
   end_market_demand_divergence:  0.68, // Hyperscaler capex spiking vs flat auto production
   geopolitical_policy_pipeline:  0.71, // Taiwan #1 Beijing risk; Nov '26 expiry date-stamped
@@ -770,7 +770,7 @@ export const MOCK_REGIME_SIGNALS = {
   spot_lead_times:       0.82, // High-cap MLCC >20wks; AEC-Q100 MCU 52+wks
   spot_prices:           0.65, // MLCC +10–20%; Taiyo Yuden +6–13% April '26
   distributor_inventory: 0.58, // Drawing down but not yet critically depleted
-  freight_rates:         0.78, // Reframed 2026-08-16: real Drewry WCI data shows rates 2.5-3.5x the old $2,500/FEU baseline, near a 2026 peak — stopped short of maximum given genuine, credible uncertainty (Freight Right, Aug 3 2026) about whether this specific spike holds or partially corrects
+  freight_rates:         0.80, // Reviewed 2026-11-16: Drewry WCI early Nov ~$7,500 Shanghai-LA, above the Aug reading, easing week to week. Prior (2026-08-16): real Drewry WCI data shows rates 2.5-3.5x the old $2,500/FEU baseline, near a 2026 peak — stopped short of maximum given genuine, credible uncertainty (Freight Right, Aug 3 2026) about whether this specific spike holds or partially corrects
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -779,74 +779,74 @@ export const MOCK_REGIME_SIGNALS = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const MOCK_SIGNAL_DETAIL = {
   fab_capex_trajectory: {
-    value: "Stable / cautious",
-    trend: "flat",
-    keyFact: "TSMC Kumamoto Phase 2 confirmed. Mature node (40–180nm) capex not expanding — sold out through 2026 but no new capacity arriving before late 2026.",
-    lastUpdated: "Q1 2026 earnings",
-    dataPoint: "TSMC capex guidance: $38–42B for 2026",
+    value: "Expanding, leading edge only",
+    trend: "rising (leading edge), flat (mature node)",
+    keyFact: "TSMC reaffirmed 2026 capex at $60-64B on Oct 15, 2026 (raised in July from $52-56B) and said capex over the next three years will be significantly higher than the past three. The spend is 2nm and advanced packaging; mature-node (40-180nm) capacity used by automotive MCUs is not where the money is going.",
+    lastUpdated: "Analyst review, Nov 2026 (TSMC Q3 2026 results)",
+    dataPoint: "TSMC Q3 2026: revenue $46.7B (+41% YoY); 2026 capex $60-64B; 2026 growth guided to ~44%",
   },
   capacity_allocation_mix_shift: {
     value: "Severe divergence",
     trend: "deteriorating",
-    keyFact: "Samsung, SK Hynix, and Micron have reallocated DRAM capacity toward AI/HBM production — Everstream Analytics reports up to 70% of 2026 global memory output going to AI data centers. Named automotive OEMs (Honda, Yamaha) have directly cited production impact.",
-    lastUpdated: "Aug 2026 (analyst review — memory chip evidence, not original MLCC scope)",
-    dataPoint: "DRAM spot prices up ~700% YoY (Bloomberg, Jul 2026); Micron 2026 AI memory contracts sold out",
+    keyFact: "Samsung, SK Hynix and Micron keep moving wafer capacity to HBM and AI server DRAM. SK Hynix is redirecting capacity toward custom memory built for Nvidia, and distributors report allocation risk on the legacy parts automotive still uses (LPDDR4, eMMC, DDR3). Arrow reported Q3 2026 component growth led by memory pricing.",
+    lastUpdated: "Analyst review, Nov 2026 (memory evidence; original MLCC scope)",
+    dataPoint: "Up to 70% of 2026 memory output to AI data centers (Everstream); legacy auto memory on allocation (Fusion Worldwide)",
   },
   raw_material_supply_risk: {
-    value: "Elevated",
+    value: "Elevated, dated trigger Nov 27",
     trend: "stable risk",
-    keyFact: "China gallium & germanium export suspension in place until Nov 27, 2026. BaTiO3 ceramic powder supply stable but single-source dependent.",
-    lastUpdated: "Nov 2025 (Trump-Xi agreement)",
-    dataPoint: "Suspension expiry: Nov 27, 2026 — known date-stamped risk",
+    keyFact: "China's pause on its US export ban for gallium, germanium and antimony expires Nov 27, 2026. MOFCOM's Nov 9 notice extended the pause on the wider October 2025 rare earth package to Jan 10, 2027, but did not cover gallium. Export licensing stays in force either way.",
+    lastUpdated: "Analyst review, Nov 2026 (MOFCOM Nov 9 notice)",
+    dataPoint: "Gallium/germanium/antimony pause expires Nov 27, 2026; no extension announced as of Nov 16",
   },
   end_market_demand_divergence: {
     value: "High divergence",
     trend: "deteriorating",
-    keyFact: "AWS, Azure, Google capex collectively up ~35% YoY. Auto production (FRED IPMVCD) flat. Both sectors competing for 40–180nm mature node capacity.",
-    lastUpdated: "Q1 2026 10-Q filings",
-    dataPoint: "Hyperscaler capex: $220B+ projected 2026",
+    keyFact: "AI demand keeps pulling foundry, memory and passive capacity: TSMC guides ~44% revenue growth for 2026 while auto production is roughly flat. Both compete for the same substrate, memory and high-capacitance MLCC supply.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "TSMC 2026 revenue growth ~44% (Oct 15 guidance) vs flat auto output",
   },
   geopolitical_policy_pipeline: {
     value: "Elevated",
     trend: "stable elevated",
-    keyFact: "Tsinghua CISS ranked Taiwan Strait #1 Beijing external risk for 2026. US midterm election uncertainty a compounding factor. No active military exercises.",
-    lastUpdated: "March 2026",
-    dataPoint: "Nov 2026 gallium suspension expiry is a known binary risk event",
+    keyFact: "Beijing is sustaining gray-zone pressure without announced drills: Taiwan's defense ministry counted 49 PLA aircraft, six warships and six government vessels in 24 hours in early November around Taiwan's local elections. US-China trade policy runs on dated pauses (Nov 27 gallium, Jan 10 rare earths).",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "49 PLA aircraft in 24 hours (Taiwan MND, early Nov 2026); Nov 27 gallium pause expiry",
   },
   equipment_order_book: {
-    value: "Stable",
-    trend: "flat",
-    keyFact: "ASML order book healthy for EUV (AI-driven). DUV (mature node) orders not expanding — consistent with no new mature node capacity investment.",
-    lastUpdated: "Q1 2026 ASML earnings",
-    dataPoint: "ASML net bookings: €7.1B Q1 2026 (EUV dominant)",
+    value: "Strong (AI-led)",
+    trend: "rising",
+    keyFact: "ASML posted record Q3 2026 sales of EUR 11.7B at a 57.5% gross margin, shipped 17 EUV systems, and guides full-year sales to EUR 44-45B. The CEO says customers ask daily for more tools. Demand is concentrated in leading-edge logic and memory, not mature nodes.",
+    lastUpdated: "Analyst review, Nov 2026 (ASML Q3 2026, Oct 14)",
+    dataPoint: "ASML Q3 2026: EUR 11.7B sales, 17 EUV systems; FY2026 guide EUR 44-45B",
   },
   spot_lead_times: {
-    value: "20+ weeks (high-cap MLCC)",
+    value: "40-52 wks (select MCUs); 15-20 wks (high-cap MLCC)",
     trend: "deteriorating",
-    keyFact: "AEC-Q100 32-bit MCUs at 52+ weeks in several families. High-cap MLCCs (1206/1210 case sizes) >20 weeks. Automotive-grade SiC MOSFETs critically constrained.",
-    lastUpdated: "May 2026",
-    dataPoint: "MLCC lead times: 10–14wks (standard) / 20+wks (high-cap auto)",
+    keyFact: "Distributor surveys put select MCU and STMicroelectronics families at 40 to 52 weeks, with TI quotes stretching from 12-16 weeks toward six months. Standard MLCCs run 14-18 weeks; high-capacitance and high-voltage parts 15-20 weeks, and high-spec grades 5 to 10 months, with new capacity pushed into 2027.",
+    lastUpdated: "Analyst review, Nov 2026 (Sourceability Q3, Fusion Worldwide Oct, ETNews via TrendForce)",
+    dataPoint: "Select MCUs 40-52 wks; high-spec MLCC 5-10 months",
   },
   spot_prices: {
-    value: "+10–20% vs contract",
+    value: "Broad MLCC price increases",
     trend: "deteriorating",
-    keyFact: "Taiyo Yuden raised low-capacitance auto MLCC prices 6–13% in April 2026. Yageo announced 15–20% increases on resistors. Broader MLCC price rebound expected.",
-    lastUpdated: "May 2026",
-    dataPoint: "MLCC spot premiums: 10–20% above contract pricing",
+    keyFact: "Murata raised AI-server and high-end automotive MLCC prices 15-35% from Apr 1, 2026; Yageo raised some capacitor lines about 50% on Jul 1; Samsung Electro-Mechanics lifted its whole MLCC portfolio 30% from Aug 1; Taiyo Yuden's second increase took effect Sep 1. 1Q27 price talks open in November, with Japanese makers expected to follow.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "SEMCO +30% (Aug 1); Murata +15-35% (Apr 1); 1Q27 talks open Nov 2026",
   },
   distributor_inventory: {
-    value: "Drawing down",
+    value: "Drawing down, backlog building",
     trend: "deteriorating",
-    keyFact: "Distribution safety stock providing a temporary buffer but Tier-1 OEMs consuming available inventory. Smaller players facing increasing competition for remaining allocations.",
-    lastUpdated: "May 2026",
-    dataPoint: "Inventory-to-sales ratios near historical norms but directionally worsening",
+    keyFact: "Avnet and Arrow both report book-to-bill above parity, with backlog growing as lead times extend. MLCC restocking is expected in November for Samsung Electro-Mechanics and December for Yageo, while one Murata product may not be replenished until January 2027.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Distributor book-to-bill above 1 (Avnet, Arrow, Nov 2026)",
   },
   freight_rates: {
-    value: "$6,244-$8,706/FEU (Drewry WCI, real 2026 peak)",
-    trend: "elevated, genuinely uncertain near-term direction",
-    keyFact: "REVISED 2026-08-16 — confirmed via Drewry World Container Index (Aug 13, 2026, most recent available): Shanghai-Los Angeles at $6,244/FEU, Shanghai-New York at $8,706/FEU, both up sharply week-over-week and described as a 2026 peak. That's roughly 2.5-3.5x the prior $2,500/FEU baseline this signal was tracking. Honest uncertainty worth flagging: separate analysis (Freight Right, Aug 3, 2026) argues this specific spike is partly driven by tariff-related frontloading and aggressive underlying discounting, expecting a correction toward the mid-$5,000s as published rates catch up to actual transacted prices. Real, current severity — but a genuinely contested near-term trajectory, not a stable new floor.",
-    lastUpdated: "Analyst review, Aug 2026 — real Drewry WCI data, not a live feed (Freightos FBX's own data confirmed paid-only, free tier is chart/widget-only, not a machine-readable API)",
-    dataPoint: "Drewry WCI, Aug 13 2026: Shanghai-LA $6,244/FEU (+6% WoW), Shanghai-NY $8,706/FEU (+10% WoW)",
+    value: "~$7,500/FEU Shanghai-LA (Drewry WCI, early Nov 2026)",
+    trend: "elevated, easing week to week",
+    keyFact: "Drewry's WCI had Shanghai-Los Angeles at about $7,500 per 40ft and Shanghai-New York at about $9,300 in early November, roughly 3x the old $2,500 baseline and above the August reading. Rates eased slightly week to week. Watch two operational risks: LA/Long Beach terminal watchmen talks extended to Nov 20, and renewed attacks on shipping near the Strait of Hormuz.",
+    lastUpdated: "Analyst review, Nov 2026 (Drewry WCI, not a live feed)",
+    dataPoint: "Drewry WCI early Nov 2026: Shanghai-LA ~$7,539/FEU (flat), Shanghai-NY ~$9,303/FEU (-3% WoW)",
   },
 };
 
@@ -857,48 +857,48 @@ export const MOCK_SIGNAL_DETAIL = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const MOCK_LITHIUM_FORWARD_SIGNALS = {
-  cell_capacity_allocation_nlp:  0.79, // Updated 2026-09-30: GM/Ultium production actually RESTARTED Aug 13, 2026 (~1,400 workers back) after the 6-month pause — Ford/LGES, Stellantis/Samsung SDI, and Porsche/Cellforce still stand, but GM's reversal makes the cluster slightly less severe
-  lithium_futures_curve:         0.58, // Updated 2026-09-30: REVERSED again — BMI's own Aug 11 2026 analysis describes the curve as in contango with a "shortage premium structure," not flat; the CATL Jianxiawo restart this signal leaned on for easing is reportedly delayed
-  china_refinery_concentration:  0.80, // Reviewed 2026-09-30, unchanged: ex-China refining still lagging demand, Australia only ~20% of global refining by 2027
+  cell_capacity_allocation_nlp:  0.78, // Reviewed 2026-11-16: GM-LGES adding LFP lines at Spring Hill for late 2027; GM still booking EV realignment charges ($238M in Q3)
+  lithium_futures_curve:         0.50, // Reviewed 2026-11-16: China carbonate futures soft in November on rising production and slower cathode scheduling
+  china_refinery_concentration:  0.80, // Reviewed 2026-11-16: unchanged; no material shift in ex-China refining
   mining_production_guidance:    0.52,
-  ev_production_forecast_delta:  0.75, // Updated 2026-09-30: BloombergNEF confirms US EV sales down ~19% YTD — strengthens the "contracted capacity gets paused/renegotiated" thesis
+  ev_production_forecast_delta:  0.75, // Reviewed 2026-11-16: US Q3 EV sales -38.6% YoY; share 6.5%, up from 5.8% in Q2
   battery_policy_pipeline:       0.63, // Updated 2026-09-30: OBBBA kept 45X intact but added new FEOC material-sourcing thresholds (60% non-FEOC in 2026 -> 85% by 2030) — new compliance risk layered on an intact credit
 };
 
 export const MOCK_LITHIUM_REGIME_SIGNALS = {
-  lithium_carbonate_spot: 0.40, // Updated 2026-09-30: modest upward revision — the CATL mine-restart delay cuts against the supply-side case for continued easing
-  lithium_hydroxide_spot: 0.38, // Reviewed 2026-09-30, unchanged: no evidence of a widening or narrowing structural premium vs. carbonate
-  cobalt_spot_price:      0.75, // Updated 2026-09-30: price momentum REVERSED — cobalt hydroxide fell from $26.00-26.25/lb (Apr 2026) to $22.00-23.00/lb (Aug 11 2026) on weak Chinese demand; ARECOMS signals no further quota cut for now
+  lithium_carbonate_spot: 0.35, // Reviewed 2026-11-16: China carbonate below CNY 95,000/t, near a one-year low
+  lithium_hydroxide_spot: 0.35, // Reviewed 2026-11-16: tracking carbonate lower
+  cobalt_spot_price:      0.68, // Reviewed 2026-11-16: hydroxide price fell to ~$14.6/lb in October, but DRC quotas hold through 2027 and Glencore output -52%
   cell_lead_times:        0.35, // Not re-verified 2026-09-30 — could not confirm or contradict the 13.8% YoY install-growth figure or the LGES 46-series backlog in a fresh search; holding score
 };
 
 export const MOCK_LITHIUM_SIGNAL_DETAIL = {
   cell_capacity_allocation_nlp: {
-    value: "Partner instability easing slightly — GM/Ultium restarted",
-    trend: "deteriorating, but less severe than prior review",
-    keyFact: "UPDATED 2026-09-30 — GM/Ultium Cells production actually RESTARTED Aug 13, 2026 (roughly 1,400 workers recalled) after the 6-month pause that originally anchored this signal. The rest of the JV-instability cluster still stands: Ford's dissolved BlueOval SK JV and canceled $6.5B LGES supply deal, Stellantis's exit from its Canadian JV stake and Indiana Samsung SDI commitments, and Porsche's shuttered in-house cell subsidiary. GM's reversal is one real data point of recovery inside an otherwise-intact instability pattern, not a full resolution.",
-    lastUpdated: "Analyst review, Sep 2026 — real earnings/press evidence, not a single live feed",
-    dataPoint: "GM/Ultium Cells restarted Aug 13, 2026 (~1,400 workers) · Ford, Stellantis, Porsche pullbacks remain in effect",
-    previousValue: 0.76,
-    reviewedAt: "2026-09-30",
+    value: "Partner instability persists, slow re-tooling",
+    trend: "stable, deteriorating at the margin",
+    keyFact: "GM and LG Energy Solution plan lower-cost LFP lines at their Spring Hill, Tennessee JV from late 2027, while GM booked $238M of EV realignment charges in Q3 2026 and Ultium equity income was insignificant. Ford, Stellantis and Porsche pullbacks from prior reviews remain in effect. Capacity is being re-pointed, not expanded, so Tier 1 pack assemblers stay behind OEMs in allocation.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "GM Q3 2026: $238M EV realignment charges; Spring Hill LFP lines from late 2027",
+    previousValue: 0.79,
+    reviewedAt: "2026-11-16",
   },
   lithium_futures_curve: {
-    value: "Back in contango — 'shortage premium' structure",
-    trend: "tightening (reversed again from the prior flat-curve read)",
-    keyFact: "UPDATED 2026-09-30 — the flat-curve/no-shortage framing from the prior review has itself reversed: Benchmark Minerals Intelligence's Aug 11, 2026 analysis describes the curve as back in contango with a 'shortage premium structure,' not flat. The CATL Jianxiawo mine restart that underpinned the prior easing call is reportedly delayed, removing one of the three supply-side restarts the flat read depended on. This signal has now flipped twice in under two months — treat the underlying mine-restart timeline as the thing to re-verify next, not the price level itself.",
-    lastUpdated: "Analyst review, Sep 2026 — real BMI data, not a live feed (paid API access required for true live tracking)",
-    dataPoint: "BMI Aug 11, 2026: curve in contango, 'shortage premium structure' · CATL Jianxiawo restart delayed (vs. previously assumed online)",
-    previousValue: 0.61,
-    reviewedAt: "2026-09-30",
+    value: "Softening, rangebound",
+    trend: "easing",
+    keyFact: "Chinese lithium carbonate futures traded soft through mid-November 2026: carbonate production scheduling rose while cathode scheduling slowed, and restart rumors weighed on prices. The shortage-premium structure flagged in September has faded for now.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Mysteel, Nov 9-11 2026: carbonate output rising, cathode scheduling slowing",
+    previousValue: 0.58,
+    reviewedAt: "2026-11-16",
   },
   china_refinery_concentration: {
     value: "Structural risk",
     trend: "stable risk",
-    keyFact: "China processes approximately 65% of global lithium into battery-grade material. No alternative refining capacity at scale will come online before 2028. Any export restriction is a binary tail event with 18–24 month downstream consequences.",
-    lastUpdated: "Analyst review, Aug 2026 — USGS Minerals data (source) only publishes annually, no reliable live feed exists",
-    dataPoint: "Chinese refinery capacity: ~65% global share · Next meaningful alternative: 2028",
+    keyFact: "China still processes roughly 65% of global lithium into battery-grade chemicals, and no alternative refining capacity at scale arrives before 2028. Nothing in Q3-Q4 2026 changes that; it remains a binary policy risk rather than a price story.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "China ~65% of battery-grade refining; next meaningful alternative 2028",
     previousValue: 0.8,
-    reviewedAt: "2026-09-30",
+    reviewedAt: "2026-11-16",
   },
   mining_production_guidance: {
     value: "Stable / not expanding",
@@ -908,13 +908,13 @@ export const MOCK_LITHIUM_SIGNAL_DETAIL = {
     dataPoint: "SQM 2026 guidance: 180–200kt LCE · Albemarle: 'disciplined capital deployment'",
   },
   ev_production_forecast_delta: {
-    value: "Demand undershoot confirmed, partner-commitment risk",
-    trend: "deteriorating — now independently confirmed",
-    keyFact: "UPDATED 2026-09-30 — BloombergNEF confirms the demand-undershoot thesis with hard numbers: US EV sales are down roughly 19% year-to-date. This strengthens, rather than changes, the mechanism identified in the prior review — already-contracted battery capacity gets paused, renegotiated, or canceled as partners react to softer-than-planned OEM demand, as already seen with Ford/LGES, GM/Ultium, and Stellantis/Samsung SDI. 'The factories were on time. The customers weren't' still holds, now with a specific magnitude attached.",
-    lastUpdated: "Analyst review, Sep 2026 — real BloombergNEF data, not a single live feed",
-    dataPoint: "BloombergNEF: US EV sales down ~19% YTD 2026 · Automakers continuing to consolidate around fewer, more trusted battery partners",
-    previousValue: 0.67,
-    reviewedAt: "2026-09-30",
+    value: "Demand reset, stabilizing at a lower level",
+    trend: "deteriorating, early signs of a floor",
+    keyFact: "US EV sales fell 38.6% year over year in Q3 2026 against the pre-credit-expiry rush, but share rose to 6.5% from 5.8% in Q2. Legacy OEMs took the hit (GM EVs -61.7%, Ford -80%) while Tesla held 54% of the market. Contracted cell capacity for legacy OEM programs keeps getting paused or renegotiated.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Q3 2026 US EV sales -38.6% YoY; share 6.5% (Cox/KBB)",
+    previousValue: 0.75,
+    reviewedAt: "2026-11-16",
   },
   battery_policy_pipeline: {
     value: "45X credit intact, new FEOC sourcing thresholds layered on",
@@ -926,31 +926,31 @@ export const MOCK_LITHIUM_SIGNAL_DETAIL = {
     reviewedAt: "2026-09-30",
   },
   lithium_carbonate_spot: {
-    value: "$18,160/t (BMI, Aug 10 2026), modest upward revision",
-    trend: "ticking back up — the easing from the prior review is losing ground",
-    keyFact: "UPDATED 2026-09-30 — a modest upward revision from the prior easing read. The CATL Jianxiawo mine-restart delay (see lithium_futures_curve) removes part of the supply-side case that justified calling carbonate 'easing' last review — with one of the three restarts behind that call now in question, the price case for continued easing is weaker, not stronger.",
-    lastUpdated: "Analyst review, Sep 2026 — real BMI/Trading Economics data, not a live feed (structured lithium pricing data is paid-only across every provider checked: LME, CME, Fastmarkets, BMI, Trading Economics)",
-    dataPoint: "BMI carbonate spot: $18,160/t (Aug 10 2026) · CATL Jianxiawo restart delayed, weakening the supply-side case for continued easing",
-    previousValue: 0.44,
-    reviewedAt: "2026-09-30",
+    value: "Near one-year low",
+    trend: "easing",
+    keyFact: "China lithium carbonate fell below CNY 95,000 per tonne in November 2026, the lowest in nearly a year, on softer demand and improving supply. Short rebounds have not held.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "China Li2CO3 < CNY 95,000/t (Nov 2026)",
+    previousValue: 0.4,
+    reviewedAt: "2026-11-16",
   },
   lithium_hydroxide_spot: {
-    value: "$18,510/t (BMI, Aug 10 2026)",
-    trend: "easing recently, still elevated vs. historical lows",
-    keyFact: "REVISED 2026-08-16 — old mock value ($13.8/tonne) was similarly stale, off by roughly 1,300x. Real current figure: $18,510/t as of Aug 10, 2026 (BMI), a modest premium over carbonate ($350/t), not the 'widening premium, NMC under more pressure' narrative previously assumed — that framing isn't supported by the most recent real data, which shows both chemistries moving together with the broader market easing, not diverging.",
-    lastUpdated: "Analyst review, Aug 2026 — real BMI data, not a live feed (same paid-access wall as lithium_carbonate_spot)",
-    dataPoint: "BMI hydroxide spot: $18,510/t (Aug 10 2026) · Carbonate-hydroxide spread: ~$350/t, not a widening structural premium",
-    previousValue: 0.51,
-    reviewedAt: "2026-09-30",
+    value: "Easing with carbonate",
+    trend: "easing",
+    keyFact: "Hydroxide continues to track carbonate. With carbonate near a one-year low in November 2026 and no sign of a widening hydroxide premium, price risk is low; the exposure is concentration, not cost.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Tracks China carbonate (< CNY 95,000/t, Nov 2026)",
+    previousValue: 0.38,
+    reviewedAt: "2026-11-16",
   },
   cobalt_spot_price: {
-    value: "~$22-23/lb (Aug 2026), down from ~$26/lb in April",
-    trend: "momentum reversed — easing on weak Chinese demand",
-    keyFact: "UPDATED 2026-09-30 — price momentum has REVERSED from the prior review: cobalt hydroxide fell from $26.00-26.25/lb in April 2026 to $22.00-23.00/lb as of Aug 11, 2026, driven by weak Chinese demand. The DRC's 2026-2027 quota regime (96,600t vs. ~204,000t actual 2024 production) remains the underlying structural constraint, but ARECOMS (the DRC's regulator) is signaling no further quota cut for now — the deliberate-scarcity mechanism is unchanged, but near-term price pressure has eased.",
-    lastUpdated: "Analyst review, Sep 2026 — real multi-source data (Benchmark Minerals, S&P Global, industry reporting), not a live feed (LME cobalt data is paid-only, same as every other structured metals pricing source checked)",
-    dataPoint: "Cobalt hydroxide: $26.00-26.25/lb (Apr 2026) -> $22.00-23.00/lb (Aug 11 2026) · DRC 2026-2027 quota unchanged at 96,600t; ARECOMS signals no further cut for now",
-    previousValue: 0.38,
-    reviewedAt: "2026-09-30",
+    value: "Prices easing, supply capped",
+    trend: "mixed: price down, supply structurally tight",
+    keyFact: "Cobalt hydroxide prices slid from $22-23/lb in August to about $14.6/lb by October 1, 2026 on weak demand and the LFP shift. Supply is still capped: the DRC keeps its 87,000 t/yr export quota through 2027, and Glencore's cobalt output fell 52% in the first nine months as quotas pushed it to leave metal in solution.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Hydroxide ~$14.6/lb (Oct 1 2026); DRC quota 87,000 t/yr through 2027",
+    previousValue: 0.75,
+    reviewedAt: "2026-11-16",
   },
   cell_lead_times: {
     value: "Easing overall, tight in specific formats",
@@ -977,8 +977,8 @@ export const MOCK_RARE_EARTH_FORWARD_SIGNALS = {
   non_china_ree_capacity:       0.55, // Overridden by the real live fetch when it succeeds — this mock value only shows if that fetch fails
   china_ree_export_policy:      0.42, // Overridden by the real live fetch when it succeeds — matches the real-tested count of 2 documents in a 90-day window
   defense_demand_signal:        0.51, // Overridden by the real live fetch when it succeeds — matches the real-tested USASpending score (24.5 months since last confirmed contract)
-  magnet_capacity_allocation:   0.55, // Real, moderate: DoD offtake on the 10X Facility is a revenue guarantee, not a literal lockout — commercial buyers retain access with DoD consent, but real structural uncertainty and the 2028 commissioning date keep this above neutral
-  china_refining_concentration: 0.88, // Real, confirmed via IEA/S&P Global: China controls ~91% of global rare earth refining capacity — even more concentrated than lithium's equivalent signal (80)
+  magnet_capacity_allocation:   0.62, // Reviewed 2026-11-16: MP's 10X plant is fully contracted and RFQs exceed its capacity
+  china_refining_concentration: 0.88, // Reviewed 2026-11-16: unchanged; MOFCOM Nov 9 pause extension keeps licensing in force
   ev_wind_demand_divergence:    0.57, // Overridden by the real live fetch when it succeeds — matches the real-tested +37.0% YoY GE Vernova backlog growth
 };
 
@@ -986,9 +986,9 @@ export const MOCK_RARE_EARTH_REGIME_SIGNALS = {
   // freight_rates is NOT duplicated here — fetchRegimeSignals below reads
   // it directly from MOCK_REGIME_SIGNALS instead, same live data as the
   // semiconductor regime signal.
-  ndpr_oxide_spot_price: 0.40, // Real, moderate: China domestic NdPr benchmark has fallen below the real $110/kg DoD-backed price floor (Aug 2026) — structurally tight but not acutely stressed right now
-  heavy_ree_spot_price:  0.85, // Real, severe: confirmed 3.6-4.5x price divergence between China domestic and ex-China dysprosium/terbium (Aug 11 2026) — comparable severity to cobalt's DRC quota finding
-  magnet_lead_times:     0.75, // Real capacity scarcity, not a specific lead-time figure: MP Materials' next major facility doesn't commission until 2028, combined US magnet capacity stays tiny relative to real EV/wind demand until then
+  ndpr_oxide_spot_price: 0.38, // Reviewed 2026-11-16: NdPr easing in China; ex-China NdPr roughly balanced near $110/kg
+  heavy_ree_spot_price:  0.88, // Reviewed 2026-11-16: ex-China dysprosium now ~16x China price (BMI, Q3)
+  magnet_lead_times:     0.75, // Reviewed 2026-11-16: unchanged; GM shipments start Q4, 10X not until late 2028
 };
 
 export const MOCK_RARE_EARTH_SIGNAL_DETAIL = {
@@ -1016,18 +1016,22 @@ export const MOCK_RARE_EARTH_SIGNAL_DETAIL = {
     dataPoint: "See the live fetch for real, current contract recency and Federal Register match data",
   },
   magnet_capacity_allocation: {
-    value: "DoD offtake structured as guarantee, not lockout",
-    trend: "moderate, structurally uncertain",
-    keyFact: "Confirmed 2026-08-16, real terms more nuanced than assumed: the DoD's '100% offtake' on MP Materials' new 10X Facility (7,000 MT/yr, commissioning 2028) doesn't mean defense physically takes all output — it's a revenue/EBITDA guarantee ($140M/yr minimum). MP Materials explicitly retains the option to sell to commercial buyers (EV, wind, industrial) with DoD's consent; profits above the $140M threshold split 50/50. Separately, the existing Independence facility expands from 1,000 to 3,000 MT/yr, funded partly by a real $32M Apple prepayment — not defense-committed at all.",
-    lastUpdated: "Analyst review, Aug 2026 — real MP Materials/DoD disclosed terms, no reliable live feed exists",
-    dataPoint: "10X Facility: 7,000 MT/yr, DoD revenue-guaranteed but commercial-accessible with consent · Independence: 1,000->3,000 MT/yr, Apple-funded, not DoD-committed",
+    value: "Ex-China capacity spoken for",
+    trend: "tightening",
+    keyFact: "MP Materials says its 10X magnet plant, commissioning late 2028, is already fully contracted and customer RFQs exceed its capacity. GM qualification is done and paid magnet shipments start in Q4 2026, building slowly. Commercial buyers without a contract should expect to wait.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "MP Q3 2026: 10X fully contracted; GM magnet shipments begin Q4 2026",
+    previousValue: 0.55,
+    reviewedAt: "2026-11-16",
   },
   china_refining_concentration: {
-    value: "~91% China refining share",
-    trend: "stable structural risk, active policy escalation on top",
-    keyFact: "Confirmed 2026-08-16 across multiple independent sources (IEA, S&P Global): China controls approximately 91% of global rare earth refining and separation capacity — even more concentrated than lithium's ~65% refining equivalent. Real alternative capacity outside China totals under 40kt, spread across Malaysia, the US, Australia, Vietnam, Japan, UK, France, and Estonia. The IEA specifically identifies downstream magnet production as the tightest bottleneck of all — 'cumulative planned production of metals, alloys and finished magnets... only about one third of diversified mining capacity.' Compounding this structural concentration: the same active policy tension already confirmed for china_ree_export_policy (the Nov 10 2026 suspension deadline, China's direct blacklisting of MP Materials).",
-    lastUpdated: "Analyst review, Aug 2026 — IEA Global Critical Minerals Outlook, S&P Global, no reliable live feed exists",
-    dataPoint: "China rare earth refining/separation share: ~91% (IEA) · Non-China refining capacity: <40kt total, spread across 8 countries",
+    value: "Structural risk",
+    trend: "stable risk",
+    keyFact: "China still controls about 90% of rare earth refining and over 90% of the 250,000 t/yr NdFeB magnet market. MOFCOM's Nov 9 notice paused the wider October 2025 package to January 10, 2027, but April 2025 licensing on seven elements stays in force.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "China ~90% of refining; pause on Oct 2025 package to Jan 10, 2027",
+    previousValue: 0.88,
+    reviewedAt: "2026-11-16",
   },
   ev_wind_demand_divergence: {
     value: "Live when the real fetch succeeds",
@@ -1037,29 +1041,31 @@ export const MOCK_RARE_EARTH_SIGNAL_DETAIL = {
     dataPoint: "See the live fetch for real, current backlog figures and YoY comparison",
   },
   ndpr_oxide_spot_price: {
-    value: "$141.79/kg neodymium, $131.02/kg NdPr alloy (SMM, Sep 3 2026)",
-    trend: "stable, structurally tight but not acute — score unchanged",
-    keyFact: "Reviewed 2026-09-30, unchanged: refreshed SMM figures (neodymium metal $141.79/kg, NdPr alloy $131.02/kg as of Sep 3, 2026) show prices holding in roughly the same band as the prior review, still below the $110/kg DoD-backed price floor by a similar margin. Real structural tightness remains (magnets absorb ~90% of NdPr supply; direct-drive offshore wind alone needs ~600kg of NdFeB per MW), but the acute price pressure seen in heavy REEs still isn't present here.",
-    lastUpdated: "Analyst review, Sep 2026 — real SMM/DoD contract data, no reliable live feed exists",
-    dataPoint: "SMM neodymium metal: $141.79/kg · NdPr alloy: $131.02/kg (Sep 3 2026) · Real DoD-backed price floor: $110/kg",
+    value: "Easing",
+    trend: "easing",
+    keyFact: "NdPr oxide prices declined in China into early November 2026, and SMM describes a Pr-Nd price decline underway. Outside China, Platts had NdPr at $110/kg CIF North America in August, with the market seen as roughly balanced.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Platts NdPr $110/kg CIF N. America (Aug); China NdPr down (Nov 3)",
     previousValue: 0.4,
-    reviewedAt: "2026-09-30",
+    reviewedAt: "2026-11-16",
   },
   heavy_ree_spot_price: {
-    value: "China domestic terbium $1,097.08/kg vs $1,557/kg FOB export (SMM, Sep 3 2026)",
-    trend: "severe, two-tier market — score unchanged",
-    keyFact: "Reviewed 2026-09-30, unchanged: refreshed SMM figures show China domestic terbium at $1,097.08/kg and FOB export pricing at $1,557/kg as of Sep 3, 2026, with domestic dysprosium at $239.12/kg — the two-tier domestic-vs-export structure the prior review flagged is still intact, if the specific spread has moved. Real DoD-backed floors exist ($575/kg dysprosium, $2,050/kg terbium, MP Materials/Serra Verde contracts) but sit below actual ex-China market prices — the floor isn't the binding constraint, scarcity is.",
-    lastUpdated: "Analyst review, Sep 2026 — real SMM data, no reliable live feed exists",
-    dataPoint: "SMM Sep 3 2026: China domestic terbium $1,097.08/kg · FOB export terbium $1,557/kg · China domestic dysprosium $239.12/kg",
+    value: "Extreme ex-China premium",
+    trend: "deteriorating",
+    keyFact: "Heavy rare earth prices outside China kept rising: BMI puts CIF Europe dysprosium oxide at about 16.3 times the China DDP price at the end of Q3 2026, up from 6.8 times in Q2, averaging about $3,500/kg in September. Western buyers face premiums of up to 10x domestic Chinese rates.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Dy oxide CIF Europe ~$3,500/kg (Sep); ~16x China price (BMI Q3 2026)",
     previousValue: 0.85,
-    reviewedAt: "2026-09-30",
+    reviewedAt: "2026-11-16",
   },
   magnet_lead_times: {
-    value: "No formal lead-time figure exists — real capacity data used instead",
-    trend: "genuine capacity scarcity through 2028",
-    keyFact: "Confirmed 2026-08-16: no source anywhere reports a specific NdFeB magnet lead-time figure — the ex-China industry is too early-stage for that kind of trade-press tracking, unlike MLCCs or battery cells. Real capacity data instead: MP Materials' Independence facility (Fort Worth) runs roughly 1,000-3,000 MT/year; their next major facility, the 10X plant, doesn't commission until 2028. Combined US magnet capacity won't reach 10,000 MT/year until then. The IEA separately identifies downstream magnet production as the tightest bottleneck in the entire rare earth supply chain.",
-    lastUpdated: "Analyst review, Aug 2026 — real MP Materials/Lynas capacity disclosures, no reliable lead-time-specific feed exists",
-    dataPoint: "MP Materials Independence: ~1,000-3,000 MT/yr · 10X Facility: commissioning 2028, +7,000 MT/yr · Combined US capacity target: 10,000 MT/yr by 2028",
+    value: "Capacity scarcity",
+    trend: "stable tight",
+    keyFact: "No new ex-China magnet capacity of scale lands soon: MP's Independence plant starts paid GM shipments in Q4 2026 at modest volumes, and 10X commissions in late 2028. MP's heavy rare earth (Dy/Tb) production also starts in Q4 2026.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "MP Independence: GM shipments Q4 2026; 10X commissioning late 2028",
+    previousValue: 0.75,
+    reviewedAt: "2026-11-16",
   },
 };
 
@@ -1070,9 +1076,9 @@ export const MOCK_RARE_EARTH_SIGNAL_DETAIL = {
 export const MOCK_STEEL_ALUMINUM_FORWARD_SIGNALS = {
   section_232_tariff_pipeline:      0.66, // Overridden by the real live fetch when it succeeds — matches the real-tested count of 6 documents in a 90-day window
   domestic_capacity_expansion:      0.50, // Overridden by the real live fetch when it succeeds — matches the real-tested combined +3.0% YoY (Nucor +7.8%, Cleveland-Cliffs -19.3%)
-  china_steel_overcapacity_dumping: 0.85, // Updated 2026-09-30: reviewed, slightly worse — overcapacity dynamics confirmed still active, no sign of resolution
-  automotive_sheet_demand:          0.45, // Reviewed 2026-09-30, unchanged: US auto production still flat, no crisis signal
-  scrap_eaf_dynamics:               0.55, // Updated 2026-09-30: AISI mill capacity utilization fell from 82.3% to 77.9% the week of Sept 19 — softer utilization eases some of the prime-grade tightness
+  china_steel_overcapacity_dumping: 0.85, // Reviewed 2026-11-16: unchanged; China HRC export ~$485/t FOB vs US $1,300+
+  automotive_sheet_demand:          0.45, // Reviewed 2026-11-16: unchanged; US auto output flat
+  scrap_eaf_dynamics:               0.55, // Reviewed 2026-11-16: AISI utilization 77.0% (wk to Nov 7), down from 88.9% the week before
   aluminum_capacity_signal:         0.50, // Overridden by the real live fetch when it succeeds
 };
 
@@ -1080,9 +1086,9 @@ export const MOCK_STEEL_ALUMINUM_REGIME_SIGNALS = {
   // freight_rates is NOT duplicated here — fetchRegimeSignals below reads
   // it directly from MOCK_REGIME_SIGNALS instead, same live data as the
   // semiconductor regime signal.
-  hrc_spot_price:      0.72, // Real, current: HRC futures reversed sharply, climbing to $1,281-1,322/ton by late Sept 2026 — the highest level since March 2023 — up from $875/ton in Aug 2026, consistent with tightening supply and renewed tariff-driven cost-inflation risk
-  aluminum_spot_price: 0.74, // Real, severe but easing slightly: LME aluminum at ~$3,267/ton (Sept 26 2026), down modestly from the $3,380/ton Aug 13 peak but still ~25-30% above normal range, tariffs + Middle East supply crisis still the dominant drivers
-  import_penetration:  0.46, // Updated 2026-09-30: corrected — steel imports actually down 23.1% YoY in H1 2026, not the 30% previously cited; aluminum still ~60% import-dependent with no confirmed 2026 decline
+  hrc_spot_price:      0.80, // Reviewed 2026-11-16: US HRC $1,340-1,400/st (Nov 6); Nucor raised CSP 17 weeks running
+  aluminum_spot_price: 0.70, // Reviewed 2026-11-16: LME cash ~$3,160/t (Nov 5), off the September highs
+  import_penetration:  0.50, // Reviewed 2026-11-16: flat-rolled imports rising again into Q4
 };
 
 export const MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL = {
@@ -1101,31 +1107,31 @@ export const MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL = {
     dataPoint: "See the live fetch for real, current capex figures and the Nucor/Cleveland-Cliffs split",
   },
   china_steel_overcapacity_dumping: {
-    value: "Severe, OECD-confirmed structural overcapacity, slightly worse",
-    trend: "worsening, active policy response globally",
-    keyFact: "Updated 2026-09-30, modestly worse: the structural picture confirmed in August is unchanged in kind and, if anything, more entrenched — global excess steel capacity reaching 745 million tons by 2026 (OECD), Chinese steelmakers' record 131 million tonne export pace from 2025, and the EU's April 2026 quota/duty tightening all remain the active baseline, with no evidence of resolution surfacing this round. Honest OECD caveat still stands: existing AD/CVD trade measures are 'being actively circumvented,' so orders alone aren't resolving this.",
-    lastUpdated: "Analyst review, Sep 2026 — real OECD data, no reliable live feed exists (Federal Register document-count tested and rejected as too high-volume/routine to be a useful instrument here)",
-    dataPoint: "Global excess steel capacity: 745M tons by 2026 (OECD) · Chinese steel exports: 131M tonnes in 2025, +153% since 2020",
-    previousValue: 0.84,
-    reviewedAt: "2026-09-30",
+    value: "Severe price gap",
+    trend: "stable severe",
+    keyFact: "China HRC export offers were about $485/t FOB in mid-November 2026, against US domestic HRC above $1,300 per short ton. That gap keeps trade-defense pressure high in the US and EU.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "China HRC export $485/t FOB (Nov 11, Mysteel)",
+    previousValue: 0.85,
+    reviewedAt: "2026-11-16",
   },
   automotive_sheet_demand: {
-    value: "~10.2M units 2026, flat and stable",
-    trend: "steady, no crisis signal",
-    keyFact: "Confirmed 2026-08-17: US automotive production is holding flat at approximately 10.2 million units in 2026 — similar to 2025 — with modest growth to 10.5M expected in 2027 and 11M+ by 2028. Real Fastmarkets analysis explicitly ties this to steel demand: 'steady automotive production points to consistent steel demand which will contribute to supported steel flat product prices.' No structured live data source exists (fundamentally a market-forecast topic).",
-    lastUpdated: "Analyst review, Aug 2026 — real Fastmarkets/AISI industry data, no reliable live feed exists",
-    dataPoint: "US auto production: ~10.2M units (2026) -> 10.5M (2027 est.) -> 11M+ (2028 est.)",
+    value: "Stable",
+    trend: "flat",
+    keyFact: "US light vehicle production remains roughly flat for 2026. Sheet demand isn't the problem; price is.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "US auto output ~flat 2026",
     previousValue: 0.45,
-    reviewedAt: "2026-09-30",
+    reviewedAt: "2026-11-16",
   },
   scrap_eaf_dynamics: {
-    value: "Easing slightly — mill utilization down, prime-grade tightness softer",
-    trend: "improving modestly from the prior review",
-    keyFact: "Updated 2026-09-30: AISI mill capacity utilization fell from 82.3% to 77.9% the week of Sept 19, 2026 — a real pullback in mill activity that eases some of the structural tightness on prime grades like busheling flagged in the prior review. The underlying automotive-grade scrap tightness hasn't fully reversed, but softer mill utilization reduces near-term pressure on the specific grades that feed flat-rolled production.",
-    lastUpdated: "Analyst review, Sep 2026 — real AISI capacity utilization data, no reliable live feed exists (structured scrap pricing is commercial/paid, same pattern as HRC)",
-    dataPoint: "AISI mill capacity utilization: 82.3% -> 77.9% (week of Sept 19, 2026)",
-    previousValue: 0.58,
-    reviewedAt: "2026-09-30",
+    value: "Volatile utilization",
+    trend: "mixed",
+    keyFact: "US raw steel capacity utilization swung from 88.9% in the week to Oct 31 to 77.0% in the week to Nov 7, 2026 (AISI), with year-to-date utilization at 79.5% and output up about 6%. Scrap and EAF economics stay supportive of the high HRC price.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "AISI utilization 77.0% (wk to Nov 7 2026); YTD 79.5%",
+    previousValue: 0.55,
+    reviewedAt: "2026-11-16",
   },
   aluminum_capacity_signal: {
     value: "Live when the real fetch succeeds",
@@ -1135,27 +1141,31 @@ export const MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL = {
     dataPoint: "See the live fetch for real, current capex figures and the Alcoa/Century Aluminum split",
   },
   hrc_spot_price: {
-    value: "$1,281-1,322/ton (late Sept 2026), highest since March 2023",
-    trend: "escalating sharply, reversing the summer decline",
-    keyFact: "Updated 2026-09-27: HRC prices reversed hard off the Aug 2026 low of $875/ton, climbing to $1,281-1,322/ton by late September — the highest level since March 2023. This reverses the oversupply-driven softening confirmed in August and re-tightens near-term cost-inflation risk, even as the structural overcapacity story (china_steel_overcapacity_dumping) remains unresolved. No free structured API exists for CME HRC futures (Metals-API, Commodities-API, CRU all paid), so this stays analyst-tracked.",
-    lastUpdated: "Analyst review, Sept 2026 — real CME contract data, no reliable live feed exists",
-    dataPoint: "HRC futures: $875/ton (Aug 2026) -> $1,281-1,322/ton (late Sept 2026) · highest since March 2023",
+    value: "Multi-year high",
+    trend: "deteriorating",
+    keyFact: "US hot-rolled coil reached $1,340-1,400 per short ton on November 6, 2026 (Kallanish), up about 52% year over year, after a shortage of spot flat-rolled offers in October. Nucor has raised its consumer spot price 17 weeks in a row, to $1,295/st on Nov 9, with lead times of three to five weeks.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "US HRC $1,340-1,400/st (Nov 6, Kallanish); Nucor CSP $1,295/st",
+    previousValue: 0.72,
+    reviewedAt: "2026-11-16",
   },
   aluminum_spot_price: {
-    value: "$3,267/ton (Sept 26 2026), easing modestly from Aug peak",
-    trend: "still elevated, pulled back slightly off the Aug high",
-    keyFact: "Updated 2026-09-27: LME aluminum has eased modestly to ~$3,267/ton (Sept 26), down from the $3,380/ton Aug 13 peak, but still running well above the 'normal' 2023-2024 range (capped below $2,500/ton). The two structural drivers confirmed in August remain in place: Section 232 tariffs at 50% directly lifting US premiums, and the US-Iran conflict's disruption of roughly 10% of global aluminum production, with a forecast 2026 global deficit of ~720,000 tonnes still unresolved. This looks like near-term volatility within a still-severe supply crisis, not a resolution of it.",
-    lastUpdated: "Analyst review, Sept 2026 — real LME market data, no free structured API exists",
-    dataPoint: "LME aluminum: $3,380/ton (Aug 13 2026 peak) -> $3,267/ton (Sept 26 2026) · Forecast 2026 global deficit: ~720,000 tonnes",
+    value: "Elevated, off the peak",
+    trend: "easing slightly",
+    keyFact: "LME aluminium cash was about $3,160/t on November 5, 2026 and three-month about $3,064/t, below the $3,267-3,310 levels of September. China's aluminium exports rose to 5.91 Mt in the first ten months. US buyers still pay the tariff-driven Midwest premium on top.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "LME cash $3,160/t (Nov 5 2026); 3M $3,064/t (Nov 6)",
+    previousValue: 0.74,
+    reviewedAt: "2026-11-16",
   },
   import_penetration: {
-    value: "Real divergence: steel improving (corrected), aluminum still exposed",
-    trend: "mixed — not a single story",
-    keyFact: "CORRECTED 2026-09-30: the prior review's -30% steel import figure was too high — the real H1 2026 figure is steel imports down 23.1% year-over-year, still a genuine, meaningful de-risking trend credited to Section 232 tariffs, just smaller in magnitude than previously stated. Aluminum's exposure is unchanged: 60% of 2025 US aluminum consumption came from imports (vs. steel's much lower share), with no confirmed 2026 decline of comparable magnitude. Genuine live tracking remains possible via US Census Bureau/ITC data (Steel Import Monitor, Aluminum Import Monitor) pending a free registered API key.",
-    lastUpdated: "Analyst review, Sep 2026 — real Census Bureau/ITC/Manufacturing Dive data, live build deferred pending API key registration",
-    dataPoint: "Steel imports: -23.1% YoY (H1 2026, corrected from -30%) · Aluminum import share: ~60% of consumption (2025 baseline, no confirmed 2026 update)",
-    previousValue: 0.48,
-    reviewedAt: "2026-09-30",
+    value: "Rising from a low base",
+    trend: "tightening",
+    keyFact: "After H1 2026 steel imports fell 23% year over year, flat-rolled imports posted big gains in the autumn as US prices pulled in offshore supply. The import gap is widening again alongside the domestic price.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "US flat steel imports rising (SteelOrbis, Oct 2026)",
+    previousValue: 0.46,
+    reviewedAt: "2026-11-16",
   },
 };
 
@@ -1164,19 +1174,19 @@ export const MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL = {
 // an explicit, labeled placeholder.
 export const MOCK_RESINS_FORWARD_SIGNALS = {
   domestic_polymer_capacity:    0.50, // Overridden by the real live fetch when it succeeds
-  petrochemical_feedstock_risk: 0.88, // Real, re-escalating: Brent crude back above $110/bbl by mid-Sept 2026, reversing the summer correction — same feedstock-to-relief transmission break confirmed in August, now compounding again
-  automotive_resin_demand:      0.48, // Real, stable US production (~10.2M units 2026, same as automotive_sheet_demand) with a slight tilt up for structural plastics-content-per-vehicle growth (lightweighting, EVs)
-  china_polymer_capacity:       0.86, // Real, severe: PP margins collapsed >95%, exports +54-122% YoY, global oversupply forecast tripling, real 2026 capacity additions continuing despite crisis (CIEL, Argus, ICIS)
-  resin_allocation_squeeze:     0.30, // Updated 2026-09-30: nudged up from the oversupply read — the renewed feedstock cost shock and PP producer run cuts (see pp_resin_spot_price) start to tighten the allocation picture slightly, though oversupply fundamentals haven't fully reversed
+  petrochemical_feedstock_risk: 0.72, // Reviewed 2026-11-16: Brent fell to ~$92.6 (Nov 9), lowest since late August, as Gulf exports recover
+  automotive_resin_demand:      0.48, // Reviewed 2026-11-16: unchanged; flat auto output
+  china_polymer_capacity:       0.86, // Reviewed 2026-11-16: unchanged; global oversupply persists
+  resin_allocation_squeeze:     0.25, // Reviewed 2026-11-16: buyer's market into 2027 contracts
   trade_policy_pipeline:        0.62, // Updated 2026-09-30: Section 122 (the 15%, 150-day stop-gap) expired July 24, 2026, replaced by a more durable Section 301-based tariff band around 12.5% — less acute legal uncertainty than the expiring stop-gap, though the underlying duty burden persists
 };
 
 export const MOCK_RESINS_REGIME_SIGNALS = {
   // freight_rates is NOT duplicated here — reused directly from
   // MOCK_REGIME_SIGNALS, same real live/analyst-reviewed data.
-  pp_resin_spot_price:    0.62, // Real, reversing: PP margins turned negative by mid-Sept 2026 as feedstock costs re-escalated faster than resin prices, producers announcing run cuts — buyer-favorable market from July has flipped
-  abs_resin_spot_price:   0.48, // Updated 2026-09-30: REVERSED — ABS surged roughly 30% between July and September on margin-driven producer run cuts, undoing the March-June correction
-  nylon_resin_spot_price: 0.55, // Weaker evidence, inferred from Celanese's real 21.1% capex pullback — no direct current pricing data found
+  pp_resin_spot_price:    0.45, // Reviewed 2026-11-16: North American PP flat-to-down for Nov-Dec; Europe at 2020 lows
+  abs_resin_spot_price:   0.52, // Reviewed 2026-11-16: European standard thermoplastics still rising in November on styrene and butadiene costs
+  nylon_resin_spot_price: 0.58, // Reviewed 2026-11-16: nylon 6/66 pricing trending up into Q4
 };
 
 export const MOCK_RESINS_SIGNAL_DETAIL = {
@@ -1188,34 +1198,40 @@ export const MOCK_RESINS_SIGNAL_DETAIL = {
     dataPoint: "See the live fetch for real, current capex figures and the Celanese/Eastman split",
   },
   petrochemical_feedstock_risk: {
-    value: "Re-escalating: Brent above $110/bbl by mid-Sept 2026",
-    trend: "worsening again, structurally broken relief transmission persists",
-    keyFact: "Updated 2026-09-27: after the mid-year correction, Brent crude climbed back above $110/bbl by mid-September 2026, re-escalating feedstock costs across the polymer chain. This lands on top of the structurally broken cost-to-relief transmission already confirmed in August (Beroe, April 2026) — the same mechanism that produced the real 'Petrochemical Price Shock 2026: Why Costs Doubled in 30 Days' headline in April is repeating, with PP producers now announcing production cuts as margins turn negative (see pp_resin_spot_price).",
-    lastUpdated: "Analyst review, Sept 2026 — real Brent crude and ICIS/ChemAnalyst data, EIA live build deferred pending free API key registration",
-    dataPoint: "Brent crude: back above $110/bbl (mid-Sept 2026) · PP producer margins: negative, run cuts announced",
+    value: "Elevated but easing",
+    trend: "easing",
+    keyFact: "Brent dropped to $92.57/bbl on November 9, 2026, its lowest since late August, after a 16% weekly fall as Gulf exports recovered and Iran peace prospects improved. EIA still sees Brent near $100 for the rest of 2026, easing to $77 by late 2027. Shipping attacks near Hormuz keep the risk from fading fully.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Brent $92.57/bbl (Nov 9 2026); EIA ~$100 for rest of 2026",
+    previousValue: 0.88,
+    reviewedAt: "2026-11-16",
   },
   automotive_resin_demand: {
-    value: "Stable production, growing plastics content per vehicle",
-    trend: "steady, modest structural upside",
-    keyFact: "Confirmed 2026-08-18: US vehicle production remains flat at approximately 10.2 million units in 2026 — the same real figure already confirmed for automotive_sheet_demand. Real, structural difference from steel: automotive plastics content per vehicle is growing due to lightweighting and EV adoption, which need more polymer components for battery housings and structural weight reduction. Honest caveat: this research relied mostly on generic, templated automotive plastics market-sizing reports rather than dated news events — meaningfully weaker evidence quality than most other signals tonight, which is why this stays close to automotive_sheet_demand's calm reading rather than a confident, sharply differentiated number.",
-    lastUpdated: "Analyst review, Aug 2026 — same real AISI/Fastmarkets production data as automotive_sheet_demand, plus generic market research, no reliable live feed exists",
-    dataPoint: "US auto production: ~10.2M units (2026, same as automotive_sheet_demand) · PP holds ~32-35% share of automotive plastics content, growing with lightweighting/EV trends",
+    value: "Stable",
+    trend: "flat",
+    keyFact: "US auto production is roughly flat for 2026, so resin demand from automotive is steady. Processors head into 2027 contract talks in a buyer's market.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "US auto output ~flat 2026",
+    previousValue: 0.48,
+    reviewedAt: "2026-11-16",
   },
   china_polymer_capacity: {
-    value: "Severe, worsening structural overcapacity",
-    trend: "deteriorating, capacity additions continuing regardless",
-    keyFact: "Confirmed 2026-08-18 across multiple independent sources (CIEL, Argus Media, ICIS): China's polypropylene exports surged 54% YoY through April 2026, polyethylene exports up 122%, while Chinese imports of both fell simultaneously — a genuine reversal from net importer toward net exporter. China's own PP production margins collapsed more than 95% between 2019-2021 and 2022-2024. Global PP oversupply is forecast at 21 million metric tons annually for 2020-2030, up threefold from 7 million tonnes in 2000-2019. Real, dated: 2026 alone brings 4.55M tonnes of new Chinese PP capacity and ~6.2M tonnes of new PE capacity, continuing to expand despite the already-severe glut. Connects to the same Middle East conflict already found driving aluminum_spot_price and petrochemical_feedstock_risk — Chinese exporters are explicitly filling the gap left by constrained Middle East supply.",
-    lastUpdated: "Analyst review, Aug 2026 — real CIEL/Argus/ICIS data, no reliable live feed exists",
-    dataPoint: "China PP exports: +54% YoY (Apr 2026) · PE exports: +122% YoY · China PP margins: -95%+ (2019-21 vs 2022-24) · Global PP oversupply forecast: 21M tonnes/yr (2020-30), up from 7M tonnes/yr (2000-19)",
+    value: "Severe oversupply",
+    trend: "stable severe",
+    keyFact: "Chinese polymer capacity additions keep global PP and PE in surplus; European PP and PE hit their lowest prices since 2020 for most grades heading into November 2026. Oversupply is a margin risk for producers, not a supply risk for buyers.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "EU PP/PE at lowest since 2020 (ChemOrbis, Nov 2026)",
+    previousValue: 0.86,
+    reviewedAt: "2026-11-16",
   },
   resin_allocation_squeeze: {
-    value: "Still no hard squeeze, but tightening slightly off the oversupply low",
-    trend: "turning — producer run cuts starting to offset the Q2 oversupply",
-    keyFact: "Updated 2026-09-30: the May 2026 oversupply picture (PP inventories +105.7M lbs to 1.97B lbs, 39 days of supply, 'this isn't a tight market') is the baseline, but it's starting to shift — the same feedstock cost shock and producer run cuts now confirmed in pp_resin_spot_price and petrochemical_feedstock_risk work against pure oversupply, nudging the allocation picture modestly tighter even though a genuine squeeze hasn't materialized.",
-    lastUpdated: "Analyst review, Sep 2026 — real PlasticsToday/ACC/ICIS data, no reliable live feed exists",
-    dataPoint: "PP inventories: +105.7M lbs to 1.97B lbs (May 2026 baseline) · Producer run cuts now underway (Sept 2026) as feedstock costs re-escalate",
-    previousValue: 0.25,
-    reviewedAt: "2026-09-30",
+    value: "No allocation pressure",
+    trend: "easing",
+    keyFact: "Plenty of resin supply and supplier competition make this a buyer's market heading into 2027 contract negotiations. No allocation pressure on volume resins.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Buyer's market into 2027 talks (Resin Technology Inc.)",
+    previousValue: 0.3,
+    reviewedAt: "2026-11-16",
   },
   trade_policy_pipeline: {
     value: "Legal uncertainty resolved into a durable (if lower) tariff band",
@@ -1227,29 +1243,31 @@ export const MOCK_RESINS_SIGNAL_DETAIL = {
     reviewedAt: "2026-09-30",
   },
   pp_resin_spot_price: {
-    value: "Margins turned negative, producer run cuts announced",
-    trend: "reversing sharply, feedstock costs outrunning resin prices",
-    keyFact: "Updated 2026-09-27: the 'buyer-favorable' market confirmed in August has flipped. As Brent crude re-escalated above $110/bbl by mid-September (see petrochemical_feedstock_risk), feedstock costs rose faster than PP contract prices, pushing producer margins negative and prompting run-cut announcements — the opposite dynamic from July's oversupply-driven decline. china_polymer_capacity's oversupply pressure hasn't gone away, but it's now colliding with a renewed cost shock rather than easing pricing.",
-    lastUpdated: "Analyst review, Sept 2026 — real PlasticsToday/ChemOrbis/ICIS data, no reliable live feed exists",
-    dataPoint: "PP producer margins: negative (mid-Sept 2026) · Feedstock (Brent): back above $110/bbl, re-escalating faster than resin contract prices",
+    value: "Flat-to-down",
+    trend: "easing",
+    keyFact: "Resin Technology consultants expect North American PP prices flat to down for the rest of 2026, with plenty of supply and supplier competition. Europe's PP is at its lowest since 2020.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "PP flat-to-down Nov-Dec 2026 (Plastics Technology)",
+    previousValue: 0.62,
+    reviewedAt: "2026-11-16",
   },
   abs_resin_spot_price: {
-    value: "Surged ~30% July-September, reversing the Q2 correction",
-    trend: "re-escalating sharply, margin-driven producer cuts",
-    keyFact: "REVERSED 2026-09-30: the Q2 correction confirmed in the prior review (down 25-30% from the March high, 8,900-10,450 RMB/MT by late June) has itself reversed — ABS prices climbed roughly 30% between July and September 2026, driven by margin-driven producer run cuts rather than a demand recovery. This mirrors the same cost-margin squeeze now showing up in pp_resin_spot_price and petrochemical_feedstock_risk — producers cutting output to defend margins as feedstock costs re-escalate.",
-    lastUpdated: "Analyst review, Sep 2026 — real ChemOrbis/ICIS Chinese domestic pricing data, no reliable live feed exists",
-    dataPoint: "Chinese domestic ABS: down 25-30% by late June 2026, then up ~30% Jul-Sept 2026 on margin-driven producer run cuts",
-    previousValue: 0.32,
-    reviewedAt: "2026-09-30",
+    value: "Firming on feedstock costs",
+    trend: "tightening slightly",
+    keyFact: "European standard thermoplastic quotations, including ABS, kept rising in November 2026 as styrene, benzene and butadiene contract prices rose. High prices are deterring processors from waiting for December discounts.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "PIE Nov 13 2026: standard thermoplastics quotations continue to rise",
+    previousValue: 0.48,
+    reviewedAt: "2026-11-16",
   },
   nylon_resin_spot_price: {
-    value: "Better evidenced now — Celanese price increases confirm tightness",
-    trend: "firming, now directly evidenced",
-    keyFact: "Updated 2026-09-30: the softer Celanese-capex proxy from the prior review is now backed by more direct evidence — Celanese announced nylon price increases in March, April, and May 2026, a real, dated signal of firming pricing power rather than just an inferred capex-based proxy. Score held steady since the direction (firming, not easing) was already correctly inferred, but confidence in that read is now meaningfully higher.",
-    lastUpdated: "Analyst review, Sep 2026 — real Celanese price-increase announcements (Mar/Apr/May 2026), no reliable live feed exists",
-    dataPoint: "Celanese nylon price increases announced: Mar, Apr, May 2026 · Prior capex pullback (-21.1% YoY) still noted as context, no longer the sole evidence",
+    value: "Firming",
+    trend: "tightening slightly",
+    keyFact: "Plastics Technology's October 2026 outlook flagged upward pricing for nylon 6/66 while volume resins stayed flat-to-down. Celanese's capex pullback limits new engineering resin capacity.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Nylon 6/66 prices up (Plastics Technology, Oct 2026)",
     previousValue: 0.55,
-    reviewedAt: "2026-09-30",
+    reviewedAt: "2026-11-16",
   },
 };
 
@@ -1258,19 +1276,19 @@ export const MOCK_RESINS_SIGNAL_DETAIL = {
 // an explicit, labeled placeholder.
 export const MOCK_RUBBER_FORWARD_SIGNALS = {
   tire_manufacturer_demand:      0.50, // Overridden by the real live fetch when it succeeds
-  thai_indonesian_output:        0.72, // Updated 2026-09-30: the modest recovery forecast didn't hold — Indonesia's exports actually fell 21% YoY against a forecast +0.8% gain, a real and meaningful miss on top of the already-confirmed structural decline
+  thai_indonesian_output:        0.72, // Reviewed 2026-11-16: Thai exports -10% YoY Jan-Aug
   leaf_disease_risk:             0.62, // Updated 2026-09-30: yield losses confirmed running as high as 30-35% in some affected areas — worse than the general pressure described in the prior review
-  synthetic_rubber_substitution: 0.45, // Updated 2026-09-30: REVERSED — the Hormuz Strait reopened under an April 2026 ceasefire, resolving the original substitution driver, though NBR prices remain elevated and rising, now pulled up by the natural-rubber price spike itself rather than the Hormuz closure
-  china_rubber_stockpiling:      0.70, // Updated 2026-09-30: Chinese natural rubber imports hit a 6-year low of 486kt in August, and Qingdao inventory fell a further 17.4kt the week of Sept 18 — buffer stock continuing to draw down more severely than the prior review captured
-  weather_disruption_risk:       0.72, // Real, reversed: Thai rainfall turned disruptive by Sept 2026 (heavy monsoon flooding curbing tapping), compounding the Ivory Coast port congestion driver and the confirmed 254¢/kg price high
+  synthetic_rubber_substitution: 0.40, // Reviewed 2026-11-16: crude's November fall cheapens synthetic rubber, easing NR pressure
+  china_rubber_stockpiling:      0.72, // Reviewed 2026-11-16: China September imports 588 kt, -20.8% YoY
+  weather_disruption_risk:       0.70, // Reviewed 2026-11-16: Thai flooding through mid-October; El Nino a Q4 variable
 };
 
 export const MOCK_RUBBER_REGIME_SIGNALS = {
   // freight_rates is NOT duplicated here — reused directly from
   // MOCK_REGIME_SIGNALS, same real live/analyst-reviewed data.
-  rss3_spot_price:    0.80, // Real, severe reversal: TOCOM RSS3 hit 254¢/kg on Sept 25 2026, +46.74% YoY and the highest level since 2013 — a sharp break from the mid-range stability confirmed in August
-  tsr20_spot_price:   0.82, // Real, elevated further: the same crude/substitution dynamics confirmed in July have intensified into September, tracking the broader rubber benchmark's move to a 13-year high
-  tire_grade_premium: 0.75, // Inferred: both grades have moved sharply higher through Sept 2026, but TSR20 remains the more acutely pressured tire-preferred grade, so the premium is still assessed as widening
+  rss3_spot_price:    0.78, // Reviewed 2026-11-16: pulled back from multi-year highs in mid-October
+  tsr20_spot_price:   0.78, // Reviewed 2026-11-16: easing with RSS3 from October highs
+  tire_grade_premium: 0.75, // Reviewed 2026-11-16: unchanged
 };
 
 export const MOCK_RUBBER_SIGNAL_DETAIL = {
@@ -1282,13 +1300,13 @@ export const MOCK_RUBBER_SIGNAL_DETAIL = {
     dataPoint: "See the live fetch for real, current Goodyear capex figures",
   },
   thai_indonesian_output: {
-    value: "Recovery forecast missed — Indonesia exports fell 21% YoY",
-    trend: "worse than expected, structural decline deepening",
-    keyFact: "UPDATED 2026-09-30 — the modest recovery forecast from the prior review (+0.8% for Indonesia) did not materialize: Indonesian rubber exports actually fell 21% year-over-year, a sharp miss against that forecast and a meaningful worsening on top of the already-confirmed structural decline (-35%+ since the 2012-2019 peak). The real, confirmed 2026 supply-demand gap of roughly 0.4 million metric tons (Mordor Intelligence) is now understating the severity if Indonesia's export miss is representative of output more broadly.",
-    lastUpdated: "Analyst review, Sep 2026 — real TDD Global/Chemical Market Analytics/Mordor Intelligence data, no reliable live feed exists (no corporate anchor — smallholder-farmer-dominated production)",
-    dataPoint: "Indonesia exports: -21% YoY vs. forecast +0.8% · Indonesia structural decline: -35%+ since 2012-2019 peak · Real 2026 supply-demand gap: ~0.4M metric tons (baseline, likely understated now)",
-    previousValue: 0.58,
-    reviewedAt: "2026-09-30",
+    value: "Constrained",
+    trend: "stable tight",
+    keyFact: "Thailand's natural rubber exports fell 10% year over year to 1.62 Mt in the first eight months of 2026, and Indonesian exports remain weak. Supply recovery has not materialized.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Thai NR exports 1.62 Mt Jan-Aug 2026 (-10% YoY)",
+    previousValue: 0.72,
+    reviewedAt: "2026-11-16",
   },
   leaf_disease_risk: {
     value: "Active disease pressure, confirmed yield losses up to 30-35%",
@@ -1300,50 +1318,58 @@ export const MOCK_RUBBER_SIGNAL_DETAIL = {
     reviewedAt: "2026-09-30",
   },
   synthetic_rubber_substitution: {
-    value: "Hormuz reopened, but NBR still elevated — now pulled by NR itself",
-    trend: "easing from acute crisis, though not fully resolved",
-    keyFact: "REVERSED 2026-09-30: the Hormuz Strait, closed since March 2026 and the original driver of this signal, REOPENED in April 2026 under a ceasefire — resolving the acute naphtha-supply-shock mechanism that doubled NBR prices earlier in the year. However, NBR prices remain elevated and are still rising (~$2.62/kg, +6.5% month-over-month as of Sept 2026) — now pulled up by the natural-rubber price spike itself (see rss3_spot_price, tsr20_spot_price) rather than by the original Hormuz-driven feedstock shock. The substitution pressure has changed mechanism, not fully disappeared.",
-    lastUpdated: "Analyst review, Sep 2026 — real Tat Win/Top Glove/MARGMA and ceasefire reporting, no reliable live feed exists",
-    dataPoint: "Hormuz Strait: reopened Apr 2026 under ceasefire · NBR price: ~$2.62/kg, +6.5% MoM (Sept 2026) — rising on NR-price contagion, not renewed feedstock shock",
-    previousValue: 0.8,
-    reviewedAt: "2026-09-30",
+    value: "More substitution room",
+    trend: "easing",
+    keyFact: "With Brent down to about $93 in early November 2026, butadiene-based synthetic rubber gets relatively cheaper, giving tire makers more room to substitute away from tight natural rubber.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Brent ~$93/bbl (Nov 9 2026)",
+    previousValue: 0.45,
+    reviewedAt: "2026-11-16",
   },
   china_rubber_stockpiling: {
-    value: "Imports hit a 6-year low, destocking accelerating",
-    trend: "declining buffer, now more severe than the prior review",
-    keyFact: "UPDATED 2026-09-30: the destocking trend confirmed in the prior review has deepened — Chinese natural rubber imports fell to a 6-year low of 486,000 tonnes in August 2026, and Qingdao Bonded Zone inventory fell a further 17,400 tonnes the week of Sept 18, continuing the drawdown from April's record high of 371,100 tonnes. Still fundamentally a financial/credit-driven constraint (tire makers reducing import volumes) rather than acute physical scarcity, but the buffer stock cushion is now thinner than it was in the prior review.",
-    lastUpdated: "Analyst review, Sep 2026 — real SCI99/China Rubber Industry Association/Business Recorder data, no reliable live feed exists",
-    dataPoint: "Chinese NR imports: 486kt (Aug 2026), 6-year low · Qingdao Bonded Zone: -17.4kt (week of Sept 18, 2026), continuing the drawdown from the Apr 2026 record high of 371.1kt",
-    previousValue: 0.58,
-    reviewedAt: "2026-09-30",
+    value: "Imports falling",
+    trend: "tightening",
+    keyFact: "China's natural rubber imports fell 20.8% year over year to 588,000 t in September 2026, after a six-year low for August. Qingdao spot pulled back from multi-year highs in mid-October on weak tire demand, but stocks are being drawn rather than built.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "China Sep 2026 NR imports 588 kt (-20.8% YoY)",
+    previousValue: 0.7,
+    reviewedAt: "2026-11-16",
   },
   weather_disruption_risk: {
-    value: "Reversed: Thai monsoon flooding now curbing tapping",
-    trend: "disruptive, confirming the structural vulnerability flagged in August",
-    keyFact: "Updated 2026-09-27: the favorable May 2026 Thai rainfall has reversed — heavy monsoon flooding through September is now curbing tapping activity, the same structural vulnerability flagged (but not yet realized) in the August review. This compounds a new driver not previously captured: Ivory Coast port congestion is adding further disruption to natural rubber logistics. Together these sit behind the confirmed move to a 254 cents/kg benchmark price on Sept 25 2026 — the highest since 2013.",
-    lastUpdated: "Analyst review, Sept 2026 — real TDD Global/European Rubber Journal/trade press data, NOAA live integration remains deferred",
-    dataPoint: "Sept 2026: Thai monsoon flooding curbing tapping · New driver: Ivory Coast port congestion · Benchmark rubber price: 254 cents/kg (Sept 25 2026), +46.74% YoY, highest since 2013",
+    value: "Elevated",
+    trend: "stable elevated",
+    keyFact: "Heavy rain and flooding in Thailand disrupted tapping and some auto parts suppliers into mid-October 2026, and analysts flag El Nino as a key Q4 variable for Southeast Asian output.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Thai flooding into mid-Oct 2026; El Nino watch for Q4",
+    previousValue: 0.72,
+    reviewedAt: "2026-11-16",
   },
   rss3_spot_price: {
-    value: "254 cents/kg (TOCOM, Sept 25 2026), highest since 2013",
-    trend: "escalating sharply, breaking out of the 2026 band",
-    keyFact: "Updated 2026-09-27: RSS3 has broken decisively out of the mid-range stability confirmed in August. TOCOM RSS3 hit 254 cents/kg on Sept 25 2026 — up 46.74% year-over-year and the highest level since 2013 — driven by the reversed Thai weather picture (weather_disruption_risk) and new Ivory Coast port congestion pressure on top of the substitution dynamics already confirmed severe in synthetic_rubber_substitution.",
-    lastUpdated: "Analyst review, Sept 2026 — real TOCOM/trade press data, no reliable live feed exists",
-    dataPoint: "RSS3/benchmark rubber: 254 cents/kg (TOCOM, Sept 25 2026), +46.74% YoY, highest since 2013",
+    value: "High, off the peak",
+    trend: "easing slightly",
+    keyFact: "Natural rubber hit multi-year highs in early October 2026 (SMR 20 at its highest since 2012 on Oct 12) before Qingdao spot fell CNY 450-600/t on Oct 15 on weak Chinese tire demand. Thai smoked sheet steadied near THB 90.50/kg. Prices remain far above a year ago.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "SMR 20 highest since 2012 (Oct 12 2026); Thai RSS ~THB 90.50/kg (Oct 14)",
+    previousValue: 0.8,
+    reviewedAt: "2026-11-16",
   },
   tsr20_spot_price: {
-    value: "Elevated further through Sept 2026, tracking the benchmark's 13-year high",
-    trend: "escalating, acute",
-    keyFact: "Updated 2026-09-27: the +7% MoM move confirmed in July has continued to build through September, tracking the broader benchmark rubber price's climb to 254 cents/kg (Sept 25 2026) — the highest since 2013. The same substitution dynamic confirmed severe in synthetic_rubber_substitution remains the dominant driver, now compounded by the Ivory Coast port congestion and reversed Thai weather picture flagged in weather_disruption_risk. TSR20 remains the preferred feedstock of the global tire industry (JPX), keeping this the most directly automotive-relevant price signal in this commodity.",
-    lastUpdated: "Analyst review, Sept 2026 — real SGX SICOM/Malaysian Rubber Board/trade press data, no reliable live feed exists",
-    dataPoint: "TSR20 tracking benchmark rubber's move to 254 cents/kg (Sept 25 2026), +46.74% YoY, highest since 2013",
+    value: "High, off the peak",
+    trend: "easing slightly",
+    keyFact: "Block rubber grades used by tire compounders followed the market off its October 2026 multi-year highs, but supply stays tight with Thai exports down 10% and Chinese imports falling.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Off Oct 2026 multi-year highs; Thai exports -10% YoY",
+    previousValue: 0.82,
+    reviewedAt: "2026-11-16",
   },
   tire_grade_premium: {
-    value: "Still widening, inferred — both grades now sharply higher",
-    trend: "widening",
-    keyFact: "Updated 2026-09-27: not a direct measurement — inferred from the same RSS3/TSR20 signals above. Both grades have moved sharply higher through September (the composite benchmark hit 254 cents/kg, +46.74% YoY, the highest since 2013), but TSR20 remains the more acutely pressured tire-preferred grade given its direct tie to the synthetic-substitution dynamics in synthetic_rubber_substitution, so the premium is still assessed as widening rather than converging.",
-    lastUpdated: "Analyst review, Sept 2026 — inferred from real RSS3/TSR20 data above, no dedicated live feed exists",
-    dataPoint: "Inferred from: both grades tracking the Sept 2026 benchmark move to 254 cents/kg, +46.74% YoY, highest since 2013",
+    value: "Persistent premium",
+    trend: "stable",
+    keyFact: "Both grades eased from October highs together, so the tire-grade premium is roughly unchanged. TSR20 remains the more acutely pressured grade for tire makers.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Premium roughly unchanged (Oct-Nov 2026)",
+    previousValue: 0.75,
+    reviewedAt: "2026-11-16",
   },
 };
 

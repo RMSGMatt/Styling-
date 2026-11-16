@@ -314,29 +314,29 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
   // commentary from these companies instead — update this date each
   // time it's actually reviewed, don't just leave it stale.
   const ANALYST_REVIEWED_KEYS = {
-    capacity_allocation_mix_shift: "2026-08-15",
-    china_refinery_concentration: "2026-08-16",
+    capacity_allocation_mix_shift: "2026-11-16",
+    china_refinery_concentration: "2026-11-16",
     // Both reframed 2026-08-16 based on real evidence that contradicted
     // each signal's original assumption (CATL-squeeze / demand-outpacing-
     // supply) — real story for a US-client-facing platform is Western
     // battery JV instability (Ford/LGES, GM/Ultium, Stellantis/Samsung
     // SDI, Porsche), not allocation scarcity. See signalSources.js for
     // full sourcing on each.
-    cell_capacity_allocation_nlp: "2026-09-30",
-    ev_production_forecast_delta: "2026-09-30",
+    cell_capacity_allocation_nlp: "2026-11-16",
+    ev_production_forecast_delta: "2026-11-16",
     // Genuinely different direction from every other correction tonight
     // — real evidence pointed toward LESS risk, not more. Confirmed via
     // two independent sources (LME forward curve analysis + real spot
     // pricing) before changing, given how unusual a downward correction
     // was relative to everything else found tonight.
-    lithium_futures_curve: "2026-09-30",
+    lithium_futures_curve: "2026-11-16",
     // The first REGIME (not forward) signal in this list — confirmed
     // Freightos FBX's free tier is chart/widget-only, no machine-readable
     // API exists without a paid account. Real data (Drewry WCI) shows
     // rates at 2.5-3.5x the old mock baseline, near a genuine 2026 peak
     // — but with real, credible analyst disagreement about whether it
     // holds. Volatile enough to warrant monthly review, not quarterly.
-    freight_rates: "2026-08-16",
+    freight_rates: "2026-11-16",
     // All three major automotive cell makers (CATL, LG Energy Solution,
     // Panasonic) confirmed to have no SEC reporting obligation — LGES has
     // no US listing of any kind (not even an unsponsored ADR), CATL has
@@ -350,21 +350,21 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     // using real BMI figures plus the same recent-easing evidence
     // (declining spot prices, 3 real mine restarts) already confirmed
     // for lithium_futures_curve.
-    lithium_carbonate_spot: "2026-09-30",
-    lithium_hydroxide_spot: "2026-08-16",
+    lithium_carbonate_spot: "2026-11-16",
+    lithium_hydroxide_spot: "2026-11-16",
     // Real, severe finding — DRC export quota (73-75% of global cobalt
     // supply) caps 2026-2027 exports at less than half of 2024's actual
     // production, described by analysts as comparable in severity to
     // OPEC-coordinated production cuts. Mock's "flat, stable" framing
     // was dramatically wrong, not just stale — genuinely different kind
     // of correction from most other signals tonight.
-    cobalt_spot_price: "2026-09-30",
+    cobalt_spot_price: "2026-11-16",
     // Rare Earth Metals — real, confirmed via IEA/S&P Global: China
     // controls ~91% of global rare earth refining/separation capacity,
     // even more concentrated than lithium's ~65% refining equivalent.
     // Same conclusion as the lithium version — a slow-moving structural
     // reality, no reliable live feed exists.
-    china_refining_concentration: "2026-08-16",
+    china_refining_concentration: "2026-11-16",
     // NdPr: real, moderate — China domestic benchmark has fallen below
     // the real $110/kg DoD-backed price floor (Aug 2026). Heavy REE
     // (Dy/Tb): real, severe two-tier market — confirmed 3.6-4.5x price
@@ -372,47 +372,47 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     // paid-data wall as every other spot-pricing signal tonight — no
     // reliable live feed exists across LME, CME, Fastmarkets, BMI,
     // Trading Economics, or SMM.
-    ndpr_oxide_spot_price: "2026-09-30",
-    heavy_ree_spot_price: "2026-09-30",
+    ndpr_oxide_spot_price: "2026-11-16",
+    heavy_ree_spot_price: "2026-11-16",
     // No formal lead-time figure exists anywhere for NdFeB magnets —
     // the ex-China industry is too early-stage for that kind of
     // trade-press tracking. Real capacity-ramp data used as a proxy:
     // MP Materials' next major facility doesn't commission until 2028.
-    magnet_lead_times: "2026-08-16",
+    magnet_lead_times: "2026-11-16",
     // Final rare earth signal — real DoD offtake terms turned out more
     // nuanced than expected: a revenue/EBITDA guarantee mechanism, not a
     // literal defense-only lockout. Commercial buyers retain access with
     // DoD consent. All 9 rare earth signals now resolved: 4 live, 5
     // analyst-reviewed.
-    magnet_capacity_allocation: "2026-08-16",
+    magnet_capacity_allocation: "2026-11-16",
     // First case of Federal Register document-count being tested and
     // explicitly rejected as the wrong instrument: China-steel AD/CVD
     // activity is high-volume, routine regulatory business (dozens of
     // continuous product-specific proceedings), poorly suited to a
     // count-based signal. Real severity instead confirmed via the OECD
     // itself — global excess capacity, record Chinese exports.
-    china_steel_overcapacity_dumping: "2026-09-30",
+    china_steel_overcapacity_dumping: "2026-11-16",
     // Real, current CME contract data found directly (no free API
     // exists) — HRC futures declined ~6.5% from a Jan 2026 peak,
     // consistent with the severe global oversupply confirmed via OECD.
-    hrc_spot_price: "2026-08-17",
+    hrc_spot_price: "2026-11-16",
     // Real, stable: US auto production flat at ~10.2M units in 2026, no
     // crisis signal — a market-forecast topic, not government/SEC data.
-    automotive_sheet_demand: "2026-08-17",
+    automotive_sheet_demand: "2026-11-16",
     // Real, moderate with a tilt toward tightness: prime/busheling scrap
     // running below historical availability, the grade most relevant to
     // automotive-grade flat-rolled production specifically.
-    scrap_eaf_dynamics: "2026-09-30",
+    scrap_eaf_dynamics: "2026-11-16",
     // Real, severe, currently escalating — LME aluminum climbing on real
     // tariff effects plus a genuine Middle East supply crisis.
-    aluminum_spot_price: "2026-08-17",
+    aluminum_spot_price: "2026-11-16",
     // Real, honest divergence between the two materials — steel imports
     // down 30% (de-risking), aluminum still ~60% import-dependent. Live
     // tracking is genuinely possible (real Census/ITC monitors exist for
     // both materials) but deferred pending free API key registration —
     // a deliberate decision, not a dead end. Completes all 10 Steel &
     // Aluminum signals: 3 live, 7 analyst-reviewed.
-    import_penetration: "2026-09-30",
+    import_penetration: "2026-11-16",
     // Real, elevated with genuine legal uncertainty — SCOTUS invalidated
     // IEEPA emergency tariffs (Feb 2026), Section 122 stop-gap capped at
     // 150 days, cumulative China polymer duties often exceed 47%.
@@ -426,32 +426,32 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     // days" industry headline, naphtha +16.78% QoQ. EIA live build
     // deferred pending free API key registration, same decision as
     // import_penetration.
-    petrochemical_feedstock_risk: "2026-08-18",
+    petrochemical_feedstock_risk: "2026-11-16",
     // Real, stable US production (same figure as automotive_sheet_demand)
     // with a modest structural tilt for growing plastics content per
     // vehicle. Honest note: evidence quality here was weaker than most
     // other signals — mostly generic market research, not dated news.
-    automotive_resin_demand: "2026-08-18",
+    automotive_resin_demand: "2026-11-16",
     // Real, severe — confirmed via CIEL, Argus Media, and ICIS
     // independently: China PP margins collapsed >95%, exports surging
     // 54-122% YoY, global oversupply forecast tripling. Third
     // confirmation tonight that the same Middle East conflict is
     // rippling across multiple, otherwise-unrelated commodities.
-    china_polymer_capacity: "2026-08-18",
+    china_polymer_capacity: "2026-11-16",
     // PP and ABS: real, current, well-evidenced downward corrections —
     // the same Chinese oversupply and faded Middle East geopolitical
     // premium confirmed elsewhere are pulling US spot prices down, not
     // up. Nylon: honest gap, no direct pricing data found, inferred from
     // Celanese's real capex pullback instead — weaker evidence than the
     // other two, reflected in less confident scoring.
-    pp_resin_spot_price: "2026-08-18",
-    abs_resin_spot_price: "2026-09-30",
-    nylon_resin_spot_price: "2026-09-30",
+    pp_resin_spot_price: "2026-11-16",
+    abs_resin_spot_price: "2026-11-16",
+    nylon_resin_spot_price: "2026-11-16",
     // Final resins signal — real, direct confirmation of the OPPOSITE of
     // a squeeze: real ACC inventory/production/export data, trade press
     // explicitly states "this isn't a tight market." Completes all 10
     // Automotive Resins & Plastics signals: 1 live, 9 analyst-reviewed.
-    resin_allocation_squeeze: "2026-09-30",
+    resin_allocation_squeeze: "2026-11-16",
     // Real, active named disease threat: Lasiodiplodia theobromae leaf
     // blight in Thailand's NE plantation zones, contributing to a real,
     // confirmed 2026 supply-demand gap.
@@ -460,28 +460,28 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     // vulnerability to extreme swings (2023-24 drought-then-flood
     // precedent). NOAA live integration genuinely attempted (5 real API
     // debugging attempts) and deferred as a real technical dead end.
-    weather_disruption_risk: "2026-08-18",
+    weather_disruption_risk: "2026-11-16",
     // Real, mixed: modest 2026 recovery forecast sits atop genuine
     // structural decline (Indonesia -35% since 2012-2019 peak), confirmed
     // real 0.4M ton 2026 supply-demand gap.
-    thai_indonesian_output: "2026-09-30",
+    thai_indonesian_output: "2026-11-16",
     // Real, current: Chinese commercial rubber inventory destocking from
     // a real April 2026 record high, credit-driven not scarcity-driven,
     // but still relevant to forward buffer-stock risk.
-    china_rubber_stockpiling: "2026-09-30",
+    china_rubber_stockpiling: "2026-11-16",
     // Real, severe — fifth confirmation tonight of the same Middle East
     // conflict rippling across otherwise-unrelated commodities. NBR
     // prices doubled, real confirmed substitution toward natural rubber
     // (MARGMA urgent statement, Mar 2026).
-    synthetic_rubber_substitution: "2026-09-30",
+    synthetic_rubber_substitution: "2026-11-16",
     // Final three rubber signals — real, differentiated evidence: RSS3
     // stable, TSR20 confirmed +7% MoM tied to the same synthetic
     // substitution dynamic already confirmed severe, tire_grade_premium
     // inferred from that real divergence. Completes all 10 Natural
     // Rubber signals: 1 live, 9 analyst-reviewed.
-    rss3_spot_price: "2026-08-18",
-    tsr20_spot_price: "2026-08-18",
-    tire_grade_premium: "2026-08-18",
+    rss3_spot_price: "2026-11-16",
+    tsr20_spot_price: "2026-11-16",
+    tire_grade_premium: "2026-11-16",
   };
   const [regimeSignals,     setRegimeSignals]     = useState(null);
   const [scoreResult,       setScoreResult]       = useState(null);
