@@ -506,7 +506,9 @@ function PartQuotes({ skus, apiBase, authHeader }) {
                 {(p.status === "gap" || p.status === "covered" || p.status === "not_found") && (
                   <tr><td colSpan={6} style={{ ...td, paddingTop: 0, fontSize: 12 }}>
                     {p.text}
-                    {p.status === "gap" && p.spot_cost != null && <> Buying what distributors list runs about <b style={{ color: INK }}>{usd(p.spot_cost)}</b> at list price.</>}
+                    {p.status === "gap" && p.spot_cost != null && (p.spot_covers_gap
+                      ? <> Distributor stock covers it: buying the gap runs about <b style={{ color: INK }}>{usd(p.spot_cost)}</b> at list price.</>
+                      : <> Buying what distributors list runs about <b style={{ color: INK }}>{usd(p.spot_cost)}</b> at list price.</>)}
                     {(p.offers || []).filter((o) => o.url && !o.error).map((o) => (
                       <a key={o.source} href={o.url} target="_blank" rel="noopener noreferrer" style={{ color: LIME, fontSize: 11.5, marginLeft: 8 }}>{o.source}</a>
                     ))}
