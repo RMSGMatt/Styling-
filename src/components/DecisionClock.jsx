@@ -24,7 +24,11 @@ export function computeClock(levers, firstShortageDate, disruptionStart) {
   if (!firstShortageDate) return [];
   const first = parse(firstShortageDate);
   const d0 = disruptionStart ? parse(disruptionStart) : null;
-  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  // A scenario whose shortage date is already behind us is a replay: judge each response from the day
+  // the disruption starts (the earliest anyone could know), not from today's date.
+  const replay = first <= today;
+  const ref = replay ? (d0 || first) : today;
   return levers.map((l) => {
     const days = Math.max(0, Number(l.days) || 0);
     const order = new Date(first.getTime() - days * MS);
@@ -32,7 +36,9 @@ export function computeClock(levers, firstShortageDate, disruptionStart) {
       ...l,
       days,
       orderBy: toIso(order),
-      isPast: order < now,
+      isPast: !replay && order < ref,
+      replay,
+      daysAfterDisruption: d0 && order >= d0 ? Math.round((order - d0) / MS) : null,
       beforeDisruption: d0 ? order < d0 : false,
       leadDaysBeforeDisruption: d0 ? Math.round((d0 - order) / MS) : null,
     };
@@ -49,6 +55,7 @@ export default function DecisionClock({ firstShortageDate, disruptionStart, sku,
     );
   }
   const rows = computeClock(levers, firstShortageDate, disruptionStart);
+  const replay = rows[0]?.replay;
   const update = (id, days) => setLevers(levers.map((l) => (l.id === id ? { ...l, days } : l)));
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4" data-testid="decision-clock">
@@ -87,6 +94,11 @@ export default function DecisionClock({ firstShortageDate, disruptionStart, sku,
                       </span>
                     </>
                   ) : fmtLong(r.orderBy)}
+                  {r.replay && r.daysAfterDisruption != null && (
+                    <span className="block text-[11px] font-normal text-emerald-300">
+                      {r.daysAfterDisruption} days after the disruption starts to decide
+                    </span>
+                  )}
                   {!r.isPast && r.beforeDisruption && (
                     <span className="block text-[11px] font-normal text-amber-300">
                       {r.leadDaysBeforeDisruption} days before the disruption starts, so it would have to be in place beforehand
@@ -99,7 +111,7 @@ export default function DecisionClock({ firstShortageDate, disruptionStart, sku,
         </table>
       </div>
       <p className="mt-2 text-[10px] text-slate-500">
-        Lead-time arithmetic on the simulated first-shortage date. The detailed analysis under Options replays the scenario for an exact window.
+        {replay ? "This scenario's dates are in the past, so each order-by date is counted from the disruption start, the first day anyone could act. " : ""}Lead-time arithmetic on the simulated first-shortage date. The detailed analysis under Options replays the scenario for an exact window.
       </p>
     </div>
   );

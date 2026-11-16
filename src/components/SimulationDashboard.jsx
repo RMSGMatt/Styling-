@@ -2937,8 +2937,9 @@ export default function SimulationDashboard({
   }, []);
 
   const renderVerdict = () => {
-    const d0 = runKpis?.disruptionStartDate ?? kpis?.disruptionStartDate;
-    const d1 = runKpis?.firstServiceImpactDate ?? kpis?.firstServiceImpactDate;
+    // Same dates as the decision clock and the Dashboard card, so all three agree.
+    const d0 = scorecard?.disruption_start ?? runKpis?.disruptionStartDate ?? kpis?.disruptionStartDate;
+    const d1 = scorecard?.first_shortage_date ?? runKpis?.firstServiceImpactDate ?? kpis?.firstServiceImpactDate;
     const fcLoaded = runKpis != null || (kpis?.disruptionStartDate != null && kpis?.falseConfidenceDays !== undefined);
     const fcDays = Number(runKpis?.falseConfidenceDays ?? execFalseConfidenceDays ?? 0);
     const worstPct = Number(runKpis?.worstWeeklyServicePct ?? execWorstWeeklyPct ?? 0);
