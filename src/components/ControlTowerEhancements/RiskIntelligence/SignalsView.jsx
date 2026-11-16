@@ -317,7 +317,8 @@ const money = (v) => (v == null ? null : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` 
 function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
   const [opt, setOpt] = useState(card.options || null);
   const [knob, setKnob] = useState(() => ({
-    stretch_weeks: card.options?.assumptions?.stretch_weeks ?? 12,
+    // Blank means "use each part's stretch from live quotes" when quotes are available.
+    stretch_weeks: ["quotes", "mixed"].includes(card.options?.assumptions?.stretch_source) ? "" : (card.options?.assumptions?.stretch_weeks ?? 12),
     premium_pct: card.options?.assumptions?.premium_pct ?? 5,
     spot_multiple: card.options?.assumptions?.spot_multiple ?? 3,
   }));
@@ -329,7 +330,7 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
     setBusy(true); setErr("");
     try {
       const r = await fetch(`${apiBase}/api/chokepoints/signals/options`, {
-        method: "POST", headers: { ...authHeader(), "Content-Type": "application/json" }, body: JSON.stringify({ chain: card.id, ...knob }),
+        method: "POST", headers: { ...authHeader(), "Content-Type": "application/json" }, body: JSON.stringify({ chain: card.id, ...knob, stretch_weeks: knob.stretch_weeks === "" ? null : knob.stretch_weeks }),
       });
       const body = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error((body.errors || [])[0] || "Could not recalculate.");
@@ -351,10 +352,10 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
     return <div style={{ fontSize: 12.5, color: MUTED, display: "grid", gap: 8 }}>{opt?.note || "No options to score for this chain."}<div>{cutBtn}</div></div>;
   }
   const a = opt.assumptions, b = opt.baseline;
-  const field = (key, label, min, max, step, unit) => (
+  const field = (key, label, min, max, step, unit, placeholder) => (
     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: MUTED }}>
       {label}
-      <input type="number" min={min} max={max} step={step} value={knob[key]}
+      <input type="number" min={min} max={max} step={step} value={knob[key]} placeholder={placeholder}
              onChange={(e) => setKnob({ ...knob, [key]: e.target.value })}
              style={{ width: 64, background: "rgba(2,6,23,0.6)", color: INK, border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 6px" }} />
       {unit}
@@ -368,12 +369,21 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
         {b.first_short && <>, first part short {fmt(b.first_short)}</>}.
       </div>
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-        {field("stretch_weeks", "Lead times stretch by", 1, 52, 1, "weeks")}
+        {field("stretch_weeks", "Lead times stretch by", 1, 52, 1, "weeks", a.stretch_by_sku?.length ? "auto" : "12")}
         {field("premium_pct", "Reservation premium", 0, 50, 1, "%")}
         {field("spot_multiple", "Broker price", 1, 10, 0.5, "x")}
         <button type="button" style={{ ...actBtn, padding: "5px 12px" }} onClick={rerun} disabled={busy}>{busy ? "Scoring…" : "Recalculate"}</button>
         {err && <span style={{ fontSize: 12.5, color: "#F87171" }}>{err}</span>}
       </div>
+      {a.stretch_source === "override" ? (
+        <div style={{ fontSize: 12, color: DIM }}>Using your {a.stretch_weeks}-week stretch for every part. Clear the box and recalculate to use live quotes.</div>
+      ) : a.stretch_by_sku?.length > 0 ? (
+        <div style={{ fontSize: 12, color: MUTED }}>
+          Stretch from live distributor quotes, against your recent POs: {a.stretch_by_sku.map((x, i) => (
+            <span key={x.sku}>{i > 0 && "; "}<b style={{ color: INK }}>{x.sku}</b> {x.weeks} wks ({x.quoted_weeks} quoted vs {x.usual_weeks} usual)</span>
+          ))}.{a.unquoted?.length > 0 && <> No quote for {a.unquoted.join(", ")}: {a.stretch_weeks} weeks assumed.</>}
+        </div>
+      ) : null}
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
         <thead><tr><th style={th}>#</th><th style={th}>Option</th><th style={th}>Line-down days</th><th style={th}>Revenue at risk</th><th style={th}>Cost</th><th style={th}>Watch out</th></tr></thead>
         <tbody>
@@ -395,7 +405,7 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
       </table>
       <div style={{ fontSize: 11.5, color: DIM }}>
         Model: supply pauses for the lead-time stretch from {a.starts_in_days > 0 ? `${a.starts_in_days} days from now (the window's midpoint)` : "now (lead times are already moving)"}; a part runs short by the stretch minus its days of cover.
-        Ranked by cost per line-down day avoided. FOR-C assumptions, not a forecast: change them above.
+        Ranked by cost per line-down day avoided. {a.stretch_by_sku?.length && a.stretch_source !== "override" ? "Stretch comes from today's quotes; the rest are FOR-C assumptions, not a forecast: change them above." : "FOR-C assumptions, not a forecast: change them above."}
       </div>
       <div>{cutBtn}</div>
     </div>
