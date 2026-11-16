@@ -404,6 +404,7 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
 
 const QSTATUS = {
   gap: { label: "Gap", color: "#F87171" },
+  buy_now: { label: "Buy now", color: "#F4A742" },
   covered: { label: "Covered", color: "#4ADE80" },
   unknown: { label: "Unclear", color: "#E8D44D" },
   not_found: { label: "Not listed", color: "#64748B" },
@@ -470,7 +471,7 @@ function PartQuotes({ skus, apiBase, authHeader }) {
             <th style={th}>Cover</th><th style={th}>Verdict</th>
           </tr></thead>
           <tbody>{res.parts.map((p) => {
-            const st = QSTATUS[p.status] || QSTATUS.unknown;
+            const st = QSTATUS[p.status === "gap" && p.spot_covers_gap ? "buy_now" : p.status] || QSTATUS.unknown;
             const editing = edit[p.sku] !== undefined;
             return (
               <React.Fragment key={p.sku}>
