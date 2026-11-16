@@ -68,7 +68,8 @@ function History({ history }) {
 function Evidence({ tiers }) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
-      {tiers.filter((t) => t.tier !== "pos" || t.lines.length || t.note).map((t) => (
+      {tiers.map((t) => ({ ...t, lines: t.lines.filter((ln) => ln.status !== "no_data") }))  // indicators with no reading yet stay off the card
+        .filter((t) => t.tier !== "pos" || t.lines.length || t.note).map((t) => (
         <div key={t.tier}>
           <div style={{ fontSize: 12.5, color: INK, fontWeight: 600 }}>{t.label} <span style={{ color: (STATE[t.state] || STATE.no_data).color, fontWeight: 600 }}>· {(STATE[t.state] || STATE.no_data).label}</span></div>
           {t.lines.length === 0 ? <div style={{ fontSize: 12.5, color: DIM }}>{t.tier === "pos" && t.note ? t.note : "No signals on this tier yet."}</div> : (
