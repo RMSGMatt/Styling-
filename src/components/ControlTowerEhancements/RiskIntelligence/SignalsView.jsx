@@ -203,6 +203,12 @@ export default function SignalsView({ apiBase, authHeader, selected, onSelect, o
 
           <Section title="What it means for you"><ForYou card={card} personalized={res.personalized} switchView={switchView} /></Section>
 
+          {res.personalized && card.you?.parts?.length > 0 && (
+            <Section title="Your part numbers at distributors">
+              <PartQuotes key={card.id} skus={card.you.parts} apiBase={apiBase} authHeader={authHeader} />
+            </Section>
+          )}
+
           <Section title="What would change this call">
             <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 3 }}>{card.change.map((x, i) => <li key={i} style={{ fontSize: 12.5, color: MUTED }}>{x}</li>)}</ul>
           </Section>
@@ -392,6 +398,129 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
         Ranked by cost per line-down day avoided. FOR-C assumptions, not a forecast: change them above.
       </div>
       <div>{cutBtn}</div>
+    </div>
+  );
+}
+
+const QSTATUS = {
+  gap: { label: "Gap", color: "#F87171" },
+  covered: { label: "Covered", color: "#4ADE80" },
+  unknown: { label: "Unclear", color: "#E8D44D" },
+  not_found: { label: "Not listed", color: "#64748B" },
+  unmapped: { label: "No part number", color: "#64748B" },
+};
+const n0 = (v) => (v == null ? "n/a" : Math.round(v).toLocaleString());
+const usd = (v) => (v == null ? "" : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `$${Math.round(v / 1e3)}k` : `$${Math.round(v)}`);
+
+function PartQuotes({ skus, apiBase, authHeader }) {
+  const [res, setRes] = useState(null);
+  const [err, setErr] = useState("");
+  const [edit, setEdit] = useState({});
+  const [saving, setSaving] = useState("");
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setErr("");
+    (async () => {
+      try {
+        const r = await fetch(`${apiBase}/api/network-parts/quotes?skus=${encodeURIComponent(skus.join(","))}`, { headers: authHeader() });
+        const b = await r.json();
+        if (live) setRes(b);
+      } catch (e) {
+        if (live) setErr("Could not reach the distributor lookup. Try again shortly.");
+      }
+    })();
+    return () => { live = false; };
+  }, [apiBase, authHeader, skus.join(","), tick]);
+
+  const save = async (sku) => {
+    setSaving(sku);
+    try {
+      const r = await fetch(`${apiBase}/api/network-parts/mpn`, {
+        method: "PUT", headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ mapping: { [sku]: (edit[sku] || "").trim() } }),
+      });
+      const b = await r.json();
+      if (!r.ok) { setErr((b.errors || []).join(" ") || "Could not save that part number."); return; }
+      setEdit((e) => ({ ...e, [sku]: undefined }));
+      setTick((t) => t + 1);
+    } finally { setSaving(""); }
+  };
+
+  if (err) return <div style={{ fontSize: 13, color: "#F87171" }}>{err}</div>;
+  if (!res) return <div style={{ fontSize: 13, color: MUTED }}>Checking live distributor quotes for your part numbers...</div>;
+  if (res.status === "upgrade_required") return <div style={{ fontSize: 13, color: MUTED }}>{res.message}</div>;
+  if (res.status === "no_sources") return <div style={{ fontSize: 13, color: MUTED }}>Distributor lookups are not switched on yet.</div>;
+  if (res.status !== "ok") return <div style={{ fontSize: 13, color: MUTED }}>Load your network data to check your part numbers.</div>;
+
+  const gaps = res.parts.filter((p) => p.status === "gap");
+  const short = gaps.filter((p) => p.spot_covers_gap === false);
+  return (
+    <div style={{ fontSize: 13, color: MUTED, display: "grid", gap: 8 }}>
+      <div>
+        {gaps.length
+          ? <><b style={{ color: "#F87171" }}>{gaps.length}</b> of {res.parts.length} part{res.parts.length === 1 ? "" : "s"} run out before a re-order placed today would land at today's quoted lead time.
+              {short.length > 0 && <> Distributor stock does not cover the gap on {short.length === gaps.length ? (gaps.length === 1 ? "it" : "any of them") : short.length}; the rest has to come from allocation, a broker, or a design change.</>}</>
+          : <>At today's quoted lead times, cover on these parts outlasts a re-order placed today.</>}
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+          <thead><tr>
+            <th style={th}>Part</th><th style={th}>Part number</th><th style={th}>Quoted lead time</th><th style={th}>Distributor stock</th>
+            <th style={th}>Cover</th><th style={th}>Verdict</th>
+          </tr></thead>
+          <tbody>{res.parts.map((p) => {
+            const st = QSTATUS[p.status] || QSTATUS.unknown;
+            const editing = edit[p.sku] !== undefined;
+            return (
+              <React.Fragment key={p.sku}>
+                <tr>
+                  <td style={{ ...td, color: INK }}>{p.sku}</td>
+                  <td style={td}>
+                    {editing ? (
+                      <span style={{ display: "inline-flex", gap: 4 }}>
+                        <input value={edit[p.sku]} onChange={(e) => setEdit({ ...edit, [p.sku]: e.target.value })} placeholder="Manufacturer part number"
+                          style={{ background: "rgba(2,6,23,0.6)", border: `1px solid ${LINE}`, borderRadius: 4, color: INK, fontSize: 12, padding: "2px 6px", width: 170 }} />
+                        <button type="button" disabled={saving === p.sku} onClick={() => save(p.sku)} style={linkBtn}>{saving === p.sku ? "Saving" : "Save"}</button>
+                        <button type="button" onClick={() => setEdit({ ...edit, [p.sku]: undefined })} style={{ ...linkBtn, color: MUTED }}>Cancel</button>
+                      </span>
+                    ) : (
+                      <>
+                        {p.mpn ? <span style={{ color: INK }}>{p.mpn}</span> : <span>none</span>}
+                        {p.manufacturer && <span style={{ color: DIM }}> · {p.manufacturer}</span>}
+                        {" "}<button type="button" onClick={() => setEdit({ ...edit, [p.sku]: p.mpn || "" })} style={{ ...linkBtn, fontSize: 11.5 }}>{p.mpn ? "change" : "set"}</button>
+                      </>
+                    )}
+                  </td>
+                  <td style={td}>
+                    {p.lead_weeks != null ? <>{p.lead_weeks} wks{p.lead_weeks_max != null && p.lead_weeks_max !== p.lead_weeks && <span style={{ color: DIM }}> to {p.lead_weeks_max}</span>}</> : "n/a"}
+                    {p.planned_lead_days != null && p.lead_weeks != null && <div style={{ fontSize: 11, color: DIM }}>your recent POs: {Math.round(p.planned_lead_days / 7 * 10) / 10} wks</div>}
+                  </td>
+                  <td style={td}>{p.stock != null ? n0(p.stock) : "n/a"}</td>
+                  <td style={td}>{p.days_cover != null ? `${p.days_cover} days` : "n/a"}</td>
+                  <td style={td}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#111B21", background: st.color, borderRadius: 4, padding: "1px 6px", textTransform: "uppercase" }}>{st.label}</span>
+                    {p.lifecycle_risk && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: "#F4A742" }}>{p.lifecycle}</span>}
+                  </td>
+                </tr>
+                {(p.status === "gap" || p.status === "covered" || p.status === "not_found") && (
+                  <tr><td colSpan={6} style={{ ...td, paddingTop: 0, fontSize: 12 }}>
+                    {p.text}
+                    {p.status === "gap" && p.spot_cost != null && <> Buying what distributors list runs about <b style={{ color: INK }}>{usd(p.spot_cost)}</b> at list price.</>}
+                    {(p.offers || []).filter((o) => o.url && !o.error).map((o) => (
+                      <a key={o.source} href={o.url} target="_blank" rel="noopener noreferrer" style={{ color: LIME, fontSize: 11.5, marginLeft: 8 }}>{o.source}</a>
+                    ))}
+                  </td></tr>
+                )}
+              </React.Fragment>
+            );
+          })}</tbody>
+        </table>
+      </div>
+      <div style={{ fontSize: 11.5, color: DIM }}>
+        Live from {res.sources.join(" and ")}, refreshed every 6 hours. Distributor stock is a signal, not your full supply: most volume moves through direct and franchised allocation. Gaps net off your open POs.
+        {res.sample_mapping && " Sample network: part numbers are representative public parts."}
+      </div>
     </div>
   );
 }
