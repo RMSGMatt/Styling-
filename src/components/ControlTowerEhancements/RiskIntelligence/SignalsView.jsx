@@ -49,18 +49,43 @@ function TierStrip({ tiers }) {
   );
 }
 
-function History({ history }) {
+function History({ history, stage }) {
+  const [hover, setHover] = useState(null);
   if (!history?.length) return null;
   const w = 100 / history.length;
+  // History records the chain's stage; Act also needs today's cover, so it can only be known for the current week.
+  const actNow = stage === "act";
+  const weeks = history.map((h, i) => (i === history.length - 1 && actNow ? { ...h, stage: "act" } : h));
+  const shown = hover != null ? weeks[hover] : null;
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 11.5, color: DIM, marginBottom: 4 }}>Stage over the last 12 months</div>
-      <svg viewBox="0 0 100 6" preserveAspectRatio="none" style={{ width: "100%", height: 12, display: "block" }} role="img" aria-label="Stage by week over the last year">
-        {history.map((h, i) => <rect key={h.date} x={i * w} y="0" width={w + 0.05} height="6" fill={(STAGE[h.stage] || STAGE.none).color} opacity={h.stage === "none" ? 0.35 : 0.9} />)}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 11.5, color: DIM, marginBottom: 4 }}>
+        <span>Stage by week, last 12 months</span>
+        <span style={{ color: shown ? INK : DIM }}>
+          {shown ? <>Week of {fmt(shown.date)}: <b style={{ color: (STAGE[shown.stage] || STAGE.none).color }}>{(STAGE[shown.stage] || STAGE.none).label}</b></> : "Hover a week for its stage"}
+        </span>
+      </div>
+      <svg viewBox="0 0 100 6" preserveAspectRatio="none" style={{ width: "100%", height: 12, display: "block", cursor: "crosshair" }}
+           role="img" aria-label="Stage by week over the last year" onMouseLeave={() => setHover(null)}>
+        {weeks.map((h, i) => (
+          <rect key={h.date} x={i * w} y="0" width={w + 0.05} height="6" fill={(STAGE[h.stage] || STAGE.none).color}
+                opacity={hover === i ? 1 : h.stage === "none" ? 0.35 : 0.9} onMouseEnter={() => setHover(i)}>
+            <title>{`Week of ${fmt(h.date)}: ${(STAGE[h.stage] || STAGE.none).label}`}</title>
+          </rect>
+        ))}
       </svg>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: DIM, marginTop: 2 }}>
-        <span>{month(history[0].date)}</span><span>{month(history[history.length - 1].date)}</span>
+        <span>{month(weeks[0].date)}</span><span>{month(weeks[weeks.length - 1].date)}</span>
       </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", fontSize: 11, color: DIM, marginTop: 6 }}>
+        {[["none", "no tier tightening"], ["watch", "one tier tightening"], ["warning", "two adjacent tiers agree"], ["act", "warning, and your cover runs out first"]].map(([k, d]) => (
+          <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: STAGE[k].color, opacity: k === "none" ? 0.35 : 0.9 }} />
+            <b style={{ color: MUTED, fontWeight: 600 }}>{STAGE[k].label}</b> {d}
+          </span>
+        ))}
+      </div>
+      {actNow && <div style={{ fontSize: 11, color: DIM, marginTop: 4 }}>Act depends on your cover today, so it shows on the current week only.</div>}
     </div>
   );
 }
@@ -176,7 +201,7 @@ export default function SignalsView({ apiBase, authHeader, selected, onSelect, o
           </div>
           {card.window_text && <div style={{ fontSize: 14, color: card.window?.status === "overdue" ? "#F4A742" : INK, marginTop: 6, fontWeight: 600 }}>{card.window_text}{card.window?.lag_weeks && <span style={{ fontWeight: 400, color: DIM }}> ({card.window.lag_weeks[0]} to {card.window.lag_weeks[1]} weeks after the {card.window.anchor} tier moved)</span>}</div>}
           <TierStrip tiers={card.tiers} />
-          <History history={card.history} />
+          <History history={card.history} stage={card.stage} />
 
           <Section title="What we see"><Evidence tiers={card.tiers} /></Section>
 
