@@ -303,6 +303,7 @@ function ReplayPanel({ apiBase, token, onLoad }) {
   const [variant, setVariant] = useState({});
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
+  const [sizing, setSizing] = useState([]);
   const auth = () => {
     const t = (typeof token === "string" ? token.trim() : "") || getAuthToken();
     return { Authorization: `Bearer ${t}`, "Content-Type": "application/json" };
@@ -317,7 +318,7 @@ function ReplayPanel({ apiBase, token, onLoad }) {
   if (!res?.replays?.length) return null;
 
   const load = async (r) => {
-    setBusy(r.key); setMsg("");
+    setBusy(r.key); setMsg(""); setSizing([]);
     try {
       const resp = await fetch(`${apiBase}/api/scenarios/replays/${r.key}`, {
         method: "POST", headers: auth(), body: JSON.stringify({ variant: variant[r.key] || "reported" }),
@@ -326,6 +327,7 @@ function ReplayPanel({ apiBase, token, onLoad }) {
       if (!resp.ok || b.status !== "ok") { setMsg((b.errors || [])[0] || "Could not build that replay."); return; }
       if (!b.disruptions.length) { setMsg(b.note || "This replay does not touch your network."); return; }
       onLoad(b);
+      setSizing(b.sizing || []);
       setMsg(`Loaded: ${b.disruptions.length} site${b.disruptions.length === 1 ? "" : "s"} hit${b.laneDelays.length ? `, ${b.laneDelays.length} lane delay${b.laneDelays.length === 1 ? "" : "s"}` : ""}, ${b.start} to ${b.end}. Review below, then run.`);
     } catch { setMsg("Could not reach the replay service."); } finally { setBusy(""); }
   };
@@ -366,6 +368,12 @@ function ReplayPanel({ apiBase, token, onLoad }) {
         ))}
       </div>
       {msg && <p className="text-[11px] mt-2" style={{ color: "#9FD63A" }}>{msg}</p>}
+      {sizing.length > 0 && (
+        <div className="mt-1 text-[11px] text-slate-400">
+          <p>Sized to your share of supply, not the supplier’s total output:</p>
+          <ul className="list-disc pl-5">{sizing.map((n) => <li key={n}>{n}</li>)}</ul>
+        </div>
+      )}
     </div>
   );
 }
