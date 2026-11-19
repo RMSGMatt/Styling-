@@ -297,6 +297,79 @@ function DemandShockRow({ shock, onChange, onRemove, availableFacilities }) {
   );
 }
 
+// ── Event replays: real disruptions run on the user's own network ──────
+function ReplayPanel({ apiBase, token, onLoad }) {
+  const [res, setRes] = useState(null);
+  const [variant, setVariant] = useState({});
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState("");
+  const auth = () => {
+    const t = (typeof token === "string" ? token.trim() : "") || getAuthToken();
+    return { Authorization: `Bearer ${t}`, "Content-Type": "application/json" };
+  };
+  useEffect(() => {
+    let live = true;
+    fetch(`${apiBase}/api/scenarios/replays`, { headers: auth() })
+      .then((r) => (r.ok ? r.json() : null)).then((b) => { if (live) setRes(b); }).catch(() => {});
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiBase]);
+  if (!res?.replays?.length) return null;
+
+  const load = async (r) => {
+    setBusy(r.key); setMsg("");
+    try {
+      const resp = await fetch(`${apiBase}/api/scenarios/replays/${r.key}`, {
+        method: "POST", headers: auth(), body: JSON.stringify({ variant: variant[r.key] || "reported" }),
+      });
+      const b = await resp.json().catch(() => ({}));
+      if (!resp.ok || b.status !== "ok") { setMsg((b.errors || [])[0] || "Could not build that replay."); return; }
+      if (!b.disruptions.length) { setMsg(b.note || "This replay does not touch your network."); return; }
+      onLoad(b);
+      setMsg(`Loaded: ${b.disruptions.length} site${b.disruptions.length === 1 ? "" : "s"} hit${b.laneDelays.length ? `, ${b.laneDelays.length} lane delay${b.laneDelays.length === 1 ? "" : "s"}` : ""}, ${b.start} to ${b.end}. Review below, then run.`);
+    } catch { setMsg("Could not reach the replay service."); } finally { setBusy(""); }
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3">
+      <p className="text-xs font-semibold mb-1" style={{ color: "#9FD63A" }}>Event replays</p>
+      <p className="text-[11px] text-slate-400 mb-3">Real disruptions from this year, replayed on your network starting today.</p>
+      <div className="grid gap-3 md:grid-cols-3">
+        {res.replays.map((r) => (
+          <div key={r.key} className="rounded-lg border border-slate-700 bg-slate-950/60 p-3 flex flex-col gap-2">
+            <div>
+              <p className="text-[12px] font-semibold text-slate-100">{r.title}</p>
+              <p className="text-[10px] text-slate-500">{r.event}</p>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-snug">{r.what}</p>
+            <p className="text-[11px] leading-snug" style={{ color: "#2EC4A6" }}>{r.lesson}</p>
+            <p className="text-[10px] text-slate-400">
+              {res.status !== "ok" ? "Load your network to see which of your sites it hits."
+                : r.applies ? `Hits ${r.hits.length} of your sites: ${r.hits.slice(0, 3).map((h) => h.facility).join(", ")}${r.hits.length > 3 ? "…" : ""}`
+                : "Does not touch your network directly."}
+            </p>
+            <div className="mt-auto flex items-center gap-2">
+              <select value={variant[r.key] || "reported"} onChange={(e) => setVariant({ ...variant, [r.key]: e.target.value })}
+                className="flex-1 rounded-md bg-slate-950 border border-slate-700 px-2 py-1 text-[11px] text-slate-200">
+                {r.variants.map((v) => <option key={v.key} value={v.key}>{v.label}</option>)}
+              </select>
+              <button type="button" disabled={busy === r.key || res.status !== "ok"} onClick={() => load(r)}
+                className="px-3 py-1 rounded-md text-[11px] font-semibold"
+                style={{ background: "#9FD63A", color: "#020617", opacity: busy === r.key || res.status !== "ok" ? 0.5 : 1 }}>
+                {busy === r.key ? "Loading…" : "Load replay"}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-x-2">
+              {r.sources.map((s) => <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="text-[10px] underline" style={{ color: "#9FD63A" }}>source</a>)}
+            </div>
+          </div>
+        ))}
+      </div>
+      {msg && <p className="text-[11px] mt-2" style={{ color: "#9FD63A" }}>{msg}</p>}
+    </div>
+  );
+}
+
 // ── Main export ───────────────────────────────────────────────────────
 export default function ScenarioBuilder({
   locationsFile,
@@ -322,6 +395,7 @@ export default function ScenarioBuilder({
   // Global options
   const [sourcing, setSourcing] = useState("none");
   const [notes, setNotes] = useState("");
+  const [replayName, setReplayName] = useState("");
 
   // NL parse
   const [nlQuery, setNlQuery] = useState("");
@@ -392,7 +466,7 @@ export default function ScenarioBuilder({
       }));
 
     const primaryDisruption = disruptions[0];
-    const scenarioName = primaryDisruption?.facility
+    const scenarioName = replayName ? replayName : primaryDisruption?.facility
       ? `${primaryDisruption.types.map(t => DISRUPTION_OPTIONS.find(o => o.value === t)?.label || t).join(" + ")} @ ${primaryDisruption.facility}${disruptions.length > 1 ? ` +${disruptions.length - 1} more` : ""}`
       : "Compound Scenario";
 
@@ -426,6 +500,7 @@ export default function ScenarioBuilder({
     setDemandShocks([]);
     setSourcing("none");
     setNotes("");
+    setReplayName("");
     setScenarioData?.(null);
     try {
       localStorage.removeItem("forc_active_scenario");
@@ -529,6 +604,16 @@ export default function ScenarioBuilder({
 
       {open && (
         <div className="p-4 space-y-4">
+
+          <ReplayPanel apiBase={apiBase} token={token} onLoad={(b) => {
+            const rid = () => Math.random().toString(36).slice(2);
+            setDisruptions(b.disruptions.map((d) => ({ ...makeDisruption(d.facility), ...d, id: rid() })));
+            setLaneDelays(b.laneDelays.map((l) => ({ ...makeLaneDelay(), ...l, id: rid() })));
+            setAvailableFacilities((prev) => prev.length ? [...new Set([...prev, ...b.disruptions.map((d) => d.facility), ...b.laneDelays.flatMap((l) => [l.fromFacility, l.toFacility])])].sort() : prev);
+            setReplayName(b.name);
+            setNotes(`${b.title}: ${b.event}. ${b.variant_label}.`);
+            setActiveSection("disruptions");
+          }} />
 
           {/* NL input */}
           <div className="rounded-xl border border-lime-500/30 bg-lime-950/20 p-3">

@@ -2154,10 +2154,37 @@ export default function SimulationDashboard({
           scenarioData.inventoryPolicies.forEach((policy) => { rows.forEach((row) => { const sku = row.sku || row.SKU; const facility = row.facility || row.Facility || row.plant || row.Plant; const matchesSku = !policy.sku || sku?.toString().trim() === policy.sku.trim(); const matchesFacility = !policy.facility || facility?.toString().trim() === policy.facility.trim(); if (matchesSku && matchesFacility) { if (policy.reorderPoint !== undefined) row.reorder_point = policy.reorderPoint; if (policy.safetyStock !== undefined) row.safety_stock = policy.safetyStock; } }); });
           transformedLocMaterials = Papa.unparse(rows);
         }
+        // Lane delays from the Scenario Builder (and event replays): add the extra days to matching lanes' lead time.
+        let transformedLanes = null;
+        if (files.lanes && scenarioData?.laneAdjustments?.length) {
+          const lanesText = await readFileAsText(files.lanes);
+          if (isValidCsvText(lanesText)) {
+            const parsed = Papa.parse(lanesText, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, "").trim() });
+            const rows = parsed.data || [];
+            const norm = (v) => String(v ?? "").trim().toUpperCase();
+            let hit = 0;
+            scenarioData.laneAdjustments.forEach((adj) => {
+              const add = Number(adj.additional_lead_days) || 0;
+              if (!add) return;
+              rows.forEach((row) => {
+                const from = row.from_facility ?? row.from ?? row.src ?? row.source;
+                const to = row.to_facility ?? row.to ?? row.dst ?? row.destination;
+                if (norm(from) === norm(adj.from_facility) && norm(to) === norm(adj.to_facility)) {
+                  const key = ["lead_time_days", "lead_time", "lt"].find((k) => k in row) || "lead_time_days";
+                  row[key] = String((Number(row[key]) || 0) + add);
+                  hit += 1;
+                }
+              });
+            });
+            if (hit) transformedLanes = Papa.unparse(rows);
+            else console.warn("⚠️ Lane delays set, but no matching lanes in the lanes file");
+          }
+        }
         const overwriteCsvIfValid = (key, csvText, fallbackName) => { if (!isValidCsvText(csvText)) { console.warn(`⚠️ Skipping overwrite for "${key}"`); return; } const blob = new Blob([csvText], { type: "text/csv" }); setFormFile(formData, key, blob, fallbackName); };
         overwriteCsvIfValid("demand", transformedDemand, files.demand?.name || "demand.csv");
         overwriteCsvIfValid("disruptions", transformedDisruptions, files.disruptions?.name || "disruptions.csv");
         overwriteCsvIfValid("location_materials", transformedLocMaterials, files.locationMaterials?.name || "location_materials.csv");
+        if (transformedLanes) overwriteCsvIfValid("lanes", transformedLanes, files.lanes?.name || "lanes.csv");
         const effLabel = runLabel || (() => { try { const n = localStorage.getItem("currentScenarioName"); return n ? `${n} (${new Date().toISOString().slice(0, 10)})` : ""; } catch (e) { return ""; } })();
         if (effLabel) formData.append("run_name", effLabel);
         await handleSubmit(formData);
