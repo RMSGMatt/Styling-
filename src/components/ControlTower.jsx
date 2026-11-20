@@ -1515,7 +1515,7 @@ export default function ControlTower({
                   style={activeView === "early" ? {} : { color: "#9FD63A" }}
                 >
                   🚨 Early Warning
-                  {cpUnseen > 0 && (
+                  {cpUnseen > 0 && !(snapshot && netCommodities.length > 0 && !netCommodities.some((c) => c.key === "semiconductors_mlcc")) && (
                     <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#111B21", background: "#F87171", borderRadius: 8, padding: "1px 7px" }}>{cpUnseen}</span>
                   )}
                 </a>

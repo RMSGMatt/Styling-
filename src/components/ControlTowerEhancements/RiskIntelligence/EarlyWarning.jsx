@@ -95,7 +95,7 @@ export function EarlyWarningStrip({ apiBase, onOpen, commodities = [], onOpenCom
   }, [apiBase]);
   // Electronics chains only speak to networks with electronics parts. When the loaded network has none, show its own commodities.
   const electronics = new Set(["semiconductors_mlcc"]);
-  const useCommodities = commodities.length > 0 && onOpenCommodity && (!res || !res.personalized) && !commodities.some((c) => electronics.has(c.key));
+  const useCommodities = commodities.length > 0 && onOpenCommodity && !commodities.some((c) => electronics.has(c.key));
   if (useCommodities) return <CommodityStrip commodities={commodities} onOpenCommodity={onOpenCommodity} />;
   if (!res) return null;
   const urgent = res.chains.filter((c) => c.stage_rank >= 2).length;
