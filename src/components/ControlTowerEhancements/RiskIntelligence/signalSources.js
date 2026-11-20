@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { getApiBase } from "../../../config/apiBase";
-import { fetchLiveSemiconductorForwardOverrides, fetchLiveLithiumForwardOverrides, fetchLiveSemiconductorRegimeOverrides, fetchLiveRareEarthForwardOverrides, fetchLiveSteelAluminumForwardOverrides, fetchLiveResinsForwardOverrides, fetchLiveRubberForwardOverrides } from "./liveSignals";
+import { fetchLiveSemiconductorForwardOverrides, fetchLiveLithiumForwardOverrides, fetchLiveSemiconductorRegimeOverrides, fetchLiveRareEarthForwardOverrides, fetchLiveSteelAluminumForwardOverrides, fetchLiveResinsForwardOverrides, fetchLiveRubberForwardOverrides, fetchLiveTungstenForwardOverrides, fetchLiveGasesForwardOverrides, fetchLiveGasesRegimeOverrides } from "./liveSignals";
 
 export const USE_MOCK_DATA = true;
 
@@ -1848,6 +1848,8 @@ export async function fetchForwardSignals(commodity = "semiconductors_mlcc") {
       : commodity === "steel_aluminum" ? fetchLiveSteelAluminumForwardOverrides
       : commodity === "automotive_resins" ? fetchLiveResinsForwardOverrides
       : commodity === "natural_rubber" ? fetchLiveRubberForwardOverrides
+      : commodity === "tungsten" ? fetchLiveTungstenForwardOverrides
+      : commodity === "industrial_gases" ? fetchLiveGasesForwardOverrides
       : null;
 
     let liveKeys = [];
@@ -1901,6 +1903,7 @@ export async function fetchRegimeSignals(commodity = "semiconductors_mlcc") {
     // which had no live-override mechanism at all before this.
     const liveOverrideFetcher =
       commodity === "semiconductors_mlcc" ? fetchLiveSemiconductorRegimeOverrides
+      : commodity === "industrial_gases" ? fetchLiveGasesRegimeOverrides
       : null; // no lithium, rare-earth, steel/aluminum, resins, or rubber regime live signals yet
 
     let liveKeys = [];

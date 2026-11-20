@@ -659,6 +659,120 @@ export async function fetchLiveRubberForwardOverrides() {
   return overrides;
 }
 
+// ── Tungsten & Carbide and Industrial Gases — live signals (built 2026-11-20) ──
+// Backend routes use FRED (BLS producer price indexes) and SEC XBRL; the two
+// Federal Register signals are called directly, same as china_ree_export_policy.
+// Any failure falls back to the dated analyst value for that signal.
+
+async function fetchBackendSignal(path, label) {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) throw new Error(`${label} proxy HTTP ${res.status}`);
+  const data = await res.json();
+  if (data?.score == null) throw new Error(data?.meta?.error || "Backend returned no score");
+  return data;
+}
+
+// China tungsten export controls: US regulatory response in the Federal
+// Register. Base 0.55 because China's licensing regime is a standing
+// condition that does not create fresh US paperwork every quarter.
+export async function fetchTungstenExportControlsLive() {
+  const params = new URLSearchParams({
+    "conditions[term]": '"tungsten"',
+    "conditions[publication_date][gte]": daysAgoISO(180),
+    per_page: "40",
+    order: "newest",
+  });
+  const res = await fetch(`${FEDERAL_REGISTER_BASE}?${params}`);
+  if (!res.ok) throw new Error(`Federal Register HTTP ${res.status}`);
+  const data = await res.json();
+  const count = Number(data?.count ?? data?.results?.length ?? 0);
+  return {
+    score: scoreFromCount(count, { base: 0.55, perUnit: 0.05 }),
+    meta: {
+      source: "Federal Register API",
+      matchCount: count,
+      windowDays: 180,
+      mostRecent: data?.results?.[0]?.title || null,
+      mostRecentDate: data?.results?.[0]?.publication_date || null,
+      fetchedAt: new Date().toISOString(),
+    },
+  };
+}
+
+// DFARS 2027 deadline: Federal Register activity on tungsten and defense
+// acquisition, combined (MAX) with how close the January 1, 2027 statutory
+// date is. The date part is a schedule, not market data; it rises into the
+// deadline and eases six months after it.
+export async function fetchDfarsDeadlineLive() {
+  const deadline = new Date("2027-01-01T00:00:00Z");
+  const days = Math.round((deadline - new Date()) / 86400000);
+  const proximity = days > 365 ? 0.5 : days > 180 ? 0.65 : days > 60 ? 0.8 : days > -180 ? 0.88 : 0.6;
+  let count = 0;
+  let mostRecent = null;
+  try {
+    const params = new URLSearchParams({
+      "conditions[term]": '"tungsten" "Defense Federal Acquisition Regulation"',
+      "conditions[publication_date][gte]": daysAgoISO(365),
+      per_page: "20",
+      order: "newest",
+    });
+    const res = await fetch(`${FEDERAL_REGISTER_BASE}?${params}`);
+    if (res.ok) {
+      const data = await res.json();
+      count = Number(data?.count ?? data?.results?.length ?? 0);
+      mostRecent = data?.results?.[0]?.title || null;
+    }
+  } catch { /* proximity alone still scores */ }
+  return {
+    score: Math.max(proximity, scoreFromCount(count, { base: 0.5, perUnit: 0.08 })),
+    meta: {
+      source: "Federal Register API + DFARS 252.225-7052 effective date",
+      daysToDeadline: days,
+      matchCount: count,
+      mostRecent,
+      fetchedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export const fetchCarbideToolmakerLive = () => fetchBackendSignal("/api/risk/signals/carbide-toolmaker", "Carbide toolmaker");
+export const fetchNonChinaTungstenLive = () => fetchBackendSignal("/api/risk/signals/non-china-tungsten", "Non-China tungsten");
+export const fetchArgonPpiLive = () => fetchBackendSignal("/api/risk/signals/argon-ppi", "Argon PPI");
+export const fetchIndustrialGasPpiLive = () => fetchBackendSignal("/api/risk/signals/industrial-gas-ppi", "Industrial gas PPI");
+export const fetchIndustrialPowerPpiLive = () => fetchBackendSignal("/api/risk/signals/industrial-power-ppi", "Industrial power PPI");
+
+async function collectOverrides(pairs) {
+  const overrides = {};
+  await Promise.all(pairs.map(async ([key, fn]) => {
+    try { overrides[key] = await fn(); }
+    catch (e) { console.warn(`⚠️ Live ${key} fetch failed, falling back to analyst value:`, e); }
+  }));
+  return overrides;
+}
+
+export function fetchLiveTungstenForwardOverrides() {
+  return collectOverrides([
+    ["china_tungsten_export_controls", fetchTungstenExportControlsLive],
+    ["dfars_compliance_deadline", fetchDfarsDeadlineLive],
+    ["carbide_toolmaker_pricing", fetchCarbideToolmakerLive],
+    ["non_china_supply_ramp", fetchNonChinaTungstenLive],
+  ]);
+}
+
+export function fetchLiveGasesForwardOverrides() {
+  return collectOverrides([
+    ["asu_power_costs", fetchIndustrialPowerPpiLive],
+    ["major_supplier_pricing", fetchIndustrialGasPpiLive],
+    ["semiconductor_gas_demand", fetchFabCapexTrajectoryLive],
+  ]);
+}
+
+export function fetchLiveGasesRegimeOverrides() {
+  return collectOverrides([
+    ["argon_spot_price", fetchArgonPpiLive],
+  ]);
+}
+
 // ── Signals with a live source, per commodity ──────────────────────────────
 // Keep in sync with the fetchLive*Overrides functions above. Used to flag
 // snapshots where a live signal failed and silently fell back to its mock
@@ -674,8 +788,8 @@ export const LIVE_SOURCE_KEYS = {
   steel_aluminum:    ["domestic_capacity_expansion", "section_232_tariff_pipeline", "aluminum_capacity_signal"],
   automotive_resins: ["domestic_polymer_capacity"],
   natural_rubber:    ["tire_manufacturer_demand"],
-  tungsten:          [],
-  industrial_gases:  [],
+  tungsten:          ["china_tungsten_export_controls", "dfars_compliance_deadline", "carbide_toolmaker_pricing", "non_china_supply_ramp"],
+  industrial_gases:  ["asu_power_costs", "major_supplier_pricing", "semiconductor_gas_demand", "argon_spot_price"],
 };
 
 // Builds the raw_signals payload saved with each daily snapshot.
