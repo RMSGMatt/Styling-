@@ -1842,8 +1842,14 @@ export default function SimulationDashboard({
   const execTtsDays = Number(exec.timeToSurviveDays || 0);
   const execRevenueExposure = typeof scorecard?.revenue_at_risk === "number" ? scorecard.revenue_at_risk : 0;
 
-  const hasNarrativeRun = execOnTimePct > 0 || execLateUnits > 0 || execPeakBacklog > 0 || execTtrDays > 0 || execRevenueExposure > 0;
-  const isHealthy = hasNarrativeRun && execOnTimePct >= 97;
+  // The verdict uses the scorecard's whole-run fill rate when it has one, so the headline and the scorecard show the same number.
+  const scorecardFill = (() => {
+    for (const g of scorecard?.groups || []) for (const r of g.rows || []) if (r.key === "fill_rate" && typeof r.overall === "number") return r.overall;
+    return null;
+  })();
+  const verdictPct = scorecardFill ?? execOnTimePct;
+  const hasNarrativeRun = execOnTimePct > 0 || execLateUnits > 0 || execPeakBacklog > 0 || execTtrDays > 0 || execRevenueExposure > 0 || scorecardFill !== null;
+  const isHealthy = hasNarrativeRun && verdictPct >= 97;
 
   useEffect(() => {
     if (simulationStatus === "done") {
@@ -2981,8 +2987,8 @@ export default function SimulationDashboard({
         ? `The disruption starts ${fmt(d0)}, but customers do not feel it until ${fmt(d1)}.`
         : "This scenario puts customer service at risk.";
     const sub = isHealthy
-      ? `${Math.round(execOnTimePct)}% of demand is served on time.`
-      : `${hidden ? `That is ${lag} days of looking fine while exposure builds. ` : ""}Over the scenario, ${Math.round(execOnTimePct)}% of demand is served on time.`;
+      ? `${Math.round(verdictPct)}% of demand is served in full.`
+      : `${hidden ? `That is ${lag} days of looking fine while exposure builds. ` : ""}Over the scenario, ${Math.round(verdictPct)}% of demand is served in full (fill rate).`;
     const revText = !isHealthy && execRevenueExposure > 0 ? ` About $${Math.round(execRevenueExposure).toLocaleString("en-US")} of revenue is at risk.` : "";
     const subFull = sub + revText;
     const clock = computeClock(clockLevers, scorecard?.first_shortage_date, scorecard?.disruption_start);

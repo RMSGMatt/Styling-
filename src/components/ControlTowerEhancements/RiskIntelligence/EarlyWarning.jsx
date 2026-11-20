@@ -4,6 +4,7 @@
  */
 import React, { useEffect, useState } from "react";
 import ChokepointPanel from "./ChokepointPanel";
+import IncidentsPanel from "./IncidentsPanel";
 import { launchScenarioToSimulation } from "./riskScoreEngine";
 
 const token = () => localStorage.getItem("token") || localStorage.getItem("access_token") || "";
@@ -19,6 +20,7 @@ export function EarlyWarningView({ switchView, focus }) {
           Shortages forming upstream, the date they reach component lead times, the parts of yours in their path, and what each response costs.
         </div>
       </div>
+      <IncidentsPanel onLaunchScenario={({ scenario, params }) => launchScenarioToSimulation({ scenario, params, source: "incident_log" }, switchView)} />
       <ChokepointPanel key={focus?.chain || "default"} switchView={switchView} initialChain={focus?.chain} initialView={focus?.chain ? "signals" : undefined}
                        onLaunchScenario={({ scenario, params }) => launchScenarioToSimulation({ scenario, params, source: "early_warning" }, switchView)} />
     </div>
