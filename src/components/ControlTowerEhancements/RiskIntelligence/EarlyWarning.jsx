@@ -11,7 +11,7 @@ const token = () => localStorage.getItem("token") || localStorage.getItem("acces
 const STAGE = { act: ["Act", "#F87171"], warning: ["Warning", "#F4A742"], watch: ["Watch", "#E8D44D"], none: ["Quiet", "#64748B"] };
 const money = (v) => (v == null ? "" : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `$${Math.round(v / 1e3)}k` : `$${Math.round(v)}`);
 
-export function EarlyWarningView({ switchView, focus }) {
+export function EarlyWarningView({ switchView, focus, preferredEdition, hideEditions }) {
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
@@ -21,7 +21,8 @@ export function EarlyWarningView({ switchView, focus }) {
         </div>
       </div>
       <IncidentsPanel onLaunchScenario={({ scenario, params }) => launchScenarioToSimulation({ scenario, params, source: "incident_log" }, switchView)} />
-      <ChokepointPanel key={focus?.chain || "default"} switchView={switchView} initialChain={focus?.chain} initialView={focus?.chain ? "signals" : undefined}
+      <ChokepointPanel key={`${focus?.chain || "default"}|${preferredEdition || ""}`} switchView={switchView} initialChain={focus?.chain} initialView={focus?.chain ? "signals" : undefined}
+                       preferredEdition={preferredEdition} hideEditions={hideEditions}
                        onLaunchScenario={({ scenario, params }) => launchScenarioToSimulation({ scenario, params, source: "early_warning" }, switchView)} />
     </div>
   );

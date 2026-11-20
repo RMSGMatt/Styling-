@@ -1737,7 +1737,8 @@ export default function ControlTower({
           {/* ── Early Warning ── */}
           {activeView === "early" && (
             <section className="mt-2">
-              <EarlyWarningView switchView={switchView} focus={earlyFocus} />
+              <EarlyWarningView switchView={switchView} focus={earlyFocus}
+                {...(snapshot && netCommodities.length > 0 && !netCommodities.some((c) => c.key === "semiconductors_mlcc") ? { preferredEdition: "medtech", hideEditions: ["industrial"] } : {})} />
             </section>
           )}
 

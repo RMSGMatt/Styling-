@@ -356,7 +356,10 @@ function AlertsView({ alerts, onOpen, onSeen, busy }) {
   );
 }
 
-export default function ChokepointPanel({ switchView, onLaunchScenario, initialView, initialChain }) {
+// preferredEdition: the edition that fits the loaded network (MedTech for a MedTech network); it opens first.
+// hideEditions: editions whose alerts do not apply to this network, left out of the alert list.
+export default function ChokepointPanel({ switchView, onLaunchScenario, initialView, initialChain, preferredEdition, hideEditions }) {
+  const hidden = (hideEditions || []).join(",");
   const apiBase = getApiBase();
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
@@ -370,6 +373,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario, initialV
   const [critOnly, setCritOnly] = useState(false);
   const [edition, setEditionState] = useState(() => {
     if (initialChain) return "industrial";            // signal chains live in the industrial edition
+    if (preferredEdition) return preferredEdition;
     try { return localStorage.getItem("forc_cp_edition") || "industrial"; } catch { return "industrial"; }
   });
   // Open on Signals, the screen that answers "what is coming and what do I do"; other editions open on the map.
@@ -399,6 +403,11 @@ export default function ChokepointPanel({ switchView, onLaunchScenario, initialV
     try {
       const res = await fetch(`${apiBase}/api/chokepoints/alerts${method === "POST" ? "/seen" : ""}`, { method, headers: { Authorization: `Bearer ${token()}` } });
       const body = await res.json().catch(() => ({}));
+      if (body.status === "ok" && hidden) {
+        const keep = (body.alerts || []).filter((a) => !hidden.split(",").includes(a.edition));
+        const eds = Object.fromEntries(Object.entries(body.editions || {}).filter(([k]) => !hidden.split(",").includes(k)));
+        Object.assign(body, { alerts: keep, editions: eds, unseen: keep.filter((a) => !a.seen).length });
+      }
       if (body.status === "ok") {
         setAlerts(body);
         try { window.dispatchEvent(new CustomEvent("forc-cp-alerts", { detail: { unseen: body.unseen } })); } catch { /* old browsers */ }
@@ -406,7 +415,7 @@ export default function ChokepointPanel({ switchView, onLaunchScenario, initialV
       }
     } catch { /* alerts are optional */ }
     return null;
-  }, [apiBase]);
+  }, [apiBase, hidden]);
   // Unread alerts open first, unless the user came for a specific view or chain (a Dashboard tile).
   useEffect(() => { loadAlerts().then((b) => { if (b && b.unseen > 0 && !initialView && !initialChain) setView("alerts"); }); }, [loadAlerts]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Open the one-page report in a new window. The window opens first so the popup is not blocked, then fills in.
