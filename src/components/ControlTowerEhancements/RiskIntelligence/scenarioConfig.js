@@ -151,7 +151,7 @@ export const SCENARIO_CONFIG = {
   },
   argon_allocation: {
     label:       "Argon supplier allocation",
-    description: "Argon is a co-product of air separation, so supply falls when steel and refining slow while chip fabs take more. Simulate a bulk argon supplier cutting deliveries to heat treat, HIP, additive and welding operations.",
+    description: "Argon is a co-product of air separation, so supply falls when steel and refining slow while chip fabs take more. Triggered on China pricing (up about 240% from May to September 2026); US price data has not confirmed it yet. Simulate a bulk argon supplier cutting deliveries to heat treat, HIP, additive and welding operations.",
     icon:        "🧊",
     defaultParams: {
       lead_time_multiplier:  1.5,

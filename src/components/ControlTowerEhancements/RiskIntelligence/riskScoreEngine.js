@@ -586,7 +586,7 @@ export const GASES_REGIME_WEIGHTS = {
 
 export const GASES_TRIGGER_CONFIG = {
   argon_allocation: {
-    threshold: 0.75,
+    threshold: 0.70, // Lowered 2026-11-20 so the documented China argon spike (live score floor 0.70) fires it before US PPI confirms
     signal: "argon_spot_price",
     minConvergence: 2,
   },
