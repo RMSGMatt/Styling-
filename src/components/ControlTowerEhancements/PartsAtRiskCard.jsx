@@ -6,7 +6,7 @@ const LABEL = Object.fromEntries(COMMODITY_REGISTRY.map((c) => [c.key, c.label])
 const coverTone = (d, below) => (below || (d != null && d < 7) ? "#EF4444" : d != null && d < 14 ? "#F59E0B" : "#22C55E");
 
 // Parts with thin cover, joined to the commodity risk behind them. Mapping is auto-detected from the part name; the user can correct it.
-export default function PartsAtRiskCard({ apiBase, refreshKey, onSelectSite, onOpenRisk, onSiteParts }) {
+export default function PartsAtRiskCard({ apiBase, refreshKey, onSelectSite, onOpenRisk, onSiteParts, onCommodities }) {
   const [data, setData] = useState(null);
   const [prof, setProf] = useState({});
   const [editing, setEditing] = useState(false);
@@ -50,6 +50,25 @@ export default function PartsAtRiskCard({ apiBase, refreshKey, onSelectSite, onO
     }
     onSiteParts(by);
   }, [data, prof, onSiteParts]);
+
+  // Tell the parent which commodities this network's parts sit on, with cover and risk, for Early Warning and the alert list.
+  useEffect(() => {
+    if (!onCommodities) return;
+    if (!data || data.status !== "ok") { onCommodities([]); return; }
+    const by = {};
+    data.parts.forEach((p) => {
+      if (!p.commodity) return;
+      const g = (by[p.commodity] = by[p.commodity] || { key: p.commodity, label: LABEL[p.commodity] || p.commodity, skus: new Set(), sites: new Set(), tight: 0, minCover: null });
+      g.skus.add(p.sku); g.sites.add(p.facility);
+      if (p.below_safety || (p.days_cover != null && p.days_cover < 14)) g.tight += 1;
+      if (p.days_cover != null && (g.minCover == null || p.days_cover < g.minCover)) g.minCover = p.days_cover;
+    });
+    onCommodities(Object.values(by).map((g) => {
+      const c = prof[g.key];
+      return { key: g.key, label: g.label, parts: g.skus.size, sites: g.sites.size, tight: g.tight, minCover: g.minCover,
+               score: c ? c.score : null, level: c ? c.label : null, color: c ? c.color : null, source: c ? c.source : null, triggers: c ? c.triggers : [] };
+    }).sort((a, b) => (b.score ?? -1) - (a.score ?? -1)));
+  }, [data, prof, onCommodities]);
 
   if (!data || data.status !== "ok") return null;
   const box = { borderColor: "rgba(148,163,184,0.15)", background: "rgba(9,25,19,0.5)" };

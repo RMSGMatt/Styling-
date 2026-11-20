@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useCallback } from "react";
 import { fetchForwardSignals, fetchRegimeSignals } from "./signalSources";
+import { loadCommodityProfiles } from "./commodityProfiles";
 import {
   computeFullRiskProfile,
   FORWARD_WEIGHTS,
@@ -42,11 +43,22 @@ const POLL_INTERVAL_MS = 15 * 60 * 1000;
 
 // Returns { triggers } — merged, non-nominal triggers across both commodity
 // groups, each tagged with { commodity, source } ("mock" | "live" | null).
-export function useRiskTriggers() {
+// commodityKeys: the commodities the loaded network's parts map to. When given,
+// triggers come from those trackers only (a MedTech network sees tungsten and
+// industrial gases, not semiconductors). With none, the default groups above.
+export function useRiskTriggers(commodityKeys) {
   const [triggers, setTriggers] = useState([]);
+  const keysSig = (commodityKeys || []).slice().sort().join(",");
 
   const load = useCallback(async () => {
     try {
+      if (keysSig) {
+        const prof = await loadCommodityProfiles(keysSig.split(","));
+        const merged = Object.values(prof).flatMap((p) => (p.triggers || []).map((t) => ({ ...t, commodity: p.key, source: p.source })));
+        merged.sort((a, b) => (a.status === b.status ? 0 : a.status === "triggered" ? -1 : 1));
+        setTriggers(merged);
+        return;
+      }
       const results = await Promise.all(
         COMMODITY_GROUPS.map(async (group) => {
           const [fwd, reg] = await Promise.all([
@@ -62,7 +74,7 @@ export function useRiskTriggers() {
           );
           return {
             commodity: group.key,
-            source: fwd.source === "mock" || reg.source === "mock" ? "mock" : fwd.source || reg.source || null,
+            source: fwd.source === "mock" && reg.source === "mock" ? "mock" : (fwd.source === "mock" ? reg.source : fwd.source) || null,
             triggers: profile.triggers.filter((t) => t.status !== "nominal"),
           };
         })
@@ -80,7 +92,7 @@ export function useRiskTriggers() {
       // known state until the next poll succeeds.
       console.error("❌ useRiskTriggers signal fetch failed:", e);
     }
-  }, []);
+  }, [keysSig]);
 
   useEffect(() => {
     load();

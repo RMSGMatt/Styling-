@@ -32,7 +32,8 @@ export async function loadCommodityProfile(key) {
   const score = Math.round(p.riskScore.score);
   return {
     key, score, label: riskLabel100(score), color: riskColor100(score),
-    source: fwd.source === "mock" || reg.source === "mock" ? "mock" : (fwd.source || reg.source || null),
+    // "mock" only when neither side has a live input; one live side makes it "mixed".
+    source: fwd.source === "mock" && reg.source === "mock" ? "mock" : (fwd.source === "mock" ? reg.source : fwd.source) || null,
     triggers: (p.triggers || []).filter((t) => t.status !== "nominal"),
   };
 }

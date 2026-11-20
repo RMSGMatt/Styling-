@@ -37,7 +37,55 @@ function oneLine(c) {
   return bits.join(" · ");
 }
 
-export function EarlyWarningStrip({ apiBase, onOpen }) {
+const LEVEL_STAGE = (score) => (score == null ? STAGE.none : score >= 75 ? STAGE.act : score >= 55 ? STAGE.warning : score >= 35 ? STAGE.watch : STAGE.none);
+
+function commodityLine(c) {
+  const bits = [`${c.parts} part${c.parts === 1 ? "" : "s"} at ${c.sites} site${c.sites === 1 ? "" : "s"}`];
+  if (c.minCover != null) bits.push(`${Math.round(c.minCover)} days cover`);
+  const t = (c.triggers || []).find((x) => x.status === "triggered") || (c.triggers || [])[0];
+  if (t) bits.push(t.status === "triggered" ? "trigger fired" : "trigger building");
+  return bits.join(" · ");
+}
+
+// Networks whose parts sit outside the electronics chains (MedTech, for one) get cards for the commodities their parts map to.
+function CommodityStrip({ commodities, onOpenCommodity }) {
+  const urgent = commodities.filter((c) => (c.score ?? 0) >= 55).length;
+  const anyMock = commodities.some((c) => c.source === "mock");
+  return (
+    <section className="mb-6 rounded-xl" style={{ background: "#111B21", border: "1px solid #1f3a2e", padding: 14 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#E8F2EC" }}>Early warning</div>
+        <div style={{ fontSize: 12.5, color: "#94A3B8" }}>
+          {urgent ? `${urgent} of ${commodities.length} commodities behind your parts are High or Critical` : "Commodity risk behind your parts"}
+          {anyMock && " · some signals analyst-reviewed"}
+        </div>
+        <button type="button" onClick={() => onOpenCommodity(commodities[0]?.key)} style={{ marginLeft: "auto", background: "none", border: 0, color: "#9FD63A", cursor: "pointer", fontSize: 12.5, textDecoration: "underline" }}>
+          Open Risk Intelligence
+        </button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+        {commodities.map((c) => {
+          const [, color] = LEVEL_STAGE(c.score);
+          const hot = (c.score ?? 0) >= 55;
+          return (
+            <button key={c.key} type="button" onClick={() => onOpenCommodity(c.key)}
+                    style={{ textAlign: "left", cursor: "pointer", background: "rgba(2,6,23,0.45)", border: `1px solid ${hot ? color + "88" : "rgba(148,163,184,0.18)"}`, borderRadius: 10, padding: "10px 12px", display: "grid", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#E8F2EC" }}>{c.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#111B21", background: c.color || color, borderRadius: 4, padding: "1px 6px", textTransform: "uppercase" }}>
+                  {c.score == null ? "Unscored" : `${c.level} ${c.score}`}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.35 }}>{commodityLine(c)}</div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+export function EarlyWarningStrip({ apiBase, onOpen, commodities = [], onOpenCommodity }) {
   const [res, setRes] = useState(null);
   useEffect(() => {
     let live = true;
@@ -45,6 +93,10 @@ export function EarlyWarningStrip({ apiBase, onOpen }) {
       .then((r) => (r.ok ? r.json() : null)).then((b) => { if (live && Array.isArray(b?.chains)) setRes(b); }).catch(() => {});
     return () => { live = false; };
   }, [apiBase]);
+  // Electronics chains only speak to networks with electronics parts. When the loaded network has none, show its own commodities.
+  const electronics = new Set(["semiconductors_mlcc"]);
+  const useCommodities = commodities.length > 0 && onOpenCommodity && (!res || !res.personalized) && !commodities.some((c) => electronics.has(c.key));
+  if (useCommodities) return <CommodityStrip commodities={commodities} onOpenCommodity={onOpenCommodity} />;
   if (!res) return null;
   const urgent = res.chains.filter((c) => c.stage_rank >= 2).length;
   return (

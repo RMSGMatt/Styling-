@@ -338,10 +338,10 @@ function kpiSeverityColor(kpis, idPrefix) {
 // ─────────────────────────────────────────────────────────────────────────────
 const SEVERITY_ORDER = { escalate: 0, act: 1, watch: 2 };
 
-function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, narrativeLoading, onOpenRiskIntelligence, onOpenSafetyStock }) {
+function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, narrativeLoading, onOpenRiskIntelligence, onOpenSafetyStock, commodityKeys }) {
   const [dismissed, setDismissed] = useState([]);
   const [expanded, setExpanded] = useState(false);
-  const { triggers } = useRiskTriggers();
+  const { triggers } = useRiskTriggers(commodityKeys);
   const { alerts: safetyStockAlerts } = useSafetyStockAlerts();
 
   const kpiItems = (alertsOverride || deriveAlerts(kpis)).map((a) => ({
@@ -1285,6 +1285,7 @@ export default function ControlTower({
     return () => { cancelled = true; };
   }, [snapshot, exposureExample, API_BASE_CT]);
   const [siteParts, setSiteParts] = useState({});
+  const [netCommodities, setNetCommodities] = useState([]);
   const [netRisk, setNetRisk] = useState(null);
   const [netRiskState, setNetRiskState] = useState("idle");
   useEffect(() => {
@@ -1355,6 +1356,13 @@ export default function ControlTower({
     }));
   }, [exposure, netRisk, siteParts]);
   const mapLanes = useMemo(() => exposure?.lanes || [], [exposure]);
+  // When a network snapshot is loaded, the map plots that network's own sites, so the map and the cards always describe the same network.
+  const snapshotLocationsUrl = useMemo(() => {
+    const rows = (exposure?.sites || []).filter((x) => Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lon)));
+    if (!rows.length) return null;
+    const csv = ["Facility,Lat,Lon", ...rows.map((x) => `${String(x.name).replace(/,/g, " ")},${x.lat},${x.lon}`)].join("\n");
+    return `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
+  }, [exposure]);
   const hazardLinks = useMemo(() => {
     const coords = Object.fromEntries((exposure?.sites || []).map((x) => [x.name, x]));
     return (exposure?.exposures || []).filter((e) => e.hazard_lat != null && e.hazard_lon != null && coords[e.site]).map((e) => ({
@@ -1704,7 +1712,8 @@ export default function ControlTower({
                 </div>
               )}
 
-              <EarlyWarningStrip apiBase={API_BASE_CT} onOpen={openEarlyWarning} />
+              <EarlyWarningStrip apiBase={API_BASE_CT} onOpen={openEarlyWarning} commodities={snapshot ? netCommodities : []}
+                                 onOpenCommodity={(commodity) => { setRiskIntelFocus({ commodity }); setActiveView("risk"); }} />
 
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div id="tour-map" className="lg:col-span-2 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
@@ -1731,7 +1740,7 @@ export default function ControlTower({
                   )}
 
                   <MapView
-                    locationsUrl={locationsUrl || simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
+                    locationsUrl={snapshotLocationsUrl || locationsUrl || simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
                     onFacilitySelect={handleFacilitySelect}
                     exposedSites={exposedSites}
                     siteHealth={mapHealth}
@@ -1774,6 +1783,7 @@ export default function ControlTower({
                   setActiveView("risk");
                 }}
                 onOpenSafetyStock={() => setActiveView("safetystock")}
+                commodityKeys={snapshot ? netCommodities.map((c) => c.key) : null}
               />
 
               <div className="mb-4 text-xs" style={{ color: "#64748B" }}>
@@ -1864,7 +1874,7 @@ export default function ControlTower({
                     <ExposureBlock exposure={exposure} state={exposureState} example={exposureExample} setExample={setExposureExample}
                       onAddLocations={() => setShowSnapshotCard(true)} onSimulate={simulateExposure} />
                     <NetworkRiskCard risk={netRisk} state={netRiskState} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
-                    <PartsAtRiskCard onSiteParts={setSiteParts} apiBase={API_BASE_CT} refreshKey={`${snapshot?.uploaded_at}|${snapshot?.source}`} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
+                    <PartsAtRiskCard onSiteParts={setSiteParts} onCommodities={setNetCommodities} apiBase={API_BASE_CT} refreshKey={`${snapshot?.uploaded_at}|${snapshot?.source}`} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
                     {rest.length > 0 && (
                       <section className="mb-6">
                         <button type="button" onClick={() => setMoreMetrics(!moreMetrics)} className="text-sm underline" style={{ color: "#94A3B8" }}>
