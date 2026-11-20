@@ -126,4 +126,49 @@ export const SCENARIO_CONFIG = {
       supply_reduction_pct:  0.30,
     },
   },
+  tungsten_export_escalation: {
+    label:       "Tungsten export escalation",
+    description: "China tightens tungsten export licensing further. Western APT already trades at about 3.7x China. Simulate reduced carbide insert and tooling supply to machining sites.",
+    icon:        "⚙️",
+    defaultParams: {
+      lead_time_multiplier:  2.0,
+      affected_components:   ["Carbide inserts", "Solid carbide end mills", "Tungsten carbide powder"],
+      duration_weeks:        26,
+      supply_reduction_pct:  0.35,
+      affected_region:       "China",
+    },
+  },
+  carbide_tooling_squeeze: {
+    label:       "Carbide tooling squeeze (DFARS 2027)",
+    description: "DFARS sourcing rules from January 1, 2027 pull compliant tungsten toward defense programs. Simulate tooling distributor allocation and longer lead times for commercial and medical machining.",
+    icon:        "🛠️",
+    defaultParams: {
+      lead_time_multiplier:  1.6,
+      affected_components:   ["Carbide inserts", "Drills and reamers", "Tungsten heavy alloy parts"],
+      duration_weeks:        20,
+      supply_reduction_pct:  0.20,
+    },
+  },
+  argon_allocation: {
+    label:       "Argon supplier allocation",
+    description: "Argon is a co-product of air separation, so supply falls when steel and refining slow while chip fabs take more. Simulate a bulk argon supplier cutting deliveries to heat treat, HIP, additive and welding operations.",
+    icon:        "🧊",
+    defaultParams: {
+      lead_time_multiplier:  1.5,
+      affected_components:   ["Bulk liquid argon", "Argon cylinders", "Argon-shielded welding"],
+      duration_weeks:        6,
+      supply_reduction_pct:  0.75,
+    },
+  },
+  helium_supply_shock: {
+    label:       "Helium supply shock",
+    description: "Qatar's helium exports remain constrained and Russia and China are holding supply at home. Simulate allocation of helium used for MRI magnets, leak testing and additive manufacturing.",
+    icon:        "🎈",
+    defaultParams: {
+      lead_time_multiplier:  2.0,
+      affected_components:   ["Liquid helium", "Helium leak-test gas", "Helium cylinders"],
+      duration_weeks:        16,
+      supply_reduction_pct:  0.30,
+    },
+  },
 };

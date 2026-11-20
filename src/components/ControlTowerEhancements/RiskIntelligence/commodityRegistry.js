@@ -53,6 +53,22 @@ export const COMMODITY_REGISTRY = [
     status:   "live", // Updated 2026-08-18 — all 10 signals now resolved: tire_manufacturer_demand is genuinely live (Goodyear, SEC XBRL, demand-side/non-inverted), the other 9 are properly dated, sourced analyst-reviewed signals. Same coverage standard as all five other commodities. Notably, the same real Middle East conflict (Hormuz Strait closure, Mar 2026) was independently confirmed as a driver in this commodity's synthetic_rubber_substitution and tsr20_spot_price signals, the same crisis already found across aluminum, petrochemical feedstock, and China polymer signals — a genuine cross-commodity pattern worth remembering.
     description: "Thai and Indonesian plantation output, weather and disease signals",
   },
+  {
+    key:      "tungsten",
+    label:    "Tungsten & Carbide",
+    icon:     "⚙️",
+    category: "Raw Materials",
+    status:   "beta", // Built 2026-11-20 for MedTech and aerospace machining. All 10 signals are dated, sourced analyst reviews; no live feed yet (Kennametal capex via SEC XBRL is the obvious first live candidate).
+    description: "APT and carbide tooling feedstock: China export controls, DFARS 2027, non-China supply",
+  },
+  {
+    key:      "industrial_gases",
+    label:    "Industrial Gases (Argon, Helium)",
+    icon:     "🧊",
+    category: "Process Inputs",
+    status:   "beta", // Built 2026-11-20 for MedTech, aerospace and electronics processing. All 9 signals are dated, sourced analyst reviews; Linde or Air Products results via SEC XBRL are the natural first live candidates.
+    description: "Argon for heat treat, HIP and welding; helium for MRI and leak testing; air separation power costs",
+  },
 ];
 
 export const STATUS_CONFIG = {

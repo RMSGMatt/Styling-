@@ -12,8 +12,8 @@ import CorridorRiskPanel    from "./CorridorRiskPanel";
 import BestPlaceToBuyPanel  from "./BestPlaceToBuyPanel";
 import CountryWatchListPanel from "./CountryWatchListPanel";
 import SupplierScreeningPanel from "./SupplierScreeningPanel";
-import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, RARE_EARTH_FORWARD_WEIGHTS, RARE_EARTH_REGIME_WEIGHTS, STEEL_ALUMINUM_FORWARD_WEIGHTS, STEEL_ALUMINUM_REGIME_WEIGHTS, RESINS_FORWARD_WEIGHTS, RESINS_REGIME_WEIGHTS, RUBBER_FORWARD_WEIGHTS, RUBBER_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG, RARE_EARTH_TRIGGER_CONFIG, STEEL_ALUMINUM_TRIGGER_CONFIG, RESINS_TRIGGER_CONFIG, RUBBER_TRIGGER_CONFIG, launchScenarioToSimulation } from "./riskScoreEngine";
-import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL, MOCK_RARE_EARTH_SIGNAL_DETAIL, MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL, MOCK_RESINS_SIGNAL_DETAIL, MOCK_RUBBER_SIGNAL_DETAIL, API_BASE } from "./signalSources";
+import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, RARE_EARTH_FORWARD_WEIGHTS, RARE_EARTH_REGIME_WEIGHTS, STEEL_ALUMINUM_FORWARD_WEIGHTS, STEEL_ALUMINUM_REGIME_WEIGHTS, RESINS_FORWARD_WEIGHTS, RESINS_REGIME_WEIGHTS, RUBBER_FORWARD_WEIGHTS, RUBBER_REGIME_WEIGHTS, TUNGSTEN_FORWARD_WEIGHTS, TUNGSTEN_REGIME_WEIGHTS, GASES_FORWARD_WEIGHTS, GASES_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG, RARE_EARTH_TRIGGER_CONFIG, STEEL_ALUMINUM_TRIGGER_CONFIG, RESINS_TRIGGER_CONFIG, RUBBER_TRIGGER_CONFIG, TUNGSTEN_TRIGGER_CONFIG, GASES_TRIGGER_CONFIG, launchScenarioToSimulation } from "./riskScoreEngine";
+import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL, MOCK_RARE_EARTH_SIGNAL_DETAIL, MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL, MOCK_RESINS_SIGNAL_DETAIL, MOCK_RUBBER_SIGNAL_DETAIL, MOCK_TUNGSTEN_SIGNAL_DETAIL, MOCK_GASES_SIGNAL_DETAIL, API_BASE } from "./signalSources";
 import RiskScoreHistoryChart from "./RiskScoreHistoryChart";
 import SignalContributionWaterfall from "./SignalContributionWaterfall";
 import CommoditySelector from "./CommoditySelector";
@@ -35,18 +35,24 @@ function getRiskConfigForCommodity(commodityKey) {
     : commodityKey === "steel_aluminum" ? STEEL_ALUMINUM_FORWARD_WEIGHTS
     : commodityKey === "automotive_resins" ? RESINS_FORWARD_WEIGHTS
     : commodityKey === "natural_rubber" ? RUBBER_FORWARD_WEIGHTS
+    : commodityKey === "tungsten" ? TUNGSTEN_FORWARD_WEIGHTS
+    : commodityKey === "industrial_gases" ? GASES_FORWARD_WEIGHTS
     : FORWARD_WEIGHTS;
   const regimeWeights = commodityKey === "lithium_battery" ? LITHIUM_REGIME_WEIGHTS
     : commodityKey === "rare_earth_metals" ? RARE_EARTH_REGIME_WEIGHTS
     : commodityKey === "steel_aluminum" ? STEEL_ALUMINUM_REGIME_WEIGHTS
     : commodityKey === "automotive_resins" ? RESINS_REGIME_WEIGHTS
     : commodityKey === "natural_rubber" ? RUBBER_REGIME_WEIGHTS
+    : commodityKey === "tungsten" ? TUNGSTEN_REGIME_WEIGHTS
+    : commodityKey === "industrial_gases" ? GASES_REGIME_WEIGHTS
     : REGIME_WEIGHTS;
   const triggerConfig = commodityKey === "lithium_battery" ? LITHIUM_TRIGGER_CONFIG
     : commodityKey === "rare_earth_metals" ? RARE_EARTH_TRIGGER_CONFIG
     : commodityKey === "steel_aluminum" ? STEEL_ALUMINUM_TRIGGER_CONFIG
     : commodityKey === "automotive_resins" ? RESINS_TRIGGER_CONFIG
     : commodityKey === "natural_rubber" ? RUBBER_TRIGGER_CONFIG
+    : commodityKey === "tungsten" ? TUNGSTEN_TRIGGER_CONFIG
+    : commodityKey === "industrial_gases" ? GASES_TRIGGER_CONFIG
     : TRIGGER_CONFIG;
   return { forwardWeights, regimeWeights, triggerConfig };
 }
@@ -482,6 +488,27 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     rss3_spot_price: "2026-11-16",
     tsr20_spot_price: "2026-11-16",
     tire_grade_premium: "2026-11-16",
+    // Tungsten & Carbide, built 2026-11-20: every signal is a dated, sourced analyst review.
+    china_tungsten_export_controls: "2026-11-20",
+    china_mining_quota: "2026-11-20",
+    non_china_supply_ramp: "2026-11-20",
+    dfars_compliance_deadline: "2026-11-20",
+    carbide_toolmaker_pricing: "2026-11-20",
+    china_concentrate_import_pull: "2026-11-20",
+    western_apt_price: "2026-11-20",
+    west_china_price_gap: "2026-11-20",
+    china_domestic_tungsten_price: "2026-11-20",
+    tungsten_scrap_market: "2026-11-20",
+    // Industrial Gases, built 2026-11-20: every signal is a dated, sourced analyst review.
+    helium_qatar_supply: "2026-11-20",
+    helium_export_restrictions: "2026-11-20",
+    asu_power_costs: "2026-11-20",
+    argon_coproduct_supply: "2026-11-20",
+    semiconductor_gas_demand: "2026-11-20",
+    major_supplier_pricing: "2026-11-20",
+    helium_spot_price: "2026-11-20",
+    argon_spot_price: "2026-11-20",
+    cryogenic_logistics: "2026-11-20",
   };
   const [regimeSignals,     setRegimeSignals]     = useState(null);
   const [scoreResult,       setScoreResult]       = useState(null);
@@ -523,6 +550,8 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     : selectedCommodity === "steel_aluminum" ? MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL
     : selectedCommodity === "automotive_resins" ? MOCK_RESINS_SIGNAL_DETAIL
     : selectedCommodity === "natural_rubber" ? MOCK_RUBBER_SIGNAL_DETAIL
+    : selectedCommodity === "tungsten" ? MOCK_TUNGSTEN_SIGNAL_DETAIL
+    : selectedCommodity === "industrial_gases" ? MOCK_GASES_SIGNAL_DETAIL
     : MOCK_SIGNAL_DETAIL;
 
   // Fetch signals on mount and every 15 minutes

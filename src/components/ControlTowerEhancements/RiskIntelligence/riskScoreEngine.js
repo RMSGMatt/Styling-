@@ -536,6 +536,67 @@ export const RUBBER_TRIGGER_CONFIG = {
   },
 };
 
+// Tungsten & Carbide (built 2026-11-20). All analyst-reviewed; freight_rates reused.
+export const TUNGSTEN_FORWARD_WEIGHTS = {
+  china_tungsten_export_controls: 0.22,
+  dfars_compliance_deadline:      0.18,
+  china_mining_quota:             0.16,
+  carbide_toolmaker_pricing:      0.16,
+  china_concentrate_import_pull:  0.14,
+  non_china_supply_ramp:          0.14,
+};
+
+export const TUNGSTEN_REGIME_WEIGHTS = {
+  freight_rates:                 0.15,
+  western_apt_price:             0.30,
+  west_china_price_gap:          0.25,
+  china_domestic_tungsten_price: 0.15,
+  tungsten_scrap_market:         0.15,
+};
+
+export const TUNGSTEN_TRIGGER_CONFIG = {
+  tungsten_export_escalation: {
+    threshold: 0.80,
+    signal: "china_tungsten_export_controls",
+    minConvergence: 2,
+  },
+  carbide_tooling_squeeze: {
+    threshold: 0.80,
+    signal: "dfars_compliance_deadline",
+    minConvergence: 2,
+  },
+};
+
+// Industrial Gases (built 2026-11-20). All analyst-reviewed; freight_rates reused.
+export const GASES_FORWARD_WEIGHTS = {
+  helium_qatar_supply:        0.20,
+  asu_power_costs:            0.18,
+  argon_coproduct_supply:     0.17,
+  helium_export_restrictions: 0.15,
+  semiconductor_gas_demand:   0.15,
+  major_supplier_pricing:     0.15,
+};
+
+export const GASES_REGIME_WEIGHTS = {
+  freight_rates:       0.10,
+  argon_spot_price:    0.35,
+  helium_spot_price:   0.30,
+  cryogenic_logistics: 0.25,
+};
+
+export const GASES_TRIGGER_CONFIG = {
+  argon_allocation: {
+    threshold: 0.75,
+    signal: "argon_spot_price",
+    minConvergence: 2,
+  },
+  helium_supply_shock: {
+    threshold: 0.75,
+    signal: "helium_qatar_supply",
+    minConvergence: 2,
+  },
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // launchScenarioToSimulation
 // Routes a triggered scenario to the simulation engine via localStorage —

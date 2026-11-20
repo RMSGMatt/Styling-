@@ -18,6 +18,8 @@ import {
   MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL,
   MOCK_RESINS_SIGNAL_DETAIL,
   MOCK_RUBBER_SIGNAL_DETAIL,
+  MOCK_TUNGSTEN_SIGNAL_DETAIL,
+  MOCK_GASES_SIGNAL_DETAIL,
 } from "./signalSources";
 import { COMMODITY_REGISTRY } from "./commodityRegistry";
 
@@ -32,6 +34,8 @@ const COMMODITY_COLORS = {
   steel_aluminum: "#FBBF24",
   automotive_resins: "#A78BFA",
   natural_rubber: "#34D399",
+  tungsten: "#94A3B8",
+  industrial_gases: "#38BDF8",
 };
 
 // Which detail object holds each commodity's signals — same mapping
@@ -43,6 +47,8 @@ const DETAIL_BY_COMMODITY = {
   steel_aluminum: MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL,
   automotive_resins: MOCK_RESINS_SIGNAL_DETAIL,
   natural_rubber: MOCK_RUBBER_SIGNAL_DETAIL,
+  tungsten: MOCK_TUNGSTEN_SIGNAL_DETAIL,
+  industrial_gases: MOCK_GASES_SIGNAL_DETAIL,
 };
 
 // Built 2026-09-30, alongside the signal accuracy pass and the Signal

@@ -735,6 +735,241 @@ export const SIGNAL_METADATA = {
     explainer: "Updated Sept 2026: not a direct measurement — inferred from the RSS3/TSR20 signals above. Both grades have moved sharply higher through September (the composite benchmark hit 254 cents/kg, +46.74% YoY, the highest since 2013), but TSR20 remains the more acutely pressured tire-preferred grade given its tie to the substitution dynamics in synthetic_rubber_substitution, so the premium is still assessed as widening rather than converging.",
     endpoint:  null,
   },
+
+  // ── TUNGSTEN — FORWARD SIGNALS ─────────────────────────────────────────────
+  // Built 2026-11-20. All analyst-reviewed. freight_rates is reused, not duplicated.
+
+  china_tungsten_export_controls: {
+    label:     "China tungsten export controls",
+    layer:     "forward",
+    horizon:   "6–18 months",
+    source:    "MOFCOM announcements, China Customs via SMM; no reliable live feed exists",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "China put APT and other tungsten products under export licensing in February 2025 and added a ban on dual-use tungsten exports to Japanese military end users in January 2026. Exports of smelted products and materials fell 14.4% year over year in January to May 2026, and SMM expects no near-term relaxation.",
+    endpoint:  null,
+  },
+
+  china_mining_quota: {
+    label:     "China mining quota",
+    layer:     "forward",
+    horizon:   "6–12 months",
+    source:    "Ministry of Natural Resources quota notices, provincial allocations via SMM",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Tungsten is a protected strategic mineral with a two-batch annual mining quota. The first 2026 batch edged up nationally, but SMM judges actual output will hardly grow because compliant mines are near capacity and illegal and over-quota mining is being shut down. Guangdong's first batch fell 10.2%.",
+    endpoint:  null,
+  },
+
+  non_china_supply_ramp: {
+    label:     "Non-China supply ramp",
+    layer:     "forward",
+    horizon:   "12–24 months",
+    source:    "Almonty Industries releases, Plansee announcements; scored as risk, so a faster ramp lowers it",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Relief is coming but slowly. Almonty began processing at Sangdong, South Korea in June 2026 at about 2,300 t/yr of concentrate, with phase two by 2027 doubling output to roughly 40% of demand outside China. Plansee plans about 12,000 t/yr of oxide capacity in Pennsylvania. Until those ramp, Western supply stays thin.",
+    endpoint:  null,
+  },
+
+  dfars_compliance_deadline: {
+    label:     "DFARS 2027 sourcing deadline",
+    layer:     "forward",
+    horizon:   "0–6 months",
+    source:    "DFARS 252.225-7052, Federal Register, July 2026 executive order on defense supply chains",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "From January 1, 2027, tungsten for US defense work cannot be mined, refined or produced in China, Russia, North Korea or Iran, and waivers become much harder to get. That pulls compliant Western tungsten toward defense primes and leaves less for commercial and medical buyers sharing the same carbide supply chain.",
+    endpoint:  null,
+  },
+
+  carbide_toolmaker_pricing: {
+    label:     "Carbide toolmaker pricing",
+    layer:     "forward",
+    horizon:   "3–6 months",
+    source:    "Kennametal and Sandvik earnings calls, Ceratizit via Cutting Tool Engineering",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Tool makers are passing tungsten costs straight through. Kennametal's fiscal 2026 outlook assumed about 16% from price and tariff surcharges, and it more than doubled inventory to $1.11 billion while making advance payments to secure raw material. Ceratizit points to insert increases of about 10% to 15%.",
+    endpoint:  null,
+  },
+
+  china_concentrate_import_pull: {
+    label:     "China concentrate import pull",
+    layer:     "forward",
+    horizon:   "6–12 months",
+    source:    "China Customs via SMM",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "China now imports more raw tungsten than before and exports less value-added product. September 2026 concentrate imports were about 3,663 t, up 73% year over year, and China has been a net importer of tungsten metal through 2026. That competes directly with Western converters for concentrate from outside China.",
+    endpoint:  null,
+  },
+
+  // ── TUNGSTEN — REGIME SIGNALS ──────────────────────────────────────────────
+
+  western_apt_price: {
+    label:     "Western APT price",
+    layer:     "regime",
+    horizon:   "Current",
+    source:    "SMM European tungsten weekly; no reliable free live feed exists",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Overseas APT is trading at historically extreme levels. SMM quoted $2,500 to $3,000/mtu (average $2,750) on November 12, 2026, with the top of the range edging lower week over week and long-term contracts still above $3,000/mtu.",
+    endpoint:  null,
+  },
+
+  west_china_price_gap: {
+    label:     "West vs China price gap",
+    layer:     "regime",
+    horizon:   "Current",
+    source:    "Canadian Mining Journal report on Rotterdam vs China ex-works APT",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Rotterdam APT averaged $278/kg in October 2026 against $74/kg ex-works China, a ratio of 3.74 times. From September 2021 to June 2025 the ratio averaged 1.24. The market has split by compliance and processing capacity, so Western buyers pay a large premium for traceable tungsten.",
+    endpoint:  null,
+  },
+
+  china_domestic_tungsten_price: {
+    label:     "China domestic price",
+    layer:     "regime",
+    horizon:   "Current",
+    source:    "SMM and long-term contract announcements by Chinese producers",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Chinese prices fell about 60% from their early-2026 peak by August, then turned up again. Long-term contract prices were raised for November, and SMM describes Chinese prices as rising steadily, which is pulling overseas ferrotungsten and scrap sentiment up with them.",
+    endpoint:  null,
+  },
+
+  tungsten_scrap_market: {
+    label:     "Tungsten scrap market",
+    layer:     "regime",
+    horizon:   "Current",
+    source:    "SMM European tungsten weekly; US scrap allocation order",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Scrap is the West's main alternative feed, and it is being held at home. A US scrap allocation order from late August 2026 keeps tungsten scrap in the country for domestic and defense use. European scrap offers are steady at about EUR 70 to 85/kg, and sources say the Western bottleneck is conversion capacity, not scrap.",
+    endpoint:  null,
+  },
+
+  // ── INDUSTRIAL GASES — built 2026-11-20, all analyst-reviewed; freight_rates reused ──
+
+  helium_qatar_supply: {
+    label:     "Qatar helium supply",
+    layer:     "forward",
+    horizon:   "6–18 months",
+    source:    "gasworld, QatarEnergy statements, Wood Mackenzie; no reliable live feed exists",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Qatar supplies about 30% of the world's helium as a by-product of LNG at Ras Laffan. Production stopped in March 2026 after Iranian strikes, and damage to two LNG trains cut Qatar's annual helium exports by about 14% for years. The Helium 2 plant partially restarted in June, but shipping limits and container availability still constrain exports.",
+    endpoint:  null,
+  },
+
+  helium_export_restrictions: {
+    label:     "Helium export restrictions",
+    layer:     "forward",
+    horizon:   "6–18 months",
+    source:    "gasworld Helium Summit reporting; Russian and Chinese trade notices",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "The usual swing suppliers are holding helium at home. Russia requires special permission for helium exports outside the Eurasian Economic Union until the end of 2027, and China has a temporary helium export prohibition to preserve imported supply. That removes the relief valve that eased past shortages.",
+    endpoint:  null,
+  },
+
+  asu_power_costs: {
+    label:     "Air separation power costs",
+    layer:     "forward",
+    horizon:   "3–12 months",
+    source:    "Linde, Reuters analysis of Energy Department data, S&P Global",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Electricity is the dominant cost of making argon, nitrogen and oxygen; Linde says energy can be 80% to 90% of an air separation unit's production cost. US industrial power prices rose 31% in Pennsylvania and 26% in Ohio in the year to December 2025, against 7% nationally, with data center load and higher gas prices since March 2026 adding pressure.",
+    endpoint:  null,
+  },
+
+  argon_coproduct_supply: {
+    label:     "Argon co-product supply",
+    layer:     "forward",
+    horizon:   "3–9 months",
+    source:    "Industry market research published Nov 2026 (China ASU data); no reliable live feed exists",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Argon is a trace gas recovered from air separation units built for oxygen and nitrogen, so producers cannot raise argon output on their own. When steel runs or refinery runs drop, argon supply drops with them. In China, ASU utilisation was 63.6% in mid-October 2026 and weekly liquid argon output was still falling.",
+    endpoint:  null,
+  },
+
+  semiconductor_gas_demand: {
+    label:     "Semiconductor gas demand",
+    layer:     "forward",
+    horizon:   "6–18 months",
+    source:    "Linde Q3 2026 earnings call; industry analysis of argon use per wafer",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Chip fabs are the fastest-growing buyers of argon and helium, and advanced nodes use more gas per wafer. Linde is building electronics supply projects in the US, Korea and China. Fabs sign long contracts and pay up, which leaves less flexible volume for industrial and medical buyers.",
+    endpoint:  null,
+  },
+
+  major_supplier_pricing: {
+    label:     "Major supplier pricing",
+    layer:     "forward",
+    horizon:   "3–6 months",
+    source:    "Linde Q3 2026 results; Air Products Q1 2026 results",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "The three majors control about 70% of industrial gas and are pushing price. Linde posted record Q3 2026 sales of $9.4 billion with 3% from price, and Air Products raised 2026 guidance citing helium price strength. Merchant customers on bulk and cylinder contracts absorb those increases first.",
+    endpoint:  null,
+  },
+
+  helium_spot_price: {
+    label:     "Helium price",
+    layer:     "regime",
+    horizon:   "Current",
+    source:    "Caixin, EPRINC, Air Products commentary; no reliable free live feed exists",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Helium prices roughly doubled after the Strait of Hormuz closed in March 2026. Qatar's partial restart has eased the worst of it, but suppliers are still pricing customer by customer and no public benchmark shows a return to pre-crisis levels.",
+    endpoint:  null,
+  },
+
+  argon_spot_price: {
+    label:     "Argon price",
+    layer:     "regime",
+    horizon:   "Current",
+    source:    "Industry market research published Nov 2026; Procurement Resource",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Argon has been the most volatile air gas in 2026. Chinese prices rose from about 720 yuan/t in early May to about 2,459 yuan/t by September 2, and East China reached about 3,057 yuan/t on October 20, up 49% in under two weeks. US CIF argon was about $762/t in April 2026.",
+    endpoint:  null,
+  },
+
+  cryogenic_logistics: {
+    label:     "Cryogenic logistics",
+    layer:     "regime",
+    horizon:   "Current",
+    source:    "gasworld, Fortune/AP reporting on helium containers",
+    cadence:   "Analyst review",
+    latency:   "N/A — analyst-reviewed",
+    apiKey:    false,
+    explainer: "Liquid helium can only be held in an ISO container for about 35 to 48 days, so supply cannot be stockpiled and shipments depend on a limited fleet of cryogenic containers. Repositioning that fleet around closed routes is still holding back Qatari exports.",
+    endpoint:  null,
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1373,6 +1608,220 @@ export const MOCK_RUBBER_SIGNAL_DETAIL = {
   },
 };
 
+// ── Tungsten & Carbide ─────────────────────────────────────────────────────────
+// Built 2026-11-20. Every signal is a dated, sourced analyst review.
+export const MOCK_TUNGSTEN_FORWARD_SIGNALS = {
+  china_tungsten_export_controls: 0.85, // Reviewed 2026-11-20: Feb 2025 licensing plus Jan 2026 Japan dual-use ban; exports -14.4% YoY Jan-May 2026
+  china_mining_quota:             0.70, // Reviewed 2026-11-20: first 2026 batch edged up but output flat; Guangdong -10.2%
+  non_china_supply_ramp:          0.60, // Reviewed 2026-11-20: Sangdong processing since Jun 2026, phase two 2027
+  dfars_compliance_deadline:      0.85, // Reviewed 2026-11-20: DFARS mine-level restriction and waiver limits from Jan 1 2027
+  carbide_toolmaker_pricing:      0.75, // Reviewed 2026-11-20: Kennametal ~16% price and surcharges; Ceratizit inserts +10-15%
+  china_concentrate_import_pull:  0.65, // Reviewed 2026-11-20: Sep 2026 concentrate imports 3,663 t, +73% YoY
+};
+
+export const MOCK_TUNGSTEN_REGIME_SIGNALS = {
+  // freight_rates is reused from MOCK_REGIME_SIGNALS, not duplicated.
+  western_apt_price:             0.90, // Reviewed 2026-11-20: overseas APT $2,500-3,000/mtu (Nov 12 2026)
+  west_china_price_gap:          0.92, // Reviewed 2026-11-20: Rotterdam 3.74x China ex-works (Oct 2026) vs 1.24x historic
+  china_domestic_tungsten_price: 0.62, // Reviewed 2026-11-20: ~60% off early-2026 peak, rising again in November
+  tungsten_scrap_market:         0.65, // Reviewed 2026-11-20: EU scrap steady; US scrap allocation order since late Aug 2026
+};
+
+export const MOCK_TUNGSTEN_SIGNAL_DETAIL = {
+  china_tungsten_export_controls: {
+    value: "Tight, no relaxation expected",
+    trend: "stable tight",
+    keyFact: "Export licensing on APT and other tungsten products since February 2025, plus a January 2026 ban on dual-use exports to Japanese military end users. Exports of smelted products and materials fell 14.4% YoY in January to May 2026.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "China tungsten product exports -14.4% YoY (Jan-May 2026)",
+    previousValue: 0.85,
+    reviewedAt: "2026-11-20",
+  },
+  china_mining_quota: {
+    value: "Flat output despite a small quota rise",
+    trend: "stable tight",
+    keyFact: "The first 2026 quota batch edged up, but compliant mines are near capacity and illegal mining is being closed, so SMM expects actual concentrate output to hardly grow. Guangdong's first batch was 2,110 t, down 10.2%.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Guangdong first-batch quota 2,110 t (-10.2%)",
+    previousValue: 0.70,
+    reviewedAt: "2026-11-20",
+  },
+  non_china_supply_ramp: {
+    value: "Ramping, not yet enough",
+    trend: "improving slowly",
+    keyFact: "Almonty's Sangdong mine began processing in June 2026 at about 2,300 t/yr of concentrate. Phase two by 2027 targets about 4,600 t/yr, roughly 40% of demand outside China.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Sangdong ~2,300 t/yr now, ~4,600 t/yr by 2027",
+    previousValue: 0.60,
+    reviewedAt: "2026-11-20",
+  },
+  dfars_compliance_deadline: {
+    value: "Six weeks out",
+    trend: "tightening",
+    keyFact: "From January 1, 2027, DFARS 252.225-7052 covers tungsten mined or produced in China, Russia, North Korea or Iran, and a July 2026 executive order limits waivers. Compliant supply will be pulled toward defense programs.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Effective January 1, 2027",
+    previousValue: 0.85,
+    reviewedAt: "2026-11-20",
+  },
+  carbide_toolmaker_pricing: {
+    value: "Full pass-through",
+    trend: "elevated",
+    keyFact: "Kennametal's fiscal 2026 outlook assumed about 16% from net price and tariff surcharges, and its inventory more than doubled to $1.11 billion as it prepaid suppliers to secure tungsten. Ceratizit cites insert increases of about 10% to 15%.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Kennametal inventory $1.11B (FY2026), ~16% price and surcharges",
+    previousValue: 0.75,
+    reviewedAt: "2026-11-20",
+  },
+  china_concentrate_import_pull: {
+    value: "China buying abroad",
+    trend: "rising",
+    keyFact: "China imported about 3,663 t of tungsten concentrate in September 2026, up 73% YoY, and has been a net importer of tungsten metal through 2026, competing with Western converters for ex-China concentrate.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Sep 2026 concentrate imports 3,663 t (+73% YoY)",
+    previousValue: 0.65,
+    reviewedAt: "2026-11-20",
+  },
+  western_apt_price: {
+    value: "Historically extreme",
+    trend: "high, edging lower",
+    keyFact: "Overseas APT was quoted at $2,500 to $3,000/mtu (average $2,750) on November 12, 2026. The top of the range moved lower week over week; long-term contracts remain above $3,000/mtu.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Overseas APT $2,750/mtu average (Nov 12 2026)",
+    previousValue: 0.90,
+    reviewedAt: "2026-11-20",
+  },
+  west_china_price_gap: {
+    value: "3.7x China",
+    trend: "widened",
+    keyFact: "Rotterdam APT averaged $278/kg in October 2026 against $74/kg ex-works China, 3.74 times. The September 2021 to June 2025 average was 1.24 times.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Rotterdam $278/kg vs China $74/kg (Oct 2026)",
+    previousValue: 0.92,
+    reviewedAt: "2026-11-20",
+  },
+  china_domestic_tungsten_price: {
+    value: "Off the peak, rising again",
+    trend: "rising",
+    keyFact: "Chinese prices were about 60% below their early-2026 peak in August, then turned up. November long-term contract prices were raised and SMM reports Chinese prices rising steadily.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "APT RMB 610,000/t in Aug 2026, ~60% below peak",
+    previousValue: 0.62,
+    reviewedAt: "2026-11-20",
+  },
+  tungsten_scrap_market: {
+    value: "Held at home",
+    trend: "stable tight",
+    keyFact: "A US scrap allocation order since late August 2026 keeps tungsten scrap in the country for domestic and defense use. European scrap offers are steady at about EUR 70 to 85/kg; Indian carbide scrap is $90 to 110/kg.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "EU scrap EUR 70-85/kg (Nov 12 2026)",
+    previousValue: 0.65,
+    reviewedAt: "2026-11-20",
+  },
+};
+
+// ── Industrial Gases (Argon, Helium) ───────────────────────────────────────────
+// Built 2026-11-20. Every signal is a dated, sourced analyst review.
+export const MOCK_GASES_FORWARD_SIGNALS = {
+  helium_qatar_supply: 0.75, // Reviewed 2026-11-20
+  helium_export_restrictions: 0.75, // Reviewed 2026-11-20
+  asu_power_costs: 0.70, // Reviewed 2026-11-20
+  argon_coproduct_supply: 0.65, // Reviewed 2026-11-20
+  semiconductor_gas_demand: 0.70, // Reviewed 2026-11-20
+  major_supplier_pricing: 0.65, // Reviewed 2026-11-20
+};
+
+export const MOCK_GASES_REGIME_SIGNALS = {
+  // freight_rates is reused from MOCK_REGIME_SIGNALS, not duplicated.
+  helium_spot_price: 0.72, // Reviewed 2026-11-20
+  argon_spot_price: 0.78, // Reviewed 2026-11-20
+  cryogenic_logistics: 0.65, // Reviewed 2026-11-20
+};
+
+export const MOCK_GASES_SIGNAL_DETAIL = {
+  helium_qatar_supply: {
+    value: "Partially restarted, exports constrained",
+    trend: "improving slowly",
+    keyFact: "Ras Laffan halted in March 2026; strike damage cut Qatar's helium exports about 14% for years. Helium 2 partially restarted in June 2026, but exports remain limited by Strait of Hormuz shipping and cryogenic container availability.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Qatar ~30% of world helium; exports -14% structural",
+    previousValue: 0.75,
+    reviewedAt: "2026-11-20",
+  },
+  helium_export_restrictions: {
+    value: "Swing suppliers closed",
+    trend: "stable tight",
+    keyFact: "Russia restricts helium exports outside the Eurasian Economic Union through end-2027, and China has a temporary helium export ban, so neither can offset lost Qatari volumes for Western buyers.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Russia export permits required through 2027",
+    previousValue: 0.75,
+    reviewedAt: "2026-11-20",
+  },
+  asu_power_costs: {
+    value: "Rising",
+    trend: "rising",
+    keyFact: "Energy is up to 80-90% of air separation production cost (Linde). Industrial electricity rose 31% in Pennsylvania and 26% in Ohio in the year to December 2025 as data centers added load.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "PA industrial power +31%, OH +26% (year to Dec 2025)",
+    previousValue: 0.70,
+    reviewedAt: "2026-11-20",
+  },
+  argon_coproduct_supply: {
+    value: "Tied to steel and refining",
+    trend: "tightening",
+    keyFact: "Argon output follows oxygen and nitrogen demand from steel and refining. China ASU utilisation was 63.6% on October 15, 2026, with weekly liquid argon output down 1.4%.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "China ASU utilisation 63.6% (Oct 15 2026)",
+    previousValue: 0.65,
+    reviewedAt: "2026-11-20",
+  },
+  semiconductor_gas_demand: {
+    value: "Growing",
+    trend: "rising",
+    keyFact: "Advanced chip processes use more argon per wafer, and Linde cites electronics projects in the US, Korea and China. Fabs secure supply under long contracts first.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Linde electronics projects in US, Korea, China (Q3 2026)",
+    previousValue: 0.70,
+    reviewedAt: "2026-11-20",
+  },
+  major_supplier_pricing: {
+    value: "Price-led",
+    trend: "stable elevated",
+    keyFact: "Linde Q3 2026 sales were a record $9.404 billion, with 3% underlying growth from pricing. Air Products raised 2026 guidance citing helium price strength.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Linde Q3 2026: +3% price, record $9.4B sales",
+    previousValue: 0.65,
+    reviewedAt: "2026-11-20",
+  },
+  helium_spot_price: {
+    value: "Elevated",
+    trend: "high, easing slightly",
+    keyFact: "Global helium prices roughly doubled after March 2026 (Caixin, EPRINC). A partial Qatari restart since June has eased the peak, but pricing remains elevated and customer-specific.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Prices ~2x pre-crisis after March 2026",
+    previousValue: 0.72,
+    reviewedAt: "2026-11-20",
+  },
+  argon_spot_price: {
+    value: "Sharply higher",
+    trend: "volatile, rising",
+    keyFact: "China argon rose from ~720 yuan/t (early May 2026) to ~2,459 yuan/t (Sep 2), and East China hit ~3,057 yuan/t on Oct 20, +49% since Oct 8.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "East China argon ~3,057 yuan/t (Oct 20 2026)",
+    previousValue: 0.78,
+    reviewedAt: "2026-11-20",
+  },
+  cryogenic_logistics: {
+    value: "Constrained",
+    trend: "stable tight",
+    keyFact: "Liquid helium holds about 35-48 days in a cryogenic container, and container availability is still constraining Qatari exports after the partial restart.",
+    lastUpdated: "Analyst review, Nov 2026",
+    dataPoint: "Helium hold time 35-48 days per container",
+    previousValue: 0.65,
+    reviewedAt: "2026-11-20",
+  },
+};
+
 export async function fetchForwardSignals(commodity = "semiconductors_mlcc") {
   if (USE_MOCK_DATA) {
     const data = commodity === "lithium_battery" ? MOCK_LITHIUM_FORWARD_SIGNALS
@@ -1380,6 +1829,8 @@ export async function fetchForwardSignals(commodity = "semiconductors_mlcc") {
       : commodity === "steel_aluminum" ? MOCK_STEEL_ALUMINUM_FORWARD_SIGNALS
       : commodity === "automotive_resins" ? MOCK_RESINS_FORWARD_SIGNALS
       : commodity === "natural_rubber" ? MOCK_RUBBER_FORWARD_SIGNALS
+      : commodity === "tungsten" ? MOCK_TUNGSTEN_FORWARD_SIGNALS
+      : commodity === "industrial_gases" ? MOCK_GASES_FORWARD_SIGNALS
       : MOCK_FORWARD_SIGNALS;
 
     // A handful of signals across commodity groups have a real, live
@@ -1441,6 +1892,8 @@ export async function fetchRegimeSignals(commodity = "semiconductors_mlcc") {
       : commodity === "steel_aluminum" ? { ...MOCK_STEEL_ALUMINUM_REGIME_SIGNALS, freight_rates: MOCK_REGIME_SIGNALS.freight_rates }
       : commodity === "automotive_resins" ? { ...MOCK_RESINS_REGIME_SIGNALS, freight_rates: MOCK_REGIME_SIGNALS.freight_rates }
       : commodity === "natural_rubber" ? { ...MOCK_RUBBER_REGIME_SIGNALS, freight_rates: MOCK_REGIME_SIGNALS.freight_rates }
+      : commodity === "tungsten" ? { ...MOCK_TUNGSTEN_REGIME_SIGNALS, freight_rates: MOCK_REGIME_SIGNALS.freight_rates }
+      : commodity === "industrial_gases" ? { ...MOCK_GASES_REGIME_SIGNALS, freight_rates: MOCK_REGIME_SIGNALS.freight_rates }
       : MOCK_REGIME_SIGNALS;
 
     // First live regime signal (spot_prices, via BLS PPI) — same pattern

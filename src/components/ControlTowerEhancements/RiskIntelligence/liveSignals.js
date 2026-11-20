@@ -674,6 +674,8 @@ export const LIVE_SOURCE_KEYS = {
   steel_aluminum:    ["domestic_capacity_expansion", "section_232_tariff_pipeline", "aluminum_capacity_signal"],
   automotive_resins: ["domestic_polymer_capacity"],
   natural_rubber:    ["tire_manufacturer_demand"],
+  tungsten:          [],
+  industrial_gases:  [],
 };
 
 // Builds the raw_signals payload saved with each daily snapshot.
