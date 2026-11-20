@@ -104,7 +104,7 @@ function DisruptionRow({ disruption, onChange, onRemove, canRemove, availableFac
 
       {/* Facility */}
       <div>
-        <label className="text-[10px] text-slate-400 uppercase tracking-wide">Affected Facility</label>
+        <label className="text-[10px] text-slate-400 uppercase tracking-wide">Affected Facility{disruption.sku ? <span className="normal-case text-lime-300"> · part {disruption.sku} only</span> : null}</label>
         {availableFacilities.length > 0 ? (
           <select
             className="w-full mt-1 rounded-md bg-slate-950/80 border border-slate-700 px-2 py-1.5 text-[11px] text-slate-100"
@@ -298,7 +298,7 @@ function DemandShockRow({ shock, onChange, onRemove, availableFacilities }) {
 }
 
 // ── Event replays: real disruptions run on the user's own network ──────
-function ReplayPanel({ apiBase, token, onLoad }) {
+function ReplayPanel({ apiBase, token, onLoad, onRunReplay }) {
   const [res, setRes] = useState(null);
   const [variant, setVariant] = useState({});
   const [busy, setBusy] = useState("");
@@ -317,7 +317,7 @@ function ReplayPanel({ apiBase, token, onLoad }) {
   }, [apiBase]);
   if (!res?.replays?.length) return null;
 
-  const load = async (r) => {
+  const load = async (r, run = false) => {
     setBusy(r.key); setMsg(""); setSizing([]);
     try {
       const resp = await fetch(`${apiBase}/api/scenarios/replays/${r.key}`, {
@@ -326,8 +326,17 @@ function ReplayPanel({ apiBase, token, onLoad }) {
       const b = await resp.json().catch(() => ({}));
       if (!resp.ok || b.status !== "ok") { setMsg((b.errors || [])[0] || "Could not build that replay."); return; }
       if (!b.disruptions.length) { setMsg(b.note || "This replay does not touch your network."); return; }
-      onLoad(b);
+      onLoad(b, run);
       setSizing(b.sizing || []);
+      if (run) {
+        if (onRunReplay) {
+          const r2 = await onRunReplay(b.name);
+          if (r2 === "none") { setMsg("Load your network in Control Tower first: replays are sized to it."); return; }
+          if (r2 === "blocked") { setMsg("Could not build the simulation from your network; see the message under Simulation Inputs."); return; }
+          setMsg(`Running on your network: ${b.disruptions.length} site${b.disruptions.length === 1 ? "" : "s"} hit, ${b.start} to ${b.end}. Results appear below when the run finishes.`);
+          return;
+        }
+      }
       setMsg(`Loaded: ${b.disruptions.length} site${b.disruptions.length === 1 ? "" : "s"} hit${b.laneDelays.length ? `, ${b.laneDelays.length} lane delay${b.laneDelays.length === 1 ? "" : "s"}` : ""}, ${b.start} to ${b.end}. Review below, then run.`);
     } catch { setMsg("Could not reach the replay service."); } finally { setBusy(""); }
   };
@@ -355,12 +364,17 @@ function ReplayPanel({ apiBase, token, onLoad }) {
                 className="flex-1 rounded-md bg-slate-950 border border-slate-700 px-2 py-1 text-[11px] text-slate-200">
                 {r.variants.map((v) => <option key={v.key} value={v.key}>{v.label}</option>)}
               </select>
-              <button type="button" disabled={busy === r.key || res.status !== "ok"} onClick={() => load(r)}
+              <button type="button" disabled={busy === r.key || res.status !== "ok" || !r.applies} onClick={() => load(r, !!onRunReplay)}
                 className="px-3 py-1 rounded-md text-[11px] font-semibold"
-                style={{ background: "#9FD63A", color: "#020617", opacity: busy === r.key || res.status !== "ok" ? 0.5 : 1 }}>
-                {busy === r.key ? "Loading…" : "Load replay"}
+                style={{ background: "#9FD63A", color: "#020617", opacity: busy === r.key || res.status !== "ok" || !r.applies ? 0.5 : 1 }}>
+                {busy === r.key ? "Starting…" : onRunReplay ? "Run on my network" : "Load replay"}
               </button>
             </div>
+            {onRunReplay && r.applies && res.status === "ok" && (
+              <button type="button" disabled={busy === r.key} onClick={() => load(r, false)} className="self-start text-[10px] underline text-slate-400">
+                Load into the builder to edit first
+              </button>
+            )}
             <div className="flex flex-wrap gap-x-2">
               {r.sources.map((s) => <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" className="text-[10px] underline" style={{ color: "#9FD63A" }}>source</a>)}
             </div>
@@ -387,6 +401,7 @@ export default function ScenarioBuilder({
   apiBase = "https://supply-chain-simulator.onrender.com",
   token,
   onSaved,
+  onRunReplay,
 }) {
   const [open, setOpen] = useState(true);
   const [activeSection, setActiveSection] = useState("disruptions");
@@ -448,6 +463,7 @@ export default function ScenarioBuilder({
           type: d.types[0] || "natural_disaster",
           combined_types: d.types,
           facility: d.facility,
+          ...(d.sku ? { sku: d.sku } : {}),
           startDate: d.startDate,
           endDate,
           severity: d.productionImpact / 100,
@@ -470,6 +486,7 @@ export default function ScenarioBuilder({
       .map(l => ({
         from_facility: l.fromFacility,
         to_facility: l.toFacility,
+        ...(l.sku ? { sku: l.sku } : {}),
         additional_lead_days: l.delayDays,
       }));
 
@@ -613,7 +630,7 @@ export default function ScenarioBuilder({
       {open && (
         <div className="p-4 space-y-4">
 
-          <ReplayPanel apiBase={apiBase} token={token} onLoad={(b) => {
+          <ReplayPanel apiBase={apiBase} token={token} onRunReplay={onRunReplay} onLoad={(b, run) => {
             const rid = () => Math.random().toString(36).slice(2);
             setDisruptions(b.disruptions.map((d) => ({ ...makeDisruption(d.facility), ...d, id: rid() })));
             setLaneDelays(b.laneDelays.map((l) => ({ ...makeLaneDelay(), ...l, id: rid() })));
@@ -621,6 +638,23 @@ export default function ScenarioBuilder({
             setReplayName(b.name);
             setNotes(`${b.title}: ${b.event}. ${b.variant_label}.`);
             setActiveSection("disruptions");
+            if (run) {
+              // Apply straight from the replay: builder state updates land after this render.
+              const scen = {
+                name: b.name,
+                disruptionScenarios: b.disruptions.map((d) => {
+                  const end = new Date(d.startDate); end.setDate(end.getDate() + Number(d.duration));
+                  return { type: d.types[0], combined_types: d.types, facility: d.facility, ...(d.sku ? { sku: d.sku } : {}), startDate: d.startDate, endDate: end.toISOString().slice(0, 10),
+                           severity: d.productionImpact / 100, production_impact: d.productionImpact / 100, shipping_impact: d.shippingImpact / 100 };
+                }),
+                demandAdjustments: [],
+                laneAdjustments: b.laneDelays.map((l) => ({ from_facility: l.fromFacility, to_facility: l.toFacility, ...(l.sku ? { sku: l.sku } : {}), additional_lead_days: l.delayDays })),
+                inventoryPolicies: [],
+                meta: { sourcing: "none", notes: `${b.title}: ${b.event}. ${b.variant_label}.` },
+              };
+              setScenarioData?.(scen);
+              persistAndBroadcast(scen);
+            }
           }} />
 
           {/* NL input */}

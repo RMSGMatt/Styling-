@@ -2139,14 +2139,14 @@ export default function SimulationDashboard({
         }
         if (!scenarioData?.disruptionScenarios?.length) { try { const stored = localStorage.getItem("forc_active_scenario"); if (stored) Object.assign(scenarioData, JSON.parse(stored)); } catch { } }
         if (scenarioData?.disruptionScenarios?.length) {
-          const scenarioRows = scenarioData.disruptionScenarios.map((scenario) => ({ start_date: scenario.startDate || scenario.start_date || "2025-01-01", end_date: scenario.endDate || scenario.end_date || "2025-01-10", facility: scenario.facility || "ScenarioFacility", severity: scenario.severity !== undefined && scenario.severity !== null && scenario.severity !== "" ? scenario.severity : 1.0, production_impact: scenario.production_impact !== undefined ? scenario.production_impact : scenario.severity, shipping_impact: scenario.shipping_impact !== undefined ? scenario.shipping_impact : 0.0 }));
+          const scenarioRows = scenarioData.disruptionScenarios.map((scenario) => ({ start_date: scenario.startDate || scenario.start_date || "2025-01-01", end_date: scenario.endDate || scenario.end_date || "2025-01-10", facility: scenario.facility || "ScenarioFacility", sku: scenario.sku || "", severity: scenario.severity !== undefined && scenario.severity !== null && scenario.severity !== "" ? scenario.severity : 1.0, production_impact: scenario.production_impact !== undefined ? scenario.production_impact : scenario.severity, shipping_impact: scenario.shipping_impact !== undefined ? scenario.shipping_impact : 0.0 }));
           {
             const locText = await readFileAsText(files.locations);
             const known = new Set((Papa.parse(locText, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, "").trim() }).data || []).map((r) => String(r.Facility ?? r.facility ?? "").trim()).filter(Boolean));
             const unknownSite = scenarioRows.map((r) => r.facility).find((f) => known.size > 0 && f && f !== "ScenarioFacility" && !known.has(f));
             if (unknownSite) { alert(`"${unknownSite}" is not a site in your simulator network, so this disruption cannot be applied. Upload a network that includes it, or change the facility name.`); return; }
           }
-          transformedDisruptions = Papa.unparse(scenarioRows, { columns: ["facility", "start_date", "end_date", "severity", "production_impact", "shipping_impact"] });
+          transformedDisruptions = Papa.unparse(scenarioRows, { columns: ["facility", "sku", "start_date", "end_date", "severity", "production_impact", "shipping_impact"] });
         }
         if (isValidCsvText(originalLocMaterialsText) && scenarioData?.inventoryPolicies?.length) {
           const parsed = Papa.parse(originalLocMaterialsText, { header: true, skipEmptyLines: true, transformHeader: (h) => h.replace(/^\uFEFF/, '').trim() });
@@ -2169,7 +2169,8 @@ export default function SimulationDashboard({
               rows.forEach((row) => {
                 const from = row.from_facility ?? row.from ?? row.src ?? row.source;
                 const to = row.to_facility ?? row.to ?? row.dst ?? row.destination;
-                if (norm(from) === norm(adj.from_facility) && norm(to) === norm(adj.to_facility)) {
+                const skuOk = !adj.sku || norm(row.sku ?? row.SKU) === norm(adj.sku);
+                if (skuOk && norm(from) === norm(adj.from_facility) && norm(to) === norm(adj.to_facility)) {
                   const key = ["lead_time_days", "lead_time", "lt"].find((k) => k in row) || "lead_time_days";
                   row[key] = String((Number(row[key]) || 0) + add);
                   hit += 1;
@@ -2724,6 +2725,7 @@ export default function SimulationDashboard({
             scenarioData={scenarioData}
             setScenarioData={setScenarioData}
             onRun={() => handleRunSimulationWithScenario(null, runName)}
+            onRunReplay={(label) => loadNetwork({ keepScenario: true, label })}
             locationsFile={files.locations}
             apiBase={API_BASE}
           />
