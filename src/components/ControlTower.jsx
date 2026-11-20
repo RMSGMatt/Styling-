@@ -866,6 +866,9 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
   const [err, setErr] = useState([]);
   const [warn, setWarn] = useState([]);
   const [profile, setProfile] = useState(null);
+  const [modelFiles, setModelFiles] = useState({});
+  const [modelHave, setModelHave] = useState(null); // { bom: bool, processes: bool } once known
+  const [modelMsg, setModelMsg] = useState(null);   // { ok: bool, text }
   const headers = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}` });
   useEffect(() => {
     let live = true;
@@ -878,6 +881,34 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
     })();
     return () => { live = false; };
   }, [apiBase]);
+  const loadModelStatus = async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/network-snapshot/sim-inputs`, { headers: headers() });
+      const body = await res.json().catch(() => ({}));
+      setModelHave(body && body.model ? body.model : null);
+    } catch { /* status is a hint only */ }
+  };
+  useEffect(() => { loadModelStatus(); }, [apiBase]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Bill of materials and process capacities: the simulator needs them, and they cannot be derived from orders.
+  const saveModel = async () => {
+    const picked = Object.entries(modelFiles).filter(([, f]) => f);
+    if (!picked.length) { setModelMsg({ ok: false, text: "Choose bom.csv, processes.csv or both." }); return false; }
+    try {
+      const fd = new FormData();
+      picked.forEach(([k, f]) => fd.append(k, f, f.name));
+      const res = await fetch(`${apiBase}/api/network-model`, { method: "PUT", headers: headers(), body: fd });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.status === "ok") {
+        setModelMsg({ ok: true, text: `Saved ${body.saved.map((k) => `${k}.csv`).join(" and ")}. Simulations now run on your network.` });
+        setModelFiles({});
+        loadModelStatus();
+        return true;
+      }
+      setModelMsg({ ok: false, text: (body.errors || ["Could not save the model files."]).join(" ") });
+    } catch { setModelMsg({ ok: false, text: "Could not reach the server." }); }
+    return false;
+  };
+  const anyModelPicked = Object.values(modelFiles).some(Boolean);
   const ago = (iso) => {
     const t = Date.parse(iso || "");
     if (!t) return "";
@@ -890,7 +921,11 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
   const refreshMode = !!profile;
   const finish = async (res) => {
     const body = await res.json().catch(() => ({}));
-    if (res.ok && body.status === "ok") { setErr([]); setWarn(body.warnings || []); onLoaded(body); }
+    if (res.ok && body.status === "ok") {
+      setErr([]); setWarn(body.warnings || []);
+      if (Object.values(modelFiles).some(Boolean)) await saveModel();
+      onLoaded(body);
+    }
     else { setErr(body.errors || [body.message || "That did not work. Check the files and try again."]); setWarn(body.warnings || []); }
   };
   const upload = async () => {
@@ -904,7 +939,10 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
   };
   const refresh = async () => {
     const picked = Object.entries(files).filter(([, f]) => f);
-    if (!picked.length) { setErr(["Choose at least one file to refresh. Files you leave out keep their last data."]); return; }
+    if (!picked.length) {
+      if (anyModelPicked) { setBusy(true); try { await saveModel(); } finally { setBusy(false); } return; }
+      setErr(["Choose at least one file to refresh. Files you leave out keep their last data."]); return;
+    }
     setBusy(true);
     try {
       const fd = new FormData();
@@ -936,6 +974,33 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
             {files[key] && <span className="block mt-1" style={{ color: "#9FD63A" }}>{files[key].name}</span>}
           </label>
         ))}
+      </div>
+      <div className="mt-4 rounded-xl border p-3" style={{ borderColor: "rgba(148,163,184,0.2)", background: "rgba(2,6,23,0.25)" }} data-testid="model-upload">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <span className="text-sm font-semibold" style={{ color: "#E2E8F0" }}>Simulation model <span className="font-normal text-xs" style={{ color: "#64748B" }}>(optional, needed to simulate your own network)</span></span>
+          {modelHave && (
+            <span className="text-[11px]" style={{ color: modelHave.bom && modelHave.processes ? "#9FD63A" : "#FCD34D" }}>
+              {modelHave.bom && modelHave.processes ? "Both files on file" : `On file: ${[modelHave.bom && "bom", modelHave.processes && "processes"].filter(Boolean).join(", ") || "none"}`}
+            </span>
+          )}
+        </div>
+        <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[["bom", "bom.csv", "Which components go into each part, and how many"], ["processes", "processes.csv", "What each plant makes and its daily capacity"]].map(([key, label, note]) => (
+            <label key={key} className="rounded-xl border p-3 text-xs cursor-pointer" style={{ borderColor: "rgba(148,163,184,0.2)", background: "rgba(2,6,23,0.35)", color: "#94A3B8" }}>
+              <span className="block font-semibold" style={{ color: "#E2E8F0" }}>{label}</span>
+              <span className="block mb-2">{note}</span>
+              <input type="file" accept=".csv,text/csv" onChange={(e) => { setModelMsg(null); setModelFiles((f) => ({ ...f, [key]: e.target.files?.[0] || null })); }} className="block w-full text-[11px]" />
+              {modelFiles[key] && <span className="block mt-1" style={{ color: "#9FD63A" }}>{modelFiles[key].name}</span>}
+            </label>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <button onClick={async () => { setBusy(true); try { await saveModel(); } finally { setBusy(false); } }} disabled={busy || !anyModelPicked}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border" style={{ borderColor: "rgba(159,214,58,0.35)", color: "#9FD63A", opacity: busy || !anyModelPicked ? 0.5 : 1 }}>
+            Save model files
+          </button>
+          {modelMsg && <span className="text-xs" style={{ color: modelMsg.ok ? "#9FD63A" : "#FCA5A5" }}>{modelMsg.text}</span>}
+        </div>
       </div>
       {err.length > 0 && <ul className="mt-3 text-sm" style={{ color: "#FCA5A5" }}>{err.map((e, i) => <li key={i}>{e}</li>)}</ul>}
       {warn.length > 0 && <ul className="mt-2 text-xs" style={{ color: "#FCD34D" }}>{warn.map((e, i) => <li key={i}>{e}</li>)}</ul>}
