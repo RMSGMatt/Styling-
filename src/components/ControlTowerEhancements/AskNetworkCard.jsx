@@ -26,13 +26,14 @@ function RunCard({ run, onOpen }) {
   const fill = measure(r, "fill_rate");
   const peak = measure(r, "peak_backorder");
   const cust = measure(r, "customers_impacted");
+  const v = r.vs_baseline || {};
   const facts = [];
+  if (v.added_revenue_at_risk != null) facts.push(["Added revenue at risk", `${v.added_revenue_at_risk >= 0 ? "+" : "−"}${money(Math.abs(v.added_revenue_at_risk))}`, r.revenue_at_risk != null ? `${money(r.revenue_at_risk)} total` : null]);
   if (r.first_shortage_date) facts.push(["First shortage", `${day(r.first_shortage_date)}${r.first_shortage_part ? `, ${pretty(r.first_shortage_part)}` : ""}${r.first_shortage_at ? ` at ${pretty(r.first_shortage_at)}` : ""}`]);
   else facts.push(["First shortage", "None in the window"]);
-  if (fill && fill.worst != null) facts.push(["Worst-week fill", `${fill.worst}%`]);
-  if (peak && peak.during != null) facts.push(["Peak backorder", `${Number(peak.during).toLocaleString()} units`]);
+  if (fill && fill.worst != null) facts.push(["Worst-week fill", `${fill.worst}%`, v.worst_week_fill_pct_normal != null && v.worst_week_fill_pct_normal < 100 ? `${v.worst_week_fill_pct_normal}% normally` : null]);
+  if (peak && peak.during != null) facts.push(["Peak backorder", `${Number(peak.during).toLocaleString()} units`, v.added_peak_backorder_units != null && v.added_peak_backorder_units !== Math.round(peak.during) ? `+${Number(v.added_peak_backorder_units).toLocaleString()} vs normal` : null]);
   if (cust && cust.during != null) facts.push(["Customers hit", String(cust.during)]);
-  if (r.revenue_at_risk != null) facts.push(["Revenue at risk", money(r.revenue_at_risk)]);
   return (
     <div className="rounded-xl border p-3" style={{ borderColor: "rgba(148,163,184,0.18)", background: "rgba(2,6,23,0.35)" }}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -48,11 +49,15 @@ function RunCard({ run, onOpen }) {
           </button>
         )}
       </div>
+      {v.normal_operations_already_short && v.first_shortage_date_normal && (
+        <div className="mt-2 text-[11px]" style={{ color: "#FCD34D" }}>Normal operations already run short from {day(v.first_shortage_date_normal)}. The figures marked normal show that base.</div>
+      )}
       <div className="mt-2 grid grid-cols-2 md:grid-cols-5 gap-2">
-        {facts.map(([k, v]) => (
+        {facts.map(([k, val, sub]) => (
           <div key={k}>
             <div className="text-[10.5px] uppercase tracking-wide" style={{ color: DIM }}>{k}</div>
-            <div className="text-sm font-semibold" style={{ color: TEXT }}>{v}</div>
+            <div className="text-sm font-semibold" style={{ color: TEXT }}>{val}</div>
+            {sub && <div className="text-[11px]" style={{ color: DIM }}>{sub}</div>}
           </div>
         ))}
       </div>
@@ -142,7 +147,7 @@ export default function AskNetworkCard({ apiBase, examples = [], simulationHisto
 
       <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} disabled={running || out}
-               placeholder={out ? "You have used this month's questions." : "What if our sterilizer is down for three weeks?"}
+               placeholder={out ? "You have used this month's questions." : (examples[0] || "What if a key supplier is down for three weeks?")}
                className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={{ background: "rgba(2,6,23,0.5)", border: "1px solid rgba(148,163,184,0.25)", color: TEXT }} />
         <button type="submit" disabled={running || busy || out || !q.trim()} className="px-4 py-2 rounded-lg text-sm font-bold"
                 style={{ background: "#9CF700", color: "#020617", opacity: running || busy || out || !q.trim() ? 0.5 : 1 }}>
