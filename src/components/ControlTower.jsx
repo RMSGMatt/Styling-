@@ -24,6 +24,7 @@ import { getApiBase } from "../config/apiBase";
 import IngestKeysCard from "./ControlTowerEhancements/IngestKeysCard";
 import CompareRuns from "./CompareRuns";
 import PartsAtRiskCard from "./ControlTowerEhancements/PartsAtRiskCard";
+import AskNetworkCard from "./ControlTowerEhancements/AskNetworkCard";
 import { EarlyWarningView, EarlyWarningStrip } from "./ControlTowerEhancements/RiskIntelligence/EarlyWarning";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
 import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
@@ -1146,6 +1147,7 @@ export default function ControlTower({
   switchView,
   simulationHistory,
   onReloadRun,
+  onRefreshHistory,
   onLogout,
   userPlan,
   locationsUrl,
@@ -1421,6 +1423,17 @@ export default function ControlTower({
     }));
   }, [exposure, netRisk, siteParts]);
   const mapLanes = useMemo(() => exposure?.lanes || [], [exposure]);
+  // Starter questions for Ask your network, built from this network's own sites and commodities.
+  const askExamples = useMemo(() => {
+    const ex = [];
+    const sites = exposure?.sites || [];
+    const sup = sites.find((s) => s.status === "bad" && !/PLANT|OEM/i.test(s.name)) || sites.find((s) => /SUPPLIER|STERIL|MILL|DISTRIB|VENDOR/i.test(s.name));
+    if (sup) ex.push(`What if ${sup.name.replace(/_/g, " ")} is down for three weeks?`);
+    const c = netCommodities.find((x) => (x.score ?? 0) >= 55) || netCommodities[0];
+    if (c) ex.push(`What happens if ${c.label} supply is cut in half for a month?`);
+    ex.push("Which customer gets hit first if our thinnest part runs out?");
+    return ex.slice(0, 3);
+  }, [exposure, netCommodities]);
   // When a network snapshot is loaded, the map plots that network's own sites, so the map and the cards always describe the same network.
   const snapshotLocationsUrl = useMemo(() => {
     const rows = (exposure?.sites || []).filter((x) => Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lon)));
@@ -1780,6 +1793,11 @@ export default function ControlTower({
 
               <EarlyWarningStrip apiBase={API_BASE_CT} onOpen={openEarlyWarning} commodities={snapshot ? netCommodities : []}
                                  onOpenCommodity={(commodity) => { setRiskIntelFocus({ commodity }); setActiveView("risk"); }} />
+
+              {snapshot && (
+                <AskNetworkCard apiBase={API_BASE_CT} examples={askExamples} simulationHistory={simulationHistory}
+                                onReloadRun={onReloadRun} onRefreshHistory={onRefreshHistory} />
+              )}
 
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div id="tour-map" className="lg:col-span-2 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>

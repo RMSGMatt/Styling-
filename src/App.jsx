@@ -2731,6 +2731,7 @@ setSimulationHistory((prev) => {
           userPlan={userPlan}
           simulationHistory={simulationHistory}
           onReloadRun={onReloadRun}
+          onRefreshHistory={fetchSimulationHistory}
           locationsUrl={locationsUrl}
         />
       )}
