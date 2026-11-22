@@ -25,6 +25,9 @@ import IngestKeysCard from "./ControlTowerEhancements/IngestKeysCard";
 import CompareRuns from "./CompareRuns";
 import PartsAtRiskCard from "./ControlTowerEhancements/PartsAtRiskCard";
 import AskNetworkCard from "./ControlTowerEhancements/AskNetworkCard";
+import BriefButton from "./ControlTowerEhancements/briefs/BriefButton";
+import BriefView from "./ControlTowerEhancements/briefs/BriefView";
+import useAutoBriefs from "./ControlTowerEhancements/briefs/useAutoBriefs";
 import { EarlyWarningView, EarlyWarningStrip } from "./ControlTowerEhancements/RiskIntelligence/EarlyWarning";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
 import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
@@ -339,10 +342,18 @@ function kpiSeverityColor(kpis, idPrefix) {
 // ─────────────────────────────────────────────────────────────────────────────
 const SEVERITY_ORDER = { escalate: 0, act: 1, watch: 2 };
 
-function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, narrativeLoading, onOpenRiskIntelligence, onOpenSafetyStock, commodityKeys }) {
+function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, narrativeLoading, onOpenRiskIntelligence, onOpenSafetyStock, commodityKeys, simulationHistory, onReloadRun, onRefreshHistory }) {
   const [dismissed, setDismissed] = useState([]);
   const [expanded, setExpanded] = useState(false);
+  const [openBrief, setOpenBrief] = useState(null);
   const { triggers } = useRiskTriggers(commodityKeys);
+  // One automatic decision brief per fired trigger per week, only once a network is loaded.
+  useAutoBriefs(triggers, hasKpiData);
+  const openRun = (runId) => {
+    const e = (simulationHistory || []).find((x) => (x.run_id || x.id) === runId);
+    if (e && onReloadRun) { setOpenBrief(null); onReloadRun(e); return; }
+    if (onRefreshHistory) onRefreshHistory();
+  };
   const { alerts: safetyStockAlerts } = useSafetyStockAlerts();
 
   const kpiItems = (alertsOverride || deriveAlerts(kpis)).map((a) => ({
@@ -366,6 +377,7 @@ function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, 
         detail: config.description,
         sourceTag: "Risk Signal",
         sourceMock: t.source === "mock",
+        brief: { scenario: t.scenario, commodity: t.commodity, config },
         onReview: () => onOpenRiskIntelligence && onOpenRiskIntelligence({ commodity: t.commodity }),
       };
     })
@@ -505,6 +517,10 @@ function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, 
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      {item.brief && (
+                        <BriefButton compact scenario={item.brief.scenario} commodity={item.brief.commodity} config={item.brief.config}
+                                     onOpen={(id) => { setOpenBrief(id); if (onRefreshHistory) onRefreshHistory(); }} />
+                      )}
                       {item.onReview && (
                         <button
                           onClick={(e) => {
@@ -535,6 +551,7 @@ function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, 
           )}
         </div>
       )}
+      {openBrief && <BriefView briefId={openBrief} onClose={() => setOpenBrief(null)} onOpenRun={onReloadRun ? openRun : null} />}
     </div>
   );
 }
@@ -1868,6 +1885,9 @@ export default function ControlTower({
                 }}
                 onOpenSafetyStock={() => setActiveView("safetystock")}
                 commodityKeys={snapshot ? netCommodities.map((c) => c.key) : null}
+                simulationHistory={simulationHistory}
+                onReloadRun={onReloadRun}
+                onRefreshHistory={onRefreshHistory}
               />
 
               <div className="mb-4 text-xs" style={{ color: "#64748B" }}>

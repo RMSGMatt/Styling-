@@ -9,6 +9,8 @@
 import React, { useState } from "react";
 import { getRiskBand } from "./riskScoreEngine";
 import { SCENARIO_CONFIG } from "./scenarioConfig";
+import BriefButton from "../briefs/BriefButton";
+import BriefView from "../briefs/BriefView";
 
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -51,7 +53,7 @@ function ConvergenceIndicator({ count, required, total }) {
 }
 
 // ── Trigger card ──────────────────────────────────────────────────────────────
-function TriggerCard({ trigger, onLaunch, onDismiss, dismissed }) {
+function TriggerCard({ trigger, onLaunch, onDismiss, dismissed, commodity, onOpenBrief }) {
   const [expanded, setExpanded] = useState(false);
   const config = SCENARIO_CONFIG[trigger.scenario];
   if (!config) return null;
@@ -124,6 +126,11 @@ function TriggerCard({ trigger, onLaunch, onDismiss, dismissed }) {
             </div>
           </div>
 
+          {/* Decision brief: the do-nothing case and each response, simulated and priced */}
+          <div style={{ marginBottom: 10 }}>
+            <BriefButton scenario={trigger.scenario} commodity={trigger.commodity || commodity} config={config} onOpen={onOpenBrief} />
+          </div>
+
           {/* Action buttons */}
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -187,8 +194,9 @@ function EmptyState() {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function TriggerQueue({ triggers, onLaunchScenario }) {
+export default function TriggerQueue({ triggers, onLaunchScenario, commodity }) {
   const [dismissed, setDismissed] = useState([]);
+  const [openBrief, setOpenBrief] = useState(null);
 
   const triggered = triggers.filter((t) => t.status === "triggered" && !dismissed.includes(t.scenario));
   const watching  = triggers.filter((t) => t.status === "watch"     && !dismissed.includes(t.scenario));
@@ -220,7 +228,7 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
             {triggered.length} triggered · {watching.length} building
           </span>
           <span style={{ fontSize: 13, color: "#94A3B8" }}>
-            Human approval required before simulation launch
+            Briefs are analysis only. Nothing changes in your plan without approval
           </span>
         </div>
         <p style={{ fontSize: 14, color: "#94A3B8", margin: 0, lineHeight: 1.6 }}>
@@ -248,6 +256,8 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
                     onLaunch={handleLaunch}
                     onDismiss={handleDismiss}
                     dismissed={dismissed}
+                    commodity={commodity}
+                    onOpenBrief={setOpenBrief}
                   />
                 ))}
             </div>
@@ -268,6 +278,8 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
                     onLaunch={handleLaunch}
                     onDismiss={handleDismiss}
                     dismissed={dismissed}
+                    commodity={commodity}
+                    onOpenBrief={setOpenBrief}
                   />
                 ))}
             </div>
@@ -287,6 +299,7 @@ export default function TriggerQueue({ triggers, onLaunchScenario }) {
       }}>
         <strong>Audit trail:</strong> All trigger events, approvals, and dismissals are logged with timestamp and user. Enterprise plan includes full trigger history export.
       </div>
+      {openBrief && <BriefView briefId={openBrief} onClose={() => setOpenBrief(null)} />}
     </div>
   );
 }

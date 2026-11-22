@@ -828,6 +828,7 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
             <TriggerQueue
               triggers={scoreResult.triggers}
               onLaunchScenario={handleLaunchScenario}
+              commodity={selectedCommodity}
             />
           )}
         </>
