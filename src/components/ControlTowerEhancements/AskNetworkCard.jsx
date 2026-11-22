@@ -152,7 +152,8 @@ export default function AskNetworkCard({ apiBase, examples = [], simulationHisto
   };
 
   const running = ask && ask.status === "running";
-  const out = usage && usage.limit > 0 && usage.used >= usage.limit;
+  const locked = Boolean(usage) && !(usage.limit > 0);   // plan without agents: show the card as an upgrade, not a dead end
+  const out = locked || (usage && usage.limit > 0 && usage.used >= usage.limit);
   const [confLabel, confColor] = CONF[ask?.confidence] || CONF.medium;
 
   return (
@@ -160,12 +161,13 @@ export default function AskNetworkCard({ apiBase, examples = [], simulationHisto
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-bold" style={{ color: LIME }}>Ask your network</h2>
         {usage && usage.limit > 0 && <span className="text-[11px]" style={{ color: DIM }}>{usage.used} of {usage.limit} questions this month</span>}
+        {locked && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: LIME, border: "1px solid rgba(159,214,58,0.4)" }}>Pro and Enterprise</span>}
       </div>
       <p className="text-sm mt-1" style={{ color: MUTED }}>Ask a what-if in plain words. FOR-C builds the scenario, runs it against normal operations and answers from the results.</p>
 
       <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} disabled={running || out}
-               placeholder={out ? "You have used this month's questions." : (examples[0] || "What if a key supplier is down for three weeks?")}
+               placeholder={locked ? "Ask your network is part of the Pro and Enterprise plans." : out ? "You have used this month's questions." : (examples[0] || "What if a key supplier is down for three weeks?")}
                className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={{ background: "rgba(2,6,23,0.5)", border: "1px solid rgba(148,163,184,0.25)", color: TEXT }} />
         <button type="submit" disabled={running || busy || out || !q.trim()} className="px-4 py-2 rounded-lg text-sm font-bold"
                 style={{ background: "#9CF700", color: "#020617", opacity: running || busy || out || !q.trim() ? 0.5 : 1 }}>

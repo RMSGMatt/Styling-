@@ -124,7 +124,9 @@ export function EarlyWarningStrip({ apiBase, onOpen, commodities = [], onOpenCom
         <div style={{ fontSize: 15, fontWeight: 700, color: "#E8F2EC" }}>Early warning</div>
         <div style={{ fontSize: 12.5, color: "#94A3B8" }}>
           {urgent ? `${urgent} of ${res.chains.length} electronics chains need a decision` : "Upstream shortages heading for your parts"}
-          {!res.personalized && " · load your network to see your parts and options"}
+          {!res.personalized && (res.not_personalized_reason === "plan"
+            ? " · your parts and options in these chains are part of Pro and Enterprise"
+            : " · load your network to see your parts and options")}
         </div>
         <button type="button" onClick={() => onOpen(null)} style={{ marginLeft: "auto", background: "none", border: 0, color: "#9FD63A", cursor: "pointer", fontSize: 12.5, textDecoration: "underline" }}>
           Open Early Warning
