@@ -2583,6 +2583,11 @@ setSimulationHistory((prev) => {
     localStorage.removeItem("access_token");
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("access_token");
+    localStorage.removeItem("plan");
+    localStorage.removeItem("role");
+    // Clear the signed-in user's plan so the next account never shows it.
+    setUserPlan("");
+    setUserRole("user");
     setIsAuthenticated(false);
     setView("auth");
   };
@@ -2602,6 +2607,17 @@ setSimulationHistory((prev) => {
       sessionStorage.getItem("access_token");
 
     if (!token) return;
+
+    // Plan and role from the database for the account that just signed in (the boot effect only runs on page load).
+    setUserPlan("");
+    fetch(`${API_ROOT}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me) => {
+        if (!me) return;
+        setUserPlan(me.plan || "free");
+        setUserRole(me.role || "user");
+      })
+      .catch(() => {});
 
     try {
       const decoded = jwtDecode(token);
