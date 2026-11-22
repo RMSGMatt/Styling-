@@ -73,7 +73,8 @@ export default function BriefCostSettings({ onClose }) {
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(2,6,23,0.75)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "40px 16px", overflowY: "auto" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 860, background: "#0B1220", border: `1px solid ${LINE}`, borderRadius: 14, padding: "20px 22px" }}>
+      <style>{".forc-cost input::placeholder{color:#475569;font-style:italic;opacity:1}"}</style>
+      <div className="forc-cost" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 860, background: "#0B1220", border: `1px solid ${LINE}`, borderRadius: 14, padding: "20px 22px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: LIME, textTransform: "uppercase", letterSpacing: "0.08em" }}>Decision briefs</div>
@@ -148,6 +149,7 @@ export default function BriefCostSettings({ onClose }) {
                 {saving ? "Saving…" : "Save"}
               </button>
               <span style={{ fontSize: 12, color: DIM }}>
+                Grey italic figures are FOR-C defaults; type over one to use your own.{" "}
                 {view.settings?.updated_at ? `Last saved ${view.settings.updated_at.slice(0, 10)}${view.settings.updated_by ? ` by ${view.settings.updated_by}` : ""}.` : "Using FOR-C defaults."} Existing briefs keep the figures they were made with.
               </span>
             </div>
