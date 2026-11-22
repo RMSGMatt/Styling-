@@ -3,7 +3,7 @@
  * with its cost and act-by date, the recommendation, and what was ruled out.
  */
 import React, { useEffect, useState } from "react";
-import { decideBrief, fetchBrief } from "./briefStore";
+import { decideBrief, fetchBrief, startBrief } from "./briefStore";
 import { printBrief } from "./briefPrint";
 import BriefCostSettings from "./BriefCostSettings";
 
@@ -155,6 +155,14 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
   const [b, setB] = useState(null);
   const [err, setErr] = useState("");
   const [costs, setCosts] = useState(false);
+  const [rerun, setRerun] = useState("");
+
+  const runAgain = async () => {
+    const t = (b && b.trigger) || {};
+    setRerun("Starting…");
+    const r = await startBrief({ scenario: t.scenario, commodity: t.commodity, label: t.label, params: t.params || {} });
+    setRerun(r.ok ? "Started. The new brief appears in Decision briefs in about 2 minutes." : r.message);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -193,6 +201,12 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
             Decision brief{tr.label ? ` · ${tr.label}` : ""}{b && b.auto ? " · automatic" : ""}
           </div>
           <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {b && b.status === "done" && !rerun && (
+              <button type="button" onClick={runAgain} title="Run the brief again with today's network and your current cost settings. Uses one manual brief."
+                      style={{ fontSize: 12, fontWeight: 600, color: MUTED, background: "transparent", border: "1px solid rgba(148,163,184,0.3)", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}>
+                Run again
+              </button>
+            )}
             {b && b.status === "done" && (
               <button type="button" onClick={() => { if (!printBrief(b)) setErr("Allow pop-ups for this site to export the PDF."); }}
                       style={{ fontSize: 12, fontWeight: 600, color: LIME, background: "transparent", border: "1px solid rgba(159,214,58,0.35)", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}>
@@ -204,6 +218,7 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
         </div>
 
         {err && <div style={{ marginTop: 12, color: "#FCA5A5", fontSize: 13 }}>{err}</div>}
+        {rerun && <div style={{ marginTop: 8, color: rerun.startsWith("Started") || rerun.startsWith("Starting") ? "#86EFAC" : "#FCA5A5", fontSize: 12.5 }}>{rerun}</div>}
         {!b && !err && <div className="animate-pulse" style={{ marginTop: 12, color: MUTED, fontSize: 13 }}>Loading the brief…</div>}
         {b && b.status === "running" && (
           <div className="animate-pulse" style={{ marginTop: 12, color: MUTED, fontSize: 13 }}>Preparing{b.progress ? `: ${b.progress}` : ""}. This takes a few minutes; you can close this and come back.</div>

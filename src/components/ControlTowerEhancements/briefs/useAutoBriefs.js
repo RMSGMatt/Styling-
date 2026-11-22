@@ -28,7 +28,9 @@ export default function useAutoBriefs(triggers, enabled) {
       if ((tried[t.scenario] || 0) > now - RETRY_MS) return false;
       const mine = briefs.filter((b) => (b.trigger || {}).scenario === t.scenario);
       if (mine.some((b) => b.status !== "error" && isRecent(b))) return false;
-      if (mine.some((b) => b.status === "error" && isRecent(b, 1))) return false; // failed today: leave it to a manual retry
+      // Failed today: leave it to a manual retry, unless a server restart (a deploy) cut it short.
+      const cutShort = (b) => /restarted/i.test(b.message || "");
+      if (mine.some((b) => b.status === "error" && isRecent(b, 1) && !cutShort(b))) return false;
       return true;
     });
     if (!next) return;

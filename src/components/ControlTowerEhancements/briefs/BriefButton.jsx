@@ -42,9 +42,17 @@ export default function BriefButton({ scenario, commodity, config, onOpen, compa
     );
   } else if (b && b.status === "done" && isRecent(b)) {
     control = (
-      <button type="button" style={btn()} onClick={(e) => { stop(e); onOpen && onOpen(b.id); }} title={b.headline || ""}>
-        Open brief{b.auto ? " (auto)" : ""}{b.decision ? ` · ${b.decision.decision}` : ""}
-      </button>
+      <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+        <button type="button" style={btn()} onClick={(e) => { stop(e); onOpen && onOpen(b.id); }} title={b.headline || ""}>
+          Open brief{b.auto ? " (auto)" : ""}{b.decision ? ` · ${b.decision.decision}` : ""}
+        </button>
+        {!compact && (
+          <button type="button" onClick={generate} title="Run the brief again with today's network and your current cost settings. Uses one manual brief."
+                  style={btn({ background: "transparent", color: MUTED, borderColor: "rgba(148,163,184,0.3)" })}>
+            Run again
+          </button>
+        )}
+      </span>
     );
   } else {
     control = (
