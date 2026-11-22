@@ -562,7 +562,7 @@ export default function ScenarioBuilder({
       setNlFeedback("");
       const res = await fetch(`${apiBase}/api/narrative/parse-scenario`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}` },
         body: JSON.stringify({ query: nlQuery, facilities: availableFacilities }),
       });
       const data = await res.json();
@@ -577,6 +577,8 @@ export default function ScenarioBuilder({
         }]);
         if (s.description) setNotes(s.description);
         setNlFeedback(`✅ Parsed: ${s.title || "Scenario"} — review and adjust before applying.`);
+      } else if (data.status === "ai_off") {
+        setNlFeedback("AI features are switched off for this account. Build the scenario with the fields below.");
       } else {
         setNlFeedback("⚠️ Could not parse. Try rephrasing.");
       }

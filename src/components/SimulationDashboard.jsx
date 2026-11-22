@@ -1873,7 +1873,7 @@ export default function SimulationDashboard({
         setAiNarrativeLoading(true);
         const res = await fetch(`${API_BASE}/api/narrative/generate`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}` },
           body: JSON.stringify({ scenario: runName || "Supply chain disruption scenario", kpis: { serviceLevelPct: execOnTimePct, peakBacklogUnits: execPeakBacklog, timeToRecoverDays: execTtrDays, timeToSurviveDays: execTtsDays, demandAtRiskUnits: execLateUnits, facilitiesImpacted: 0, revenueExposure: execRevenueExposure } })
         });
         const data = await res.json();
@@ -1893,7 +1893,7 @@ export default function SimulationDashboard({
         setScenariosLoading(true);
         const res = await fetch(`${API_BASE}/api/narrative/suggest-scenarios`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}` },
           body: JSON.stringify({ lastScenario: runName || "Supply chain disruption scenario", kpis: { serviceLevelPct: execOnTimePct, timeToRecoverDays: execTtrDays }, liveIncidents: [] })
         });
         const data = await res.json();

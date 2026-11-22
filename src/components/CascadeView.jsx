@@ -192,7 +192,7 @@ export default function CascadeView({ lanesData, scenarioData, runoutRiskData, d
         setAiSummary(null);
         const res = await fetch(`${apiBase}/api/narrative/generate`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}` },
           body: JSON.stringify({
             scenario: `Disruption at ${disrupted.join(", ")}`,
             kpis: {

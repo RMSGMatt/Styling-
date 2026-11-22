@@ -1517,7 +1517,7 @@ export default function ControlTower({
       try {
         const res = await fetch(`${API_BASE_CT}/api/control-tower/narrative`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || localStorage.getItem("access_token") || ""}` },
           body: JSON.stringify({
             snapshot: {
               as_of: snapshot.as_of, window_days: snapshot.window_days, source: snapshot.source,
