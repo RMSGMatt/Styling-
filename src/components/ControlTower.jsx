@@ -1036,7 +1036,27 @@ function SnapshotDataCard({ apiBase, onLoaded, onCancel }) {
 
 // Revenue at risk per run, read from the same scorecard that Compare and the PDF use.
 // (The figure saved with a run can be stale, so the repository chips do not use it.)
-const REPO_REVENUE_CACHE = {};
+// Saved runs do not change, so the answers are kept in the browser: a run with no saved scorecard is not asked
+// for again for a week (which used to fill the console with 404s on every page load).
+const REPO_REVENUE_KEY = "forc_repo_revenue_v1";
+const REPO_REVENUE_MISS_MS = 7 * 864e5;
+const REPO_REVENUE_STORE = (() => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(REPO_REVENUE_KEY) || "{}") || {};
+    const now = Date.now();
+    return Object.fromEntries(Object.entries(raw).filter(([, e]) => e && (e.v != null || now - (e.t || 0) < REPO_REVENUE_MISS_MS)));
+  } catch { return {}; }
+})();
+const REPO_REVENUE_CACHE = Object.fromEntries(Object.entries(REPO_REVENUE_STORE).map(([id, e]) => [id, e.v]));
+function rememberRepoRevenue(id, v) {
+  REPO_REVENUE_CACHE[id] = v;
+  REPO_REVENUE_STORE[id] = { v, t: Date.now() };
+  try {
+    const ids = Object.keys(REPO_REVENUE_STORE);
+    if (ids.length > 500) ids.sort((a, b) => REPO_REVENUE_STORE[a].t - REPO_REVENUE_STORE[b].t).slice(0, ids.length - 500).forEach((k) => delete REPO_REVENUE_STORE[k]);
+    localStorage.setItem(REPO_REVENUE_KEY, JSON.stringify(REPO_REVENUE_STORE));
+  } catch { /* fine without it */ }
+}
 function useRepoRevenue(history) {
   const [vals, setVals] = useState({ ...REPO_REVENUE_CACHE });
   useEffect(() => {
@@ -1056,9 +1076,9 @@ function useRepoRevenue(history) {
           const res = await fetch(`${base}/api/run-kpis/${id}`, { headers: { Authorization: `Bearer ${token}` } });
           const body = await res.json().catch(() => ({}));
           if (res.ok && body?.scorecard?.ok) {
-            REPO_REVENUE_CACHE[id] = typeof body.scorecard.revenue_at_risk === "number" ? body.scorecard.revenue_at_risk : null;
+            rememberRepoRevenue(id, typeof body.scorecard.revenue_at_risk === "number" ? body.scorecard.revenue_at_risk : null);
           } else if (res.status === 404) {
-            REPO_REVENUE_CACHE[id] = null;
+            rememberRepoRevenue(id, null);
           }
         } catch {
           /* leave it unset and try again next time */

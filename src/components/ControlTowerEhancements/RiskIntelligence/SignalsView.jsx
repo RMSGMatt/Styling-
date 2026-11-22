@@ -389,7 +389,7 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
       <div style={{ fontSize: 13, color: MUTED }}>
-        If you hold: <b style={{ color: b.line_down_days > 0 ? "#F87171" : INK }}>{b.line_down_days} line-down days</b> across {b.sites_short} site{b.sites_short === 1 ? "" : "s"}
+        If you hold: <b style={{ color: b.line_down_days > 0 ? "#F87171" : INK }}>{Math.round(b.line_down_days)} line-down days</b> across {b.sites_short} site{b.sites_short === 1 ? "" : "s"}
         {b.revenue_at_risk != null && <>, <b style={{ color: INK }}>{money(b.revenue_at_risk)}</b> of revenue at risk{b.revenue_basis === "site" && <span style={{ color: DIM }}> (whole-site revenue, an upper bound; add a BOM to narrow it)</span>}</>}
         {b.first_short && <>, first part short {fmt(b.first_short)}</>}.
       </div>
@@ -419,7 +419,7 @@ function Options({ card, apiBase, authHeader, cutIds, onCut, personalized }) {
             <tr key={o.key} style={{ opacity: o.feasible && !noEffect ? 1 : 0.55 }}>
               <td style={td}>{i + 1}</td>
               <td style={td}><b style={{ color: INK }}>{o.title}</b><div style={{ color: DIM }}>{o.how}</div></td>
-              <td style={td}>{o.line_down_days == null ? "n/a" : <>{o.line_down_days}{o.days_avoided > 0 && <span style={{ color: "#4ADE80" }}> (−{o.days_avoided})</span>}</>}</td>
+              <td style={td}>{o.line_down_days == null ? "n/a" : <>{Math.round(o.line_down_days)}{Math.round(o.days_avoided) > 0 && <span style={{ color: "#4ADE80" }}> (−{Math.round(o.days_avoided)})</span>}</>}</td>
               <td style={td}>{money(o.revenue_at_risk) ?? "n/a"}</td>
               <td style={td}>{o.cost != null ? money(o.cost) : "n/a"}{o.cost_note && <div style={{ color: DIM }}>{o.cost_note}</div>}</td>
               <td style={{ ...td, color: o.note && !o.feasible ? "#F4A742" : o.note ? MUTED : DIM }}>{o.note || o.risk || ""}</td>

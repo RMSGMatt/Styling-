@@ -23,7 +23,7 @@ export function printBrief(b) {
       return `<tr><td><b>${esc(o.title)}</b><div class="sub">${esc(o.what)}</div></td><td colspan="5" class="sub">${esc(STATUS[o.status] || pretty(o.status))}. ${esc(o.note || "")}</td></tr>`;
     }
     return `<tr class="${rec ? "rec" : ""}"><td><b>${esc(o.title)}</b>${rec ? ' <span class="tag">Recommended</span>' : ""}<div class="sub">${esc(o.what)}</div></td>
-      <td>${money(o.revenue_protected)}</td><td>${money(o.cost)}</td><td>${money(o.net)}</td><td>${esc(day(o.act_by))}</td><td>${o.first_shortage_date ? esc(day(o.first_shortage_date)) : "None"}</td></tr>`;
+      <td>${money(o.revenue_protected)}${o.margin_protected != null ? `<div class="sub">${money(o.margin_protected)} margin</div>` : ""}</td><td>${money(o.cost)}</td><td>${money(o.net)}</td><td>${esc(day(o.act_by))}</td><td>${o.first_shortage_date ? esc(day(o.first_shortage_date)) : "None"}</td></tr>`;
   }).join("");
 
   const d = b.decision;
@@ -56,7 +56,7 @@ ${sec("Situation", p(t.situation))}
 ${sec("If nothing is done", p(t.impact) + (dn.revenue_at_risk != null ? `<p class="sub">Revenue at risk ${money(dn.revenue_at_risk)} · first shortage ${dn.first_shortage_date ? esc(day(dn.first_shortage_date)) : "none"}${dn.first_shortage_part ? `, ${esc(pretty(dn.first_shortage_part))}` : ""}${dn.first_shortage_at ? ` at ${esc(pretty(dn.first_shortage_at))}` : ""}</p>` : ""))}
 ${sec("Recommendation", p(t.recommendation))}
 ${opts.length ? sec("Responses tested", `<table><thead><tr><th>Response</th><th>Revenue protected</th><th>Cost</th><th>Net</th><th>Act by</th><th>First shortage</th></tr></thead><tbody>${rows}</tbody></table>
-<p class="sub" style="margin-top:4px">Revenue protected is revenue at risk avoided, not margin. Net is revenue protected less the cost of the response.</p>`) : ""}
+<p class="sub" style="margin-top:4px">${opts.some((o) => o.margin_protected != null) ? "Margin protected is revenue at risk avoided times the account's gross margin. Net is margin protected less the cost of the response." : "Revenue protected is revenue at risk avoided, not margin. Net is revenue protected less the cost of the response."}</p>`) : ""}
 ${(b.ruled_out || []).length ? sec("Ruled out", (b.ruled_out || []).map((r) => `<p><b>${esc(r.title)}.</b> ${esc(r.note)}</p>`).join("")) : ""}
 ${sec("What would change this", p(t.watch))}
 ${sec("Decision", decision)}

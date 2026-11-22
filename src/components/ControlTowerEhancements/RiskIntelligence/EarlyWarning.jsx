@@ -37,7 +37,7 @@ function oneLine(c) {
   const top = (c.options?.options || []).find((o) => o.feasible && o.days_avoided > 0);
   const bits = [];
   if (you.min_days_cover != null && c.stage_rank >= 2) bits.push(`${you.min_days_cover} days cover`);
-  if (top) bits.push(`${top.title.split(" or ")[0]} avoids ${top.days_avoided} line-down days${top.cost != null ? ` for ${money(top.cost)}` : ""}`);
+  if (top) bits.push(`${top.title.split(" or ")[0]} avoids ${Math.round(top.days_avoided)} line-down days${top.cost != null ? ` for ${money(top.cost)}` : ""}`);
   if (!bits.length) return c.window_text || c.headline;
   return bits.join(" · ");
 }

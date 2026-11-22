@@ -5,6 +5,7 @@
 import React, { useState } from "react";
 import { useBriefs } from "./briefStore";
 import BriefView from "./BriefView";
+import BriefCostSettings from "./BriefCostSettings";
 
 const LIME = "#9FD63A";
 const MUTED = "#94A3B8";
@@ -31,10 +32,11 @@ export default function BriefsCard({ onOpenRun }) {
   const { briefs, usage, loaded } = useBriefs();
   const [open, setOpen] = useState(null);
   const [all, setAll] = useState(false);
+  const [costs, setCosts] = useState(false);
   // A failed attempt is noise once a later brief for the same trigger worked or is running.
   const list = briefs.filter((b, i) => b.status !== "error" ||
     !briefs.slice(0, i).some((x) => x.status !== "error" && (x.trigger || {}).scenario === (b.trigger || {}).scenario));
-  if (!loaded || !usage || !(usage.limit > 0) || !list.length) return null;
+  if (!loaded || !usage || !(usage.limit > 0)) return null;
   const shown = all ? list : list.slice(0, 5);
   const pending = list.filter(needsDecision).length;
 
@@ -42,9 +44,15 @@ export default function BriefsCard({ onOpenRun }) {
     <section className="mb-6 rounded-xl" style={{ background: "#111B21", border: "1px solid #1f3a2e", padding: 14 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: "#E8F2EC" }}>Decision briefs</div>
-        <div style={{ fontSize: 12.5, color: MUTED }}>{pending ? `${pending} waiting for a decision` : "Nothing waiting for a decision"}</div>
+        <div style={{ fontSize: 12.5, color: MUTED }}>{!list.length ? "" : pending ? `${pending} waiting for a decision` : "Nothing waiting for a decision"}</div>
         <div style={{ marginLeft: "auto", fontSize: 11.5, color: DIM }}>{usage.used} of {usage.limit} manual briefs this month · automatic briefs are free</div>
+        <button type="button" onClick={() => setCosts(true)} style={{ fontSize: 12, fontWeight: 600, color: LIME, background: "transparent", border: "1px solid rgba(159,214,58,0.35)", borderRadius: 8, padding: "3px 10px", cursor: "pointer" }}>
+          Cost settings
+        </button>
       </div>
+      {!list.length && (
+        <div style={{ fontSize: 12.5, color: MUTED }}>No briefs yet. One starts on its own when a trigger fires, or generate one from a trigger.</div>
+      )}
       <div style={{ display: "grid", gap: 6 }}>
         {shown.map((b) => {
           const [label, color, bg] = badge(b);
@@ -69,6 +77,7 @@ export default function BriefsCard({ onOpenRun }) {
           {all ? "Show fewer" : `Show all ${list.length}`}
         </button>
       )}
+      {costs && <BriefCostSettings onClose={() => setCosts(false)} />}
       {open && <BriefView briefId={open} onClose={() => setOpen(null)} onOpenRun={onOpenRun ? (id) => { setOpen(null); onOpenRun(id); } : null} />}
     </section>
   );

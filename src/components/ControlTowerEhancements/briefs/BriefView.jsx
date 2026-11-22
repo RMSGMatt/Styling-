@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from "react";
 import { decideBrief, fetchBrief } from "./briefStore";
 import { printBrief } from "./briefPrint";
+import BriefCostSettings from "./BriefCostSettings";
 
 const LIME = "#9FD63A";
 const MUTED = "#94A3B8";
@@ -51,7 +52,7 @@ function OptionRow({ o, recommended, onOpenRun }) {
       {ok && (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8, marginTop: 8 }}>
-            {[["Revenue protected", money(o.revenue_protected)], ["Cost", money(o.cost)], ["Net", money(o.net)], ["Act by", day(o.act_by)],
+            {[["Revenue protected", money(o.revenue_protected)], ...(o.margin_protected != null ? [["Margin protected", money(o.margin_protected)]] : []), ["Cost", money(o.cost)], ["Net", money(o.net)], ["Act by", day(o.act_by)],
               ["First shortage", o.first_shortage_date ? day(o.first_shortage_date) : "None"]].map(([k, v]) => (
               <div key={k}>
                 <div style={{ fontSize: 10.5, color: DIM, textTransform: "uppercase", letterSpacing: "0.04em" }}>{k}</div>
@@ -153,6 +154,7 @@ function DecisionPanel({ b, onSaved }) {
 export default function BriefView({ briefId, onClose, onOpenRun }) {
   const [b, setB] = useState(null);
   const [err, setErr] = useState("");
+  const [costs, setCosts] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -239,7 +241,11 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
                 <div style={{ display: "grid", gap: 8 }}>
                   {options.map((o) => <OptionRow key={o.key} o={o} recommended={o.key === b.recommended} onOpenRun={onOpenRun} />)}
                 </div>
-                <div style={{ marginTop: 6, fontSize: 11, color: DIM }}>Revenue protected is revenue at risk avoided, not margin. Net is revenue protected less the cost of the response.</div>
+                <div style={{ marginTop: 6, fontSize: 11, color: DIM }}>
+                  {options.some((o) => o.margin_protected != null)
+                    ? "Margin protected is revenue at risk avoided times your gross margin. Net is margin protected less the cost of the response."
+                    : "Revenue protected is revenue at risk avoided, not margin. Net is revenue protected less the cost of the response."}
+                </div>
               </Section>
             )}
             {(b.outcome === "action" || b.outcome === "no_payback" || b.decision) && <DecisionPanel b={b} onSaved={(x) => setB(x)} />}
@@ -256,13 +262,18 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
                 <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: MUTED, lineHeight: 1.6 }}>
                   {b.assumptions.map((a, i) => <li key={i}>{a}</li>)}
                   {(sc.parts || []).length > 0 && <li>Parts in scope: {sc.parts.map(pretty).join(", ")}</li>}
-                  {b.defaults_used && <li>Costs use FOR-C defaults until replaced with your own.</li>}
+                  {b.defaults_used && (
+                    <li>Costs use FOR-C defaults until replaced with your own.{" "}
+                      <button type="button" onClick={() => setCosts(true)} style={{ color: LIME, background: "transparent", border: 0, padding: 0, cursor: "pointer", textDecoration: "underline", fontSize: 12 }}>Set your costs</button>
+                    </li>
+                  )}
                 </ul>
               </Section>
             )}
           </>
         )}
       </div>
+      {costs && <BriefCostSettings onClose={() => setCosts(false)} />}
     </div>
   );
 }
