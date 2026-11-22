@@ -6,6 +6,10 @@ import React, { useEffect, useState } from "react";
 import ChokepointPanel from "./ChokepointPanel";
 import IncidentsPanel from "./IncidentsPanel";
 import { launchScenarioToSimulation } from "./riskScoreEngine";
+import { SCENARIO_CONFIG } from "./scenarioConfig";
+import BriefButton from "../briefs/BriefButton";
+import BriefView from "../briefs/BriefView";
+import { BRIEF_COST_ONLY } from "../briefs/briefStore";
 
 const token = () => localStorage.getItem("token") || localStorage.getItem("access_token") || "";
 const STAGE = { act: ["Act", "#F87171"], warning: ["Warning", "#F4A742"], watch: ["Watch", "#E8D44D"], none: ["Quiet", "#64748B"] };
@@ -49,7 +53,8 @@ function commodityLine(c) {
 }
 
 // Networks whose parts sit outside the electronics chains (MedTech, for one) get cards for the commodities their parts map to.
-function CommodityStrip({ commodities, onOpenCommodity }) {
+function CommodityStrip({ commodities, onOpenCommodity, onOpenRun }) {
+  const [openBrief, setOpenBrief] = useState(null);
   const urgent = commodities.filter((c) => (c.score ?? 0) >= 55).length;
   const anyMock = commodities.some((c) => c.source === "mock");
   return (
@@ -68,9 +73,12 @@ function CommodityStrip({ commodities, onOpenCommodity }) {
         {commodities.map((c) => {
           const [, color] = LEVEL_STAGE(c.score);
           const hot = (c.score ?? 0) >= 55;
+          // A fired trigger on this commodity gets the decision brief control under the card.
+          const fired = (c.triggers || []).find((t) => t.status === "triggered" && SCENARIO_CONFIG[t.scenario] && !BRIEF_COST_ONLY.has(t.scenario));
           return (
-            <button key={c.key} type="button" onClick={() => onOpenCommodity(c.key)}
-                    style={{ textAlign: "left", cursor: "pointer", background: "rgba(2,6,23,0.45)", border: `1px solid ${hot ? color + "88" : "rgba(148,163,184,0.18)"}`, borderRadius: 10, padding: "10px 12px", display: "grid", gap: 4 }}>
+            <div key={c.key} style={{ background: "rgba(2,6,23,0.45)", border: `1px solid ${hot ? color + "88" : "rgba(148,163,184,0.18)"}`, borderRadius: 10, display: "grid" }}>
+            <button type="button" onClick={() => onOpenCommodity(c.key)}
+                    style={{ textAlign: "left", cursor: "pointer", background: "transparent", border: 0, padding: "10px 12px", display: "grid", gap: 4 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: "#E8F2EC" }}>{c.label}</span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#111B21", background: c.color || color, borderRadius: 4, padding: "1px 6px", textTransform: "uppercase" }}>
@@ -79,14 +87,24 @@ function CommodityStrip({ commodities, onOpenCommodity }) {
               </div>
               <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.35 }}>{commodityLine(c)}</div>
             </button>
+            {fired && (
+              <div style={{ padding: "0 12px 10px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11.5, color: "#94A3B8" }}>{SCENARIO_CONFIG[fired.scenario].label}</span>
+                <span style={{ marginLeft: "auto" }}>
+                  <BriefButton compact scenario={fired.scenario} commodity={fired.commodity || c.key} config={SCENARIO_CONFIG[fired.scenario]} onOpen={setOpenBrief} />
+                </span>
+              </div>
+            )}
+            </div>
           );
         })}
       </div>
+      {openBrief && <BriefView briefId={openBrief} onClose={() => setOpenBrief(null)} onOpenRun={onOpenRun ? (id) => { setOpenBrief(null); onOpenRun(id); } : null} />}
     </section>
   );
 }
 
-export function EarlyWarningStrip({ apiBase, onOpen, commodities = [], onOpenCommodity }) {
+export function EarlyWarningStrip({ apiBase, onOpen, commodities = [], onOpenCommodity, onOpenRun }) {
   const [res, setRes] = useState(null);
   useEffect(() => {
     let live = true;
@@ -97,7 +115,7 @@ export function EarlyWarningStrip({ apiBase, onOpen, commodities = [], onOpenCom
   // Electronics chains only speak to networks with electronics parts. When the loaded network has none, show its own commodities.
   const electronics = new Set(["semiconductors_mlcc"]);
   const useCommodities = commodities.length > 0 && onOpenCommodity && !commodities.some((c) => electronics.has(c.key));
-  if (useCommodities) return <CommodityStrip commodities={commodities} onOpenCommodity={onOpenCommodity} />;
+  if (useCommodities) return <CommodityStrip commodities={commodities} onOpenCommodity={onOpenCommodity} onOpenRun={onOpenRun} />;
   if (!res) return null;
   const urgent = res.chains.filter((c) => c.stage_rank >= 2).length;
   return (

@@ -1809,7 +1809,11 @@ export default function ControlTower({
               )}
 
               <EarlyWarningStrip apiBase={API_BASE_CT} onOpen={openEarlyWarning} commodities={snapshot ? netCommodities : []}
-                                 onOpenCommodity={(commodity) => { setRiskIntelFocus({ commodity }); setActiveView("risk"); }} />
+                                 onOpenCommodity={(commodity) => { setRiskIntelFocus({ commodity }); setActiveView("risk"); }}
+                                 onOpenRun={(runId) => {
+                                   const e = (simulationHistory || []).find((x) => (x.run_id || x.id) === runId);
+                                   if (e && onReloadRun) onReloadRun(e); else if (onRefreshHistory) onRefreshHistory();
+                                 }} />
 
               {snapshot && (
                 <AskNetworkCard apiBase={API_BASE_CT} examples={askExamples} simulationHistory={simulationHistory}
