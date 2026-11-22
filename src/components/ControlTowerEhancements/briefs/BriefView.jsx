@@ -242,7 +242,7 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
                 <div style={{ marginTop: 6, fontSize: 11, color: DIM }}>Revenue protected is revenue at risk avoided, not margin. Net is revenue protected less the cost of the response.</div>
               </Section>
             )}
-            <DecisionPanel b={b} onSaved={(x) => setB(x)} />
+            {(b.outcome === "action" || b.outcome === "no_payback" || b.decision) && <DecisionPanel b={b} onSaved={(x) => setB(x)} />}
             {(b.ruled_out || []).length > 0 && (
               <Section title="Ruled out">
                 {b.ruled_out.map((r) => (
