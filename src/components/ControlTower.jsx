@@ -1428,7 +1428,7 @@ export default function ControlTower({
     const ex = [];
     const sites = exposure?.sites || [];
     const sup = sites.find((s) => s.status === "bad" && !/PLANT|OEM/i.test(s.name)) || sites.find((s) => /SUPPLIER|STERIL|MILL|DISTRIB|VENDOR/i.test(s.name));
-    if (sup) ex.push(`What if ${sup.name.replace(/_/g, " ")} is down for three weeks?`);
+    if (sup) ex.push(`What if ${sup.name.replace(/_/g, " ")} is down for six weeks?`);
     const c = netCommodities.find((x) => (x.score ?? 0) >= 55) || netCommodities[0];
     if (c) ex.push(`What happens if ${c.label} supply is cut in half for a month?`);
     ex.push("Which customer gets hit first if our thinnest part runs out?");

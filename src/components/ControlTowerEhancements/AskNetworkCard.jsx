@@ -21,6 +21,23 @@ function measure(result, key) {
   return (result?.measures || []).find((m) => m.key === key) || null;
 }
 
+// Rows that share dates and severity read as one line: "6 parts at FAB TAIWAN 01, FAB JAPAN 01, 50%, Nov 29 to Dec 28".
+function summarize(rows) {
+  const groups = {};
+  (rows || []).forEach((d) => { const k = `${d.start_date}|${d.end_date}|${d.severity}`; (groups[k] = groups[k] || []).push(d); });
+  return Object.values(groups).map((g) => {
+    const d0 = g[0];
+    const whole = [...new Set(g.filter((x) => !x.sku).map((x) => pretty(x.facility)))];
+    const partRows = g.filter((x) => x.sku);
+    const partSites = [...new Set(partRows.map((x) => pretty(x.facility)))].join(", ");
+    const bits = [];
+    if (whole.length) bits.push(whole.join(", "));
+    if (partRows.length === 1) bits.push(`${pretty(partRows[0].sku)} at ${partSites}`);
+    else if (partRows.length > 1) bits.push(`${partRows.length} parts at ${partSites}`);
+    return `${bits.join("; ")}, ${Math.round((d0.severity || 0) * 100)}%, ${day(d0.start_date)} to ${day(d0.end_date)}`;
+  });
+}
+
 function RunCard({ run, onOpen }) {
   const r = run.result || {};
   const fill = measure(r, "fill_rate");
@@ -36,15 +53,16 @@ function RunCard({ run, onOpen }) {
   if (cust && cust.during != null) facts.push(["Customers hit", String(cust.during)]);
   return (
     <div className="rounded-xl border p-3" style={{ borderColor: "rgba(148,163,184,0.18)", background: "rgba(2,6,23,0.35)" }}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <div className="text-sm font-semibold" style={{ color: TEXT }}>{run.title}</div>
-          <div className="text-[11px] mt-0.5" style={{ color: DIM }}>
-            {(run.disruptions || []).map((d) => `${pretty(d.facility)}${d.sku ? ` (${pretty(d.sku)})` : ""} ${Math.round((d.severity || 0) * 100)}%, ${day(d.start_date)} to ${day(d.end_date)}`).join(" · ")}
+          <div className="text-[11px] mt-0.5" style={{ color: DIM }}
+               title={(run.disruptions || []).map((d) => `${pretty(d.facility)}${d.sku ? ` (${pretty(d.sku)})` : ""}`).join(", ")}>
+            {summarize(run.disruptions).join(" · ")}
           </div>
         </div>
         {run.run_id && (
-          <button type="button" onClick={() => onOpen(run.run_id)} className="px-3 py-1 rounded-lg text-xs font-semibold border" style={{ borderColor: "rgba(159,214,58,0.35)", color: LIME }}>
+          <button type="button" onClick={() => onOpen(run.run_id)} className="shrink-0 px-3 py-1 rounded-lg text-xs font-semibold border" style={{ borderColor: "rgba(159,214,58,0.35)", color: LIME }}>
             Open run
           </button>
         )}
