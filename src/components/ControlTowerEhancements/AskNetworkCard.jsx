@@ -45,7 +45,7 @@ function RunCard({ run, onOpen }) {
   const cust = measure(r, "customers_impacted");
   const v = r.vs_baseline || {};
   const facts = [];
-  if (v.added_revenue_at_risk != null) facts.push(["Added revenue at risk", `${v.added_revenue_at_risk >= 0 ? "+" : "−"}${money(Math.abs(v.added_revenue_at_risk))}`, r.revenue_at_risk != null ? `${money(r.revenue_at_risk)} total` : null]);
+  if (v.added_revenue_at_risk != null) facts.push(["Added revenue at risk", `${v.added_revenue_at_risk >= 0 ? "+" : "−"}${money(Math.abs(v.added_revenue_at_risk))}`, r.revenue_at_risk != null && money(r.revenue_at_risk) !== money(Math.abs(v.added_revenue_at_risk)) ? `${money(r.revenue_at_risk)} total` : null]);
   if (r.first_shortage_date) facts.push(["First shortage", `${day(r.first_shortage_date)}${r.first_shortage_part ? `, ${pretty(r.first_shortage_part)}` : ""}${r.first_shortage_at ? ` at ${pretty(r.first_shortage_at)}` : ""}`]);
   else facts.push(["First shortage", "None in the window"]);
   if (fill && fill.worst != null) facts.push(["Worst-week fill", `${fill.worst}%`, v.worst_week_fill_pct_normal != null && v.worst_week_fill_pct_normal < 100 ? `${v.worst_week_fill_pct_normal}% normally` : null]);
