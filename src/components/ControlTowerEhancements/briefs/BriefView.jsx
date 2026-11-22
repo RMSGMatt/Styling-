@@ -139,6 +139,11 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
               {day(b.created_at)}{b.simulations ? ` · ${b.simulations} simulations` : ""}{b.seconds ? ` · ${Math.round(b.seconds / 60) || 1} min` : ""}
             </div>
 
+            {b.write_error && (
+              <div style={{ marginTop: 8, fontSize: 11.5, color: "#FCD34D" }} title={b.write_error}>
+                Written straight from the computed figures: the AI write-up step did not respond. The numbers are unaffected.
+              </div>
+            )}
             {text.situation && <Section title="Situation"><p style={{ fontSize: 14, color: TEXT, lineHeight: 1.6, margin: 0 }}>{text.situation}</p></Section>}
             {dn && (
               <Section title="If nothing is done">
