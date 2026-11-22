@@ -3,7 +3,8 @@
  * with its cost and act-by date, the recommendation, and what was ruled out.
  */
 import React, { useEffect, useState } from "react";
-import { fetchBrief } from "./briefStore";
+import { decideBrief, fetchBrief } from "./briefStore";
+import { printBrief } from "./briefPrint";
 
 const LIME = "#9FD63A";
 const MUTED = "#94A3B8";
@@ -82,6 +83,73 @@ function OptionRow({ o, recommended, onOpenRun }) {
   );
 }
 
+function DecisionPanel({ b, onSaved }) {
+  const okOpts = (b.options || []).filter((o) => o.status === "ok");
+  const [option, setOption] = useState(b.recommended || okOpts[0]?.key || "");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const [editing, setEditing] = useState(!b.decision);
+  const d = b.decision;
+
+  const save = async (decision) => {
+    setSaving(true); setErr("");
+    try {
+      const x = await decideBrief(b.id, decision, decision === "accepted" ? option : "", reason.trim());
+      onSaved(x); setEditing(false); setReason("");
+    } catch (e) { setErr(e.message); }
+    setSaving(false);
+  };
+
+  const box = { marginTop: 18, border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px", background: "rgba(2,6,23,0.45)" };
+  if (d && !editing) {
+    const title = (b.options || []).find((o) => o.key === d.option)?.title;
+    return (
+      <div style={box}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 20, padding: "2px 8px", color: "#0B0F13", background: d.decision === "accepted" ? LIME : "#94A3B8" }}>
+            {d.decision === "accepted" ? "ACCEPTED" : "DISMISSED"}
+          </span>
+          <span style={{ fontSize: 13, color: TEXT }}>{d.decision === "accepted" && title ? title : ""}</span>
+          <span style={{ fontSize: 12, color: DIM }}>{day(d.at)}{d.by ? ` · ${d.by}` : ""}</span>
+          <button type="button" onClick={() => setEditing(true)} style={{ marginLeft: "auto", fontSize: 11, color: MUTED, background: "transparent", border: 0, cursor: "pointer", textDecoration: "underline" }}>Change</button>
+        </div>
+        {d.reason && <div style={{ marginTop: 6, fontSize: 13, color: MUTED }}>{d.reason}</div>}
+      </div>
+    );
+  }
+  return (
+    <div style={box}>
+      <div style={{ fontSize: 11, color: DIM, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Decision</div>
+      {okOpts.length > 0 && (
+        <label style={{ display: "block", fontSize: 12, color: MUTED, marginBottom: 8 }}>
+          Response
+          <select value={option} onChange={(e) => setOption(e.target.value)}
+                  style={{ display: "block", marginTop: 4, width: "100%", background: "#0B1220", color: TEXT, border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px", fontSize: 13 }}>
+            {okOpts.map((o) => <option key={o.key} value={o.key}>{o.title}{o.key === b.recommended ? " (recommended)" : ""}</option>)}
+          </select>
+        </label>
+      )}
+      <label style={{ display: "block", fontSize: 12, color: MUTED }}>
+        Note (optional)
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={2} placeholder="Why, who owns it, PO number…"
+                  style={{ display: "block", marginTop: 4, width: "100%", background: "#0B1220", color: TEXT, border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px", fontSize: 13, resize: "vertical" }} />
+      </label>
+      <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+        {okOpts.length > 0 && (
+          <button type="button" disabled={saving} onClick={() => save("accepted")}
+                  style={{ padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", background: LIME, color: "#0B0F13", border: 0 }}>Accept</button>
+        )}
+        <button type="button" disabled={saving} onClick={() => save("dismissed")}
+                style={{ padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", background: "transparent", color: MUTED, border: `1px solid ${LINE}` }}>Dismiss</button>
+        {d && <button type="button" onClick={() => setEditing(false)} style={{ fontSize: 12, color: DIM, background: "transparent", border: 0, cursor: "pointer" }}>Cancel</button>}
+        <span style={{ fontSize: 11, color: DIM, marginLeft: "auto" }}>Recorded with your name and the time. Nothing is ordered or changed in your plan.</span>
+      </div>
+      {err && <div style={{ marginTop: 6, fontSize: 12, color: "#FCA5A5" }}>{err}</div>}
+    </div>
+  );
+}
+
 export default function BriefView({ briefId, onClose, onOpenRun }) {
   const [b, setB] = useState(null);
   const [err, setErr] = useState("");
@@ -122,7 +190,15 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
           <div style={{ fontSize: 11, color: LIME, textTransform: "uppercase", letterSpacing: "0.08em" }}>
             Decision brief{tr.label ? ` · ${tr.label}` : ""}{b && b.auto ? " · automatic" : ""}
           </div>
-          <button type="button" onClick={onClose} style={{ background: "transparent", border: 0, color: MUTED, fontSize: 18, cursor: "pointer", lineHeight: 1 }} aria-label="Close">×</button>
+          <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {b && b.status === "done" && (
+              <button type="button" onClick={() => { if (!printBrief(b)) setErr("Allow pop-ups for this site to export the PDF."); }}
+                      style={{ fontSize: 12, fontWeight: 600, color: LIME, background: "transparent", border: "1px solid rgba(159,214,58,0.35)", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}>
+                Export PDF
+              </button>
+            )}
+            <button type="button" onClick={onClose} style={{ background: "transparent", border: 0, color: MUTED, fontSize: 18, cursor: "pointer", lineHeight: 1 }} aria-label="Close">×</button>
+          </span>
         </div>
 
         {err && <div style={{ marginTop: 12, color: "#FCA5A5", fontSize: 13 }}>{err}</div>}
@@ -166,6 +242,7 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
                 <div style={{ marginTop: 6, fontSize: 11, color: DIM }}>Revenue protected is revenue at risk avoided, not margin. Net is revenue protected less the cost of the response.</div>
               </Section>
             )}
+            <DecisionPanel b={b} onSaved={(x) => setB(x)} />
             {(b.ruled_out || []).length > 0 && (
               <Section title="Ruled out">
                 {b.ruled_out.map((r) => (
