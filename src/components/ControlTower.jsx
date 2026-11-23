@@ -17,6 +17,7 @@ import {
 import AdminPanel from "./ControlTowerEhancements/AdminPanel.jsx";
 import ScenarioLibrary from "./ControlTowerEhancements/ScenarioLibrary.jsx";
 import BillingView from "./ControlTowerEhancements/BillingView.jsx";
+import Reports from "../Reports";
 import RiskIntelligenceView from "./ControlTowerEhancements/RiskIntelligence/RiskIntelligenceView";
 import { useRiskTriggers } from "./ControlTowerEhancements/RiskIntelligence/useRiskTriggers";
 import { SCENARIO_CONFIG } from "./ControlTowerEhancements/RiskIntelligence/scenarioConfig";
@@ -1183,6 +1184,7 @@ function LatestRunVerdict({ simulationHistory, switchView }) {
 
 export default function ControlTower({
   switchView,
+  view,
   simulationHistory,
   onReloadRun,
   onRefreshHistory,
@@ -1306,7 +1308,7 @@ export default function ControlTower({
   const resolvedRole = (localStorage.getItem("role") || "").toString().trim().toLowerCase();
   const isAdmin = resolvedRole === "admin";
 
-  const [activeView, setActiveView] = useState("dashboard");
+  const [activeView, setActiveView] = useState(view === "reports" ? "reports" : "dashboard");
   // Early Warning: which chain to open (from a Dashboard tile) and the unread alert count for the sidebar badge.
   const [earlyFocus, setEarlyFocus] = useState(null);
   const [cpUnseen, setCpUnseen] = useState(0);
@@ -1696,7 +1698,10 @@ export default function ControlTower({
             <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">Account</h2>
             <ul className="space-y-2 text-sm">
               <li>
-                <a onClick={() => switchView("reports")} className="block cursor-pointer hover:underline">
+                <a
+                  onClick={() => setActiveView("reports")}
+                  className={`block cursor-pointer ${activeView === "reports" ? "text-lime-300" : "hover:underline"}`}
+                >
                   📊 Reports
                 </a>
               </li>
@@ -2181,6 +2186,13 @@ export default function ControlTower({
                 }}
                 onApplyScenario={(data, meta) => applyScenario(data, meta?.name)}
               />
+            </section>
+          )}
+
+          {/* ── Reports ── */}
+          {activeView === "reports" && (
+            <section className="mt-10">
+              <Reports simulationHistory={simulationHistory} switchView={switchView} apiBase={getApiBase()} embedded />
             </section>
           )}
 

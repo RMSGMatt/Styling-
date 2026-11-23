@@ -7,7 +7,6 @@ import ControlTower from "./components/ControlTower";
 import axios from "axios";
 import Papa from "papaparse";
 import { jwtDecode } from "jwt-decode";
-import Reports from "./Reports";
 import UpgradeModal from "./UpgradeModal.jsx";
 import { api as apiClient, setUpgradeHandler } from "./apiClient";
 
@@ -2736,8 +2735,6 @@ setSimulationHistory((prev) => {
         )
       ) : view === "about" ? (
         <AboutUs switchView={setView} />
-      ) : view === "reports" ? (
-        <Reports simulationHistory={simulationHistory} switchView={setView} apiBase={API_BASE} />
       ) : (
         <ControlTower
           onLogout={handleLogout}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getApiBase } from "./config/apiBase";
 
 // Stored run timestamps without a time zone ("2026-11-10 02:28:50") are UTC.
 function parseWhen(value) {
@@ -11,14 +12,14 @@ function parseWhen(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "—";
+  if (!value) return "n/a";
   const d = parseWhen(value);
   if (!d) return String(value);
   return d.toLocaleString();
 }
 
 function formatDateOnly(value) {
-  if (!value) return "—";
+  if (!value) return "n/a";
   const d = parseWhen(value);
   if (!d) return String(value);
   return d.toLocaleDateString();
@@ -87,7 +88,7 @@ function getRunLabel(run, index = 0) {
     run?.scenarioName ||
     run?.name ||
     run?.title ||
-    (shortId && dateLabel ? `${dateLabel} — ${shortId}` : null) ||
+    (shortId && dateLabel ? `${dateLabel} · ${shortId}` : null) ||
     `Run ${index + 1}`
   );
 }
@@ -351,20 +352,15 @@ function normalizeRunKpis(selectedRun, live) {
   };
 }
 
-function MetricCard({ label, value }) {
+function MetricCard({ label, value, valueClassName }) {
   return (
     <div
-      className="rounded-2xl border px-4 py-3"
-      style={{
-        borderColor: "rgba(94,234,212,0.12)",
-        background: "linear-gradient(145deg, rgba(17,24,39,0.96), rgba(30,41,59,0.92))",
-        boxShadow: "0 12px 28px rgba(2,6,23,0.28)",
-      }}
+      className="rounded-2xl px-4 py-3 border border-slate-800 bg-slate-900/50"
     >
       <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 mb-2">
         {label}
       </div>
-      <div className="text-[2rem] font-semibold text-white tracking-tight">
+      <div className={`text-[2rem] font-semibold tracking-tight ${valueClassName || "text-white"}`}>
         {value}
       </div>
     </div>
@@ -375,7 +371,8 @@ export default function Reports(props) {
   const {
     simulationHistory = [],
     switchView,
-    apiBase = "https://supply-chain-simulator-v2.onrender.com",
+    apiBase = getApiBase(),
+    embedded = false,
   } = props || {};
 
   const activeScenarioName = (() => {
@@ -510,71 +507,28 @@ export default function Reports(props) {
   }, [selectedRunBbi]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="w-full border-b border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-6 py-4 flex items-center justify-between">
+    <div className="p-8 space-y-8 bg-[#0B0F13] min-h-screen text-white">
+      <div className="flex items-center justify-between pb-2 border-b border-slate-800">
         <div>
-          <div className="text-lg font-semibold tracking-tight">
-            <span className="text-emerald-400">FOR-C</span>{" "}
-            <span className="text-white">Executive Reports</span>
-          </div>
-          <div className="text-xs text-slate-400 mt-1">
-            Review simulation outcomes, KPIs, and recommended actions
-          </div>
+          <h1 className="text-3xl font-bold text-[#9FD63A]">Reports</h1>
+          <p className="text-slate-400 mt-1 text-sm">
+            Select a simulation run to review its executive summary, KPIs and recommended actions.
+          </p>
         </div>
-
-        <div className="flex items-center gap-3">
+        {!embedded && switchView ? (
           <button
-            onClick={() => switchView && switchView("control")}
-            className="px-4 py-2 text-sm rounded-lg border border-white/10 hover:border-emerald-400/40 hover:text-emerald-300 transition"
+            onClick={() => switchView("control")}
+            className="rounded-lg px-4 py-2 text-sm font-semibold border bg-[#9FD63A]/10 text-[#9FD63A] border-[#9FD63A]/20 hover:bg-[#9FD63A]/20 transition-all"
           >
-            ← Back to Control Tower
+            Back to Control Tower
           </button>
-
-          <button
-            onClick={() => {
-              localStorage.removeItem("token");
-              window.location.reload();
-            }}
-            className="px-4 py-2 text-sm rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 transition"
-          >
-            Logout
-          </button>
-        </div>
+        ) : null}
       </div>
 
-      <div
-      className="w-full text-white rounded-[32px] p-2 md:p-3"
-      style={{
-        background: "linear-gradient(180deg, rgba(241,245,249,0.22), rgba(226,232,240,0.10))",
-      }}
-    >
-      <div className="mb-5 rounded-3xl border px-5 py-4"
-        style={{
-          borderColor: "rgba(94,234,212,0.14)",
-          background: "linear-gradient(145deg, rgba(15,23,42,0.94), rgba(30,41,59,0.88))",
-          boxShadow: "0 18px 40px rgba(2,6,23,0.24)",
-        }}
-      >
-        <div className="text-[11px] uppercase tracking-[0.28em] text-emerald-300/90 mb-2">
-          Executive Reporting
-        </div>
-        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-white">
-          Executive Reports
-        </h1>
-        <p className="text-sm md:text-base text-slate-300 mt-3 max-w-3xl leading-6">
-          Select a simulation run and review its executive decision summary, KPI snapshot, and recommended actions.
-        </p>
-      </div>
-
+      <div>
       {!runs.length ? (
         <div
-          className="rounded-3xl border p-8"
-          style={{
-            borderColor: "rgba(148,163,184,0.18)",
-            background:
-              "linear-gradient(135deg, rgba(15,23,42,0.78), rgba(15,23,42,0.58))",
-            boxShadow: "0 12px 36px rgba(2,6,23,0.28)",
-          }}
+          className="rounded-2xl p-8 border border-slate-800 bg-slate-900/50"
         >
           <p className="text-lg font-medium text-white">No simulation runs found</p>
           <p className="text-sm text-slate-300 mt-1">
@@ -584,13 +538,7 @@ export default function Reports(props) {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[290px_minmax(0,1fr)] gap-3 items-start">
           <aside
-            className="rounded-3xl border border-white/10 px-4 py-3 h-fit lg:sticky lg:top-4 self-start max-h-[calc(100vh-96px)] overflow-y-auto"
-            style={{
-              borderColor: "rgba(148,163,184,0.18)",
-              background:
-                "linear-gradient(145deg, rgba(17,24,39,0.96), rgba(30,41,59,0.92))",
-              boxShadow: "0 18px 42px rgba(2,6,23,0.34)",
-            }}
+            className="rounded-2xl px-4 py-3 h-fit lg:sticky lg:top-4 self-start max-h-[calc(100vh-96px)] overflow-y-auto border border-slate-800 bg-slate-900/50"
           >
             <div className="mb-3">
               <h2 className="text-sm uppercase tracking-[0.22em] text-slate-400">
@@ -611,18 +559,11 @@ export default function Reports(props) {
                     key={run.runId}
                     type="button"
                     onClick={() => setSelectedRunId(run.runId)}
-                    className="w-full text-left rounded-2xl border border-white/10 px-4 py-3 transition"
-                    style={{
-                      borderColor: isActive
-                        ? "rgba(52,211,153,0.55)"
-                        : "rgba(148,163,184,0.12)",
-                      background: isActive
-                        ? "linear-gradient(145deg, rgba(6,78,59,0.34), rgba(15,23,42,0.92))"
-                        : "linear-gradient(145deg, rgba(30,41,59,0.88), rgba(15,23,42,0.82))",
-                      boxShadow: isActive
-                        ? "0 14px 28px rgba(16,185,129,0.16)"
-                        : "0 8px 18px rgba(2,6,23,0.18)",
-                    }}
+                    className={`w-full text-left rounded-xl border px-4 py-3 transition-all ${
+                      isActive
+                        ? "border-[#9FD63A]/50 bg-[#9FD63A]/10"
+                        : "border-slate-800 bg-slate-900/40 hover:border-slate-700"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -640,7 +581,7 @@ export default function Reports(props) {
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       {hasReport ? (
-                        <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/20">
+                        <span className="text-[10px] px-2 py-1 rounded-full bg-[#9FD63A]/10 text-[#9FD63A] border border-[#9FD63A]/20">
                           Report ready
                         </span>
                       ) : (
@@ -656,25 +597,15 @@ export default function Reports(props) {
           </aside>
 
           <section
-            className="rounded-3xl border border-white/10 px-4 py-3 md:p-5"
-            style={{
-              borderColor: "rgba(94,234,212,0.14)",
-              background:
-                "linear-gradient(145deg, rgba(15,23,42,0.97), rgba(30,41,59,0.94))",
-              boxShadow: "0 20px 48px rgba(2,6,23,0.36)",
-            }}
+            className="rounded-2xl px-4 py-3 md:p-5 border border-slate-800 bg-slate-900/50"
           >
             {selectedRun && (
               <>
                 <div
-                  className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-3 rounded-2xl border border-white/10 px-4 py-3"
-                  style={{
-                    borderColor: "rgba(94,234,212,0.12)",
-                    background: "linear-gradient(145deg, rgba(15,23,42,0.55), rgba(30,41,59,0.36))",
-                  }}
+                  className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-3 rounded-2xl px-4 py-3 border border-slate-800 bg-slate-900/50"
                 >
                   <div>
-                    <div className="text-[11px] uppercase tracking-[0.24em] text-emerald-300 mb-2">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-[#9FD63A] mb-2">
                       Selected Run
                     </div>
                     <h2 className="text-3xl font-semibold text-white">
@@ -699,17 +630,12 @@ export default function Reports(props) {
                       No executive report attached to this run
                     </p>
                     <p className="text-sm text-slate-300 mt-2">
-                      This view now only reads the report already attached to the run.
+                      Open the run in the Control Tower to see its scorecard, or run the simulation again to attach a report.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    <div className="rounded-2xl border px-4 py-3"
-                          style={{
-                            borderColor: "rgba(148,163,184,0.14)",
-                            background: "linear-gradient(145deg, rgba(17,24,39,0.94), rgba(30,41,59,0.88))",
-                            boxShadow: "0 6px 18px rgba(2,6,23,0.12)",
-                          }}>
+                    <div className="rounded-2xl px-4 py-3 border border-slate-800 bg-slate-900/50">
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400 mb-2">
@@ -728,7 +654,7 @@ export default function Reports(props) {
                         <div className="text-sm text-slate-300 space-y-1">
                           <div>
                             <span className="text-slate-500">Scenario:</span>{" "}
-                            {selectedRunReport.scenarioName || "—"}
+                            {selectedRunReport.scenarioName || "n/a"}
                           </div>
                           <div>
                             <span className="text-slate-500">Generated:</span>{" "}
@@ -752,7 +678,7 @@ export default function Reports(props) {
                       }}
                     >
                       <div className="flex items-center justify-between gap-3 mb-2">
-                        <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-300">
+                        <div className="text-[11px] uppercase tracking-[0.18em] text-[#9FD63A]">
                           Network Resilience Score
                         </div>
                         <span className={`text-[10px] px-2 py-1 rounded-full ${selectedRunBbiTone.badgeClass}`}>
@@ -806,14 +732,9 @@ export default function Reports(props) {
                         {selectedRunReport.sections.map((section) => (
                           <div
                             key={section.id}
-                            className="rounded-2xl border p-5"
-                          style={{
-                            borderColor: "rgba(148,163,184,0.14)",
-                            background: "linear-gradient(145deg, rgba(17,24,39,0.94), rgba(30,41,59,0.88))",
-                            boxShadow: "0 6px 18px rgba(2,6,23,0.12)",
-                          }}
+                            className="rounded-2xl p-5 border border-slate-800 bg-slate-900/50"
                           >
-                            <h4 className="text-lg font-semibold text-white mb-3">
+                            <h4 className="text-lg font-semibold text-[#9FD63A] mb-3">
                               {section.title}
                             </h4>
 
@@ -837,13 +758,8 @@ export default function Reports(props) {
 
                     {(selectedRunReport.risks?.length || selectedRunReport.actions?.length) ? (
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                        <div className="rounded-2xl border p-5"
-                          style={{
-                            borderColor: "rgba(148,163,184,0.14)",
-                            background: "linear-gradient(145deg, rgba(17,24,39,0.94), rgba(30,41,59,0.88))",
-                            boxShadow: "0 6px 18px rgba(2,6,23,0.12)",
-                          }}>
-                          <h4 className="text-lg font-semibold text-white mb-3">
+                        <div className="rounded-2xl p-5 border border-slate-800 bg-slate-900/50">
+                          <h4 className="text-lg font-semibold text-[#9FD63A] mb-3">
                             Key Risks
                           </h4>
                           {selectedRunReport.risks?.length ? (
@@ -857,13 +773,8 @@ export default function Reports(props) {
                           )}
                         </div>
 
-                        <div className="rounded-2xl border p-5"
-                          style={{
-                            borderColor: "rgba(148,163,184,0.14)",
-                            background: "linear-gradient(145deg, rgba(17,24,39,0.94), rgba(30,41,59,0.88))",
-                            boxShadow: "0 6px 18px rgba(2,6,23,0.12)",
-                          }}>
-                          <h4 className="text-lg font-semibold text-white mb-3">
+                        <div className="rounded-2xl p-5 border border-slate-800 bg-slate-900/50">
+                          <h4 className="text-lg font-semibold text-[#9FD63A] mb-3">
                             Recommended Actions
                           </h4>
                           {selectedRunReport.actions?.length ? (
@@ -969,8 +880,7 @@ export default function Reports(props) {
                             alert("PDF generation failed. Check console.");
                           }
                         }}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition"
-                        style={{ background: "linear-gradient(90deg, #9CF700, #22c55e)", color: "#020617" }}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm bg-[#9FD63A] text-[#11200A] hover:brightness-110 transition-all"
                       >
                         📄 Download PDF Report
                       </button>
