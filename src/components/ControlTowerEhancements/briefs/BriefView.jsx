@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { decideBrief, fetchBrief, startBrief } from "./briefStore";
 import { printBrief } from "./briefPrint";
 import BriefCostSettings from "./BriefCostSettings";
+import ScoutPanel from "./ScoutPanel";
 
 const LIME = "#9FD63A";
 const MUTED = "#94A3B8";
@@ -274,6 +275,11 @@ export default function BriefView({ briefId, onClose, onOpenRun }) {
                 {b.ruled_out.map((r) => (
                   <div key={r.key} style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}><b style={{ color: TEXT, fontWeight: 600 }}>{r.title}.</b> {r.note}</div>
                 ))}
+              </Section>
+            )}
+            {(options.some((o) => o.key === "alternate_source") || (b.ruled_out || []).some((r) => String(r.key).startsWith("alternate_source"))) && (
+              <Section title="Alternate suppliers">
+                <ScoutPanel briefId={b.id} />
               </Section>
             )}
             {text.watch && <Section title="What would change this"><p style={{ fontSize: 14, color: TEXT, lineHeight: 1.6, margin: 0 }}>{text.watch}</p></Section>}
