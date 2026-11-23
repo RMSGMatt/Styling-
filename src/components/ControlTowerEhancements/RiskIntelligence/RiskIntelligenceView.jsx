@@ -12,51 +12,20 @@ import CorridorRiskPanel    from "./CorridorRiskPanel";
 import BestPlaceToBuyPanel  from "./BestPlaceToBuyPanel";
 import CountryWatchListPanel from "./CountryWatchListPanel";
 import SupplierScreeningPanel from "./SupplierScreeningPanel";
-import { computeFullRiskProfile, FORWARD_WEIGHTS, REGIME_WEIGHTS, LITHIUM_FORWARD_WEIGHTS, LITHIUM_REGIME_WEIGHTS, RARE_EARTH_FORWARD_WEIGHTS, RARE_EARTH_REGIME_WEIGHTS, STEEL_ALUMINUM_FORWARD_WEIGHTS, STEEL_ALUMINUM_REGIME_WEIGHTS, RESINS_FORWARD_WEIGHTS, RESINS_REGIME_WEIGHTS, RUBBER_FORWARD_WEIGHTS, RUBBER_REGIME_WEIGHTS, TUNGSTEN_FORWARD_WEIGHTS, TUNGSTEN_REGIME_WEIGHTS, GASES_FORWARD_WEIGHTS, GASES_REGIME_WEIGHTS, TRIGGER_CONFIG, LITHIUM_TRIGGER_CONFIG, RARE_EARTH_TRIGGER_CONFIG, STEEL_ALUMINUM_TRIGGER_CONFIG, RESINS_TRIGGER_CONFIG, RUBBER_TRIGGER_CONFIG, TUNGSTEN_TRIGGER_CONFIG, GASES_TRIGGER_CONFIG, launchScenarioToSimulation } from "./riskScoreEngine";
-import { fetchForwardSignals, fetchRegimeSignals, MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL, MOCK_RARE_EARTH_SIGNAL_DETAIL, MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL, MOCK_RESINS_SIGNAL_DETAIL, MOCK_RUBBER_SIGNAL_DETAIL, MOCK_TUNGSTEN_SIGNAL_DETAIL, MOCK_GASES_SIGNAL_DETAIL, API_BASE } from "./signalSources";
+import { launchScenarioToSimulation } from "./riskScoreEngine";
+import { MOCK_SIGNAL_DETAIL, MOCK_LITHIUM_SIGNAL_DETAIL, MOCK_RARE_EARTH_SIGNAL_DETAIL, MOCK_STEEL_ALUMINUM_SIGNAL_DETAIL, MOCK_RESINS_SIGNAL_DETAIL, MOCK_RUBBER_SIGNAL_DETAIL, MOCK_TUNGSTEN_SIGNAL_DETAIL, MOCK_GASES_SIGNAL_DETAIL, API_BASE } from "./signalSources";
 import RiskScoreHistoryChart from "./RiskScoreHistoryChart";
 import SignalContributionWaterfall from "./SignalContributionWaterfall";
 import CommoditySelector from "./CommoditySelector";
 import { COMMODITY_REGISTRY } from "./commodityRegistry";
 import { buildSnapshotRawSignals } from "./liveSignals";
+import { fetchServerProfiles, signalSetsFromProfile } from "./serverProfiles";
 
 // ── Tab config ────────────────────────────────────────────────────────────────
 // Three real, distinct kinds of tab, grouped for a two-level nav —
 // flat single-row tabs overflowed the screen width once Trends was
 // added as the sixth+ item. "analysis" and "tools" get a sub-tab bar;
 // "trends" is a single standalone view with nothing to sub-select.
-// Same per-commodity weight/trigger lookup the main signal-fetch effect
-// below used to duplicate inline. Pulled out so the new background
-// all-commodities snapshot effect can reuse it without a second copy of
-// this ternary chain drifting out of sync with the first.
-function getRiskConfigForCommodity(commodityKey) {
-  const forwardWeights = commodityKey === "lithium_battery" ? LITHIUM_FORWARD_WEIGHTS
-    : commodityKey === "rare_earth_metals" ? RARE_EARTH_FORWARD_WEIGHTS
-    : commodityKey === "steel_aluminum" ? STEEL_ALUMINUM_FORWARD_WEIGHTS
-    : commodityKey === "automotive_resins" ? RESINS_FORWARD_WEIGHTS
-    : commodityKey === "natural_rubber" ? RUBBER_FORWARD_WEIGHTS
-    : commodityKey === "tungsten" ? TUNGSTEN_FORWARD_WEIGHTS
-    : commodityKey === "industrial_gases" ? GASES_FORWARD_WEIGHTS
-    : FORWARD_WEIGHTS;
-  const regimeWeights = commodityKey === "lithium_battery" ? LITHIUM_REGIME_WEIGHTS
-    : commodityKey === "rare_earth_metals" ? RARE_EARTH_REGIME_WEIGHTS
-    : commodityKey === "steel_aluminum" ? STEEL_ALUMINUM_REGIME_WEIGHTS
-    : commodityKey === "automotive_resins" ? RESINS_REGIME_WEIGHTS
-    : commodityKey === "natural_rubber" ? RUBBER_REGIME_WEIGHTS
-    : commodityKey === "tungsten" ? TUNGSTEN_REGIME_WEIGHTS
-    : commodityKey === "industrial_gases" ? GASES_REGIME_WEIGHTS
-    : REGIME_WEIGHTS;
-  const triggerConfig = commodityKey === "lithium_battery" ? LITHIUM_TRIGGER_CONFIG
-    : commodityKey === "rare_earth_metals" ? RARE_EARTH_TRIGGER_CONFIG
-    : commodityKey === "steel_aluminum" ? STEEL_ALUMINUM_TRIGGER_CONFIG
-    : commodityKey === "automotive_resins" ? RESINS_TRIGGER_CONFIG
-    : commodityKey === "natural_rubber" ? RUBBER_TRIGGER_CONFIG
-    : commodityKey === "tungsten" ? TUNGSTEN_TRIGGER_CONFIG
-    : commodityKey === "industrial_gases" ? GASES_TRIGGER_CONFIG
-    : TRIGGER_CONFIG;
-  return { forwardWeights, regimeWeights, triggerConfig };
-}
-
 const GROUPS = [
   { key: "analysis", label: "Commodity Analysis" },
   { key: "tools",    label: "AI Tools" },
@@ -559,10 +528,10 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     async function load() {
       try {
         setLoading(true);
-        const [fwd, reg] = await Promise.all([
-          fetchForwardSignals(selectedCommodity),
-          fetchRegimeSignals(selectedCommodity),
-        ]);
+        // Scored on the server (one engine for every page and the scheduler).
+        const sp = (await fetchServerProfiles([selectedCommodity], { detail: true }))[selectedCommodity];
+        if (!sp) throw new Error("no profile");
+        const { fwd, reg } = signalSetsFromProfile(sp);
         setForwardSignals(fwd.signals);
         setRegimeSignals(reg.signals);
         // Forward and regime signal key namespaces never overlap (checked:
@@ -573,9 +542,7 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
         // own signal set anyway.
         setLiveSignalKeys([...(fwd.liveKeys || []), ...(reg.liveKeys || [])]);
 
-        const { forwardWeights, regimeWeights, triggerConfig } = getRiskConfigForCommodity(selectedCommodity);
-
-        const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights, regimeWeights, triggerConfig);
+        const profile = sp.profile;
         setScoreResult(profile);
 
         // Fire-and-forget: save today's snapshot for the risk-over-time
@@ -633,16 +600,16 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     let cancelled = false;
 
     async function snapshotAllCommodities() {
+      let all = {};
+      try { all = await fetchServerProfiles(COMMODITY_REGISTRY.map((c) => c.key), { detail: true }); } catch { return; }
       for (const commodity of COMMODITY_REGISTRY) {
         if (cancelled) return;
         const commodityKey = commodity.key;
         try {
-          const [fwd, reg] = await Promise.all([
-            fetchForwardSignals(commodityKey),
-            fetchRegimeSignals(commodityKey),
-          ]);
-          const { forwardWeights, regimeWeights, triggerConfig } = getRiskConfigForCommodity(commodityKey);
-          const profile = computeFullRiskProfile(fwd.signals, reg.signals, forwardWeights, regimeWeights, triggerConfig);
+          const sp = all[commodityKey];
+          if (!sp) continue;
+          const { fwd, reg } = signalSetsFromProfile(sp);
+          const profile = sp.profile;
 
           await fetch(`${API_BASE}/api/risk/snapshot`, {
             method: "POST",

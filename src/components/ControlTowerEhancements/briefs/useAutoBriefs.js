@@ -25,6 +25,8 @@ export default function useAutoBriefs(triggers, enabled) {
     const now = Date.now();
     const next = (triggers || []).find((t) => {
       if (t.status !== "triggered" || !SCENARIO_CONFIG[t.scenario] || BRIEF_COST_ONLY.has(t.scenario)) return false;
+      // Only when the signal that fired it is live data; sample-only triggers never start a brief.
+      if (!t.live_backed) return false;
       if ((tried[t.scenario] || 0) > now - RETRY_MS) return false;
       const mine = briefs.filter((b) => (b.trigger || {}).scenario === t.scenario);
       if (mine.some((b) => b.status !== "error" && isRecent(b))) return false;

@@ -2,96 +2,33 @@
 // useRiskTriggers.js
 // FOR-C v3 · Shared hook for Risk Intelligence trigger polling
 //
-// Extracted from what was TriggerBanner.jsx so the merged trigger list can be
-// consumed by Control Tower's unified attention panel without duplicating the
-// fetch/merge logic. Polls both commodity groups on the same 15-minute
-// cadence RiskIntelligenceView itself uses (same underlying signals, no
-// reason to poll tighter here).
+// Triggers come from the server engine (GET /api/risk/profile), polled every
+// 15 minutes. Each trigger carries live_backed: true only when the signal that
+// fired it is live data, not sample.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useCallback } from "react";
-import { fetchForwardSignals, fetchRegimeSignals } from "./signalSources";
 import { loadCommodityProfiles } from "./commodityProfiles";
-import {
-  computeFullRiskProfile,
-  FORWARD_WEIGHTS,
-  REGIME_WEIGHTS,
-  TRIGGER_CONFIG,
-  LITHIUM_FORWARD_WEIGHTS,
-  LITHIUM_REGIME_WEIGHTS,
-  LITHIUM_TRIGGER_CONFIG,
-} from "./riskScoreEngine";
 
-// Known commodity groups this hook checks. Each has its own weights/trigger
-// config in riskScoreEngine.js. A third commodity group added there in the
-// future needs a matching entry here too — not auto-discovered.
-const COMMODITY_GROUPS = [
-  {
-    key: "semiconductors_mlcc",
-    forwardWeights: FORWARD_WEIGHTS,
-    regimeWeights: REGIME_WEIGHTS,
-    triggerConfig: TRIGGER_CONFIG,
-  },
-  {
-    key: "lithium_battery",
-    forwardWeights: LITHIUM_FORWARD_WEIGHTS,
-    regimeWeights: LITHIUM_REGIME_WEIGHTS,
-    triggerConfig: LITHIUM_TRIGGER_CONFIG,
-  },
-];
+// With no network loaded, the default trackers.
+const DEFAULT_KEYS = ["semiconductors_mlcc", "lithium_battery"];
 
 const POLL_INTERVAL_MS = 15 * 60 * 1000;
 
-// Returns { triggers } — merged, non-nominal triggers across both commodity
-// groups, each tagged with { commodity, source } ("mock" | "live" | null).
-// commodityKeys: the commodities the loaded network's parts map to. When given,
-// triggers come from those trackers only (a MedTech network sees tungsten and
-// industrial gases, not semiconductors). With none, the default groups above.
+// Returns { triggers }: non-nominal triggers across the commodities, each tagged
+// with { commodity, source } ("mock" | "mixed"). commodityKeys: the commodities the
+// loaded network's parts map to (a MedTech network sees tungsten and industrial
+// gases, not semiconductors). With none, DEFAULT_KEYS.
 export function useRiskTriggers(commodityKeys) {
   const [triggers, setTriggers] = useState([]);
   const keysSig = (commodityKeys || []).slice().sort().join(",");
 
   const load = useCallback(async () => {
-    try {
-      if (keysSig) {
-        const prof = await loadCommodityProfiles(keysSig.split(","));
-        const merged = Object.values(prof).flatMap((p) => (p.triggers || []).map((t) => ({ ...t, commodity: p.key, source: p.source })));
-        merged.sort((a, b) => (a.status === b.status ? 0 : a.status === "triggered" ? -1 : 1));
-        setTriggers(merged);
-        return;
-      }
-      const results = await Promise.all(
-        COMMODITY_GROUPS.map(async (group) => {
-          const [fwd, reg] = await Promise.all([
-            fetchForwardSignals(group.key),
-            fetchRegimeSignals(group.key),
-          ]);
-          const profile = computeFullRiskProfile(
-            fwd.signals,
-            reg.signals,
-            group.forwardWeights,
-            group.regimeWeights,
-            group.triggerConfig
-          );
-          return {
-            commodity: group.key,
-            source: fwd.source === "mock" && reg.source === "mock" ? "mock" : (fwd.source === "mock" ? reg.source : fwd.source) || null,
-            triggers: profile.triggers.filter((t) => t.status !== "nominal"),
-          };
-        })
-      );
-
-      const merged = results.flatMap((r) =>
-        r.triggers.map((t) => ({ ...t, commodity: r.commodity, source: r.source }))
-      );
-      merged.sort((a, b) => (a.status === b.status ? 0 : a.status === "triggered" ? -1 : 1));
-      setTriggers(merged);
-    } catch (e) {
-      // Fail quiet — this is a supplementary surface, not the primary Risk
-      // Intelligence view. A fetch failure here shouldn't put anything
-      // misleading in front of the user; triggers just stay at their last
-      // known state until the next poll succeeds.
-      console.error("❌ useRiskTriggers signal fetch failed:", e);
-    }
+    const keys = keysSig ? keysSig.split(",") : DEFAULT_KEYS;
+    const prof = await loadCommodityProfiles(keys);
+    if (!Object.keys(prof).length) return; // fetch failed: keep the last known state
+    const merged = Object.values(prof).flatMap((p) => (p.triggers || []).map((t) => ({ ...t, commodity: p.key, source: p.source })));
+    merged.sort((a, b) => (a.status === b.status ? 0 : a.status === "triggered" ? -1 : 1));
+    setTriggers(merged);
   }, [keysSig]);
 
   useEffect(() => {
