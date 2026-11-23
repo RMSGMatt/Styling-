@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
  */
 
 import { getApiBase } from "../../config/apiBase";
+import AgentsAddonPanel from "./AgentsAddonPanel";
 
 const API_BASE = getApiBase();
 
@@ -211,6 +212,8 @@ export default function BillingView() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [showDebug, setShowDebug] = useState(false);
+  const [agents, setAgents] = useState(null);
+  const [withAgents, setWithAgents] = useState(false);
   const [routes, setRoutes] = useState([]);
 
   const currentPlan = useMemo(() => (me?.plan || "free").toLowerCase(), [me]);
@@ -282,7 +285,7 @@ export default function BillingView() {
       const cancel_url = window.location.origin + "/billing?canceled=1";
       const { url } = await apiFetch("/api/create-checkout-session", {
         method: "POST",
-        body: JSON.stringify({ priceId, success_url, cancel_url }),
+        body: JSON.stringify({ priceId, success_url, cancel_url, withAgents }),
       });
       if (!url) throw new Error("No checkout URL returned.");
       window.location.assign(url);
@@ -367,8 +370,20 @@ export default function BillingView() {
         </div>
       </Section>
 
+      <AgentsAddonPanel onStatus={setAgents} />
+
       {/* Plans */}
-      <Section title="Plans">
+      <Section
+        title="Plans"
+        right={
+          agents?.entitlement?.required && !["pro", "enterprise"].includes(currentPlan) ? (
+            <label className="flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" checked={withAgents} onChange={(e) => setWithAgents(e.target.checked)} />
+              Include the agents add-on (+$500/mo Pro, +$1,500/mo Enterprise)
+            </label>
+          ) : null
+        }
+      >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <PricingCard
             name="Free"
