@@ -83,7 +83,8 @@ function RunCard({ run, onOpen }) {
   );
 }
 
-export default function AskNetworkCard({ apiBase, examples = [], simulationHistory, onReloadRun, onRefreshHistory }) {
+export default function AskNetworkCard({ apiBase, examples = [], simulationHistory, onReloadRun, onRefreshHistory, compact = false }) {
+  const [showRecent, setShowRecent] = useState(false);
   const [q, setQ] = useState("");
   const [ask, setAsk] = useState(null);
   const [usage, setUsage] = useState(null);
@@ -158,13 +159,13 @@ export default function AskNetworkCard({ apiBase, examples = [], simulationHisto
   const [confLabel, confColor] = CONF[ask?.confidence] || CONF.medium;
 
   return (
-    <section className="mb-6 rounded-2xl border px-5 py-4" style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "rgba(159,214,58,0.3)" }} data-testid="ask-network">
+    <section className={(compact ? "" : "mb-6 ") + "rounded-2xl border px-5 py-4"} style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "rgba(159,214,58,0.3)" }} data-testid="ask-network">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-bold" style={{ color: LIME }}>Ask your network</h2>
         {usage && usage.limit > 0 && <span className="text-[11px]" style={{ color: DIM }}>{usage.used} of {usage.limit} questions this month</span>}
         {locked && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: aiOff ? MUTED : LIME, border: `1px solid ${aiOff ? "rgba(148,163,184,0.4)" : "rgba(159,214,58,0.4)"}` }}>{aiOff ? "AI off for this account" : "Pro and Enterprise"}</span>}
       </div>
-      <p className="text-sm mt-1" style={{ color: MUTED }}>Ask a what-if in plain words. FOR-C builds the scenario, runs it against normal operations and answers from the results.</p>
+      {!compact && <p className="text-sm mt-1" style={{ color: MUTED }}>Ask a what-if in plain words. FOR-C builds the scenario, runs it against normal operations and answers from the results.</p>}
 
       <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} disabled={running || out}
@@ -177,7 +178,7 @@ export default function AskNetworkCard({ apiBase, examples = [], simulationHisto
       </form>
       {!running && examples.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {examples.map((x) => (
+          {(compact ? examples.slice(0, 2) : examples).map((x) => (
             <button key={x} type="button" disabled={out} onClick={() => submit(x)} className="rounded-full border px-3 py-1 text-xs"
                     style={{ borderColor: "rgba(148,163,184,0.25)", color: MUTED, background: "transparent" }}>{x}</button>
           ))}
@@ -222,7 +223,12 @@ export default function AskNetworkCard({ apiBase, examples = [], simulationHisto
         </div>
       )}
 
-      {recent.filter((r) => !ask || r.id !== ask.id).length > 0 && (
+      {compact && recent.filter((r) => !ask || r.id !== ask.id).length > 0 && (
+        <button type="button" onClick={() => setShowRecent((x) => !x)} className="mt-3 text-xs underline" style={{ color: DIM }}>
+          {showRecent ? "Hide recent questions" : `Recent questions (${recent.filter((r) => !ask || r.id !== ask.id).length})`}
+        </button>
+      )}
+      {(!compact || showRecent) && recent.filter((r) => !ask || r.id !== ask.id).length > 0 && (
         <div className="mt-4 border-t pt-3" style={{ borderColor: "rgba(148,163,184,0.12)" }}>
           <div className="text-[10.5px] uppercase tracking-wide" style={{ color: DIM }}>Recent questions</div>
           <div className="mt-1 flex flex-col gap-1">

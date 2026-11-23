@@ -13,7 +13,7 @@ const TEXT = "#E2E8F0";
 const LEVEL_COLOR = { direct: "#F87171", supplier: "#F4A742", commodity: "#94A3B8" };
 const POLL_MS = 15 * 60 * 1000;
 
-export default function WatchLogCard({ compact = false }) {
+export default function WatchLogCard({ compact = false, slim = false }) {
   const { usage, loaded } = useBriefs();
   const [entries, setEntries] = useState(null);
   const [all, setAll] = useState(false);
@@ -29,9 +29,17 @@ export default function WatchLogCard({ compact = false }) {
   if (!loaded || !usage || !(usage.limit > 0) || entries === null) return null; // agents plans only
   const shown = all ? entries : entries.slice(0, compact ? 3 : 5);
   const direct = entries.filter((e) => e.level !== "commodity").length;
+  if (slim && !entries.length) {
+    return (
+      <section className="rounded-xl" style={{ background: "#111B21", border: "1px solid #1f3a2e", padding: "10px 14px" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#E8F2EC" }}>Watch log</div>
+        <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Nothing near your sites, naming your suppliers, or in your commodities. Checked every 4 hours.</div>
+      </section>
+    );
+  }
 
   return (
-    <section className="mb-6 rounded-xl" style={{ background: "#111B21", border: "1px solid #1f3a2e", padding: 14 }}>
+    <section className={(slim ? "" : "mb-6 ") + "rounded-xl"} style={{ background: "#111B21", border: "1px solid #1f3a2e", padding: 14 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: "#E8F2EC" }}>Watch log</div>
         <div style={{ fontSize: 12.5, color: MUTED }}>

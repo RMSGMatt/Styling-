@@ -30,7 +30,8 @@ import BriefButton from "./ControlTowerEhancements/briefs/BriefButton";
 import BriefView from "./ControlTowerEhancements/briefs/BriefView";
 import WatchLogCard from "./ControlTowerEhancements/watch/WatchLogCard";
 import BriefsCard from "./ControlTowerEhancements/briefs/BriefsCard";
-import { EarlyWarningView, EarlyWarningStrip } from "./ControlTowerEhancements/RiskIntelligence/EarlyWarning";
+import DecisionInbox from "./ControlTowerEhancements/DecisionInbox";
+import { EarlyWarningView } from "./ControlTowerEhancements/RiskIntelligence/EarlyWarning";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
 import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
 
@@ -1834,147 +1835,17 @@ export default function ControlTower({
                 </div>
               )}
 
-              <EarlyWarningStrip apiBase={API_BASE_CT} onOpen={openEarlyWarning} commodities={snapshot ? netCommodities : []}
-                                 onOpenCommodity={(commodity) => { setRiskIntelFocus({ commodity }); setActiveView("risk"); }}
-                                 onOpenRun={(runId) => {
-                                   const e = (simulationHistory || []).find((x) => (x.run_id || x.id) === runId);
-                                   if (e && onReloadRun) onReloadRun(e); else if (onRefreshHistory) onRefreshHistory();
-                                 }} />
-
-              {snapshot && (
-                <AskNetworkCard apiBase={API_BASE_CT} examples={askExamples} simulationHistory={simulationHistory}
-                                onReloadRun={onReloadRun} onRefreshHistory={onRefreshHistory} />
-              )}
-
-              {snapshot && (
-                <>
-                <BriefsCard onOpenRun={(runId) => {
-                  const e = (simulationHistory || []).find((x) => (x.run_id || x.id) === runId);
-                  if (e && onReloadRun) onReloadRun(e); else if (onRefreshHistory) onRefreshHistory();
-                }} />
-                <WatchLogCard />
-                </>
-              )}
-
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div id="tour-map" className="lg:col-span-2 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
-
-                  {newsHeadlines.length > 0 && (
-                    <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
-                      <div className="flex items-center">
-                        <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
-                          LIVE INTEL
-                        </div>
-                        <div className="overflow-hidden flex-1 relative">
-                          <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 90s linear infinite", display: "inline-flex" }}>
-                            {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
-                              <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
-                                <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
-                                {h.title}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
-                    </div>
-                  )}
-
-                  <MapView
-                    locationsUrl={snapshotLocationsUrl || locationsUrl || simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
-                    onFacilitySelect={handleFacilitySelect}
-                    exposedSites={exposedSites}
-                    siteHealth={mapHealth}
-                    lanes={mapLanes}
-                    hazardLinks={hazardLinks}
-                    autoFit
-                    fitLeft={120}
-                    height="460px"
-                  />
+              {snapshotState === "loading" && (
+                <div className="mb-4 rounded-xl px-4 py-3 text-sm animate-pulse" style={{ background: "#111B21", border: "1px solid #1f3a2e", color: "#94A3B8" }}>
+                  Connecting to your network data. The server can take up to a minute to wake up.
                 </div>
-
-                <div className="rounded-xl border p-4" style={{ background: "linear-gradient(150deg, rgba(4,22,17,0.98), rgba(5,34,26,0.98))", borderColor: "#143629" }}>
-                  <h2 className="text-lg font-bold mb-2" style={{ color: "#9FD63A" }}>Network Health Summary<SourceChip snapshot={snapshot} /></h2>
-                  <div className="text-sm mb-3" style={{ color: "#94A3B8" }}>
-                    {snapshot ? `Last ${snapshot.window_days} days to ${snapshot.as_of}.` : "Executive overview of current supply chain performance."}
-                  </div>
-                  {snapshot ? (
-                    <ul className="space-y-3">
-                      {["service_level", "otif", "backorder_units", "supplier_on_time"].filter((k) => snapByKey[k]).map((k) => (
-                        <li key={k} className="flex items-center justify-between">
-                          <span className="text-xs" style={{ color: "#64748B" }}>{snapByKey[k].label}</span>
-                          <span className="text-base font-extrabold" style={{ color: SNAP_COLOR[snapByKey[k].status] }}>{snapFmt(snapByKey[k].value, snapByKey[k].unit)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm" style={{ color: "#64748B" }}>{snapshotState === "loading" ? "Loading…" : "No network data yet. Load the example network or upload your exports to see live KPIs here."}</p>
-                  )}
-                </div>
-              </section>
-
-              <UnifiedAttentionPanel
-                kpis={null}
-                alertsOverride={snapAlerts}
-                hasKpiData={Boolean(snapshot)}
-                ctNarrative={ctNarrative}
-                narrativeLoading={narrativeLoading}
-                onOpenRiskIntelligence={({ commodity } = {}) => {
-                  setRiskIntelFocus({ commodity });
-                  setActiveView("risk");
-                }}
-                onOpenSafetyStock={() => setActiveView("safetystock")}
-                commodityKeys={snapshot ? netCommodities.map((c) => c.key) : null}
-                simulationHistory={simulationHistory}
-                onReloadRun={onReloadRun}
-                onRefreshHistory={onRefreshHistory}
-              />
-
-              <div className="mb-4 text-xs" style={{ color: "#64748B" }}>
-                Live feeds: <span style={{ color: "#94A3B8" }}>{networkContext.activeFeeds.join(" • ")}</span>
-              </div>
-
-              {snapshot && (() => {
-                const worst = snapshot.kpis.find((k) => k.status === "bad") || snapshot.kpis.find((k) => k.status === "watch");
-                if (!worst) return null;
-                return (
-                  <div className="rounded-xl mb-5 px-5 py-4 flex items-center justify-between gap-4" style={{ background: "linear-gradient(90deg, #0d3d2e 0%, #1D625B 100%)", border: "1px solid rgba(156,247,0,0.2)" }}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">⚡</span>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-widest text-lime-300/70 mb-0.5">Recommended Action</p>
-                        <p className="text-sm font-semibold text-white">{worst.label} is {snapFmt(worst.value, worst.unit)}{worst.delta ? ` (${snapDelta(worst, snapshot.window_days).split(" · ")[0].toLowerCase()})` : ""}. {SNAP_ACTIONS[worst.key] || worst.hint}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        try {
-                          const baselineScenario = {
-                            name: "Control Tower Baseline", disruptionScenarios: [], demandAdjustments: [], laneAdjustments: [], inventoryPolicies: [],
-                            meta: { source: "control_tower", serviceLevel: snapFmt(snapByKey.service_level?.value, "%"), backorders: snapFmt(snapByKey.backorder_units?.value, "units"), notes: `Launched from Control Tower. Network snapshot as of ${snapshot.as_of}.` },
-                          };
-                          localStorage.setItem("forc_active_scenario", JSON.stringify(baselineScenario));
-                          localStorage.setItem("currentScenarioJSON", JSON.stringify(baselineScenario));
-                          localStorage.setItem("currentScenarioName", "Control Tower Baseline");
-                          localStorage.setItem("forc_exposure_sim", "1");
-                          try { window.dispatchEvent(new Event("forc-exposure-sim")); } catch (e2) { }
-                        } catch (e) { console.warn("Could not pre-populate scenario:", e); }
-                        switchView("simulation");
-                      }}
-                      className="shrink-0 px-4 py-2 rounded-lg text-xs font-bold transition"
-                      style={{ background: "#9CF700", color: "#020617" }}
-                    >
-                      Simulate this risk →
-                    </button>
-                  </div>
-                );
-              })()}
-
+              )}
               {snapshotState !== "loading" && (!snapshot || showSnapshotCard) && (
                 <SnapshotDataCard apiBase={API_BASE_CT} onCancel={snapshot ? () => setShowSnapshotCard(false) : null} onLoaded={(body) => { setSnapshot(body); setSnapshotState("ready"); setShowSnapshotCard(false); }} />
               )}
               {snapshot && showSnapshotCard && <IngestKeysCard apiBase={API_BASE_CT} />}
 
+              {/* 1. How are we doing */}
               {snapshot && (() => {
                 const head = snapshot.kpis.filter((k) => k.headline).slice(0, 6);
                 const rest = snapshot.kpis.filter((k) => !head.includes(k));
@@ -1985,8 +1856,7 @@ export default function ControlTower({
                     deltaText={snapDelta(k, snapshot.window_days)} />
                 );
                 return (
-                  <>
-                    <section className="mb-6">
+                    <section className="mb-5">
                       <div className="flex items-end justify-between mb-3 gap-3">
                         <div>
                           <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Network KPIs<SourceChip snapshot={snapshot} /></h2>
@@ -2015,9 +1885,92 @@ export default function ControlTower({
                         </div>
                       )}
                     </section>
-                    <ExposureBlock exposure={exposure} state={exposureState} example={exposureExample} setExample={setExposureExample}
-                      onAddLocations={() => setShowSnapshotCard(true)} onSimulate={simulateExposure} />
-                    <NetworkRiskCard risk={netRisk} state={netRiskState} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
+                );
+              })()}
+
+              {/* 2. What needs me */}
+              {snapshot && (() => {
+                const worst = snapshot.kpis.find((k) => k.status === "bad") || snapshot.kpis.find((k) => k.status === "watch");
+                const recommended = worst ? {
+                  title: `${worst.label} is ${snapFmt(worst.value, worst.unit)}${worst.delta ? ` (${snapDelta(worst, snapshot.window_days).split(" · ")[0].toLowerCase()})` : ""}`,
+                  sub: SNAP_ACTIONS[worst.key] || worst.hint,
+                  onSimulate: () => {
+                        try {
+                          const baselineScenario = {
+                            name: "Control Tower Baseline", disruptionScenarios: [], demandAdjustments: [], laneAdjustments: [], inventoryPolicies: [],
+                            meta: { source: "control_tower", serviceLevel: snapFmt(snapByKey.service_level?.value, "%"), backorders: snapFmt(snapByKey.backorder_units?.value, "units"), notes: `Launched from Control Tower. Network snapshot as of ${snapshot.as_of}.` },
+                          };
+                          localStorage.setItem("forc_active_scenario", JSON.stringify(baselineScenario));
+                          localStorage.setItem("currentScenarioJSON", JSON.stringify(baselineScenario));
+                          localStorage.setItem("currentScenarioName", "Control Tower Baseline");
+                          localStorage.setItem("forc_exposure_sim", "1");
+                          try { window.dispatchEvent(new Event("forc-exposure-sim")); } catch (e2) { }
+                        } catch (e) { console.warn("Could not pre-populate scenario:", e); }
+                        switchView("simulation");
+                      },
+                } : null;
+                return (
+                  <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div className="lg:col-span-2">
+                      <DecisionInbox apiBase={API_BASE_CT} commodities={netCommodities} recommended={recommended}
+                                     onOpenChain={openEarlyWarning}
+                                     onOpenCommodity={(commodity) => { setRiskIntelFocus({ commodity }); setActiveView("risk"); }}
+                                     onShowAllBriefs={() => document.getElementById("all-briefs")?.scrollIntoView({ behavior: "smooth" })}
+                                     onOpenRun={(runId) => {
+                                       const e = (simulationHistory || []).find((x) => (x.run_id || x.id) === runId);
+                                       if (e && onReloadRun) onReloadRun(e); else if (onRefreshHistory) onRefreshHistory();
+                                     }} />
+                    </div>
+                    <div className="flex flex-col gap-4">
+                      <AskNetworkCard compact apiBase={API_BASE_CT} examples={askExamples} simulationHistory={simulationHistory}
+                                      onReloadRun={onReloadRun} onRefreshHistory={onRefreshHistory} />
+                      <WatchLogCard compact slim />
+                    </div>
+                  </section>
+                );
+              })()}
+
+              {/* 3. Where */}
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div id="tour-map" className="lg:col-span-2 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
+                  <MapView
+                    locationsUrl={snapshotLocationsUrl || locationsUrl || simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
+                    onFacilitySelect={handleFacilitySelect}
+                    exposedSites={exposedSites}
+                    siteHealth={mapHealth}
+                    lanes={mapLanes}
+                    hazardLinks={hazardLinks}
+                    autoFit
+                    fitLeft={120}
+                    height="460px"
+                  />
+                </div>
+                <div className="flex flex-col gap-4 min-w-0">
+                  {snapshot ? (
+                    <>
+                      <NetworkRiskCard risk={netRisk} state={netRiskState} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
+                      <ExposureBlock exposure={exposure} state={exposureState} example={exposureExample} setExample={setExposureExample}
+                        onAddLocations={() => setShowSnapshotCard(true)} onSimulate={simulateExposure} />
+                    </>
+                  ) : (
+                    <div className="rounded-xl border p-4 text-sm" style={{ background: "#111B21", borderColor: "#1f3a2e", color: "#64748B" }}>
+                      {snapshotState === "loading" ? "Loading your sites…" : "Load the example network or upload your exports to see which sites are at risk."}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {snapshot && (() => {
+                const head = snapshot.kpis.filter((k) => k.headline).slice(0, 6);
+                const rest = snapshot.kpis.filter((k) => !head.includes(k));
+                const trendMap = { better: "up", worse: "down", flat: "neutral" };
+                const card = (k) => (
+                  <KpiCard key={k.key} value={snapFmt(k.value, k.unit)} label={k.label}
+                    trend={trendMap[k.trend]} risk={k.status === "bad" ? "high" : k.status === "watch" ? "medium" : undefined}
+                    deltaText={snapDelta(k, snapshot.window_days)} />
+                );
+                return (
+                  <>
                     <PartsAtRiskCard onSiteParts={setSiteParts} onCommodities={setNetCommodities} apiBase={API_BASE_CT} refreshKey={`${snapshot?.uploaded_at}|${snapshot?.source}`} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
                     {rest.length > 0 && (
                       <section className="mb-6">
@@ -2031,7 +1984,60 @@ export default function ControlTower({
                 );
               })()}
 
+              <UnifiedAttentionPanel
+                kpis={null}
+                alertsOverride={snapAlerts}
+                hasKpiData={Boolean(snapshot)}
+                ctNarrative={ctNarrative}
+                narrativeLoading={narrativeLoading}
+                onOpenRiskIntelligence={({ commodity } = {}) => {
+                  setRiskIntelFocus({ commodity });
+                  setActiveView("risk");
+                }}
+                onOpenSafetyStock={() => setActiveView("safetystock")}
+                commodityKeys={snapshot ? netCommodities.map((c) => c.key) : null}
+                simulationHistory={simulationHistory}
+                onReloadRun={onReloadRun}
+                onRefreshHistory={onRefreshHistory}
+              />
+
+
+              {/* 4. Detail */}
+              {snapshot && (
+                <div id="all-briefs">
+                  <BriefsCard onOpenRun={(runId) => {
+                    const e = (simulationHistory || []).find((x) => (x.run_id || x.id) === runId);
+                    if (e && onReloadRun) onReloadRun(e); else if (onRefreshHistory) onRefreshHistory();
+                  }} />
+                </div>
+              )}
               <LatestRunVerdict simulationHistory={simulationHistory} switchView={switchView} />
+
+                  {newsHeadlines.length > 0 && (
+                    <div id="tour-ticker" className="rounded-xl overflow-hidden mt-2 mb-2" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
+                      <div className="flex items-center">
+                        <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
+                          LIVE INTEL
+                        </div>
+                        <div className="overflow-hidden flex-1 relative">
+                          <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 90s linear infinite", display: "inline-flex" }}>
+                            {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
+                              <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
+                                <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
+                                {h.title}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+                    </div>
+                  )}
+
+              <div className="mb-4 text-xs" style={{ color: "#64748B" }}>
+                Live feeds: <span style={{ color: "#94A3B8" }}>{networkContext.activeFeeds.join(" • ")}</span>
+              </div>
+
             </>
           )}
 

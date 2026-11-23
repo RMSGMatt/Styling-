@@ -1459,7 +1459,8 @@ export default function MapView({
     setDismissedCrisisIds((prev) => new Set(prev).add(id));
   };
 
-  const visibleCrises = activeCrises.filter((c) => !dismissedCrisisIds.has(c.id));
+  // The banner is for crises that reach a site on this map. Others still show as markers on the globe.
+  const visibleCrises = activeCrises.filter((c) => !dismissedCrisisIds.has(c.id) && (c.facilities?.length || 0) > 0);
 
   /* ============================================================================
      12) RENDER
