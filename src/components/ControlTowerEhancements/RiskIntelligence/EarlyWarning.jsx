@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from "react";
 import ChokepointPanel from "./ChokepointPanel";
 import IncidentsPanel from "./IncidentsPanel";
+import WatchLogCard from "../watch/WatchLogCard";
 import { launchScenarioToSimulation } from "./riskScoreEngine";
 import { SCENARIO_CONFIG } from "./scenarioConfig";
 import BriefButton from "../briefs/BriefButton";
@@ -24,6 +25,7 @@ export function EarlyWarningView({ switchView, focus, preferredEdition, hideEdit
           Shortages forming upstream, the date they reach component lead times, the parts of yours in their path, and what each response costs.
         </div>
       </div>
+      <WatchLogCard compact />
       <IncidentsPanel onLaunchScenario={({ scenario, params }) => launchScenarioToSimulation({ scenario, params, source: "incident_log" }, switchView)} />
       <ChokepointPanel key={`${focus?.chain || "default"}|${preferredEdition || ""}`} switchView={switchView} initialChain={focus?.chain} initialView={focus?.chain ? "signals" : undefined}
                        preferredEdition={preferredEdition} hideEditions={hideEditions}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 
 /** ====== CONFIG ====== */
 import { getApiBase } from "../../config/apiBase";
+import WatchReview from "./watch/WatchReview";
 
 // Canonical API base (single source of truth)
 const API_BASE = getApiBase();
@@ -213,6 +214,7 @@ const TABS = [
   { id: "users", label: "Users", icon: "👥" },
   { id: "simulations", label: "Simulations", icon: "🧪" },
   { id: "scenarios", label: "Scenarios", icon: "🧩" },
+  { id: "watch", label: "Watch review", icon: "🛰️" },
 ];
 
 /** ====== MAIN ====== */
@@ -411,6 +413,7 @@ export default function AdminPanelLive({ switchView }) {
           {tab === "users" && <UsersSection />}
           {tab === "simulations" && <SimulationsSection />}
           {tab === "scenarios" && <ScenariosSection />}
+          {tab === "watch" && <WatchReview />}
         </div>
       </div>
 

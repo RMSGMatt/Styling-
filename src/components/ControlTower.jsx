@@ -27,6 +27,7 @@ import PartsAtRiskCard from "./ControlTowerEhancements/PartsAtRiskCard";
 import AskNetworkCard from "./ControlTowerEhancements/AskNetworkCard";
 import BriefButton from "./ControlTowerEhancements/briefs/BriefButton";
 import BriefView from "./ControlTowerEhancements/briefs/BriefView";
+import WatchLogCard from "./ControlTowerEhancements/watch/WatchLogCard";
 import BriefsCard from "./ControlTowerEhancements/briefs/BriefsCard";
 import { EarlyWarningView, EarlyWarningStrip } from "./ControlTowerEhancements/RiskIntelligence/EarlyWarning";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
@@ -1841,10 +1842,13 @@ export default function ControlTower({
               )}
 
               {snapshot && (
+                <>
                 <BriefsCard onOpenRun={(runId) => {
                   const e = (simulationHistory || []).find((x) => (x.run_id || x.id) === runId);
                   if (e && onReloadRun) onReloadRun(e); else if (onRefreshHistory) onRefreshHistory();
                 }} />
+                <WatchLogCard />
+                </>
               )}
 
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
