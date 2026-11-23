@@ -83,6 +83,8 @@ export async function decideBrief(id, decision, option, reason) {
 export function briefParams(p = {}) {
   const out = {};
   ["supply_reduction_pct", "duration_weeks", "lead_time_multiplier"].forEach((k) => { if (p[k] != null && p[k] !== "") out[k] = p[k]; });
+  // A site outage (from the incident watcher) also names the site and the event behind it.
+  ["facility", "source_event"].forEach((k) => { if (p[k]) out[k] = p[k]; });
   return out;
 }
 
