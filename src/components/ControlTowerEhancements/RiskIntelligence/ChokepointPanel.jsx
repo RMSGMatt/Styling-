@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getApiBase } from "../../../config/apiBase";
 import { renderReportHtml } from "./chokepointReport";
 import SignalsView from "./SignalsView";
+import ScoutPanel from "../briefs/ScoutPanel";
 
 const LIME = "#9FD63A", MINT = "#2EC4A6", MUTED = "#94A3B8", DIM = "#64748B", LINE = "rgba(148,163,184,0.18)";
 const PANEL = { background: "rgba(2,6,23,0.45)", border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 };
@@ -89,7 +90,7 @@ const LABELS = {
 };
 
 // ── Detail card shared by map, heat map and risk scores ─────────────────────
-function CpDetail({ c, exp, onCut, L = LABELS.parts }) {
+function CpDetail({ c, exp, onCut, L = LABELS.parts, edition }) {
   if (!c) return null;
   const row = (k, v, note) => v ? (
     <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 8, padding: "6px 0", borderTop: `1px solid ${LINE}` }}>
@@ -112,6 +113,12 @@ function CpDetail({ c, exp, onCut, L = LABELS.parts }) {
       {row(L.na, c.northAmerica, c.northAmericaNote)}
       {exp && row("Your parts", `${exp.parts.join(", ")} at ${exp.sites.length} site${exp.sites.length === 1 ? "" : "s"}`, exp.min_days_cover != null ? `Thinnest cover ${exp.min_days_cover} days` : null)}
       {onCut && <div style={{ marginTop: 10 }}><button type="button" style={actBtn} onClick={onCut}>Cut {c.name} and date the impact</button></div>}
+      {L === LABELS.parts && (
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${LINE}` }}>
+          <div style={{ color: DIM, fontSize: 12, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Alternate suppliers</div>
+          <ScoutPanel key={`${edition}:${c.id}`} source={`chokepoint:${edition || "parts"}:${c.id}`} prefill={{ category: c.name }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -607,14 +614,14 @@ export default function ChokepointPanel({ switchView, onLaunchScenario, initialV
         <>
           <div style={PANEL}><HeatMap list={ds.chokepoints || []} selected={sel} onSelect={setSel} exposedIds={ok ? new Set(ex.chokepoints.map((r) => r.id)) : null} /></div>
           {ok && <div style={{ fontSize: 12, color: DIM, marginTop: 6 }}>White outline: your parts route through it.</div>}
-          {cps[sel] ? <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} L={L} /> : <div style={{ ...PANEL, marginTop: 10, fontSize: 14, color: MUTED }}>Tap a chokepoint for its suppliers, supply state and switch time.</div>}
+          {cps[sel] ? <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} L={L} edition={edition} /> : <div style={{ ...PANEL, marginTop: 10, fontSize: 14, color: MUTED }}>Tap a chokepoint for its suppliers, supply state and switch time.</div>}
         </>
       )}
 
       {view === "scores" && (
         <>
           <div style={PANEL}><RiskScores list={ds.chokepoints || []} selected={sel} onSelect={setSel} expById={ok ? Object.fromEntries(ex.chokepoints.map((r) => [r.id, r])) : null} L={L} /></div>
-          {cps[sel] && <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} L={L} />}
+          {cps[sel] && <CpDetail c={cps[sel]} exp={selExp} onCut={() => cutNow([sel])} L={L} edition={edition} />}
           <div style={{ fontSize: 12, color: DIM, marginTop: 8 }}>Score = likelihood × impact, each 1 to 5. 15 and above is critical.</div>
         </>
       )}

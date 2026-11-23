@@ -52,6 +52,7 @@ function Candidate({ c, onQualify, busy }) {
           <Chip key={a.country_code} tone={a.level >= 4 ? "bad" : a.level >= 3 ? "warn" : undefined}>{a.country_code} travel advisory level {a.level}</Chip>
         ))}
         {risk && risk.score != null && <Chip tone={risk.score >= 60 ? "bad" : risk.score >= 45 ? "warn" : undefined}>{c.hq_country_code} country risk {risk.score} ({risk.label})</Chip>}
+        {c.tier && <Chip>{c.tier}</Chip>}
         {!c.website_ok && <Chip tone="warn">Website did not answer</Chip>}
       </div>
       {(c.evidence || []).length > 0 && (
@@ -66,7 +67,10 @@ function Candidate({ c, onQualify, busy }) {
   );
 }
 
-export default function ScoutPanel({ briefId }) {
+// briefId: a brief's shortlist (prefilled from its parts). source + prefill: any other starting point, e.g. a chokepoint
+// ({ source: "chokepoint:industrial:abf", prefill: { category, region } }).
+export default function ScoutPanel({ briefId, source, prefill }) {
+  const listQuery = briefId ? `brief=${briefId}` : `source=${encodeURIComponent(source || "")}`;
   const [scout, setScout] = useState(null);
   const [usage, setUsage] = useState(null);
   const [form, setForm] = useState(null); // {category, region, note}
@@ -87,7 +91,7 @@ export default function ScoutPanel({ briefId }) {
   };
 
   useEffect(() => {
-    api(`/api/agent/scouts?brief=${briefId}`, { headers: headers() }).then((r) => {
+    api(`/api/agent/scouts?${listQuery}`, { headers: headers() }).then((r) => {
       if (!r.ok) return;
       setUsage(r.body.usage);
       const last = (r.body.scouts || [])[0];
@@ -97,18 +101,23 @@ export default function ScoutPanel({ briefId }) {
       }
     });
     return () => clearTimeout(timer.current);
-  }, [briefId]);
+  }, [listQuery]);
 
   async function openForm() {
     setErr("");
+    const note = "Edit these before searching: only the category and region below are sent to the web search. Site and supplier names never are.";
+    if (!briefId) {
+      setForm({ category: prefill?.category || "", region: prefill?.region || "North America, Europe, Japan, Korea or Southeast Asia", note });
+      return;
+    }
     const r = await api(`/api/agent/scout/prefill?brief=${briefId}`, { headers: headers() });
-    setForm(r.ok ? { category: r.body.category, region: r.body.region, note: r.body.note } : { category: "", region: "", note: "" });
+    setForm(r.ok ? { category: r.body.category, region: r.body.region, note: r.body.note } : { category: "", region: "", note });
   }
 
   async function run() {
     setBusy(true);
     setErr("");
-    const r = await api("/api/agent/scout", { method: "POST", headers: headers(true), body: JSON.stringify({ category: form.category, region: form.region, brief_id: briefId, option: "alternate_source" }) });
+    const r = await api("/api/agent/scout", { method: "POST", headers: headers(true), body: JSON.stringify({ category: form.category, region: form.region, brief_id: briefId || null, option: briefId ? "alternate_source" : source }) });
     setBusy(false);
     if (r.status === 202) {
       setForm(null);
