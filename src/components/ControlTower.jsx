@@ -480,7 +480,7 @@ function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, 
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-base">{topCfg.icon}</span>
               <span className="text-sm font-semibold truncate" style={{ color: topCfg.color }}>
-                {summaryParts.join(" · ")} — {items.length} item{items.length > 1 ? "s" : ""} need review
+                {summaryParts.join(" · ")} · {items.length} signal{items.length > 1 ? "s" : ""} to review
               </span>
               {anyMock && (
                 <span
@@ -1930,7 +1930,7 @@ export default function ControlTower({
                     <section className="mb-5">
                       <div className="flex items-end justify-between mb-3 gap-3">
                         <div>
-                          <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Network KPIs<SourceChip snapshot={snapshot} /></h2>
+                          <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Network health<SourceChip snapshot={snapshot} /></h2>
                           <div className="text-sm" style={{ color: "#64748B" }}>Last {snapshot.window_days} days to {snapshot.as_of}, compared with the {snapshot.window_days} days before.</div>
                         </div>
                         <div className="flex gap-3 text-sm items-center">
@@ -1947,6 +1947,32 @@ export default function ControlTower({
                         </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{head.map(card)}</div>
+                    {rest.length > 0 && (
+                      <div className="mt-2 text-right">
+                        <button type="button" onClick={() => setMoreMetrics(!moreMetrics)} className="text-sm underline" style={{ color: "#94A3B8" }}>
+                          {moreMetrics ? "Hide more metrics" : `Show more metrics (${rest.length})`}
+                        </button>
+                        {moreMetrics && <div className="mt-3 text-left grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{rest.map(card)}</div>}
+                      </div>
+                    )}
+                      <div className="mt-4">
+                        <UnifiedAttentionPanel
+                          kpis={null}
+                          alertsOverride={snapAlerts}
+                          hasKpiData={Boolean(snapshot)}
+                          ctNarrative={ctNarrative}
+                          narrativeLoading={narrativeLoading}
+                          onOpenRiskIntelligence={({ commodity } = {}) => {
+                            setRiskIntelFocus({ commodity });
+                            setActiveView("risk");
+                          }}
+                          onOpenSafetyStock={() => setActiveView("safetystock")}
+                          commodityKeys={snapshot ? netCommodities.map((c) => c.key) : null}
+                          simulationHistory={simulationHistory}
+                          onReloadRun={onReloadRun}
+                          onRefreshHistory={onRefreshHistory}
+                        />
+                      </div>
                       {snapshot.worst && (snapshot.worst.facilities?.length > 0 || snapshot.worst.customers?.length > 0 || snapshot.worst.suppliers?.length > 0) && (
                         <div className="mt-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(148,163,184,0.15)", background: "rgba(9,25,19,0.5)", color: "#94A3B8" }}>
                           <span className="text-[11px] uppercase tracking-widest" style={{ color: "#64748B" }}>Where it hurts</span>
@@ -1983,6 +2009,10 @@ export default function ControlTower({
               })()}
 
               {/* 3. Where */}
+              <div className="mb-3 mt-2">
+                <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Where the risk is</h2>
+                <div className="text-sm" style={{ color: "#64748B" }}>Your sites, live hazards near them, and the parts with the least cover.</div>
+              </div>
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 items-start">
                 <div id="tour-map" ref={mapCardRef} className="lg:col-span-2 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
                   <MapView
@@ -2024,37 +2054,19 @@ export default function ControlTower({
                 return (
                   <>
                     <PartsAtRiskCard onSiteParts={setSiteParts} onCommodities={setNetCommodities} apiBase={API_BASE_CT} refreshKey={`${snapshot?.uploaded_at}|${snapshot?.source}`} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
-                    {rest.length > 0 && (
-                      <section className="mb-6">
-                        <button type="button" onClick={() => setMoreMetrics(!moreMetrics)} className="text-sm underline" style={{ color: "#94A3B8" }}>
-                          {moreMetrics ? "Hide more metrics" : `Show more metrics (${rest.length})`}
-                        </button>
-                        {moreMetrics && <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{rest.map(card)}</div>}
-                      </section>
-                    )}
                   </>
                 );
               })()}
 
-              <UnifiedAttentionPanel
-                kpis={null}
-                alertsOverride={snapAlerts}
-                hasKpiData={Boolean(snapshot)}
-                ctNarrative={ctNarrative}
-                narrativeLoading={narrativeLoading}
-                onOpenRiskIntelligence={({ commodity } = {}) => {
-                  setRiskIntelFocus({ commodity });
-                  setActiveView("risk");
-                }}
-                onOpenSafetyStock={() => setActiveView("safetystock")}
-                commodityKeys={snapshot ? netCommodities.map((c) => c.key) : null}
-                simulationHistory={simulationHistory}
-                onReloadRun={onReloadRun}
-                onRefreshHistory={onRefreshHistory}
-              />
 
 
-              {/* 4. Detail */}
+              {/* 4. Activity */}
+              {snapshot && (
+                <div className="mb-3 mt-2">
+                  <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Activity</h2>
+                  <div className="text-sm" style={{ color: "#64748B" }}>Every decision brief and your latest simulation run.</div>
+                </div>
+              )}
               {snapshot && (
                 <div id="all-briefs">
                   <BriefsCard onOpenRun={(runId) => {
