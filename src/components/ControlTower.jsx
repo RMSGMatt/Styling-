@@ -1869,7 +1869,7 @@ export default function ControlTower({
               {snapshot && showSnapshotCard && <IngestKeysCard apiBase={API_BASE_CT} />}
 
               {newsHeadlines.length > 0 && (
-                <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e", position: "sticky", top: 0, zIndex: 30, boxShadow: "0 10px 24px rgba(2,6,23,0.85)" }}>
+                <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
                   <div className="flex items-center">
                     <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
                       LIVE INTEL
