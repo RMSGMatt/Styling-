@@ -423,6 +423,7 @@ export default function BillingView() {
               "War Room scenario builder",
               "Corridor Risk single-country lookup",
               "Up to 3 executive PDF reports/month",
+              "Agents add-on available: +$500/month",
             ]}
             foot="Perfect for teams that need more volume and flexibility."
           />
@@ -447,10 +448,11 @@ export default function BillingView() {
             disabled={currentPlan === "enterprise" ? busyPortal : busyEnt}
             highlight={currentPlan === "enterprise"}
             features={[
-              "Everything in Pro — unlimited",
+              "Everything in Pro, unlimited",
               "Full Risk Intelligence Suite (Country Watch List, Supplier Screening, Best Place to Buy)",
               "Dedicated success manager",
               "Priority SLA support",
+              "Agents add-on available: +$1,500/month",
             ]}
             foot="For organizations with controls, scale, and support needs."
           />
@@ -462,19 +464,12 @@ export default function BillingView() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm text-slate-300">
           <div className="bg-slate-900/50 border border-slate-800 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all">
             <div className="font-semibold text-slate-100 mb-2 flex items-center gap-2">
-              <Dot /> Stripe test cards
+              <Dot /> Payments and invoices
             </div>
             <ul className="space-y-1">
-              <li>
-                <strong>Visa:</strong> 4242 4242 4242 4242 — any future date,
-                any CVC, any ZIP
-              </li>
-              <li>
-                <strong>3D Secure:</strong> 4000 0027 6000 3184 (will prompt for auth)
-              </li>
-              <li>
-                <strong>Decline:</strong> 4000 0000 0000 9995
-              </li>
+              <li>Card payments are processed by Stripe. FOR-C never sees or stores your card number.</li>
+              <li>Plans and the agents add-on bill monthly. Changes mid-period are prorated.</li>
+              <li>Invoices and receipts are in the billing portal.</li>
             </ul>
           </div>
 
