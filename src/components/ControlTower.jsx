@@ -28,7 +28,6 @@ import AskNetworkCard from "./ControlTowerEhancements/AskNetworkCard";
 import BriefButton from "./ControlTowerEhancements/briefs/BriefButton";
 import BriefView from "./ControlTowerEhancements/briefs/BriefView";
 import BriefsCard from "./ControlTowerEhancements/briefs/BriefsCard";
-import useAutoBriefs from "./ControlTowerEhancements/briefs/useAutoBriefs";
 import { EarlyWarningView, EarlyWarningStrip } from "./ControlTowerEhancements/RiskIntelligence/EarlyWarning";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
 import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
@@ -349,7 +348,7 @@ function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, 
   const [openBrief, setOpenBrief] = useState(null);
   const { triggers } = useRiskTriggers(commodityKeys);
   // One automatic decision brief per fired trigger per week, only once a network is loaded.
-  useAutoBriefs(triggers, hasKpiData);
+  // Automatic briefs start on the server (scheduler tick), only for triggers backed by live data.
   const openRun = (runId) => {
     const e = (simulationHistory || []).find((x) => (x.run_id || x.id) === runId);
     if (e && onReloadRun) { setOpenBrief(null); onReloadRun(e); return; }
