@@ -84,6 +84,14 @@ export default function MapView({
 
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
+  // Keep the map canvas matched to its container when the height prop changes (the dashboard sizes it to its neighbour).
+  useEffect(() => {
+    const el = mapContainerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => { try { mapRef.current?.resize(); } catch {} });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // Diagnostic only — a random id assigned once per component mount. If
   // this value changes between console log lines that should logically be
   // from "the same" MapView instance, that proves the whole component

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import MapView from "./MapView";
 import Select from "react-select";
 import { Line, Bar } from "react-chartjs-2";
@@ -1490,6 +1490,28 @@ export default function ControlTower({
     }));
   }, [exposure]);
   const snapAlerts = [...snapshotAlerts(snapshot), ...exposureAlerts(exposure)];
+  // The map grows to the height of the site-risk column beside it, so neither leaves a gap.
+  const mapCardRef = useRef(null);
+  const riskColRef = useRef(null);
+  const [mapH, setMapH] = useState(460);
+  useEffect(() => {
+    const card = mapCardRef.current, col = riskColRef.current;
+    if (!card || !col || typeof ResizeObserver === "undefined") return undefined;
+    const fit = () => {
+      if (window.innerWidth < 1024) { setMapH(460); return; }
+      setMapH((cur) => {
+        const chrome = card.offsetHeight - cur;
+        const want = Math.max(460, Math.round(col.offsetHeight - chrome));
+        return Math.abs(want - cur) > 4 ? want : cur;
+      });
+    };
+    const ro = new ResizeObserver(fit);
+    ro.observe(col);
+    window.addEventListener("resize", fit);
+    fit();
+    return () => { ro.disconnect(); window.removeEventListener("resize", fit); };
+  }, [activeView, Boolean(snapshot)]);
+
   // What needs the user: shared by the alert band at the top and the decision list.
   const worst = !snapshot ? null : snapshot.kpis.find((k) => k.status === "bad") || snapshot.kpis.find((k) => k.status === "watch");
   const recommended = worst ? {
@@ -1961,8 +1983,8 @@ export default function ControlTower({
               })()}
 
               {/* 3. Where */}
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div id="tour-map" className="lg:col-span-2 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 items-start">
+                <div id="tour-map" ref={mapCardRef} className="lg:col-span-2 rounded overflow-hidden border" style={{ borderColor: "#123528" }}>
                   <MapView
                     locationsUrl={snapshotLocationsUrl || locationsUrl || simulationHistory?.[0]?.locations_url || GLOBAL_LOCATIONS_URL}
                     onFacilitySelect={handleFacilitySelect}
@@ -1972,10 +1994,10 @@ export default function ControlTower({
                     hazardLinks={hazardLinks}
                     autoFit
                     fitLeft={120}
-                    height="460px"
+                    height={`${mapH}px`}
                   />
                 </div>
-                <div className="flex flex-col gap-4 min-w-0">
+                <div ref={riskColRef} className="flex flex-col gap-4 min-w-0">
                   {snapshot ? (
                     <>
                       <NetworkRiskCard risk={netRisk} state={netRiskState} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
