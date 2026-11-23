@@ -30,7 +30,7 @@ import BriefButton from "./ControlTowerEhancements/briefs/BriefButton";
 import BriefView from "./ControlTowerEhancements/briefs/BriefView";
 import WatchLogCard from "./ControlTowerEhancements/watch/WatchLogCard";
 import BriefsCard from "./ControlTowerEhancements/briefs/BriefsCard";
-import DecisionInbox from "./ControlTowerEhancements/DecisionInbox";
+import DecisionInbox, { AlertBand, useDecisionItems } from "./ControlTowerEhancements/DecisionInbox";
 import { EarlyWarningView } from "./ControlTowerEhancements/RiskIntelligence/EarlyWarning";
 import SafetyStockView from "./ControlTowerEhancements/SafetyStock/SafetyStockView";
 import { useSafetyStockAlerts } from "./ControlTowerEhancements/SafetyStock/useSafetyStockAlerts";
@@ -1490,6 +1490,29 @@ export default function ControlTower({
     }));
   }, [exposure]);
   const snapAlerts = [...snapshotAlerts(snapshot), ...exposureAlerts(exposure)];
+  // What needs the user: shared by the alert band at the top and the decision list.
+  const worst = !snapshot ? null : snapshot.kpis.find((k) => k.status === "bad") || snapshot.kpis.find((k) => k.status === "watch");
+  const recommended = worst ? {
+    short: `${worst.label} ${snapFmt(worst.value, worst.unit)}`,
+    status: worst.status,
+    title: `${worst.label} is ${snapFmt(worst.value, worst.unit)}${worst.delta ? ` (${snapDelta(worst, snapshot.window_days).split(" · ")[0].toLowerCase()})` : ""}`,
+    sub: SNAP_ACTIONS[worst.key] || worst.hint,
+    onSimulate: () => {
+          try {
+            const baselineScenario = {
+              name: "Control Tower Baseline", disruptionScenarios: [], demandAdjustments: [], laneAdjustments: [], inventoryPolicies: [],
+              meta: { source: "control_tower", serviceLevel: snapFmt(snapByKey.service_level?.value, "%"), backorders: snapFmt(snapByKey.backorder_units?.value, "units"), notes: `Launched from Control Tower. Network snapshot as of ${snapshot.as_of}.` },
+            };
+            localStorage.setItem("forc_active_scenario", JSON.stringify(baselineScenario));
+            localStorage.setItem("currentScenarioJSON", JSON.stringify(baselineScenario));
+            localStorage.setItem("currentScenarioName", "Control Tower Baseline");
+            localStorage.setItem("forc_exposure_sim", "1");
+            try { window.dispatchEvent(new Event("forc-exposure-sim")); } catch (e2) { }
+          } catch (e) { console.warn("Could not pre-populate scenario:", e); }
+          switchView("simulation");
+        },
+  } : null;
+  const decisionItems = useDecisionItems(API_BASE_CT, snapshot ? netCommodities : [], recommended);
   const snapByKey = Object.fromEntries((snapshot?.kpis || []).map((k) => [k.key, k]));
 
   const chartOptions = [
@@ -1845,6 +1868,11 @@ export default function ControlTower({
               )}
               {snapshot && showSnapshotCard && <IngestKeysCard apiBase={API_BASE_CT} />}
 
+              {/* 0. How urgent */}
+              <AlertBand items={decisionItems} recommended={recommended} onOpenChain={openEarlyWarning}
+                         onOpenCommodity={(commodity) => { setRiskIntelFocus({ commodity }); setActiveView("risk"); }}
+                         onReview={() => document.getElementById("decision-inbox")?.scrollIntoView({ behavior: "smooth", block: "center" })} />
+
               {/* 1. How are we doing */}
               {snapshot && (() => {
                 const head = snapshot.kpis.filter((k) => k.headline).slice(0, 6);
@@ -1890,29 +1918,10 @@ export default function ControlTower({
 
               {/* 2. What needs me */}
               {snapshot && (() => {
-                const worst = snapshot.kpis.find((k) => k.status === "bad") || snapshot.kpis.find((k) => k.status === "watch");
-                const recommended = worst ? {
-                  title: `${worst.label} is ${snapFmt(worst.value, worst.unit)}${worst.delta ? ` (${snapDelta(worst, snapshot.window_days).split(" · ")[0].toLowerCase()})` : ""}`,
-                  sub: SNAP_ACTIONS[worst.key] || worst.hint,
-                  onSimulate: () => {
-                        try {
-                          const baselineScenario = {
-                            name: "Control Tower Baseline", disruptionScenarios: [], demandAdjustments: [], laneAdjustments: [], inventoryPolicies: [],
-                            meta: { source: "control_tower", serviceLevel: snapFmt(snapByKey.service_level?.value, "%"), backorders: snapFmt(snapByKey.backorder_units?.value, "units"), notes: `Launched from Control Tower. Network snapshot as of ${snapshot.as_of}.` },
-                          };
-                          localStorage.setItem("forc_active_scenario", JSON.stringify(baselineScenario));
-                          localStorage.setItem("currentScenarioJSON", JSON.stringify(baselineScenario));
-                          localStorage.setItem("currentScenarioName", "Control Tower Baseline");
-                          localStorage.setItem("forc_exposure_sim", "1");
-                          try { window.dispatchEvent(new Event("forc-exposure-sim")); } catch (e2) { }
-                        } catch (e) { console.warn("Could not pre-populate scenario:", e); }
-                        switchView("simulation");
-                      },
-                } : null;
                 return (
                   <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                     <div className="lg:col-span-2">
-                      <DecisionInbox apiBase={API_BASE_CT} commodities={netCommodities} recommended={recommended}
+                      <DecisionInbox items={decisionItems} recommended={recommended}
                                      onOpenChain={openEarlyWarning}
                                      onOpenCommodity={(commodity) => { setRiskIntelFocus({ commodity }); setActiveView("risk"); }}
                                      onShowAllBriefs={() => document.getElementById("all-briefs")?.scrollIntoView({ behavior: "smooth" })}
