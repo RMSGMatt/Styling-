@@ -545,21 +545,7 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
         const profile = sp.profile;
         setScoreResult(profile);
 
-        // Fire-and-forget: save today's snapshot for the risk-over-time
-        // chart. Doesn't block the UI and doesn't surface errors to the
-        // user — this is background data collection, not critical to
-        // the page working.
-        fetch(`${API_BASE}/api/risk/snapshot`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            commodity_key: selectedCommodity,
-            risk_score: profile.riskScore.score,
-            raw_signals: buildSnapshotRawSignals(selectedCommodity, fwd, reg, profile),
-          }),
-        }).catch((err) => {
-          console.warn("⚠️ Risk score snapshot save failed (non-critical):", err);
-        });
+        // Daily snapshots are saved by the server's scheduler tick, not by page loads.
         setLastUpdated(new Date());
         setError(null);
       } catch (e) {
@@ -573,67 +559,6 @@ export default function RiskIntelligenceView({ switchView, initialTab, initialCo
     const interval = setInterval(load, 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, [selectedCommodity]);
-
-  // Background snapshot for every commodity, not just the one currently
-  // selected. Without this, the Risk Score Over Time chart only ever
-  // gets a new data point for whichever single tab happened to be open
-  // that day — the other five commodities' lines go flat for days at a
-  // time not because their risk is stable, but because nobody looked.
-  // RiskScoreHistoryChart's own spanGaps:true draws a straight line
-  // across those missing days, which reads as "static" when it's
-  // actually just unmeasured.
-  //
-  // This runs once per mount (not per commodity switch — selectedCommodity
-  // is deliberately not a dependency here), loops every commodity in the
-  // registry, and fires the same fetch-signals → compute-score → POST
-  // snapshot sequence the main effect above uses for the selected one.
-  // /api/risk/snapshot is idempotent per commodity per calendar day, so
-  // re-running this on every mount (or alongside the main effect's own
-  // 15-minute interval) never creates duplicate rows — it just means
-  // today's row exists for all six instead of only whichever tab was
-  // open. Requests are staggered (one commodity every 600ms) rather than
-  // firing all twelve forward+regime calls at once, to avoid hammering
-  // the backend's signal-proxy endpoints simultaneously. Entirely
-  // fire-and-forget: no loading state, no error surfaced to the user —
-  // background data collection only, same as the per-tab snapshot call.
-  useEffect(() => {
-    let cancelled = false;
-
-    async function snapshotAllCommodities() {
-      let all = {};
-      try { all = await fetchServerProfiles(COMMODITY_REGISTRY.map((c) => c.key), { detail: true }); } catch { return; }
-      for (const commodity of COMMODITY_REGISTRY) {
-        if (cancelled) return;
-        const commodityKey = commodity.key;
-        try {
-          const sp = all[commodityKey];
-          if (!sp) continue;
-          const { fwd, reg } = signalSetsFromProfile(sp);
-          const profile = sp.profile;
-
-          await fetch(`${API_BASE}/api/risk/snapshot`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              commodity_key: commodityKey,
-              risk_score: profile.riskScore.score,
-              raw_signals: buildSnapshotRawSignals(commodityKey, fwd, reg, profile),
-            }),
-          });
-        } catch (e) {
-          // One commodity's signals being down (rate limit, backend
-          // hiccup) shouldn't stop the rest from getting snapshotted.
-          console.warn(`⚠️ Background snapshot failed for ${commodityKey} (non-critical):`, e);
-        }
-        if (!cancelled) {
-          await new Promise((resolve) => setTimeout(resolve, 600));
-        }
-      }
-    }
-
-    snapshotAllCommodities();
-    return () => { cancelled = true; };
-  }, []);
 
   // Route triggered scenario to simulation engine
   function handleLaunchScenario({ scenario, params }) {
