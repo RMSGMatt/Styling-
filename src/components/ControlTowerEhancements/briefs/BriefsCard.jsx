@@ -37,7 +37,9 @@ export default function BriefsCard({ onOpenRun }) {
   const list = briefs.filter((b, i) => b.status !== "error" ||
     !briefs.slice(0, i).some((x) => x.status !== "error" && (x.trigger || {}).scenario === (b.trigger || {}).scenario));
   if (!loaded || !usage || !(usage.limit > 0)) return null;
-  const shown = all ? list : list.slice(0, 5);
+  // "Not exposed" and failed briefs stay in the full list but out of the first view.
+  const primary = list.filter((b) => b.outcome !== "no_exposure" && b.status !== "error");
+  const shown = all ? list : primary.slice(0, 5);
   const pending = list.filter(needsDecision).length;
 
   return (
@@ -72,11 +74,14 @@ export default function BriefsCard({ onOpenRun }) {
           );
         })}
       </div>
-      {list.length > 5 && (
+      {!all && !primary.length && list.length > 0 && (
+        <div style={{ fontSize: 12.5, color: MUTED }}>No brief needs attention. {list.length} found no exposure or did not finish.</div>
+      )}
+      {list.length > shown.length || all ? (
         <button type="button" onClick={() => setAll((x) => !x)} style={{ marginTop: 8, fontSize: 12, color: MUTED, background: "transparent", border: 0, cursor: "pointer" }}>
           {all ? "Show fewer" : `Show all ${list.length}`}
         </button>
-      )}
+      ) : null}
       {costs && <BriefCostSettings onClose={() => setCosts(false)} />}
       {open && <BriefView briefId={open} onClose={() => setOpen(null)} onOpenRun={onOpenRun ? (id) => { setOpen(null); onOpenRun(id); } : null} />}
     </section>

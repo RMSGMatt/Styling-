@@ -1973,14 +1973,6 @@ export default function ControlTower({
                           onRefreshHistory={onRefreshHistory}
                         />
                       </div>
-                      {snapshot.worst && (snapshot.worst.facilities?.length > 0 || snapshot.worst.customers?.length > 0 || snapshot.worst.suppliers?.length > 0) && (
-                        <div className="mt-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(148,163,184,0.15)", background: "rgba(9,25,19,0.5)", color: "#94A3B8" }}>
-                          <span className="text-[11px] uppercase tracking-widest" style={{ color: "#64748B" }}>Where it hurts</span>
-                          {snapshot.worst.facilities?.length > 0 && <div className="mt-1">Facilities with the most past-due units: {snapshot.worst.facilities.map((f) => `${f.name} (${Math.round(f.units).toLocaleString("en-US")})`).join(", ")}</div>}
-                          {snapshot.worst.customers?.length > 0 && <div className="mt-1">Customers with the most late lines: {snapshot.worst.customers.map((c) => `${c.name} (${c.lines})`).join(", ")}</div>}
-                          {snapshot.worst.suppliers?.length > 0 && <div className="mt-1">Suppliers with overdue orders: {snapshot.worst.suppliers.map((c) => `${c.name} (${c.orders})`).join(", ")}</div>}
-                        </div>
-                      )}
                     </section>
                 );
               })()}
@@ -2053,6 +2045,14 @@ export default function ControlTower({
                 );
                 return (
                   <>
+                    {snapshot.worst && (snapshot.worst.facilities?.length > 0 || snapshot.worst.customers?.length > 0 || snapshot.worst.suppliers?.length > 0) && (
+                      <div className="mb-6 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(148,163,184,0.15)", background: "rgba(9,25,19,0.5)", color: "#94A3B8" }}>
+                        <span className="text-[11px] uppercase tracking-widest" style={{ color: "#64748B" }}>Where it hurts</span>
+                        {snapshot.worst.facilities?.length > 0 && <div className="mt-1">Facilities with the most past-due units: {snapshot.worst.facilities.map((f) => `${f.name} (${Math.round(f.units).toLocaleString("en-US")})`).join(", ")}</div>}
+                        {snapshot.worst.customers?.length > 0 && <div className="mt-1">Customers with the most late lines: {snapshot.worst.customers.map((c) => `${c.name} (${c.lines})`).join(", ")}</div>}
+                        {snapshot.worst.suppliers?.length > 0 && <div className="mt-1">Suppliers with overdue orders: {snapshot.worst.suppliers.map((c) => `${c.name} (${c.orders})`).join(", ")}</div>}
+                      </div>
+                    )}
                     <PartsAtRiskCard onSiteParts={setSiteParts} onCommodities={setNetCommodities} apiBase={API_BASE_CT} refreshKey={`${snapshot?.uploaded_at}|${snapshot?.source}`} onSelectSite={handleFacilitySelect} onOpenRisk={() => switchView("risk")} />
                   </>
                 );
