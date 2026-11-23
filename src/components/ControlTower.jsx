@@ -1868,6 +1868,27 @@ export default function ControlTower({
               )}
               {snapshot && showSnapshotCard && <IngestKeysCard apiBase={API_BASE_CT} />}
 
+              {newsHeadlines.length > 0 && (
+                <div id="tour-ticker" className="rounded-xl overflow-hidden mb-4" style={{ background: "#111B21", border: "1px solid #1f3a2e", position: "sticky", top: 0, zIndex: 30, boxShadow: "0 10px 24px rgba(2,6,23,0.85)" }}>
+                  <div className="flex items-center">
+                    <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
+                      LIVE INTEL
+                    </div>
+                    <div className="overflow-hidden flex-1 relative">
+                      <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 90s linear infinite", display: "inline-flex" }}>
+                        {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
+                          <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
+                            <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
+                            {h.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+                </div>
+              )}
+
               {/* 0. How urgent */}
               <AlertBand items={decisionItems} recommended={recommended} onOpenChain={openEarlyWarning}
                          onOpenCommodity={(commodity) => { setRiskIntelFocus({ commodity }); setActiveView("risk"); }}
@@ -2025,26 +2046,6 @@ export default function ControlTower({
               <div className="mb-4 text-xs" style={{ color: "#64748B" }}>
                 Live feeds: <span style={{ color: "#94A3B8" }}>{networkContext.activeFeeds.join(" • ")}</span>
               </div>
-                  {newsHeadlines.length > 0 && (
-                    <div id="tour-ticker" className="rounded-xl overflow-hidden mt-2" style={{ background: "#111B21", border: "1px solid #1f3a2e", position: "sticky", bottom: 0, zIndex: 30, boxShadow: "0 -10px 24px rgba(2,6,23,0.85)" }}>
-                      <div className="flex items-center">
-                        <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
-                          LIVE INTEL
-                        </div>
-                        <div className="overflow-hidden flex-1 relative">
-                          <div className="flex gap-12 py-2 px-4 whitespace-nowrap" style={{ animation: "ticker-scroll 90s linear infinite", display: "inline-flex" }}>
-                            {[...newsHeadlines, ...newsHeadlines].map((h, idx) => (
-                              <a key={idx} href={h.link} target="_blank" rel="noreferrer" className="text-[11px] hover:underline flex-shrink-0" style={{ color: "#e2e8e0" }}>
-                                <span style={{ color: "#2EC4A6", marginRight: 6 }}>{h.source}</span>
-                                {h.title}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <style>{`@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
-                    </div>
-                  )}
 
 
             </>
