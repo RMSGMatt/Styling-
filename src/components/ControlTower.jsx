@@ -2022,8 +2022,11 @@ export default function ControlTower({
               )}
               <LatestRunVerdict simulationHistory={simulationHistory} switchView={switchView} />
 
+              <div className="mb-4 text-xs" style={{ color: "#64748B" }}>
+                Live feeds: <span style={{ color: "#94A3B8" }}>{networkContext.activeFeeds.join(" • ")}</span>
+              </div>
                   {newsHeadlines.length > 0 && (
-                    <div id="tour-ticker" className="rounded-xl overflow-hidden mt-2 mb-2" style={{ background: "#111B21", border: "1px solid #1f3a2e" }}>
+                    <div id="tour-ticker" className="rounded-xl overflow-hidden mt-2" style={{ background: "#111B21", border: "1px solid #1f3a2e", position: "sticky", bottom: 0, zIndex: 30, boxShadow: "0 -10px 24px rgba(2,6,23,0.85)" }}>
                       <div className="flex items-center">
                         <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap flex-shrink-0" style={{ background: "#9FD63A", color: "#111B21" }}>
                           LIVE INTEL
@@ -2043,9 +2046,6 @@ export default function ControlTower({
                     </div>
                   )}
 
-              <div className="mb-4 text-xs" style={{ color: "#64748B" }}>
-                Live feeds: <span style={{ color: "#94A3B8" }}>{networkContext.activeFeeds.join(" • ")}</span>
-              </div>
 
             </>
           )}
