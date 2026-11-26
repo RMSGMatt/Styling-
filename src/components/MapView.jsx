@@ -595,18 +595,22 @@ export default function MapView({
           const el = document.createElement("div");
           el.style.fontSize = "20px";
           el.style.cursor = "pointer";
-          el.textContent = emojiFn(props);
-          // Chokepoint escalated by a recent headline: orange ring. Incident past 14 days: faded.
+          // The emoji sits in an inner span: on the globe Mapbox rewrites the marker element's own opacity every frame
+          // (to hide markers on the far side), so any fade has to live one level down.
+          const glyph = document.createElement("span");
+          glyph.textContent = emojiFn(props);
+          el.appendChild(glyph);
+          // Chokepoint escalated by a recent headline: orange ring. Incident past 14 days: faded and greyed.
           if (props.escalated) {
-            el.style.lineHeight = "1";
-            el.style.padding = "3px";
-            el.style.borderRadius = "999px";
-            el.style.border = "2px solid #F59E0B";
-            el.style.background = "rgba(245,158,11,0.22)";
-            el.style.boxShadow = "0 0 14px 3px rgba(245,158,11,0.75)";
+            Object.assign(el.style, {
+              width: "34px", height: "34px", display: "flex", alignItems: "center", justifyContent: "center",
+              borderRadius: "50%", border: "2px solid #F59E0B", background: "rgba(245,158,11,0.22)",
+              boxShadow: "0 0 14px 3px rgba(245,158,11,0.75)", lineHeight: "1",
+            });
           } else if (props.stale) {
-            el.style.opacity = "0.4";
             el.style.fontSize = "15px";
+            glyph.style.opacity = "0.4";
+            glyph.style.filter = "grayscale(1)";
           }
 
           const title = titleFn(props);
