@@ -596,13 +596,26 @@ export default function MapView({
           el.style.fontSize = "20px";
           el.style.cursor = "pointer";
           el.textContent = emojiFn(props);
+          // Chokepoint escalated by a recent headline: orange ring. Incident past 14 days: faded.
+          if (props.escalated) {
+            el.style.lineHeight = "1";
+            el.style.padding = "3px";
+            el.style.borderRadius = "999px";
+            el.style.border = "2px solid #F59E0B";
+            el.style.background = "rgba(245,158,11,0.22)";
+            el.style.boxShadow = "0 0 14px 3px rgba(245,158,11,0.75)";
+          } else if (props.stale) {
+            el.style.opacity = "0.4";
+            el.style.fontSize = "15px";
+          }
 
           const title = titleFn(props);
           const description = props.description || props.headline || props.areaDesc || "";
+          const link = props.trigger?.link || "";
 
           el.addEventListener("click", (e) => {
             e.stopPropagation();
-            setSelectedAlert({ title, description });
+            setSelectedAlert({ title, description, link });
           });
 
           const marker = new mapboxgl.Marker({ element: el })
@@ -941,13 +954,29 @@ export default function MapView({
 
       markFeedOk("live");
 
-      const feats = data?.features || [];
+      // Put the reason up front in the side panel: the headline that escalated a chokepoint, or why an incident is faded.
+      const feats = (data?.features || []).map((f) => {
+        const p = f?.properties || {};
+        if (p.escalated && p.trigger) {
+          const when = p.trigger.pubDate ? new Date(p.trigger.pubDate) : null;
+          const ago = when && !isNaN(when) ? `${Math.max(1, Math.round((Date.now() - when) / 36e5))}h ago` : "";
+          const head = `Escalated by news${ago ? ` (${ago})` : ""}:\n"${p.trigger.title}"\n${p.trigger.source || ""}`;
+          return { ...f, properties: { ...p, description: `${head}\n\n${p.description || ""}` } };
+        }
+        if (p.stale) {
+          return { ...f, properties: { ...p, description: `Over 14 days old, no longer an active alert.\n\n${p.description || ""}` } };
+        }
+        return f;
+      });
       renderPointMarkersFromGeoJSON(
         map,
         feats,
         liveMarkersRef,
         (p) => getEmojiForLiveIncident(p),
-        (p) => `Incident • ${String(p.type || "event").toUpperCase()}`
+        (p) => {
+          if (p.type === "chokepoint") return `${p.escalated ? "ESCALATED • " : "Chokepoint • "}${p.name || ""}`;
+          return `Incident • ${p.name || String(p.type || "event").toUpperCase()}${p.stale ? " (inactive)" : ""}`;
+        }
       );
     } catch (e) {
       console.error("❌ Live incident fetch failed", e);
@@ -1687,6 +1716,8 @@ export default function MapView({
             ))}
             {layerVisibility.lanes && (lanes || []).length > 0 && <div className="mt-1.5" style={{ color: "#94A3B8" }}>Lines: lanes, red = problem</div>}
             {layerVisibility.nearOnly && <div style={{ color: "#94A3B8" }}>Hazards: near your sites only</div>}
+            {layerVisibility.live && <div style={{ color: "#94A3B8" }}>⚓ in orange ring: escalated by news</div>}
+            {layerVisibility.live && <div style={{ color: "#94A3B8" }}>Faded: over 14 days old</div>}
           </div>
         )}
 
@@ -1715,6 +1746,17 @@ export default function MapView({
             <p className="text-xs leading-relaxed" style={{ color: "#C7D0D9", whiteSpace: "pre-wrap" }}>
               {selectedAlert.description}
             </p>
+            {selectedAlert.link && (
+              <a
+                href={selectedAlert.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-3 text-xs font-semibold"
+                style={{ color: "#F59E0B" }}
+              >
+                Read the article ↗
+              </a>
+            )}
           </div>
         )}
       </div>
