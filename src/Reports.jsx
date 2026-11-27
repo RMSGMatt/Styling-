@@ -1,6 +1,26 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getApiBase } from "./config/apiBase";
 
+// Runs that /api/run-kpis has answered 404 for, kept for a week (same idea as the repository chips in ControlTower).
+const KPI_MISS_KEY = "forc_run_kpis_miss_v1";
+const KPI_MISS_MS = 7 * 864e5;
+function kpiMissKnown(id) {
+  try {
+    const t = (JSON.parse(localStorage.getItem(KPI_MISS_KEY) || "{}") || {})[id];
+    return typeof t === "number" && Date.now() - t < KPI_MISS_MS;
+  } catch { return false; }
+}
+function kpiMissRemember(id) {
+  try {
+    const now = Date.now();
+    const all = JSON.parse(localStorage.getItem(KPI_MISS_KEY) || "{}") || {};
+    const kept = Object.fromEntries(Object.entries(all).filter(([, t]) => typeof t === "number" && now - t < KPI_MISS_MS));
+    kept[id] = now;
+    localStorage.setItem(KPI_MISS_KEY, JSON.stringify(kept));
+  } catch { /* fine without it */ }
+}
+
+
 // Stored run timestamps without a time zone ("2026-11-10 02:28:50") are UTC.
 function parseWhen(value) {
   if (!value) return null;
@@ -408,6 +428,9 @@ export default function Reports(props) {
   useEffect(() => {
     setLive(null);
     if (!selectedRunId) return undefined;
+    // A run whose files are gone from the server answers 404 every time; remember that for a week instead of
+    // asking on every page load. The report still renders from the stored run.
+    if (kpiMissKnown(selectedRunId)) return undefined;
     let cancelled = false;
     (async () => {
       try {
@@ -415,6 +438,10 @@ export default function Reports(props) {
         const res = await fetch(`${apiBase}/api/run-kpis/${encodeURIComponent(selectedRunId)}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+        if (res.status === 404) {
+          kpiMissRemember(selectedRunId);
+          return;
+        }
         const body = await res.json().catch(() => ({}));
         if (!cancelled && res.ok && body?.scorecard?.ok) {
           setLive({ kpis: body.kpis || {}, scorecard: body.scorecard });
