@@ -1932,6 +1932,24 @@ export default function ControlTower({
                         <div>
                           <h2 className="text-xl font-semibold" style={{ color: "#9FD63A" }}>Network health<SourceChip snapshot={snapshot} /></h2>
                           <div className="text-sm" style={{ color: "#64748B" }}>Last {snapshot.window_days} days to {snapshot.as_of}, compared with the {snapshot.window_days} days before.</div>
+                          {Array.isArray(snapshot.usage_checks) && snapshot.usage_checks.length > 0 && (() => {
+                            const c = snapshot.usage_checks;
+                            const nm = (x) => String(x || "").replace(/_/g, " ");
+                            const top = c[0];
+                            return (
+                              <details className="mt-1 text-xs" style={{ color: "#FCD34D" }}>
+                                <summary className="cursor-pointer">
+                                  Data check: daily usage in your inventory file differs from your orders and bill of materials for {c.length} part{c.length === 1 ? "" : "s"} (largest: {nm(top.sku)} at {nm(top.facility)}, file {Math.round(top.usage_file).toLocaleString("en-US")} a day, orders {Math.round(top.usage_orders).toLocaleString("en-US")}). Cover uses the order-based figure.
+                                </summary>
+                                <ul className="mt-1 ml-4 list-disc" style={{ color: "#CBD5E1" }}>
+                                  {c.slice(0, 12).map((x) => (
+                                    <li key={`${x.facility}-${x.sku}`}>{nm(x.sku)} at {nm(x.facility)}: file {Math.round(x.usage_file).toLocaleString("en-US")} a day, orders {Math.round(x.usage_orders).toLocaleString("en-US")}</li>
+                                  ))}
+                                  {c.length > 12 && <li>and {c.length - 12} more</li>}
+                                </ul>
+                              </details>
+                            );
+                          })()}
                         </div>
                         <div className="flex gap-3 text-sm items-center">
                           <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "rgba(148,163,184,0.25)" }}>
