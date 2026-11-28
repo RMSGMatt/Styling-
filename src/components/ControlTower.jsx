@@ -345,6 +345,44 @@ function kpiSeverityColor(kpis, idPrefix) {
 // ─────────────────────────────────────────────────────────────────────────────
 const SEVERITY_ORDER = { escalate: 0, act: 1, watch: 2 };
 
+const ATTENTION_GROUPS = [
+  { id: "delivery", label: "Delivery to customers", keys: ["service_level", "otif", "backorder_units", "line_fill"],
+    action: "Find the late and short lines by customer, clear the oldest past-due lines first, and reset commitments where needed." },
+  { id: "suppliers", label: "Supplier performance", keys: ["supplier_on_time", "supplier_on_time_request", "supplier_lead_time", "overdue_pos", "premium_freight"],
+    action: "Chase the overdue orders, escalate with the late suppliers and confirm recovery dates." },
+  { id: "inventory", label: "Inventory cover", keys: ["min_days_of_supply", "days_of_supply", "below_safety"],
+    action: "Place or expedite orders for the lowest-cover parts first." },
+];
+
+// Health-tile alerts (ids kpi:snap-<key>) grouped by ATTENTION_GROUPS; anything else passes through unchanged.
+function groupAttention(kpiItems, safetyItems, onOpenSafetyStock) {
+  const keyOf = (it) => (it.id.startsWith("kpi:snap-") ? it.id.slice("kpi:snap-".length) : null);
+  const worst = (list) => list.reduce((w, it) => (SEVERITY_ORDER[it.severity] < SEVERITY_ORDER[w] ? it.severity : w), "watch");
+  const out = [];
+  const used = new Set();
+  for (const g of ATTENTION_GROUPS) {
+    const members = kpiItems.filter((it) => g.keys.includes(keyOf(it)));
+    const parts = g.id === "inventory" ? safetyItems : [];
+    if (!members.length && !parts.length) continue;
+    members.forEach((m) => used.add(m.id));
+    const measures = members.map((m) => m.title).join(" · ");
+    const partText = parts.length
+      ? ` Below their safety-stock floor: ${parts.slice(0, 4).map((p) => p.title.replace(/_/g, " ")).join(", ")}${parts.length > 4 ? ` and ${parts.length - 4} more` : ""}.`
+      : "";
+    const n = members.length + (parts.length && !members.some((m) => keyOf(m) === "below_safety") ? 1 : 0);
+    out.push({
+      id: `grp:${g.id}`,
+      severity: worst([...members, ...parts]),
+      title: `${g.label}: ${n} measure${n === 1 ? "" : "s"} need${n === 1 ? "s" : ""} attention`,
+      detail: `${measures}${measures ? "." : ""}${partText} ${g.action}`.trim(),
+      sourceTag: "Business KPI",
+      sourceMock: false,
+      onReview: parts.length && onOpenSafetyStock ? () => onOpenSafetyStock() : null,
+    });
+  }
+  return [...out, ...kpiItems.filter((it) => !used.has(it.id)), ...(out.some((o) => o.id === "grp:inventory") ? [] : safetyItems)];
+}
+
 function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, narrativeLoading, onOpenRiskIntelligence, onOpenSafetyStock, commodityKeys, simulationHistory, onReloadRun, onRefreshHistory }) {
   const [dismissed, setDismissed] = useState([]);
   const [expanded, setExpanded] = useState(false);
@@ -405,7 +443,9 @@ function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, 
     onReview: () => onOpenSafetyStock && onOpenSafetyStock(),
   }));
 
-  const items = [...kpiItems, ...riskItems, ...safetyStockItems]
+  // One item per problem, not per measure: the health tiles already show each number, so related measures
+  // are grouped, and the per-part safety-stock alerts fold into the inventory group with their parts listed.
+  const items = [...groupAttention(kpiItems, safetyStockItems, onOpenSafetyStock), ...riskItems]
     .filter((item) => !dismissed.includes(item.id))
     .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 
