@@ -354,6 +354,14 @@ const ATTENTION_GROUPS = [
     action: "Place or expedite orders for the lowest-cover parts first." },
 ];
 
+// "MCU at KY (3.0 days)": part first, the plant's short name, and days on hand.
+function partLabel(p) {
+  const nm = (x) => String(x || "").replace(/_/g, " ").trim();
+  const site = nm(p.facility).replace(/^TIER\s*1\s+PLANT\s+/i, "").replace(/^PLANT\s+/i, "");
+  const doh = typeof p.current_doh === "number" ? ` (${p.current_doh.toFixed(1)} days)` : "";
+  return p.sku ? `${nm(p.sku)} at ${site}${doh}` : nm(p.title);
+}
+
 // Health-tile alerts (ids kpi:snap-<key>) grouped by ATTENTION_GROUPS; anything else passes through unchanged.
 function groupAttention(kpiItems, safetyItems, onOpenSafetyStock) {
   const keyOf = (it) => (it.id.startsWith("kpi:snap-") ? it.id.slice("kpi:snap-".length) : null);
@@ -367,7 +375,7 @@ function groupAttention(kpiItems, safetyItems, onOpenSafetyStock) {
     members.forEach((m) => used.add(m.id));
     const measures = members.map((m) => m.title).join(" · ");
     const partText = parts.length
-      ? ` Below their safety-stock floor: ${parts.slice(0, 4).map((p) => p.title.replace(/_/g, " ")).join(", ")}${parts.length > 4 ? ` and ${parts.length - 4} more` : ""}.`
+      ? ` Below their safety-stock floor: ${parts.slice(0, 4).map(partLabel).join(", ")}${parts.length > 4 ? ` and ${parts.length - 4} more` : ""}.`
       : "";
     const n = members.length + (parts.length && !members.some((m) => keyOf(m) === "below_safety") ? 1 : 0);
     out.push({
@@ -413,7 +421,7 @@ function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, 
       if (!config) return null;
       return {
         id: `risk:${t.commodity}:${t.scenario}`,
-        severity: t.status === "triggered" ? "act" : "watch",
+        severity: t.status === "triggered" && !config.structural ? "act" : "watch",   // a structural risk is never ACT
         title: `${config.icon} ${config.label}`,
         detail: config.description,
         sourceTag: "Risk Signal",
@@ -433,6 +441,9 @@ function UnifiedAttentionPanel({ kpis, alertsOverride, hasKpiData, ctNarrative, 
   // freshness/method without implying it's fabricated.
   const safetyStockItems = safetyStockAlerts.map((a) => ({
     id: a.id,
+    facility: a.facility,
+    sku: a.sku,
+    current_doh: a.current_doh,
     severity: a.severity,
     title: `${a.facility} · ${a.sku}`,
     detail: a.belowFloor

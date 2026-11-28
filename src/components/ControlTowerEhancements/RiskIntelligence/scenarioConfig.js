@@ -49,6 +49,8 @@ export const SCENARIO_CONFIG = {
     label:       "Taiwan Strait supply disruption",
     description: "Elevated baseline tension with #1 Beijing risk classification for 2026. Not a current active event but structural risk warrants scenario readiness. Simulate TSMC / Taiwan fab disruption.",
     icon:        "🌊",
+    // Structural: a standing risk, not an active event. Control Tower lists it as watch even when its trigger fires.
+    structural:  true,
     defaultParams: {
       lead_time_multiplier:  4.0,
       affected_components:   ["TSMC-sourced chips", "Taiwan fab output", "Advanced packaging"],
